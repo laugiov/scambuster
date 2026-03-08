@@ -1,0 +1,83 @@
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Application - Campaign Services
+    App\Application\Campaign\PromptBuilder: ~
+
+    App\Application\Campaign\DSLTranspiler:
+        arguments:
+            $logger: '@monolog.logger.campaign'
+
+    App\Application\Campaign\CampaignHunter:
+        arguments:
+            $logger: '@monolog.logger.campaign'
+
+    App\Application\Campaign\CampaignProfiler:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $promptBuilder: '@App\Application\Campaign\PromptBuilder'
+            $cache: '@cache.app'
+            $logger: '@monolog.logger.campaign'
+
+    App\Application\Campaign\RuleCompiler:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $promptBuilder: '@App\Application\Campaign\PromptBuilder'
+            $logger: '@monolog.logger.campaign'
+
+    # Application - Campaign Handlers
+    App\Application\Campaign\ProfileCampaignHandler:
+        public: true
+        arguments:
+            $logger: '@monolog.logger.campaign'
+
+    App\Application\Campaign\CompileRulesHandler:
+        public: true
+        arguments:
+            $logger: '@monolog.logger.campaign'
+
+    App\Application\Campaign\GetCampaignMessagesHandler:
+        public: true
+        arguments:
+            $logger: '@monolog.logger.campaign'
+
+    App\Application\Campaign\StoreRuleHandler:
+        public: true
+        arguments:
+            $logger: '@monolog.logger.campaign'
+
+    # UI - Campaign Controllers
+    App\UI\Http\Campaign\ProfileCampaignController:
+        public: true
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Campaign\CompileCampaignRulesController:
+        public: true
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Campaign\GetCampaignMessagesController:
+        public: true
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Campaign\TranspileRuleController:
+        public: true
+        autowire: true
+        autoconfigure: true
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Campaign\HuntCampaignsController:
+        public: true
+        autowire: true
+        autoconfigure: true
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Campaign\StoreRuleController:
+        public: true
+        autowire: true
+        autoconfigure: true
+        tags: ['controller.service_arguments']
+
+monolog:
+    channels: ['campaign']

@@ -1,0 +1,105 @@
+parameters:
+    # LLM Provider configuration
+    llm.provider: '%env(LLM_PROVIDER)%'
+    llm.model: '%env(LLM_MODEL)%'
+    llm.api_url: '%env(LLM_API_URL)%'
+    llm.api_key: '%env(LLM_API_KEY)%'
+
+    # Validation settings
+    llm.validation_enabled: '%env(bool:LLM_VALIDATION_ENABLED)%'
+    reply.min_words: '%env(int:REPLY_MIN_WORDS)%'
+    reply.max_words: '%env(int:REPLY_MAX_WORDS)%'
+    reply.max_links: '%env(int:REPLY_MAX_LINKS)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    # Infrastructure - LLM Providers
+    App\Infrastructure\LLM\Provider\OpenAIClient:
+        arguments:
+            $httpClient: '@http_client'
+            $logger: '@monolog.logger.llm'
+            $apiUrl: '%llm.api_url%'
+            $apiKey: '%llm.api_key%'
+            $model: '%llm.model%'
+
+    # Bind interface to concrete implementation
+    App\Application\LLM\Port\LLMClientInterface: '@App\Infrastructure\LLM\Provider\OpenAIClient'
+
+    # Application - ContextAnalyzer (analyses conversation state slots)
+    App\Application\LLM\ContextAnalyzer: ~
+
+    # Application - IOCLikelihoodScorer (scores IOC extraction likelihood)
+    App\Application\LLM\IOCLikelihoodScorer: ~
+
+    # Application - VariationProvider (prevents repetitive patterns - basic fallback)
+    App\Application\LLM\VariationProvider: ~
+
+    # Application - ConversationAnalyzer (intelligent LLM-based anti-repetition analysis)
+    App\Application\LLM\ConversationAnalyzer:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $logger: '@monolog.logger.llm'
+
+    # Application - ReciprocityManager (manages give/take balance)
+    App\Application\LLM\ReciprocityManager: ~
+
+    # Application - PromptBuilder
+    App\Application\LLM\PromptBuilder:
+        arguments:
+            $contextAnalyzer: '@App\Application\LLM\ContextAnalyzer'
+            $variationProvider: '@App\Application\LLM\VariationProvider'
+            $reciprocityManager: '@App\Application\LLM\ReciprocityManager'
+            $personaManager: '@App\Application\Communication\PersonaManager'
+            $logger: '@monolog.logger.llm'
+            $conversationAnalyzer: '@App\Application\LLM\ConversationAnalyzer'
+
+    # Application - PolicyGuard
+    App\Application\LLM\PolicyGuard:
+        arguments:
+            $logger: '@monolog.logger.llm'
+            $minWords: '%reply.min_words%'
+            $maxWords: '%reply.max_words%'
+            $maxLinks: '%reply.max_links%'
+
+    # Application - ReplyValidator
+    App\Application\LLM\ReplyValidator:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $promptBuilder: '@App\Application\LLM\PromptBuilder'
+            $logger: '@monolog.logger.llm'
+
+    # Application - ReplyOrchestrator
+    App\Application\LLM\ReplyOrchestrator:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $promptBuilder: '@App\Application\LLM\PromptBuilder'
+            $policyGuard: '@App\Application\LLM\PolicyGuard'
+            $replyValidator: '@App\Application\LLM\ReplyValidator'
+            $iocScorer: '@App\Application\LLM\IOCLikelihoodScorer'
+            $logger: '@monolog.logger.llm'
+            $iocThreshold: 60
+
+    # Application - JsonValidator (validates LLM JSON responses)
+    App\Application\LLM\JsonValidator:
+        autowire: true
+        autoconfigure: true
+
+    # Application - ScamClassifier (classifies scams with LLM)
+    App\Application\LLM\ScamClassifier:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $scamTypeManager: '@App\Application\Communication\ScamTypeManager'
+            $jsonValidator: '@App\Application\LLM\JsonValidator'
+            $logger: '@monolog.logger.llm'
+
+    # Application - IocExtractor (extracts IOCs from messages with LLM)
+    App\Application\Communication\IocExtractor:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $logger: '@monolog.logger.llm'
+
+monolog:
+    channels: ['llm']

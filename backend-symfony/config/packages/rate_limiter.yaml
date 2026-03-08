@@ -1,0 +1,22 @@
+# config/packages/rate_limiter.yaml
+framework:
+  rate_limiter:
+    # -----------------------------------------------------------
+    # Limiter used in AuthController to protect the route
+    # POST /api/v1/auth/login
+    # -----------------------------------------------------------
+    login_ip:
+      policy: 'sliding_window'   # or 'fixed_window', at choice
+      limit: 5                   # 5 attempts…
+      interval: '1 minute'       # …per minute, per IP
+      # A dedicated cache is not required: we use the default one
+      # cache_pool: cache.app
+
+    # -----------------------------------------------------------
+    # Example of a global API limiter (optional, but present
+    # car certains tests / services l'invoquent via api_global.limiter)
+    # -----------------------------------------------------------
+    api_global:
+      policy: 'token_bucket'
+      limit: 100                 # bucket capacity
+      rate: { interval: '1 minute', amount: 100 }  # refill

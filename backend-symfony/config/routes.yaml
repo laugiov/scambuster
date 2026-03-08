@@ -1,0 +1,7 @@
+controllers:
+    resource: '../src/Controller/'
+    type: attribute
+
+ui_http:
+    resource: '../src/UI/Http/'
+    type: attribute

@@ -1,0 +1,13 @@
+lexik_jwt_authentication:
+    # HS256 only, with shared HMAC secret
+    secret_key: '%env(resolve:JWT_SECRET)%'
+    encoder:
+        signature_algorithm: HS256
+    token_ttl: 3600
+
+    token_extractors:
+        authorization_header:
+            enabled: true
+            prefix: Bearer
+        query_parameter:    { enabled: false }
+        cookie:             { enabled: false }

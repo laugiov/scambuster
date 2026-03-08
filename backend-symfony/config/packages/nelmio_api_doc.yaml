@@ -1,0 +1,28 @@
+nelmio_api_doc:
+    documentation:
+        info:
+            title: "ScamBuster Public API"
+            description: |
+                API RESTful exposée aux intégrateurs externes.
+                Toutes les réponses sont en JSON UTF-8.
+            version: "v1"
+        servers:
+            - url: "%env(resolve:APP_API_BASE_URL)%"
+              description: "Endpoint principal (prod)"
+        components:
+            securitySchemes:
+                Bearer:
+                    type: http
+                    scheme: bearer
+                ApiKeyAuth:
+                    type: apiKey
+                    in: header
+                    name: X-API-Key
+        security:
+            - Bearer: []
+    areas:
+        default:
+            path_patterns:
+                - '^/api(?!/internal)'
+    models:
+        use_jms: false

@@ -1,0 +1,3 @@
+services:
+    App\Application\Auth\AuthServiceInterface: '@App\Application\Auth\AuthService'
+    App\Application\Auth\AuthService: ~
