@@ -1,0 +1,257 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Campaign;
+
+use Psr\Log\LoggerInterface;
+
+final class DSLTranspiler
+{
+    public function __construct(
+        private readonly LoggerInterface $logger
+    ) {
+    }
+
+    /**
+     * Transpile DSL MailGuard vers SQL PostgreSQL avec prepared statements.
+     *
+     * @throws \RuntimeException si parsing échoue
+     *
+     * @return array{sql: string, params: array<string, mixed>, tests: array<string>}
+     */
+    public function transpile(string $dsl): array
+    {
+        $this->logger->info('Transpiling DSL to SQL', [
+            'dsl_length' => mb_strlen($dsl),
+        ]);
+
+        // 1. Parse DSL
+        $parsed = $this->parseDSL($dsl);
+
+        // 2. Generate SQL avec params
+        $compiled = $this->generateSQL($parsed);
+
+        $this->logger->info('DSL transpiled successfully', [
+            'sql_length' => mb_strlen($compiled['sql']),
+            'params_count' => count($compiled['params']),
+            'predicates_count' => count($parsed['predicates']),
+        ]);
+
+        return [
+            'sql' => $compiled['sql'],
+            'params' => $compiled['params'],
+            'tests' => [], // TODO pour MVP
+        ];
+    }
+
+    /**
+     * Parse DSL en AST simplifié.
+     *
+     * @return array{predicates: array<array>}
+     */
+    private function parseDSL(string $dsl): array
+    {
+        // Extraire WHERE clause
+        if (!preg_match('/WHERE\s+(.+?)\s+ACTION/s', $dsl, $whereMatch)) {
+            throw new \RuntimeException('DSL parsing failed: WHERE clause not found');
+        }
+
+        $whereClause = $whereMatch[1];
+
+        // Split par AND (MVP : pas de support OR/NOT)
+        $split = preg_split('/\s+AND\s+/i', $whereClause);
+
+        if ($split === false) {
+            throw new \RuntimeException('Failed to split WHERE clause');
+        }
+        $predicates = array_filter(array_map('trim', $split));
+
+        $parsed = ['predicates' => []];
+
+        foreach ($predicates as $predicate) {
+            $parsed['predicates'][] = $this->parsePredicate($predicate);
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * Parse un prédicat individuel.
+     *
+     * @return array{type: string, field?: string, value?: mixed, operator?: string}
+     */
+    private function parsePredicate(string $predicate): array
+    {
+        // subject.simhash≈"avis important" ±15%
+        if (preg_match('/subject\.simhash≈"([^"]+)"\s*±(\d+)%/', $predicate, $m)) {
+            return [
+                'type' => 'simhash',
+                'field' => 'subject',
+                'value' => $m[1],
+                'tolerance' => (int) $m[2],
+            ];
+        }
+
+        // subject.containsAny [...] OR body.containsAny [...]
+        if (preg_match('/(subject|body)\.containsAny\s*\[([^\]]+)\]/', $predicate, $m)) {
+            $field = $m[1];
+            $terms = array_map(
+                fn ($t) => trim($t, '"\''),
+                array_map('trim', explode(',', $m[2]))
+            );
+
+            return [
+                'type' => 'containsAny',
+                'field' => $field,
+                'values' => $terms,
+            ];
+        }
+
+        // url.domain.age < 14d
+        if (preg_match('/url\.domain\.age\s*(<|>|<=|>=)\s*(\d+)d/', $predicate, $m)) {
+            return [
+                'type' => 'domain_age',
+                'operator' => $m[1],
+                'value' => (int) $m[2],
+            ];
+        }
+
+        // sender.display_name.fuzzy ∈ {...}
+        if (preg_match('/sender\.display_name\.fuzzy\s*∈\s*\{([^}]+)\}/', $predicate, $m)) {
+            $names = array_map(
+                fn ($n) => trim($n, '"\''),
+                array_map('trim', explode(',', $m[1]))
+            );
+
+            return [
+                'type' => 'sender_fuzzy',
+                'values' => $names,
+            ];
+        }
+
+        // dkim.pass ∈ {false, null}
+        if (preg_match('/dkim\.pass\s*∈\s*\{([^}]+)\}/', $predicate, $m)) {
+            return [
+                'type' => 'dkim',
+                'values' => array_map('trim', explode(',', $m[1])),
+            ];
+        }
+
+        // spf.pass ∈ {false, null}
+        if (preg_match('/spf\.pass\s*∈\s*\{([^}]+)\}/', $predicate, $m)) {
+            return [
+                'type' => 'spf',
+                'values' => array_map('trim', explode(',', $m[1])),
+            ];
+        }
+
+        throw new \RuntimeException('Unsupported predicate: ' . $predicate);
+    }
+
+    /**
+     * Génère SQL depuis AST avec parameterized queries.
+     *
+     * @return array{sql: string, params: array<string, mixed>}
+     */
+    private function generateSQL(array $parsed): array
+    {
+        $sqlClauses = [];
+        $params = [];
+        $paramIndex = 0;
+
+        foreach ($parsed['predicates'] as $pred) {
+            $clause = $this->generateSQLForPredicate($pred, $params, $paramIndex);
+            $sqlClauses[] = $clause;
+        }
+
+        if (empty($sqlClauses)) {
+            throw new \RuntimeException('No SQL clauses generated');
+        }
+
+        $sql = sprintf(
+            'SELECT msg_id, subject, body_text, ts_msg FROM message WHERE %s ORDER BY ts_msg DESC LIMIT 100',
+            implode(' AND ', $sqlClauses)
+        );
+
+        return [
+            'sql' => $sql,
+            'params' => $params,
+        ];
+    }
+
+    /**
+     * Génère SQL pour un prédicat avec params.
+     *
+     * @param array{type: string, ...} $pred
+     * @param array<string, mixed>     $params Référence modifiée
+     * @param int                      $index  Référence modifiée
+     */
+    private function generateSQLForPredicate(array $pred, array &$params, int &$index): string
+    {
+        return match ($pred['type']) {
+            'simhash' => $this->generateSimhashSQL($pred, $params, $index),
+            'containsAny' => $this->generateContainsAnySQL($pred, $params, $index),
+            'domain_age' => $this->generateDomainAgeSQL($pred, $params, $index),
+            'sender_fuzzy' => $this->generateSenderFuzzySQL($pred, $params, $index),
+            'dkim' => "(headers->'auth'->>'dkim')::bool IS NOT TRUE",
+            'spf' => "(headers->'auth'->>'spf')::bool IS NOT TRUE",
+            default => throw new \RuntimeException('Unknown predicate type: ' . $pred['type']),
+        };
+    }
+
+    private function generateSimhashSQL(array $pred, array &$params, int &$index): string
+    {
+        $paramKey = 'p' . $index++;
+        $params[$paramKey] = $pred['value'];
+
+        $threshold = 1.0 - ($pred['tolerance'] / 100.0);
+
+        return sprintf('similarity(subject, :%s) >= %f', $paramKey, $threshold);
+    }
+
+    private function generateContainsAnySQL(array $pred, array &$params, int &$index): string
+    {
+        $patterns = [];
+
+        foreach ($pred['values'] as $value) {
+            $paramKey = 'p' . $index++;
+            $params[$paramKey] = '%' . $value . '%';
+            $patterns[] = ':' . $paramKey;
+        }
+
+        // Determine SQL column based on field (subject or body)
+        $column = match($pred['field']) {
+            'subject' => 'subject',
+            'body' => 'body_text',
+            default => throw new \RuntimeException('Unsupported field for containsAny: ' . $pred['field'])
+        };
+
+        return sprintf('%s ILIKE ANY(ARRAY[%s])', $column, implode(',', $patterns));
+    }
+
+    private function generateDomainAgeSQL(array $pred, array &$params, int &$index): string
+    {
+        $paramKey = 'p' . $index++;
+        $params[$paramKey] = $pred['value'];
+
+        return sprintf(
+            "(headers->'url_meta'->>'age_days')::int %s :%s",
+            $pred['operator'],
+            $paramKey
+        );
+    }
+
+    private function generateSenderFuzzySQL(array $pred, array &$params, int &$index): string
+    {
+        $conditions = [];
+
+        foreach ($pred['values'] as $name) {
+            $paramKey = 'p' . $index++;
+            $params[$paramKey] = $name;
+            $conditions[] = sprintf("similarity(headers->>'from_display', :%s) >= 0.7", $paramKey);
+        }
+
+        return '(' . implode(' OR ', $conditions) . ')';
+    }
+}

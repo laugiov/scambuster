@@ -1,0 +1,49 @@
+security:
+    password_hashers:
+        App\Domain\User\User:
+            algorithm: auto
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Domain\User\User
+                property: email
+        test_users:
+            memory:
+                users:
+                    test-user:
+                        password: foo
+                        roles: ['ROLE_USER']
+                    test-admin:
+                        password: foo
+                        roles: ['ROLE_ADMIN', 'ROLE_USER']
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        api_auth:
+            pattern: ^/api/v1/auth
+            stateless: true
+            security: false
+
+        api:
+            pattern: ^/api/v1
+            stateless: true
+            provider: app_user_provider
+            jwt: ~
+            access_denied_handler: App\Security\CustomAccessDeniedHandler
+
+        main:
+            pattern: ^/
+            stateless: true
+            provider: app_user_provider
+
+    access_control:
+        - { path: ^/api/v1/some-protected-endpoint, roles: ROLE_USER }
+        - { path: ^/api/v1, roles: IS_AUTHENTICATED_FULLY }
+        - { path: ^/api/v1/auth, roles: PUBLIC_ACCESS }
+        - { path: ^/logout, roles: PUBLIC_ACCESS }
+        - { path: ^/api/v1/admin, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/admin/endpoint, roles: ROLE_ADMIN }

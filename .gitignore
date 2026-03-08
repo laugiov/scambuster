@@ -1,0 +1,156 @@
+###############################################################################
+#  🔒  Global -----------------------------------------------------------------
+###############################################################################
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.claude/
+*.swp
+*.swo
+
+# Logs & temp
+*.log
+logs/
+tmp/
+*.tmp
+*.bak
+*.orig
+
+# Secrets & env
+.env
+.env.*
+# Keep templates
+!.env.example
+!.env.dist
+# Test environments (no real secrets)
+!.env.test
+!.env.e2e
+
+###############################################################################
+#  🐘  PHP / Symfony ----------------------------------------------------------
+###############################################################################
+# Composer
+/vendor/
+composer.lock.json
+
+# Symfony cache & logs
+backend-symfony/var/cache/
+backend-symfony/var/log/
+backend-symfony/var/test/
+backend-symfony/var/uploads/
+backend-symfony/vendor/
+
+# PHP tools
+.phpunit.result.cache
+.php-cs-fixer.cache
+.psalm/cache/
+coverage.txt
+
+###############################################################################
+#  🐍  Python / FastAPI -------------------------------------------------------
+###############################################################################
+# Byte-code & build
+__pycache__/
+*.py[cod]
+*.pyd
+*.so
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+# PDM / Poetry
+__pypackages__/
+pdm.lock
+poetry.lock
+
+# Test / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.mutation_cache/
+
+###############################################################################
+#  ⚛️  Frontend ----------------------------------------------------------------
+###############################################################################
+node_modules/
+.next/
+dist/
+
+###############################################################################
+#  🐳  Docker & Kubernetes ----------------------------------------------------
+###############################################################################
+docker/volumes/
+**/*.tar
+# Compose override files
+docker-compose.override.yml
+
+# Helm build output
+infra/charts/**/charts/
+infra/charts/**/tmpcharts/
+infra/charts/**/Chart.lock
+
+# K8s Secrets rendered by CI
+infra/secrets/**/rendered-*
+
+###############################################################################
+#  📦  JavaScript / TypeScript ------------------------------------------------
+###############################################################################
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+###############################################################################
+#  🧪  Test Artifacts ---------------------------------------------------------
+###############################################################################
+coverage/
+junit.xml
+perf-tests/out*
+perf-tests/*.csv
+*.sarif
+
+###############################################################################
+#  📄  Documentation ----------------------------------------------------------
+###############################################################################
+# Generated docs / api bundles
+docs/api/**
+!docs/api/*.md        # keep markdown overview
+# ReDoc bundle
+docs/redoc.html
+
+###############################################################################
+#  🔄  Misc -------------------------------------------------------------------
+###############################################################################
+# VS Code launch configs
+*.code-workspace
+
+launch_prompt.md
+tests_prompt.md
+
+# Local DB / caches
+postgres-data/
+redis-data/
+chroma-data/
+
+# n8n data (workflows, credentials, settings)
+data/n8n/
+
+# Ignore SBOM & SBOM cache (generated in CI)
+sbom.cdx.json
+sbom-*.json
+
+###############################################################################
+#  🔧  Local working directory (never versioned) -----------------------------
+###############################################################################
+local/
+
+###############################################################################
+#  ✅  End --------------------------------------------------------------------
+###############################################################################
+

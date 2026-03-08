@@ -1,0 +1,296 @@
+parameters:
+    jwt_secret: '%env(string:JWT_SECRET)%'
+    conversation_history.excluded_emails: '%env(csv:CONVERSATION_HISTORY_EXCLUDED_EMAILS)%'
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\:
+        resource: '../src/UI/Http/'
+        exclude:
+            - '../src/UI/Http/Campaign/'
+        public: true
+        tags: ['controller.service_arguments']
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+            - '../src/Application/LLM/'
+            - '../src/Infrastructure/LLM/'
+
+    App\Security\:
+        resource: '../src/Security'
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Auth\CsrfTokenController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Internal\MailAccountSecretController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Auth\LoginController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Auth\LogoutController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Auth\RefreshController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\EventListener\Auth\JWTNotFoundListener:
+        tags:
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_not_found, method: onJWTNotFound }
+
+    App\EventListener\Auth\AccessDeniedExceptionListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.exception, method: onKernelException }
+
+    Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface:
+        public: true
+        alias: 'security.user_password_hasher'
+
+    App\Security\CustomAccessDeniedHandler: ~
+
+    App\Application\Auth\AuthServiceInterface: '@App\Application\Auth\AuthService'
+    App\Application\Auth\AuthService: ~
+
+    App\Application\Communication\PurgeService:
+        autowire: true
+
+    App\UI\Http\Communication\AttachmentController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\MessageController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\ConversationController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\IngestController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\ReplyController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\IocController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\ScamTypeController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\ExportMispController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\ClusterAssignController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\ProfileCampaignController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\CompileCampaignRulesController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\GetCampaignMessagesController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\TranspileRuleController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\HuntCampaignsController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\StoreRuleController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    login_ip.limiter:
+        alias: 'limiter.login_ip'
+    api_global.limiter:
+        alias: 'limiter.api_global'
+
+    App\EventListener\Communication\UpdateConversationTsLastListener:
+        autowire: true
+        tags:
+            - { name: doctrine.orm.entity_listener, event: postPersist, entity: App\Domain\Communication\Message }
+
+    App\UI\Http\Internal\MailAccountActiveController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    ###> Campaign Radar - Phase 5: Promotion & STIX Export ###
+    App\Application\Campaign\STIXExporter:
+        arguments:
+            $stixExportPath: '%env(STIX_EXPORT_PATH)%'
+        public: true
+
+    App\Application\Campaign\CampaignPromoter:
+        public: true
+
+    # Campaign Controllers
+    App\UI\Http\Campaign\GetPromotionCandidatesController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\PromoteCampaignController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\ExportCampaignSTIXController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+    ###< Campaign Radar - Phase 5: Promotion & STIX Export ###
+
+    ###> Scam Classification Services ###
+    App\Application\Communication\ScamClassificationHandler:
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\PersonaManager:
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\ScamTypeManager:
+        autowire: true
+        autoconfigure: true
+    ###< Scam Classification Services ###
+
+    ###> Conversation History Services ###
+    App\Application\Communication\ConversationHistoryService:
+        arguments:
+            $excludedEmails: '%conversation_history.excluded_emails%'
+        autowire: true
+        autoconfigure: true
+    ###< Conversation History Services ###
+
+    ###> Scambaiting Adaptatif - Infrastructure Layer ###
+    App\Infrastructure\EventListener\ConversationEndedListener:
+        arguments:
+            $statsRepository: '@App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository'
+            $em: '@doctrine.orm.entity_manager'
+            $logger: '@monolog.logger.scambaiting'
+    ###< Scambaiting Adaptatif - Infrastructure Layer ###
+
+    ###> Scambaiting Adaptatif - Application Layer ###
+    App\Application\Scambaiting\PersonaOptimizer:
+        arguments:
+            $statsRepository: '@App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository'
+            $em: '@doctrine.orm.entity_manager'
+            $logger: '@monolog.logger.scambaiting'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Scambaiting\ConversationMetricsCollector:
+        arguments:
+            $logger: '@monolog.logger.scambaiting'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Scambaiting\ConversationClosureService:
+        arguments:
+            $logger: '@monolog.logger.scambaiting'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\ReplyHandler:
+        arguments:
+            $personaOptimizer: '@App\Application\Scambaiting\PersonaOptimizer'
+        autowire: true
+        autoconfigure: true
+    ###< Scambaiting Adaptatif - Application Layer ###
+
+    ###> Preprod Conversation Generator ###
+    App\Infrastructure\LLM\LLMServiceInterface:
+        alias: App\Infrastructure\LLM\OpenAIService
+
+    App\Infrastructure\LLM\OpenAIService:
+        arguments:
+            $httpClient: '@http_client'
+            $apiKey: '%env(LLM_API_KEY)%'
+            $model: '%env(LLM_MODEL)%'
+            $logger: '@logger'
+        autowire: true
+
+    App\Infrastructure\Preprod\IocGenerator:
+        autowire: true
+
+    App\Infrastructure\Preprod\ConversationGenerator:
+        arguments:
+            $em: '@doctrine.orm.entity_manager'
+            $llm: '@App\Infrastructure\LLM\LLMServiceInterface'
+            $iocGenerator: '@App\Infrastructure\Preprod\IocGenerator'
+            $logger: '@logger'
+            $httpClient: '@http_client'
+        autowire: true
+    ###< Preprod Conversation Generator ###

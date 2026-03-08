@@ -1,0 +1,321 @@
+{
+  "name": "WF-REPLY-SEND-v1",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$('00_auth_login').item.json.access_token}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "991a9a66-b7ba-4727-86be-48d25f699af2",
+      "name": "10_fetch_reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -512,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/compose",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$('00_auth_login').item.json.access_token}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "8ef7159e-e99c-4c03-8ce6-331cb7229455",
+      "name": "12_fetch_compose",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -304,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{$('10_fetch_reply').item.json.meta.parent_gmail_msg_id}}",
+        "message": "={{$('10_fetch_reply').item.json.draft.html || $('10_fetch_reply').item.json.draft.text}}",
+        "options": {
+          "appendAttribution": false,
+          "replyToSenderOnly": false
+        }
+      },
+      "id": "a0f0a97e-45b1-4e23-8560-096f6a344f5c",
+      "name": "20_gmail_send",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        0
+      ],
+      "webhookId": "e43cb258-89ec-4dc1-a3e8-a9bfd5257276",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "your-gmail-credential-id",
+          "name": "Gmail account honeypot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{$('20_gmail_send').item.json.id}}",
+        "simple": false,
+        "options": {}
+      },
+      "id": "21_retrieve_message_metadata",
+      "name": "21_retrieve_message_metadata",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        176,
+        0
+      ],
+      "webhookId": "e77fc436-3f31-44e9-aa5b-132c1f5db58f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "your-gmail-credential-id",
+          "name": "Gmail account honeypot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer les headers depuis le nœud précédent\nconst headers = $input.first().json.headers;\n\n// Vérifier que headers existe\nif (!headers) {\n  throw new Error('No headers found in Gmail response');\n}\n\n// Les headers sont un objet, pas un tableau\n// Accéder directement au message-id\nlet messageId = headers['message-id'];\n\nif (!messageId) {\n  throw new Error('Message-ID header not found in Gmail response');\n}\n\n// Nettoyer le Message-ID :\n// 1. Retirer le préfixe \"Message-Id: \" si présent\nmessageId = messageId.replace(/^Message-Id:\\s*/i, '');\n// 2. Retirer les chevrons < > si présents\nmessageId = messageId.replace(/^<|>$/g, '');\n// 3. Trim les espaces\nmessageId = messageId.trim();\n\n// Retourner le Message-ID nettoyé\nreturn {\n  json: {\n    message_id: messageId,\n    thread_id: $input.first().json.threadId,\n    provider_msg_id: $input.first().json.id\n  }\n};"
+      },
+      "id": "22_extract_message_id",
+      "name": "22_extract_message_id",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/sent",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{$('00_auth_login').item.json.access_token}}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ {\n  \"conv_id\": $('Execute Workflow Trigger').item.json.conv_id,\n  \"provider\": \"gmail\",\n  \"provider_msg_id\": $('20_gmail_send').item.json.id,\n  \"ts_sent\": new Date().toISOString(),\n  \"sent_headers\": {\n    \"thread_id\": $('20_gmail_send').item.json.threadId,\n    \"message-id\": $('22_extract_message_id').item.json.message_id\n  }\n} }}",
+        "options": {}
+      },
+      "id": "1ab9f435-b7c5-4311-ae26-00f081c35512",
+      "name": "30_confirm",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "f301ae26-7485-4098-bb7b-191d225c47c0",
+      "name": "40_notify",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"msg_id\": $('Execute Workflow Trigger').item.json.msg_id, \"provider_msg_id\": $('20_gmail_send').item.json.id, \"sent_at\": $('30_confirm').item.json.ts_sent } }}",
+        "options": {}
+      },
+      "id": "43325119-4d14-4569-8360-dafed557c5d8",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend-dev:8080/api/v1/auth/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"email\": $env.INGEST_LOGIN, \"password\": $env.INGEST_PASSWORD } }}",
+        "options": {}
+      },
+      "id": "b7fa4522-6b5e-4958-aa46-f1ce979b0e3f",
+      "name": "00_auth_login",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "cf2c6f70-a1e5-4980-892f-8aaeded76b1a",
+      "name": "Execute Workflow Trigger",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -912,
+        0
+      ],
+      "webhookId": "e247f6e7-3293-4e07-88d6-041abcca56a4"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "10_fetch_reply": {
+      "main": [
+        [
+          {
+            "node": "12_fetch_compose",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "12_fetch_compose": {
+      "main": [
+        [
+          {
+            "node": "20_gmail_send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20_gmail_send": {
+      "main": [
+        [
+          {
+            "node": "21_retrieve_message_metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "21_retrieve_message_metadata": {
+      "main": [
+        [
+          {
+            "node": "22_extract_message_id",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "22_extract_message_id": {
+      "main": [
+        [
+          {
+            "node": "30_confirm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "30_confirm": {
+      "main": [
+        [
+          {
+            "node": "40_notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "40_notify": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "00_auth_login": {
+      "main": [
+        [
+          {
+            "node": "10_fetch_reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Workflow Trigger": {
+      "main": [
+        [
+          {
+            "node": "00_auth_login",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "versionId": "b856c556-a748-49f0-96ed-2fab441ea582",
+  "meta": {
+    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
+  },
+  "id": "5lY7vnyQp8JAv8Da",
+  "tags": []
+}

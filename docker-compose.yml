@@ -1,0 +1,150 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      retries: 5
+    networks:
+      - scambuster
+
+  postgres-preprod:
+    image: postgres:15-alpine
+    container_name: scambuster-postgres-preprod
+    environment:
+      POSTGRES_DB: scambuster_preprod
+      POSTGRES_USER: scambuster
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-preprod-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scambuster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scambuster
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    networks:
+      - scambuster
+
+  backend-dev: &backend-dev
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+    env_file:
+      - ./.env
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+    ports:
+      - "8081:8080"
+    depends_on:
+      - postgres
+      - redis
+    command: ["php", "-S", "0.0.0.0:8080", "-t", "public"]
+    networks:
+      - scambuster
+
+  backend-test:
+    <<: *backend-dev
+    container_name: scambuster-backend-test
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+    env_file:
+      - ./.env
+      - ./.env.test
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+      - ./.env.test:/app/.env.test:ro
+    ports: []
+    networks:
+      - scambuster
+
+  backend-e2e:
+    <<: *backend-dev
+    container_name: scambuster-backend-e2e
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+    env_file:
+      - ./.env
+      - ./.env.e2e
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+      - ./.env.e2e:/app/.env.e2e:ro
+    ports: []
+    networks:
+      - scambuster
+
+  backend-preprod:
+    <<: *backend-dev
+    container_name: scambuster-backend-preprod
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+      - DATABASE_URL=postgresql://scambuster:postgres@postgres-preprod:5432/scambuster_preprod?serverVersion=15&charset=utf8
+    env_file:
+      - ./.env
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+    ports:
+      - "8082:8080"
+    depends_on:
+      - postgres-preprod
+      - redis
+    command: ["php", "-S", "0.0.0.0:8080", "-t", "public"]
+    networks:
+      - scambuster
+
+  vault:
+    image: hashicorp/vault:1.19.4
+    container_name: vault
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    cap_add:
+      - IPC_LOCK
+    command: server -dev -dev-root-token-id=root -dev-listen-address="0.0.0.0:8200"
+    networks:
+      - scambuster
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: scambuster-n8n
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=${N8N_PORT:-5678}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://n8n:5678}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-Europe/Paris}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+    ports:
+      - "${N8N_HTTP_PORT:-5678}:${N8N_PORT:-5678}"
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+    networks:
+      - scambuster
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  postgres-preprod-data:
+
+networks:
+  scambuster:
+    driver: bridge

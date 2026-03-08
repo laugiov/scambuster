@@ -1,0 +1,73 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Campaign;
+
+use App\Infrastructure\Campaign\Doctrine\CampaignRepository;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
+
+/**
+ * Handler pour récupérer les messages d'une campagne.
+ *
+ * Retourne un échantillon de messages pour inspection/analyse.
+ */
+final class GetCampaignMessagesHandler
+{
+    public function __construct(
+        private readonly CampaignRepository $campaignRepository,
+        private readonly LoggerInterface $logger
+    ) {
+    }
+
+    /**
+     * Récupère les messages d'une campagne.
+     *
+     * @param Uuid $campaignId ID de la campagne
+     * @param int  $limit      Nombre max de messages (1-100)
+     *
+     * @throws \RuntimeException Si la campagne n'existe pas
+     *
+     * @return array{campaign_id: string, messages_count: int, messages: array<array{msg_id: string, subject: string, from: string|null, received_at: string|null, body_preview: string}>}
+     */
+    public function handle(Uuid $campaignId, int $limit): array
+    {
+        $this->logger->info('Fetching campaign messages', [
+            'campaign_id' => $campaignId->toRfc4122(),
+            'limit' => $limit,
+        ]);
+
+        // 1. Vérifier que la campagne existe
+        $campaign = $this->campaignRepository->findById($campaignId);
+
+        if ($campaign === null) {
+            throw new \RuntimeException("Campaign not found: {$campaignId->toRfc4122()}");
+        }
+
+        // 2. Récupérer les messages
+        $messages = $this->campaignRepository->findMessagesByCampaign($campaignId, $limit);
+
+        // 3. Mapper vers DTOs
+        $messagesData = array_map(function ($message) {
+            return [
+                'msg_id' => $message->getMsgId(),
+                'subject' => $message->getSubject(),
+                'from' => $message->getHeaders()['from'] ?? null,
+                'received_at' => $message->getTsMsg()->format(\DateTimeInterface::ATOM),
+                'body_preview' => mb_substr($message->getBodyText() ?? '', 0, 200),
+            ];
+        }, $messages);
+
+        $this->logger->info('Campaign messages fetched successfully', [
+            'campaign_id' => $campaignId->toRfc4122(),
+            'messages_count' => count($messagesData),
+        ]);
+
+        return [
+            'campaign_id' => $campaignId->toRfc4122(),
+            'messages_count' => count($messagesData),
+            'messages' => $messagesData,
+        ];
+    }
+}

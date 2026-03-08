@@ -1,0 +1,35 @@
+services:
+    App\Security\TestCsrfTokenManager:
+        class: App\Security\TestCsrfTokenManager
+        public: true
+
+    security.csrf.token_manager:
+        alias: App\Security\TestCsrfTokenManager
+        public: true
+
+    App\Security\TestTokenAuthenticator:
+        autowire: true
+        autoconfigure: true
+        public: true
+
+    App\Application\Auth\AuthServiceInterface: '@App\Application\Auth\FakeAuthService'
+
+    App\Application\Auth\FakeAuthService:
+        public: true
+
+    test.symfony.http_client:
+        alias: Symfony\Contracts\HttpClient\HttpClientInterface
+        public: true
+
+    # Campaign Handlers for Integration Tests
+    App\Application\Campaign\ProfileCampaignHandler:
+        public: true
+        autowire: true
+
+    App\Application\Campaign\GetCampaignMessagesHandler:
+        public: true
+        autowire: true
+
+    App\Application\Campaign\CampaignHunter:
+        public: true
+        autowire: true

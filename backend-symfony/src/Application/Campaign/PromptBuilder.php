@@ -1,0 +1,238 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Campaign;
+
+use App\Domain\Communication\Message;
+
+final class PromptBuilder
+{
+    /**
+     * Construit les prompts pour le profiling de campagne.
+     *
+     * @param array<Message> $sampleMessages Messages de la campagne (3-10 max)
+     *
+     * @return array{system: string, user: string}
+     */
+    public function buildCampaignProfilerPrompts(array $sampleMessages): array
+    {
+        $systemPrompt = <<<'PROMPT'
+Tu es un analyste de Threat Intelligence spécialisé dans les campagnes de phishing/scam.
+
+À partir d'un échantillon d'e-mails suspects, tu dois :
+
+1. **Décrire** la campagne (tactiques, cibles, CTA, indices techniques)
+2. **Prédire** les variantes probables (nouveaux sujets, display names, formes d'URL)
+
+⚠️ CONTRAINTES STRICTES :
+- Sortie **YAML strict uniquement**
+- **AUCUNE PII** (pas d'adresses email, téléphones en clair)
+- Utiliser "lookalike" pour marques (ex. "banque-lookalike", pas "BNP Paribas")
+- Focus sur **patterns réutilisables**, pas sur instances spécifiques
+
+Format de sortie attendu :
+
+campaign:
+  summary: "Description courte (1 phrase)"
+  tactics: ["tactique1", "tactique2"]
+  target_audience: "qui est visé"
+  cta: "call-to-action principale"
+  risk: 1-5
+
+variants:
+  subjects: ["variante1", "variante2"]
+  display_names: ["nom1", "nom2"]
+  url_shapes: ["pattern1", "pattern2"]
+
+infra:
+  domain_age_pattern: "< Xd"
+  dkim_spf_pattern: "absent|fail"
+  mx_provider_pattern: "low-cost|generic"
+PROMPT;
+
+        $userPrompt = sprintf(
+            "Voici un échantillon de %d e-mails suspects regroupés en cluster :\n\n",
+            count($sampleMessages)
+        );
+
+        foreach ($sampleMessages as $i => $message) {
+            $bodyText = $message->getBodyText() ?? '';
+            $sanitizedBody = $this->maskEmailsInText($bodyText);
+            $sanitizedBody = $this->defangUrlsInText($sanitizedBody);
+
+            $userPrompt .= sprintf(
+                "---\nMessage %d:\nSujet: %s\nDe: %s\nCorps (extrait): %s\nURL(s): %s\nDKIM: %s\n---\n\n",
+                $i + 1,
+                $message->getSubject() ?? 'no subject',
+                $this->maskEmail($message->getHeaders()['from'] ?? 'unknown'),
+                $this->truncateText($sanitizedBody, 200),
+                implode(', ', $this->extractUrls($bodyText)),
+                $this->getDkimStatus($message)
+            );
+        }
+
+        $userPrompt .= "\nProfile cette campagne et génère le YAML de sortie.";
+
+        return [
+            'system' => $systemPrompt,
+            'user' => $userPrompt,
+        ];
+    }
+
+    /**
+     * Construit les prompts pour la compilation de règles DSL.
+     *
+     * @param string                        $profileYaml Profil YAML généré par CampaignProfiler
+     * @param array{pos: array, neg: array} $examples    Exemples positifs/négatifs
+     *
+     * @return array{system: string, user: string}
+     */
+    public function buildRuleCompilerPrompts(string $profileYaml, array $examples): array
+    {
+        $systemPrompt = <<<'PROMPT'
+Tu es un expert en génération de règles de détection au format **MailGuard DSL**.
+
+À partir d'un profil YAML de campagne, génère **1 à 3 règles DSL**.
+
+⚠️ CONTRAINTES STRICTES :
+- Syntaxe DSL **stricte** : RULE { WHERE ... ACTION ... }
+- **Aucune PII**
+- Champs autorisés uniquement : subject, body, url.domain.age, sender.display_name, dkim.pass, spf.pass
+- Opérateurs autorisés : simhash≈, containsAny, fuzzy ∈, <, >, =, ∈
+- Sortie **DSL pur** (pas d'explication, pas de markdown)
+
+Exemple de sortie attendue :
+
+RULE scam.bank_otp_2025_10 {
+  WHERE subject.simhash≈"avis important" ±15%
+    AND body.containsAny ["confirmer identité","vérifier compte"]
+    AND url.domain.age < 14d
+    AND dkim.pass ∈ {false, null}
+  ACTION tag="campaign:bank_otp_2025_10", score+=40
+}
+PROMPT;
+
+        $userPrompt = "Profil YAML de la campagne :\n\n" . $profileYaml . "\n\n---\n\n";
+
+        if (!empty($examples['pos'])) {
+            $userPrompt .= "Exemples positifs (doivent matcher) :\n";
+
+            foreach ($examples['pos'] as $ex) {
+                $userPrompt .= sprintf(
+                    "- Sujet: %s, Body: %s, DKIM: %s\n",
+                    $ex['subject'] ?? 'N/A',
+                    $this->truncateText($ex['body'] ?? '', 50),
+                    $ex['dkim'] ?? 'N/A'
+                );
+            }
+            $userPrompt .= "\n";
+        }
+
+        if (!empty($examples['neg'])) {
+            $userPrompt .= "Exemples négatifs (ne doivent PAS matcher) :\n";
+
+            foreach ($examples['neg'] as $ex) {
+                $userPrompt .= sprintf(
+                    "- Sujet: %s, Body: %s, DKIM: %s\n",
+                    $ex['subject'] ?? 'N/A',
+                    $this->truncateText($ex['body'] ?? '', 50),
+                    $ex['dkim'] ?? 'N/A'
+                );
+            }
+            $userPrompt .= "\n";
+        }
+
+        $userPrompt .= "---\n\nGénère les règles DSL MailGuard.";
+
+        return [
+            'system' => $systemPrompt,
+            'user' => $userPrompt,
+        ];
+    }
+
+    // === Helpers Privés ===
+
+    /**
+     * Tronque un texte à N caractères.
+     */
+    private function truncateText(string $text, int $maxLength): string
+    {
+        if (mb_strlen($text) <= $maxLength) {
+            return $text;
+        }
+
+        return mb_substr($text, 0, $maxLength) . '...';
+    }
+
+    /**
+     * Masque une adresse email (RGPD).
+     */
+    private function maskEmail(string $email): string
+    {
+        if (preg_match('/^([^@]+)@(.+)$/', $email, $matches)) {
+            $local = $matches[1];
+            $domain = $matches[2];
+
+            // Masquer local part
+            $maskedLocal = substr($local, 0, 2) . '***';
+
+            return $maskedLocal . '@' . $domain;
+        }
+
+        return '***@***';
+    }
+
+    /**
+     * Masque toutes les adresses emails dans un texte (RGPD).
+     */
+    private function maskEmailsInText(string $text): string
+    {
+        return preg_replace_callback(
+            '/\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i',
+            fn ($matches) => $this->maskEmail($matches[0]),
+            $text
+        );
+    }
+
+    /**
+     * Defang toutes les URLs dans un texte (sécurité).
+     */
+    private function defangUrlsInText(string $text): string
+    {
+        return str_replace(['http://', 'https://'], ['hxxp://', 'hxxps://'], $text);
+    }
+
+    /**
+     * Extrait les URLs d'un texte.
+     *
+     * @return array<string>
+     */
+    private function extractUrls(string $text): array
+    {
+        $pattern = '/https?:\/\/[^\s<>"]+/i';
+        preg_match_all($pattern, $text, $matches);
+
+        $urls = $matches[0] ?? [];
+
+        // Defang URLs
+        return array_map(fn ($url) => str_replace(['http://', 'https://'], ['hxxp://', 'hxxps://'], $url), $urls);
+    }
+
+    /**
+     * Récupère le statut DKIM d'un message.
+     */
+    private function getDkimStatus(Message $message): string
+    {
+        $headers = $message->getHeaders() ?? [];
+        $dkim = $headers['auth']['dkim'] ?? null;
+
+        if ($dkim === true) {
+            return 'pass';
+        } elseif ($dkim === false) {
+            return 'fail';
+        }
+
+        return 'absent';
+    }
+}
