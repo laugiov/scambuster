@@ -93,7 +93,7 @@ class ConversationMetricsCollectorTest extends TestCase
         // Assert
         $this->assertSame(450, $metrics->getDurationSec());
         $this->assertSame(5, $metrics->getIocsTotal());
-        $this->assertSame(3, $metrics->getIocsSensibles()); // IBAN, phone, crypto_wallet
+        $this->assertSame(4, $metrics->getIocsSensibles()); // IBAN, phone, url, crypto_wallet
         $this->assertTrue($metrics->isCompleted());
     }
 
@@ -152,7 +152,7 @@ class ConversationMetricsCollectorTest extends TestCase
             $this->createMockIoc('email', 'test@test.com'),       // not sensitive
             $this->createMockIoc('IBAN', 'FR76...'),              // sensitive
             $this->createMockIoc('phone', '+33...'),              // sensitive
-            $this->createMockIoc('url', 'http://evil.com'),       // not sensitive
+            $this->createMockIoc('url', 'http://evil.com'),       // sensitive
             $this->createMockIoc('crypto_wallet', 'bc1q...'),     // sensitive
             $this->createMockIoc('IBAN', 'DE89...'),              // sensitive
             $this->createMockIoc('ip', '192.168.1.1'),            // not sensitive
@@ -166,7 +166,7 @@ class ConversationMetricsCollectorTest extends TestCase
 
         // Assert
         $this->assertSame(7, $metrics->getIocsTotal());
-        $this->assertSame(4, $metrics->getIocsSensibles()); // 2 IBAN + 1 phone + 1 crypto_wallet
+        $this->assertSame(5, $metrics->getIocsSensibles()); // 2 IBAN + 1 phone + 1 url + 1 crypto_wallet
     }
 
     public function testCollectHandlesEmptyIocs(): void
@@ -210,6 +210,30 @@ class ConversationMetricsCollectorTest extends TestCase
         $this->assertSame(0, $metrics->getDurationSec());
         // isCompleted is always true (set at closure time, not based on status)
         $this->assertTrue($metrics->isCompleted());
+    }
+
+    public function testCollectCountsTelegramAndUrlAsSensitive(): void
+    {
+        $conversation = $this->createMockConversation(
+            convId: 'conv-tg-url',
+            durationSec: 200,
+            turnsCount: 6,
+            status: ConversationStatus::CLOSED
+        );
+
+        $iocs = [
+            $this->createMockIoc('telegram_username', '@scammer_bot'),  // sensitive
+            $this->createMockIoc('url', 'https://payment.evil.com'),    // sensitive
+            $this->createMockIoc('domain', 'evil.com'),                 // not sensitive
+        ];
+
+        $this->iocHandler->setIocs($iocs);
+        $collector = $this->createCollector();
+
+        $metrics = $collector->collect($conversation);
+
+        $this->assertSame(3, $metrics->getIocsTotal());
+        $this->assertSame(2, $metrics->getIocsSensibles()); // telegram_username + url
     }
 
     public function testCollectHandlesMalformedIocContext(): void

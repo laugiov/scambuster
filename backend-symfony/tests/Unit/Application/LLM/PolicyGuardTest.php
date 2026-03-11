@@ -196,4 +196,102 @@ class PolicyGuardTest extends TestCase
 
         $this->assertTrue($result['approved'], 'Should count French accented characters correctly');
     }
+
+    /**
+     * @test
+     * @dataProvider threatPatternsProvider
+     */
+    public function it_rejects_threat_patterns(string $threatPhrase, string $expectedFlag): void
+    {
+        $text = str_repeat("Je comprends votre situation. ", 5)
+            . $threatPhrase
+            . str_repeat(" Merci de votre compréhension. ", 5);
+
+        $result = $this->guard->validate($text);
+
+        $this->assertFalse($result['approved']);
+        $hasThreatFlag = false;
+        foreach ($result['flags'] as $flag) {
+            if (str_starts_with($flag, 'threat_detected:')) {
+                $hasThreatFlag = true;
+            }
+        }
+        $this->assertTrue($hasThreatFlag, 'Expected threat_detected flag for: ' . $threatPhrase);
+    }
+
+    public static function threatPatternsProvider(): array
+    {
+        return [
+            'kill threat FR' => ['Je vais vous tuer si vous continuez.', 'threat_detected'],
+            'harm threat FR' => ['Je vais vous blesser très fort.', 'threat_detected'],
+            'destroy threat FR' => ['Je vais vous détruire complètement.', 'threat_detected'],
+            'kill threat EN' => ['I will kill you for this.', 'threat_detected'],
+            'hurt threat EN' => ['I will hurt your family.', 'threat_detected'],
+            'pay threat FR' => ['Vous allez le payer très cher.', 'threat_detected'],
+            'regret threat FR' => ['Vous allez regretter cela bientôt.', 'threat_detected'],
+            'dead threat FR' => ['Vous êtes mort si vous faites cela.', 'threat_detected'],
+            'know address FR' => ['Je sais où vous habitez monsieur.', 'threat_detected'],
+            'watch out FR' => ['Gare à vous car je vais revenir.', 'threat_detected'],
+        ];
+    }
+
+    /**
+     * @test
+     * @dataProvider authorityPatternsProvider
+     */
+    public function it_rejects_authority_impersonation(string $authorityPhrase): void
+    {
+        $text = str_repeat("Je comprends votre situation. ", 5)
+            . $authorityPhrase
+            . str_repeat(" Merci de votre compréhension. ", 5);
+
+        $result = $this->guard->validate($text);
+
+        $this->assertFalse($result['approved']);
+        $hasAuthorityFlag = false;
+        foreach ($result['flags'] as $flag) {
+            if (str_starts_with($flag, 'authority_impersonation:')) {
+                $hasAuthorityFlag = true;
+            }
+        }
+        $this->assertTrue($hasAuthorityFlag, 'Expected authority_impersonation flag for: ' . $authorityPhrase);
+    }
+
+    public static function authorityPatternsProvider(): array
+    {
+        return [
+            'police FR' => ['Je suis policier et je mène une enquête.'],
+            'gendarme FR' => ['Je suis gendarme dans cette affaire.'],
+            'commissaire FR' => ['Je suis commissaire de police nationale.'],
+            'agent FR' => ['Je suis agent de police judiciaire.'],
+            'procureur FR' => ['Je suis procureur de la République.'],
+            'juge FR' => ['Je suis juge au tribunal de grande instance.'],
+            'works for police FR' => ['Je travaille pour la police nationale.'],
+            'works for interpol FR' => ['Je travaille pour interpol depuis longtemps.'],
+            'police officer EN' => ['I am a police officer investigating this case.'],
+            'fbi agent EN' => ['I am an fbi agent and you are under investigation.'],
+            'works for police EN' => ['I work for the police department here.'],
+            'arrest warrant FR' => ["J'ai un mandat d'arrêt contre vous."],
+        ];
+    }
+
+    /**
+     * @test
+     */
+    public function it_allows_mentioning_police_in_third_person(): void
+    {
+        // Talking ABOUT police (not claiming to BE police) should be allowed
+        $text = str_repeat('La police ne peut rien faire dans cette situation malheureusement. ', 10);
+
+        $result = $this->guard->validate($text);
+
+        // Should not trigger authority impersonation (no "je suis" prefix)
+        $hasAuthorityFlag = false;
+        foreach ($result['flags'] as $flag) {
+            if (str_starts_with($flag, 'authority_impersonation:')) {
+                $hasAuthorityFlag = true;
+            }
+        }
+        $this->assertFalse($hasAuthorityFlag, 'Mentioning police in third person should not trigger impersonation');
+    }
 }

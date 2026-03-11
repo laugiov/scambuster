@@ -8,16 +8,6 @@ framework:
     #esi: true
     #fragments: true
 
-    rate_limiter:
-        login_ip:
-            policy: fixed_window
-            limit: 5
-            interval: '1 minute'
-        api_global:
-            policy: token_bucket
-            rate: { amount: 100, interval: '1 minute' }
-            limit: 100
-
     http_client:
         enabled: true
 
