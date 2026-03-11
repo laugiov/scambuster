@@ -290,39 +290,40 @@ class ConversationGenerator
         $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
 
         $prompt = <<<PROMPT
-Tu es un générateur de conversations scam réalistes pour l'entraînement d'un système anti-scam.
+You are a realistic scam conversation generator for training an anti-scam detection system.
 
 **SCAM TYPE**: {$scamType->getLabel()}
-**SCÉNARIO**: {$context['scenario']}
+**SCENARIO**: {$context['scenario']}
 
-**PERSONA VICTIME**: {$persona->getPersonaLabel()}
+**VICTIM PERSONA**: {$persona->getPersonaLabel()}
 
-**CONSIGNES**:
-1. Génère EXACTEMENT $messageCount messages alternés (scammer commence, victime répond)
-2. Le scammer utilise les techniques: {$context['emotional_triggers']}
-3. La victime répond selon son profil: {$persona->getPersonaTone()}
-4. Conversation RÉALISTE: erreurs de langue scammer, hésitations victime
-5. **IMPORTANT IOCs**: Dans environ 40-60% des messages du scammer, inclure de façon NATURELLE des IOCs COMPLETS appropriés au contexte du scam.
+**INSTRUCTIONS**:
+1. Generate EXACTLY $messageCount alternating messages (scammer starts, victim responds)
+2. The scammer uses these techniques: {$context['emotional_triggers']}
+3. The victim responds according to their profile: {$persona->getPersonaTone()}
+4. REALISTIC conversation: scammer may have occasional grammar mistakes, victim shows hesitation
+5. **IMPORTANT IOCs**: In approximately 40-60% of the scammer's messages, naturally include COMPLETE IOCs appropriate to the scam context.
+6. ALL messages MUST be in ENGLISH.
 
-**RÈGLES CRITIQUES pour les IOCs**:
-- ❌ NE DIS JAMAIS: "Bitcoin", "IBAN", "notre site web" SANS donner l'adresse COMPLÈTE
-- ✅ DIS TOUJOURS: L'adresse Bitcoin complète, l'IBAN complet, l'URL complète
-- ✅ COPIE-COLLE EXACTEMENT les valeurs de la liste ci-dessous (ne modifie pas les chiffres/lettres)
-- ✅ Intègre-les de façon NATURELLE dans le contexte du scam
+**CRITICAL RULES for IOCs**:
+- NEVER say: "Bitcoin", "IBAN", "our website" WITHOUT giving the COMPLETE address
+- ALWAYS include: the full Bitcoin address, full IBAN, full URL
+- COPY-PASTE EXACTLY the values from the list below (do not modify digits/letters)
+- Integrate them NATURALLY into the scam context
 
-**EXEMPLES CONCRETS D'INTÉGRATION NATURELLE**:
-📧 Email: "Vous pouvez me joindre sur support@secure-verify.com pour finaliser"
-🌐 URL: "Cliquez ici pour vérifier votre compte: https://secure-verify.com/login?token=abc123de456"
-💳 IBAN: "Effectuez le virement vers: FR7630006000011234567890189 (Banque XYZ)"
-📱 Téléphone: "Appelez-nous au +33 6 12 34 56 78 pour confirmer"
-₿ Bitcoin: "Envoyez 0.5 BTC à l'adresse: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
-💰 Ethereum: "Wallet ETH: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
+**CONCRETE EXAMPLES OF NATURAL IOC INTEGRATION**:
+Email: "You can reach me at support@secure-verify.com to finalize"
+URL: "Click here to verify your account: https://secure-verify.com/login?token=abc123de456"
+IBAN: "Wire the payment to: FR7630006000011234567890189 (Bank XYZ)"
+Phone: "Call us at +1-800-555-0199 to confirm"
+Bitcoin: "Send 0.5 BTC to address: 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa"
+Ethereum: "ETH wallet: 0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb"
 
-**IOCs RÉALISTES GÉNÉRÉS - À UTILISER EXACTEMENT (copie-colle ces valeurs)**:
+**REALISTIC IOCs TO USE EXACTLY (copy-paste these values)**:
 {$iocsStr}
 
-**FORMAT** (JSON uniquement, sans texte avant/après):
-["Message 1 scammer", "Message 1 victime", "Message 2 scammer", ...]
+**FORMAT** (JSON only, no text before/after):
+["Message 1 scammer", "Message 1 victim", "Message 2 scammer", ...]
 PROMPT;
 
         $response = $this->llm->complete($prompt, [
@@ -470,34 +471,34 @@ PROMPT;
         $this->logger->info('[SCAMMER] IOCs encoded, building prompt...');
 
         $prompt = <<<PROMPT
-Tu es un SCAMMER expérimenté dans le type de scam: {$scamType->getLabel()}.
+You are an experienced SCAMMER specializing in: {$scamType->getLabel()}.
 
-# CONTEXTE
-Scénario: {$context['scenario']}
-Hook psychologique: {$context['hook']}
-Personnalité scammer: {$context['scammer_personality']}
-Urgence: {$context['urgency_level']}
-Tour actuel: {$turnNumber}
+# CONTEXT
+Scenario: {$context['scenario']}
+Psychological hook: {$context['hook']}
+Scammer personality: {$context['scammer_personality']}
+Urgency level: {$context['urgency_level']}
+Current turn: {$turnNumber}
 
-# HISTORIQUE CONVERSATION
+# CONVERSATION HISTORY
 $historyStr
 
-# IOCs À INTÉGRER NATURELLEMENT
+# IOCs TO INTEGRATE NATURALLY
 $iocsStr
 
-# TON OBJECTIF
-Tu veux obtenir: argent, informations sensibles, ou accès aux comptes de la victime.
+# YOUR OBJECTIVE
+You want to obtain: money, sensitive information, or access to the victim's accounts.
 
 # INSTRUCTIONS
-1. Génère UNIQUEMENT le prochain message du scammer (30-200 mots)
-2. Suis ta personnalité et ton scénario
-3. Intègre les IOCs de manière naturelle (pas tous d'un coup!)
-4. Adapte ta tactique selon les réponses de la victime
-5. Utilise les leviers émotionnels: {$context['emotional_triggers']}
-6. Langage 100% naturel, fluide, réaliste
-7. AUCUNE métadonnée, UNIQUEMENT le contenu du message
+1. Generate ONLY the next scammer message (30-200 words)
+2. Follow your personality and scenario
+3. Integrate IOCs naturally (not all at once!)
+4. Adapt your tactics based on the victim's responses
+5. Use emotional levers: {$context['emotional_triggers']}
+6. 100% natural, fluent, realistic English language
+7. NO metadata, ONLY the message content
 
-GÉNÈRE MAINTENANT TON MESSAGE:
+GENERATE YOUR MESSAGE NOW:
 PROMPT;
 
         $this->logger->info('[SCAMMER] Calling LLM...', ['prompt_length' => strlen($prompt)]);
@@ -522,29 +523,29 @@ PROMPT;
         $historyStr = $this->formatConversationHistoryForPrompt($conversationHistory);
 
         $prompt = <<<PROMPT
-Tu es une VICTIME d'un scam en cours. Tu joues le rôle du persona: {$persona->getPersonaLabel()}.
+You are a VICTIM of an ongoing scam. You are playing the role of: {$persona->getPersonaLabel()}.
 
 # PERSONA
-Ton: {$persona->getPersonaTone()}
+Tone: {$persona->getPersonaTone()}
 System Prompt:
 {$persona->getSystemPrompt()}
 
-# HISTORIQUE CONVERSATION
+# CONVERSATION HISTORY
 $historyStr
 
-# TON RÔLE
-Tu es un SCAMBAITER - ton objectif est de prolonger la conversation le plus longtemps possible pour faire perdre du temps au scammer.
+# YOUR ROLE
+You are a SCAMBAITER - your goal is to prolong the conversation as long as possible to waste the scammer's time.
 
 # INSTRUCTIONS
-1. Lis attentivement le dernier message du scammer
-2. Réponds de manière COHÉRENTE avec ta personnalité
-3. Montre de l'intérêt mais pose aussi des questions
-4. Sois légèrement naïf/vulnérable mais pas trop
-5. PROLONGE la conversation (ne révèle JAMAIS que tu es un scambaiter)
-6. Message entre 20-150 mots
-7. Langage naturel, AUCUNE métadonnée
+1. Carefully read the scammer's last message
+2. Respond CONSISTENTLY with your personality
+3. Show interest but also ask questions
+4. Be slightly naive/vulnerable but not overly so
+5. PROLONG the conversation (NEVER reveal that you are a scambaiter)
+6. Message between 20-150 words
+7. Natural English language, NO metadata
 
-GÉNÈRE MAINTENANT TA RÉPONSE:
+GENERATE YOUR RESPONSE NOW:
 PROMPT;
 
         $response = $this->llm->complete($prompt, [
@@ -607,13 +608,13 @@ PROMPT;
 
         // Prompt SIMPLIFIÉ pour analyse rapide
         $prompt = <<<PROMPT
-Tu es un scammer. Derniers messages de la victime:
+You are a scammer. Recent victim messages:
 $recentVictimMessages
 
-La victime a-t-elle EXPLICITEMENT révélé qu'elle sait que c'est un scam ?
-(mots-clés: "scam", "arnaque", "police", "fraude", "signaler")
+Has the victim EXPLICITLY revealed that they know this is a scam?
+(keywords: "scam", "fraud", "police", "report", "fake")
 
-Réponds: OUI ou NON
+Answer: YES or NO
 PROMPT;
 
         $response = $this->llm->complete($prompt, [
@@ -621,7 +622,7 @@ PROMPT;
             'max_tokens' => 5,
         ]);
 
-        $scamDetected = str_contains(strtoupper(trim($response)), 'OUI');
+        $scamDetected = str_contains(strtoupper(trim($response)), 'YES');
 
         $this->logger->debug('Scammer decision', [
             'turn' => $turnNumber,
@@ -642,7 +643,7 @@ PROMPT;
         $recent = array_slice($victimMessages, -$count);
 
         if (empty($recent)) {
-            return "(Aucun message de la victime)";
+            return "(No victim messages yet)";
         }
 
         return implode("\n---\n", array_map(fn($msg) => $msg['content'], $recent));
@@ -655,10 +656,10 @@ PROMPT;
     private function formatConversationHistoryForPrompt(array $conversationHistory, int $maxMessages = 8): string
     {
         if (empty($conversationHistory)) {
-            return "(Début de conversation)";
+            return "(Start of conversation)";
         }
 
-        // Ne garder que les N derniers messages pour limiter la taille du prompt
+        // Keep only the N most recent messages to limit prompt size
         $recentHistory = array_slice($conversationHistory, -$maxMessages);
 
         $formatted = [];
@@ -669,7 +670,7 @@ PROMPT;
         }
 
         $prefix = count($conversationHistory) > $maxMessages
-            ? sprintf("(... %d messages précédents omis ...)\n\n", count($conversationHistory) - $maxMessages)
+            ? sprintf("(... %d previous messages omitted ...)\n\n", count($conversationHistory) - $maxMessages)
             : "";
 
         return $prefix . implode("\n\n---\n\n", $formatted);
@@ -738,8 +739,8 @@ PROMPT;
             while (count($messages) < $messageCount) {
                 $isScammer = (count($messages) % 2 === 0);
                 $messages[] = $isScammer
-                    ? "Merci pour votre réponse. Pouvez-vous me fournir plus de détails ?"
-                    : "Oui, bien sûr. Que voulez-vous savoir exactement ?";
+                    ? "Thank you for your response. Could you provide more details?"
+                    : "Yes, of course. What exactly would you like to know?";
             }
         }
 
@@ -790,42 +791,42 @@ PROMPT;
         $progression = isset($context['progression']) ? json_encode($context['progression'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'N/A';
 
         return <<<PROMPT
-Tu dois générer une conversation scam COMPLÈTE et ULTRA-RÉALISTE en français.
+Generate a COMPLETE and ULTRA-REALISTIC scam conversation in ENGLISH.
 
-# CONTEXTE
-Type de scam: {$scamType->getCode()} - {$scamType->getLabel()}
-Scénario: {$context['scenario']}
-Hook psychologique: {$context['hook']}
-Persona victime: {$persona->getPersonaLabel()}
-Ton du persona: {$persona->getPersonaTone()}
-Canal: {$context['channel']}
-Nombre de messages: {$messageCount}
+# CONTEXT
+Scam type: {$scamType->getCode()} - {$scamType->getLabel()}
+Scenario: {$context['scenario']}
+Psychological hook: {$context['hook']}
+Victim persona: {$persona->getPersonaLabel()}
+Persona tone: {$persona->getPersonaTone()}
+Channel: {$context['channel']}
+Number of messages: {$messageCount}
 
-# PERSONNALITÉS
+# PERSONALITIES
 **SCAMMER**: {$context['scammer_personality']}
-- Leviers émotionnels: {$context['emotional_triggers']}
-- Niveau d'urgence: {$context['urgency_level']}
+- Emotional levers: {$context['emotional_triggers']}
+- Urgency level: {$context['urgency_level']}
 
 **VICTIM (Persona)**:
 {$persona->getSystemPrompt()}
 
-# PROGRESSION NARRATIVE
+# NARRATIVE PROGRESSION
 $progression
 
-# IOCs À INTÉGRER NATURELLEMENT
+# IOCs TO INTEGRATE NATURALLY
 $iocsStr
 
-# INSTRUCTIONS CRITIQUES
-1. Génère EXACTEMENT {$messageCount} messages alternés: SCAMMER, VICTIM, SCAMMER, VICTIM, etc.
-2. Suis la progression narrative du template
-3. Intègre les IOCs de manière naturelle (pas tous d'un coup!)
-4. SCAMMER commence toujours (message 1)
-5. Langage 100% naturel, fluide, réaliste
-6. Varie la longueur des messages (30-200 mots)
-7. AUCUNE métadonnée, UNIQUEMENT le contenu brut
-8. Sépare chaque message par "---MESSAGE---" sur une ligne seule
+# CRITICAL INSTRUCTIONS
+1. Generate EXACTLY {$messageCount} alternating messages: SCAMMER, VICTIM, SCAMMER, VICTIM, etc.
+2. Follow the narrative progression of the template
+3. Integrate IOCs naturally (not all at once!)
+4. SCAMMER always starts (message 1)
+5. 100% natural, fluent, realistic ENGLISH language
+6. Vary the length of messages (30-200 words)
+7. NO metadata, ONLY raw message content
+8. Separate each message with "---MESSAGE---" on its own line
 
-# FORMAT DE SORTIE
+# OUTPUT FORMAT
 Message 1 (SCAMMER)
 ---MESSAGE---
 Message 2 (VICTIM)
@@ -833,7 +834,7 @@ Message 2 (VICTIM)
 Message 3 (SCAMMER)
 ... etc.
 
-GÉNÈRE MAINTENANT LA CONVERSATION:
+GENERATE THE CONVERSATION NOW:
 PROMPT;
     }
 
@@ -856,77 +857,77 @@ PROMPT;
         $progressionStep = $this->getProgressionStep($context, $messageNumber, $isScammerMessage);
 
         $scammerInstructions = <<<SCAMMER
-# TON RÔLE: SCAMMER
-Personnalité: {$context['scammer_personality']}
+# YOUR ROLE: SCAMMER
+Personality: {$context['scammer_personality']}
 
-## Étape narrative actuelle:
+## Current narrative step:
 $progressionStep
 
-## Tactiques psychologiques à utiliser:
-- Leviers émotionnels: {$context['emotional_triggers']}
-- Niveau d'urgence: {$context['urgency_level']}
+## Psychological tactics to use:
+- Emotional levers: {$context['emotional_triggers']}
+- Urgency level: {$context['urgency_level']}
 
-## IOCs à intégrer naturellement:
+## IOCs to integrate naturally:
 $iocsStr
 
-## Comment jouer ce message:
-1. Suis EXACTEMENT l'étape de progression narrative
-2. Intègre les IOCs de manière naturelle (pas tous à la fois!)
-3. Utilise les tactiques psychologiques définies
-4. Reste cohérent avec ta personnalité de scammer
-5. Crée l'urgence selon le niveau spécifié
-6. Langage fluide, professionnel si nécessaire, familier si pertinent
-7. Fautes d'orthographe UNIQUEMENT si cohérent avec personnage (ex: scammer étranger)
+## How to play this message:
+1. Follow EXACTLY the narrative progression step
+2. Integrate IOCs naturally (not all at once!)
+3. Use the defined psychological tactics
+4. Stay consistent with your scammer personality
+5. Create urgency according to the specified level
+6. Fluent language, professional if needed, casual if appropriate
+7. Grammar mistakes ONLY if consistent with character (e.g. foreign scammer)
 
 SCAMMER;
 
         $victimInstructions = <<<VICTIM
-# TON RÔLE: VICTIM
+# YOUR ROLE: VICTIM
 Persona: {$persona->getPersonaLabel()}
-Ton: {$persona->getPersonaTone()}
-System Prompt du persona:
+Tone: {$persona->getPersonaTone()}
+Persona system prompt:
 {$persona->getSystemPrompt()}
 
-## Comment réagir à ce message:
-1. Lis attentivement le dernier message du scammer
-2. Réagis de manière COHÉRENTE avec ta personnalité
-3. Montre les émotions attendues (inquiétude, doute, curiosité, etc.)
-4. Ne sois PAS trop naïf - pose des questions légitimes
-5. Mais reste vulnérable aux tactiques psychologiques du scammer
-6. JAMAIS révéler que tu es un système/test/leurre
-7. Langage naturel, phrases courtes ou longues selon ton persona
+## How to react to this message:
+1. Carefully read the scammer's last message
+2. React CONSISTENTLY with your personality
+3. Show expected emotions (worry, doubt, curiosity, etc.)
+4. Do NOT be overly naive - ask legitimate questions
+5. But remain vulnerable to the scammer's psychological tactics
+6. NEVER reveal that you are a system/test/decoy
+7. Natural English language, short or long sentences depending on your persona
 
 VICTIM;
 
         $instructions = $isScammerMessage ? $scammerInstructions : $victimInstructions;
 
         return <<<PROMPT
-Tu dois générer un message ULTRA-RÉALISTE pour une conversation de scam en cours.
+Generate an ULTRA-REALISTIC message for an ongoing scam conversation.
 
-# CONTEXTE COMPLET
-Type de scam: {$scamType->getCode()} - {$scamType->getLabel()}
-Scénario: {$context['scenario']}
-Hook psychologique: {$context['hook']}
-Canal de communication: {$context['channel']}
-Message numéro: {$messageNumber}
+# FULL CONTEXT
+Scam type: {$scamType->getCode()} - {$scamType->getLabel()}
+Scenario: {$context['scenario']}
+Psychological hook: {$context['hook']}
+Communication channel: {$context['channel']}
+Message number: {$messageNumber}
 
-# HISTORIQUE CONVERSATION
+# CONVERSATION HISTORY
 $conversationHistory
 
 ---
 
 $instructions
 
-# CONTRAINTES CRITIQUES
-- Message entre 30 et 250 mots (varie selon contexte)
-- Langage 100% naturel, fluide, réaliste
-- AUCUNE signature système, métadonnée, ou mention d'IA
-- UNIQUEMENT le contenu brut du message
-- Pas de formules trop polies si incohérent avec personnage
-- Utilise emojis UNIQUEMENT si cohérent avec le canal/personnage
-- Si email: peut avoir objet/corps, si SMS: court et direct
+# CRITICAL CONSTRAINTS
+- Message between 30 and 250 words (varies by context)
+- 100% natural, fluent, realistic ENGLISH language
+- NO system signatures, metadata, or AI mentions
+- ONLY raw message content
+- No overly polite formulas if inconsistent with character
+- Use emojis ONLY if consistent with channel/character
+- If email: may include subject/body, if SMS: short and direct
 
-Génère MAINTENANT le message (contenu brut uniquement):
+GENERATE THE MESSAGE NOW (raw content only):
 PROMPT;
     }
 
@@ -936,7 +937,7 @@ PROMPT;
     private function getProgressionStep(array $context, int $messageNumber, bool $isScammer): string
     {
         if (!isset($context['progression'])) {
-            return "Continue la conversation de manière naturelle";
+            return "Continue the conversation naturally";
         }
 
         $progression = $context['progression'];
@@ -948,7 +949,7 @@ PROMPT;
             $stepKey = 'victim_' . ceil($messageNumber / 2);
         }
 
-        return $progression[$stepKey] ?? "Continue la conversation de manière cohérente";
+        return $progression[$stepKey] ?? "Continue the conversation coherently";
     }
 
     /**
@@ -957,7 +958,7 @@ PROMPT;
     private function buildConversationHistory(array $messages): string
     {
         if (empty($messages)) {
-            return "(Début de conversation)";
+            return "(Start of conversation)";
         }
 
         $history = [];
@@ -1014,27 +1015,27 @@ PROMPT;
         $templates = [
             'PHISH_CREDENTIALS' => [
                 [
-                    'scenario' => 'Phishing Microsoft Office 365 - compte suspendu',
-                    'hook' => 'Votre compte sera désactivé dans 24h si vous ne vérifiez pas vos informations',
+                    'scenario' => 'Microsoft Office 365 phishing - account suspended',
+                    'hook' => 'Your account will be deactivated in 24h unless you verify your information',
                     'urgency_level' => 'high',
                 ],
                 [
-                    'scenario' => 'Phishing bancaire - transaction suspecte',
-                    'hook' => 'Activité inhabituelle détectée sur votre compte',
+                    'scenario' => 'Banking phishing - suspicious transaction',
+                    'hook' => 'Unusual activity detected on your account',
                     'urgency_level' => 'critical',
                 ],
             ],
             'ROMANCE_SCAM' => [
                 [
-                    'scenario' => 'Arnaque sentimentale - personne en détresse à l\'étranger',
-                    'hook' => 'Bloqué à l\'étranger, besoin d\'aide urgente',
+                    'scenario' => 'Romance scam - person in distress abroad',
+                    'hook' => 'Stranded abroad, need urgent help',
                     'urgency_level' => 'medium',
                 ],
             ],
             'TECH_SUPPORT' => [
                 [
-                    'scenario' => 'Faux support Microsoft - ordinateur infecté',
-                    'hook' => 'Votre PC est infecté par un virus dangereux',
+                    'scenario' => 'Fake Microsoft support - infected computer',
+                    'hook' => 'Your PC is infected with a dangerous virus',
                     'urgency_level' => 'critical',
                 ],
             ],
@@ -1043,8 +1044,8 @@ PROMPT;
         $code = $scamType->getCode();
         return $templates[$code] ?? [
             [
-                'scenario' => 'Scam générique',
-                'hook' => 'Action requise',
+                'scenario' => 'Generic scam',
+                'hook' => 'Action required',
                 'urgency_level' => 'medium',
             ],
         ];
@@ -1057,22 +1058,59 @@ PROMPT;
     {
         $templates = [
             'PHISH_CREDENTIALS' => [
-                'Action requise: Vérifiez votre compte {{company}}',
-                'Votre compte {{company}} expire dans {{deadline_days}} jours',
-                '⚠️ Activité suspecte détectée',
+                'Action Required: Verify your {{company}} account',
+                'Your {{company}} account expires in {{deadline_days}} days',
+                'Security Alert: Suspicious activity detected',
+            ],
+            'BEC_CEO' => [
+                'Urgent - Confidential',
+                'Re: Wire transfer - time sensitive',
+                'IMPORTANT: Action needed before EOD',
+            ],
+            'BANK_IMPERSONATION' => [
+                'Security Alert: Unusual activity on your account',
+                'Fraud Prevention Notice - Immediate action required',
+                'Your card has been flagged - verify now',
+            ],
+            'GOV_IMPERSONATION' => [
+                'IRS Notice: Tax Refund Pending',
+                'Social Security Administration - Action Required',
+                'DMV: License renewal notice',
             ],
             'ROMANCE_SCAM' => [
-                'Besoin de ton aide...',
-                'Urgence - situation délicate',
+                'I need your help...',
+                'Please read this, it\'s urgent',
+                'Missing you, but something happened...',
             ],
             'TECH_SUPPORT' => [
-                'ALERTE: Virus détecté sur votre ordinateur',
-                '🔒 Sécurité {{company}} - Action immédiate requise',
+                'ALERT: Virus detected on your computer',
+                'Security Warning: {{company}} - Immediate action required',
+                'Critical System Alert - Do not ignore',
+            ],
+            'ADVANCE_FEE_419' => [
+                'Inheritance Notification - Confidential',
+                'CONGRATULATIONS! You have been selected',
+                'Urgent assistance needed - mutual benefit',
+            ],
+            'INVESTMENT_SCAM' => [
+                'Exclusive investment opportunity - limited spots',
+                'Your portfolio could grow 15% monthly',
+                'Private invitation: Join our trading group',
+            ],
+            'DELIVERY_SCAM' => [
+                'Your package is being held - action required',
+                'Delivery failed - update your address',
+                'FedEx: Customs fee pending for your shipment',
+            ],
+            'INVOICE_FRAUD' => [
+                'Invoice #INV-{{reference}} - Payment due',
+                'Updated banking details - please note',
+                'FINAL NOTICE: Overdue payment',
             ],
         ];
 
         $code = $scamType->getCode();
-        return $templates[$code] ?? ['Action requise'];
+        return $templates[$code] ?? ['Action required'];
     }
 
     private function generateUuid(): string

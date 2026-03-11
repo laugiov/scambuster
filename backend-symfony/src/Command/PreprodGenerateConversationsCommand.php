@@ -128,26 +128,37 @@ class PreprodGenerateConversationsCommand extends Command
             $this->logger->info('[CMD] Processing batch', ['batch_index' => $batchIndex, 'batch_size' => count($batch)]);
 
             foreach ($batch as $itemIndex => $item) {
+                // Re-fetch entities by ID (survives EntityManager::clear())
+                $persona = $this->em->getRepository(Persona::class)->find($item['persona_id']);
+                $scamType = $this->em->getRepository(ScamType::class)->find($item['scam_type_id']);
+                $channel = $this->em->getRepository(Channel::class)->find($item['channel_id']);
+
+                if (!$persona || !$scamType || !$channel) {
+                    $errors++;
+                    $this->logger->error('Failed to fetch entities', [
+                        'persona_id' => $item['persona_id'],
+                        'scam_type_id' => $item['scam_type_id'],
+                        'channel_id' => $item['channel_id'],
+                    ]);
+                    continue;
+                }
+
                 $this->logger->info('[CMD] Starting conversation generation', [
                     'batch_index' => $batchIndex,
                     'item_index' => $itemIndex,
-                    'persona' => $item['persona']->getPersonaCode(),
-                    'scam_type' => $item['scam_type']->getCode(),
+                    'persona' => $persona->getPersonaCode(),
+                    'scam_type' => $scamType->getCode(),
                 ]);
 
                 try {
                     $this->logger->info('[CMD] Calling generator->generateConversation()...');
                     $conversation = $this->generator->generateConversation(
-                        scamType: $item['scam_type'],
-                        persona: $item['persona'],
-                        channel: $item['channel'],
+                        scamType: $scamType,
+                        persona: $persona,
+                        channel: $channel,
                         messageCount: $item['message_count']
                     );
                     $this->logger->info('[CMD] Conversation generated successfully');
-
-                    if (!$dryRun) {
-                        $this->em->persist($conversation);
-                    }
 
                     $generated++;
                     $progressBar->advance();
@@ -156,14 +167,14 @@ class PreprodGenerateConversationsCommand extends Command
                     $this->logger->error('Failed to generate conversation', [
                         'error' => $e->getMessage(),
                         'trace' => $e->getTraceAsString(),
-                        'persona' => $item['persona']->getPersonaCode(),
-                        'scam_type' => $item['scam_type']->getCode(),
+                        'persona' => $persona->getPersonaCode(),
+                        'scam_type' => $scamType->getCode(),
                     ]);
                 }
             }
 
+            // ConversationGenerator already flushes internally, just clear for memory
             if (!$dryRun) {
-                $this->em->flush();
                 $this->em->clear();
             }
 
@@ -221,23 +232,25 @@ class PreprodGenerateConversationsCommand extends Command
     /**
      * Crée un plan de génération distribué uniformément
      *
+     * Uses entity IDs instead of entity references to survive EntityManager::clear()
+     *
      * @param int $count Nombre total de conversations
      * @param Persona[] $personas Liste des personas
      * @param ScamType[] $scamTypes Liste des scam types
      * @param Channel[] $channels Liste des channels
-     * @return array<int, array{persona: Persona, scam_type: ScamType, channel: Channel, message_count: int}> Plan de génération
+     * @return array<int, array{persona_id: int, scam_type_id: int, channel_id: int, message_count: int}> Plan de génération
      */
     private function createGenerationPlan(int $count, array $personas, array $scamTypes, array $channels): array
     {
         $plan = [];
 
-        // Créer toutes les combinaisons possibles
+        // Créer toutes les combinaisons possibles (using IDs)
         $combinations = [];
         foreach ($personas as $persona) {
             foreach ($scamTypes as $scamType) {
                 $combinations[] = [
-                    'persona' => $persona,
-                    'scam_type' => $scamType,
+                    'persona_id' => $persona->getPersonaId(),
+                    'scam_type_id' => $scamType->getScamTypeId(),
                 ];
             }
         }
@@ -245,15 +258,18 @@ class PreprodGenerateConversationsCommand extends Command
         // Mélanger pour distribution aléatoire
         shuffle($combinations);
 
+        // Collect channel IDs
+        $channelIds = array_map(fn(Channel $c) => $c->getChannelId(), $channels);
+
         // Distribuer les conversations
         $combinationIndex = 0;
         for ($i = 0; $i < $count; $i++) {
             $combination = $combinations[$combinationIndex % count($combinations)];
 
             $plan[] = [
-                'persona' => $combination['persona'],
-                'scam_type' => $combination['scam_type'],
-                'channel' => $channels[array_rand($channels)],
+                'persona_id' => $combination['persona_id'],
+                'scam_type_id' => $combination['scam_type_id'],
+                'channel_id' => $channelIds[array_rand($channelIds)],
                 'message_count' => rand(self::MIN_MESSAGES, self::MAX_MESSAGES),
             ];
 
