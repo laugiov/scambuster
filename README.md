@@ -7,7 +7,7 @@
 ![Tests](https://img.shields.io/badge/tests-1039%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> **Last updated**: 2026-03-08 | **Data period**: December 2025 - February 2026
+> **Last updated**: 2026-03-11 | **Data period**: December 2025 - February 2026
 
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
 
@@ -188,6 +188,9 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 | Layer | Technology |
 |-------|------------|
 | **Backend** | PHP 8.3, Symfony 7, DDD architecture |
+| **Frontend** | React |
+| **Email Listener** | Node.js, ImapFlow |
+| **AI Services** | Python, FastAPI |
 | **Database** | PostgreSQL 15, Redis 7 |
 | **LLM** | OpenAI API (GPT-4o-mini, pinned version) |
 | **Orchestration** | n8n workflow automation |
@@ -246,7 +249,7 @@ scambuster/
   n8n/                     # Workflow definitions (JSON)
   prompts/personas/        # Persona YAML templates
   infra/                   # Docker configs
-  docs/                    # Detailed documentation (7 documents)
+  docs/                    # Detailed documentation (9 documents)
 ```
 
 ---

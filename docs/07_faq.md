@@ -8,7 +8,7 @@ ScamBuster is an **adaptive conversational honeypot** that engages email scammer
 
 ### Is this an open-source project?
 
-**Not in its current form.** This repository is a public preview containing documentation only. The operational code is private for security reasons. Some components (IOC normalization utilities, STIX mapping helpers) may be open-sourced in February 2026.
+**Not in its current form.** This repository is a public preview containing documentation only. The operational code is private for security reasons. Some components (IOC normalization utilities, STIX mapping helpers) may be open-sourced in Q1 2026.
 
 ### Can I get access to the code?
 
@@ -17,10 +17,10 @@ Yes—for **serious interest** (demo, pilot, hiring, partnership). See the [Cont
 ### What's the current project status?
 
 - **Phase 1-2 (Foundation + Adaptive V1)**: ✅ Complete
-- **Phase 3 (Thompson Sampling)**: ✅ Feature-complete (rollout in progress, December 2025)
-- **Phase 4 (Scale & Dashboards)**: 🔄 In Progress (December 2025)
-- **Phase 5 (A/B Validation)**: 📅 Planned (January 2026)
-- **Phase 6 (Publication)**: 📅 Planned (February 2026)
+- **Phase 3 (Thompson Sampling)**: ✅ Complete
+- **Phase 4 (Scale & Dashboards)**: ✅ Complete
+- **Phase 5 (A/B Validation)**: ✅ Complete
+- **Phase 6 (Publication & Dataset Release)**: 🔄 In Progress
 
 ---
 
@@ -41,13 +41,14 @@ Yes—for **serious interest** (demo, pilot, hiring, partnership). See the [Cont
 
 ### How does the LLM architecture work?
 
-ScamBuster uses **five specialized agents**:
+ScamBuster uses **six specialized agents**:
 
 1. **ScamClassifier**: Categorizes incoming scams (13 types)
 2. **IocExtractor**: Extracts indicators with 100% precision on audited sample
-3. **Generator**: Creates contextual responses
-4. **Validator**: Ensures safety and quality (95% approval rate)
-5. **Orchestrator**: Coordinates agents and optimizes costs
+3. **InjectionDetector**: Detects prompt injection attempts in inbound messages (forensic safety net)
+4. **Generator**: Creates contextual responses
+5. **Validator**: Ensures safety and quality (95% approval rate)
+6. **Orchestrator**: Coordinates agents and optimizes costs
 
 Each agent has a single responsibility and can be optimized independently.
 
@@ -59,7 +60,7 @@ Each agent has a single responsibility and can be optimized independently.
 | **Parameters** | ε = 0.20 (fixed) | None (auto-adaptive) |
 | **Bad performers** | Keep testing | Naturally eliminated |
 | **Convergence** | ~200 sessions | ~100 sessions expected |
-| **Status** | ✅ Validated | 🔄 In development |
+| **Status** | ✅ Validated | ✅ Complete (validated) |
 
 ### How accurate is IOC extraction?
 
@@ -220,7 +221,7 @@ Target venues for submission (peer review pending, acceptance not guaranteed):
 
 ### Will there be a public dataset?
 
-Yes. Planned for **February 2026**:
+Yes. In progress (Q1 2026):
 
 - 600+ anonymized conversations
 - 5,000+ messages

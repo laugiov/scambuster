@@ -49,7 +49,7 @@ make cs-fixer      # Code style (PHP-CS-Fixer)
 - Domain layer has zero infrastructure dependencies
 - All external calls go through Application services
 - New features need unit tests at minimum
-- See [preview/docs/03_high_level_architecture.md](preview/docs/03_high_level_architecture.md) for detailed architecture documentation
+- See [docs/03_high_level_architecture.md](docs/03_high_level_architecture.md) for detailed architecture documentation
 
 ## Pull Request Process
 

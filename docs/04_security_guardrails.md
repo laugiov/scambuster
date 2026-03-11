@@ -318,7 +318,7 @@ ScamBuster is a **defensive research and fraud-prevention system**. Key complian
 ## Contact for Security Issues
 
 For security concerns or responsible disclosure:
-- send me github message 
+- Submit a report via [GitHub Security Advisories](../../security/advisories/new)
 - **PGP Key**: Available on request
 - **Response**: Within 48 hours
 

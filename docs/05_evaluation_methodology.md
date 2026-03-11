@@ -100,7 +100,7 @@ This separation ensures appropriate context for each metric type.
 
 ---
 
-## Planned Evaluation (January 2026)
+## A/B Testing Protocol (Completed January 2026)
 
 ### A/B Testing Protocol
 
@@ -181,7 +181,7 @@ Target sample size based on:
 | **Bad arms** | Keep testing | Natural elimination |
 | **Convergence** | Good | Excellent |
 
-**Planned Validation**:
+**Completed Validation**:
 - Side-by-side comparison (same traffic split)
 - Convergence speed measurement
 - Final performance comparison
@@ -285,7 +285,7 @@ reward = 0.40 × duration_score
 |---------|------|--------------|--------|
 | **Production conversations** | +1K | On request (NDA) | JSON |
 | **Validation synthetic** | 2,221 | On request (NDA) | JSON |
-| **Anonymized corpus** | 600+ planned | Public (Feb 2026) | JSON + CSV |
+| **Anonymized corpus** | 100+ published, expansion planned | On request (NDA) | JSON + CSV |
 
 ### Statistical Analysis
 
@@ -333,8 +333,8 @@ reward = 0.40 × duration_score
 | Deliverable | Target | Content |
 |-------------|--------|---------|
 | **Internal report** | Monthly | All metrics + analysis |
-| **Academic paper** | Feb 2026 | Methodology + key results |
-| **Dataset** | Feb 2026 | Anonymized, CC BY-NC-SA |
+| **Academic paper** | Q1 2026 (in progress) | Methodology + key results |
+| **Dataset** | Q1 2026 (in progress) | Anonymized, CC BY-NC-SA |
 
 ---
 
@@ -343,7 +343,3 @@ reward = 0.40 × duration_score
 - [Roadmap](06_roadmap.md): Development timeline
 - [FAQ](07_faq.md): Common questions
 - [Back to Main](../README.md)
-
----
-
-[← Back to Main](../README.md)

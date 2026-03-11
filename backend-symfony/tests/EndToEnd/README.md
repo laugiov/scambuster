@@ -6,6 +6,10 @@
 ### Running End-to-End Tests in a Dedicated Environment
 
 1. Create the database and apply migrations:
+   ```bash
+   make endToEndTest
+   ```
+   This command loads E2E fixtures, creates the test database, applies migrations, and runs the full E2E test suite.
 
 ## Execution
 - E2E tests are tagged with `@group endtoend`.
@@ -14,7 +18,4 @@
 - One test = one complete user scenario.
 
 ## References
-- See the rules:
-  - @01-standards/coding-standards-php.mdc
-  - @07-quality-assurance/testing-phpunit.mdc
-  - @03-frameworks-and-libraries/symfony@7.0.mdc 
+- See the project coding standards and testing guidelines in the `docs/` directory.

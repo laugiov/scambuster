@@ -37,7 +37,7 @@ ScamBuster is designed as a **modular, event-driven system** with clear separati
 │                          BACKEND SERVICES                                │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐  │
 │  │Conversation │  │   Message   │  │     IOC     │  │   Adaptive   │  │
-│  │  Manager    │  │   Handler   │  │  Extractor  │  │   (ε-greedy) │  │
+│  │  Manager    │  │   Handler   │  │  Extractor  │  │(Thompson V2) │  │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └──────────────┘  │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          DATA LAYER                                      │
@@ -151,7 +151,7 @@ Domain-Driven Design (DDD) architecture:
 - **Conversation**: Lifecycle, status, risk scoring
 - **Message**: Threading, direction, deduplication
 - **IOC**: Extraction, classification, enrichment
-- **Adaptive**: ε-greedy bandit, persona performance tracking
+- **Adaptive**: Thompson Sampling V2 (Bayesian), persona performance tracking
 
 ### 5. Data Layer
 
@@ -179,7 +179,7 @@ Standard formats for integration:
    Email arrives → Risk scoring → Classification → Injection analysis → Store
 
 2. ENGAGE
-   Select persona (ε-greedy) → Generate response → Validate → Send
+   Select persona (Thompson Sampling V2) → Generate response → Validate → Send
 
 3. EXTRACT
    Receive reply → Extract IOCs → Deduplicate → Enrich
@@ -195,7 +195,7 @@ Standard formats for integration:
 
 ## Adaptive Scambaiting Component
 
-### ε-greedy Contextual Bandit
+### Contextual Bandit (Thompson Sampling V2)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -219,9 +219,9 @@ Standard formats for integration:
 │                       ▼                                  │
 │              ┌─────────────────┐                        │
 │              │  Selection      │                        │
-│              │  (ε-greedy:     │                        │
-│              │  80% exploit,   │                        │
-│              │  20% explore)   │                        │
+│              │  (Thompson      │                        │
+│              │  Sampling V2:   │                        │
+│              │  Bayesian)      │                        │
 │              └─────────────────┘                        │
 │                       │                                  │
 │                       ▼                                  │

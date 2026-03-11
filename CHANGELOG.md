@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.3.0] - March 2026
+
+### Added
+- English synthetic dataset generation (100+ conversations)
+- n8n workflow anonymization for public preview
+- Documentation update for preview repository
+
+---
+
+## [1.2.0] - January 2026
+
+### Added
+- A/B testing validation framework (2,221 synthetic conversations)
+- Statistical analysis: p < 0.001, Cohen's d = 0.37
+- Test suite expanded to 1,039 automated tests
+
+### Changed
+- Thompson Sampling promoted to default algorithm after validation
+
+---
+
+## [1.1.0] - December 2025
+
+### Added
+- Thompson Sampling V2 implementation (Bayesian, zero hyperparameters)
+- Prompt injection detection via InjectionDetector agent (two-layer forensic)
+- Scaled platform to 1,000+ active conversations
+
+### Changed
+- Upgraded persona selection from epsilon-greedy V1 to Thompson Sampling V2
+- Added alpha/beta columns for Thompson Sampling to persona_performance_stats
+
+---
+
 ## [1.0.0] - 21 November 2025
 
 ### Added - Adaptive Scambaiting Module

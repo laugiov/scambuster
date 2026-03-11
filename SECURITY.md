@@ -39,4 +39,4 @@ ScamBuster follows a secure-by-design approach:
 - **Kill switch**: Immediate system halt at multiple levels
 - **GDPR considerations**: Data minimization, retention limits, encryption
 
-See [preview/docs/04_security_guardrails.md](preview/docs/04_security_guardrails.md) for the full security documentation.
+See [docs/04_security_guardrails.md](docs/04_security_guardrails.md) for the full security documentation.
