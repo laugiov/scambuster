@@ -14,6 +14,7 @@ All commands use the project's **Makefile** to abstract Docker and Symfony inter
 | Docker Compose | v2+ | `docker compose version` |
 | Make | any | `make --version` |
 | Git | any | `git --version` |
+| jq | any (optional, for API exploration) | `jq --version` |
 
 > PHP, Composer, and Node.js are **not** required on your host machine. Everything runs inside Docker containers.
 
@@ -30,34 +31,42 @@ cd scambuster
 cp .env.dist .env
 ```
 
-Edit `.env` and replace the `change-me` placeholders with real values. The critical ones are:
+Edit `.env` and replace the `change-me` placeholders. Here are the **minimum required** changes:
+
+| Variable | Purpose | How to set |
+|----------|---------|------------|
+| `POSTGRES_PASSWORD` | Database password | Choose a strong password |
+| `DATABASE_URL` | Must match `POSTGRES_PASSWORD` | Update the password in the connection string |
+| `JWT_SECRET` | JWT signing key | `openssl rand -base64 64` |
+| `LLM_API_KEY` | OpenAI API key | From [platform.openai.com](https://platform.openai.com) |
+
+The following have safe defaults for local development but should be changed in production:
 
 | Variable | Purpose | How to generate |
 |----------|---------|-----------------|
 | `APP_SECRET` | Symfony secret | `php -r "echo bin2hex(random_bytes(16));"` |
-| `POSTGRES_PASSWORD` | Database password | Choose a strong password |
-| `DATABASE_URL` | Must match `POSTGRES_PASSWORD` | Update the password in the URL |
-| `JWT_SECRET` | JWT signing key | `openssl rand -base64 64` |
 | `VAULT_TOKEN` | Vault dev token | Use `root` for local dev |
 | `LOGIN_HASH_SALT` | Salt for hashing | `openssl rand -hex 16` |
 | `N8N_ENCRYPTION_KEY` | n8n encryption | `openssl rand -hex 32` |
-| `LLM_API_KEY` | OpenAI API key | From [platform.openai.com](https://platform.openai.com) |
 
-> For local development/testing without LLM calls, you can leave `LLM_API_KEY` as the placeholder. Tests that require LLM are mocked.
+> **Without an OpenAI API key**, the backend will still start and tests will pass (LLM calls are mocked in tests). However, reply generation and LLM-based features (scam classification, IOC extraction via LLM, prompt injection Layer 2) will fail at runtime.
 
 ---
 
-## 2. Start the Stack
+## 2. Build and Start the Stack
 
 ```bash
-# Start all containers (foreground — you'll see logs)
-make up
+# Build Docker images (required on first run)
+make build
 
-# Or start in background (detached)
+# Start all containers in background
 make upd
+
+# Verify containers are running
+make ps
 ```
 
-This starts the following services:
+You should see the following services:
 
 | Service | Port | Purpose |
 |---------|------|---------|
@@ -67,10 +76,11 @@ This starts the following services:
 | `vault` | 8200 | HashiCorp Vault (dev mode) |
 | `n8n` | 5678 | Workflow automation |
 
-Verify containers are running:
+Verify the backend is responding:
 
 ```bash
-make ps
+curl -s http://localhost:8081/healthz
+# Expected: {"status":"ok"}
 ```
 
 ---
@@ -84,19 +94,47 @@ make composer-install
 # Run database migrations (creates tables)
 make migration
 
-# Load test fixtures (seed reference data)
+# Load fixtures (reference data + default users)
 make fixtures-dev
 ```
 
 > **What `make migration` does**: executes all Doctrine migrations to create the schema (tables, indexes, foreign keys, views).
 
-> **What `make fixtures-dev` does**: seeds the development database with reference data (13 scam types, 27 personas, lookup tables for channels and directions).
+> **What `make fixtures-dev` does**: seeds the development database with reference data (13 scam types, 6 personas, lookup tables for channels and directions) **and creates two default users** (see below).
+
+### Default Users
+
+The fixtures create the following accounts:
+
+| Email | Password | Role |
+|-------|----------|------|
+| `user@example.com` | `Un1que$trongPassword2024` | `ROLE_USER` |
+| `admin@example.com` | `Un1que$trongPassword2024` | `ROLE_ADMIN` |
+
+### Quick Smoke Test
+
+```bash
+# Authenticate and get a JWT token
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@example.com","password":"Un1que$trongPassword2024"}' \
+  | jq -r '.access_token')
+
+# Verify you got a token
+echo "Token: ${TOKEN:0:50}..."
+
+# List conversations (should return an empty or seeded list)
+curl -s http://localhost:8081/api/v1/communication/conversation \
+  -H "Authorization: Bearer $TOKEN" | jq '.conversations | length'
+```
+
+If you see a number (even `0`), the backend, database, auth, and API are all working.
 
 ---
 
 ## 4. Run the Tests
 
-ScamBuster has **955 automated tests** organized in three suites.
+ScamBuster has **1039 automated tests** organized in three suites.
 
 ### Unit + Integration Tests (recommended first run)
 
@@ -141,7 +179,45 @@ make cs-fixer
 
 ---
 
-## 5. Explore the API
+## 5. Set Up n8n Workflows (Optional)
+
+n8n handles email ingestion, reply generation, and IOC extraction workflows. If you want to process real emails, you need to import the workflows.
+
+### Access n8n
+
+Open [http://localhost:5678](http://localhost:5678) in your browser. On first access, create an n8n admin account.
+
+### Import Workflows
+
+1. In n8n, go to **Workflows** > **Import from file**
+2. Import the JSON files from the `n8n/` directory:
+
+| Workflow | Purpose |
+|----------|---------|
+| `WF-INTAKE-EMAIL-V2` | Poll Gmail > parse > classify > ingest |
+| `WF-REPLY-GENERATE-V2` | Generate + validate LLM replies |
+| `WF-REPLY-SEND-v1` | Send validated replies via email |
+| `WF-EXTRACT-AND-ENRICH-IOC` | Extract and enrich IOCs from messages |
+
+3. Configure the credentials in each workflow (API URL, JWT token)
+
+> **Note**: n8n workflows connect to the backend at `http://backend-dev:8080` (internal Docker network). They authenticate using the same JWT mechanism as the API.
+
+### Seed Vault (for IMAP accounts)
+
+If you want n8n to poll real mailboxes, you need to store IMAP credentials in Vault:
+
+```bash
+# Seed a dummy IMAP account (included in respawn-all)
+make console q="vault:imap-secret:add dummyhash user@example.com motdepasse123"
+
+# Or use respawn-all which does everything (reset DBs + fixtures + Vault seed)
+make respawn-all
+```
+
+---
+
+## 6. Explore the API
 
 Once the stack is running, the API is available at `http://localhost:8081`.
 
@@ -149,13 +225,10 @@ Once the stack is running, the API is available at `http://localhost:8081`.
 
 ```bash
 # Get a JWT token
-curl -s -X POST http://localhost:8081/api/v1/auth/login \
+TOKEN=$(curl -s -X POST http://localhost:8081/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","password":"your-password"}' \
-  | jq .
-
-# Save the token for subsequent requests
-TOKEN="your-jwt-token-here"
+  -d '{"email":"admin@example.com","password":"Un1que$trongPassword2024"}' \
+  | jq -r '.access_token')
 ```
 
 ### Example API Calls
@@ -173,22 +246,17 @@ curl -s http://localhost:8081/api/v1/communication/scam-type \
 curl -s http://localhost:8081/api/v1/scambaiting/stats \
   -H "Authorization: Bearer $TOKEN" | jq .
 
-# View routes
+# View all routes
 make debug-router
 ```
 
-### API Documentation
-
-Swagger/OpenAPI documentation is available at:
-- `http://localhost:8081/api/doc` (Swagger UI)
-
 ---
 
-## 6. Common Workflows
+## 7. Common Workflows
 
 ### Full Reset (Nuclear Option)
 
-If you need to start completely fresh (drops all databases, recreates everything, loads all fixtures):
+If you need to start completely fresh (drops all databases, recreates everything, loads all fixtures, seeds Vault):
 
 ```bash
 make respawn-all
@@ -261,7 +329,7 @@ make composer q="show --outdated"
 
 ---
 
-## 7. Project Structure Overview
+## 8. Project Structure Overview
 
 ```
 scambuster/
@@ -277,7 +345,8 @@ scambuster/
 │   │   └── EndToEnd/          # Full API flow tests
 │   └── migrations/            # Doctrine migrations + reference data SQL
 ├── n8n/                       # Workflow JSON definitions
-├── infra/                     # Docker configs
+├── prompts/personas/          # Persona YAML templates (6 personas)
+├── infra/                     # Docker configs (Dockerfile)
 ├── docs/                      # Project documentation
 ├── docker-compose.yml
 ├── Makefile                   # All commands documented here
@@ -286,7 +355,7 @@ scambuster/
 
 ---
 
-## 8. Docker Services Reference
+## 9. Docker Services Reference
 
 | Container | Image | Env | Purpose |
 |-----------|-------|-----|---------|
@@ -294,15 +363,15 @@ scambuster/
 | `backend-test` | Custom (PHP 8.3) | `test` | Integration/unit test runner |
 | `backend-e2e` | Custom (PHP 8.3) | `e2e` | End-to-end test runner |
 | `backend-preprod` | Custom (PHP 8.3) | `dev` | Pre-production (port 8082) |
-| `postgres` | postgres:15-alpine | — | Main database |
-| `postgres-preprod` | postgres:15-alpine | — | Pre-production database (port 5433) |
-| `redis` | redis:7-alpine | — | Cache and distributed locks |
-| `vault` | hashicorp/vault | — | Secrets management (dev mode) |
-| `n8n` | n8nio/n8n | — | Workflow automation |
+| `postgres` | postgres:15-alpine | -- | Main database |
+| `postgres-preprod` | postgres:15-alpine | -- | Pre-production database (port 5433) |
+| `redis` | redis:7-alpine | -- | Cache and distributed locks |
+| `vault` | hashicorp/vault | -- | Secrets management (dev mode) |
+| `n8n` | n8nio/n8n | -- | Workflow automation |
 
 ---
 
-## 9. Makefile Quick Reference
+## 10. Makefile Quick Reference
 
 Run `make help` for the full list. Here are the most useful commands:
 
@@ -310,6 +379,7 @@ Run `make help` for the full list. Here are the most useful commands:
 
 | Command | Description |
 |---------|-------------|
+| `make build` | Build Docker images |
 | `make up` | Start the stack (foreground) |
 | `make upd` | Start the stack (background) |
 | `make down` | Stop all containers |
@@ -327,7 +397,7 @@ Run `make help` for the full list. Here are the most useful commands:
 | `make migration-diff` | Generate migration from entity changes |
 | `make reset-db` | Drop + create + migrate (dev) |
 | `make fixtures-dev` | Load dev fixtures |
-| `make respawn-all` | Full reset of all environments |
+| `make respawn-all` | Full reset of all environments + Vault |
 
 ### Development
 
@@ -356,6 +426,15 @@ make build
 make up
 ```
 
+### "Cannot find the redis extension" error
+
+This means the Docker image was built without the Redis PHP extension. Rebuild:
+
+```bash
+make build
+docker compose up -d backend-dev
+```
+
 ### Database migration errors
 
 ```bash
@@ -378,6 +457,17 @@ make cc-test
 # Then retry
 make test
 ```
+
+### 401 Unauthorized on API calls
+
+- JWT tokens expire after 1 hour. Generate a new one.
+- Check that fixtures have been loaded (`make fixtures-dev`).
+- Verify the `JWT_SECRET` in `.env` matches what was used when the token was issued.
+
+### OpenAI API returns 401
+
+- Check that `LLM_API_KEY` in `.env` is a valid OpenAI API key.
+- Restart the container after changing `.env`: `docker compose up -d backend-dev`
 
 ### Permission issues on Linux
 

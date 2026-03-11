@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207%20|%20PostgreSQL%20|%20LLM-green)
-![Tests](https://img.shields.io/badge/tests-955%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1039%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > **Last updated**: 2026-03-08 | **Data period**: December 2025 - February 2026
@@ -115,14 +115,15 @@ From +1K conversations, identified **coordinated operations**:
 
 ## How It Works
 
-### Multi-Agent LLM Architecture (5 Agents)
+### Multi-Agent LLM Architecture (6 Agents)
 
-Five specialized AI agents work in concert:
+Six specialized AI agents work in concert:
 
 | Agent | Role | Achievement |
 |-------|------|-------------|
 | **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 13 types |
 | **IocExtractor** | Extract threat indicators | 100% precision on audited sample, 34 IOC types |
+| **InjectionDetector** | Forensic prompt injection analysis | Two-layer detection (pattern + LLM-as-judge) |
 | **Generator** | Create contextual responses | +35% IOCs post-IBAN detection |
 | **Validator** | Ensure safety & quality | 95% approval rate (PolicyGuard + LLM) |
 | **Orchestrator** | Coordinate & optimize costs | <EUR 0.0002/message |
@@ -200,15 +201,33 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 ```bash
 git clone https://github.com/laugiov/scambuster.git
 cd scambuster
-cp .env.dist .env        # Configure your environment
-make up                  # Start Docker stack
+cp .env.dist .env        # Configure your environment (see below)
+make build               # Build Docker images
+make upd                 # Start Docker stack (background)
 make composer-install    # Install PHP dependencies
 make migration           # Create database schema
-make fixtures-dev        # Seed reference data
-make test                # Run 955 automated tests
+make fixtures-dev        # Seed reference data + default users
+make test                # Run 1039 automated tests
 ```
 
-> **Full setup guide**: See [Getting Started](docs/08_getting_started.md) for detailed instructions, environment configuration, troubleshooting, and the complete Makefile reference.
+**Minimum `.env` configuration** before starting:
+
+| Variable | What to do |
+|----------|------------|
+| `POSTGRES_PASSWORD` | Choose a password, update `DATABASE_URL` to match |
+| `JWT_SECRET` | `openssl rand -base64 64` |
+| `LLM_API_KEY` | Your OpenAI API key (from [platform.openai.com](https://platform.openai.com)) |
+
+All other `change-me` values have safe defaults for local development. See `.env.dist` for the full list.
+
+**Default credentials** (created by fixtures):
+
+| Email | Password | Role |
+|-------|----------|------|
+| `user@example.com` | `Un1que$trongPassword2024` | `ROLE_USER` |
+| `admin@example.com` | `Un1que$trongPassword2024` | `ROLE_ADMIN` |
+
+> **Full setup guide**: See [Getting Started](docs/08_getting_started.md) for detailed instructions, n8n workflow setup, Vault configuration, troubleshooting, and the complete Makefile reference.
 
 ---
 
@@ -259,7 +278,7 @@ scambuster/
 
 ## Testing
 
-955 automated tests covering:
+1039 automated tests covering:
 - **E2E**: Full API flow with real JWT, database, and fixtures
 - **Integration**: Service/repository logic, business rules
 - **Unit**: Domain logic, value objects, algorithms
