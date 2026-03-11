@@ -17,7 +17,7 @@ Yes—for **serious interest** (demo, pilot, hiring, partnership). See the [Cont
 ### What's the current project status?
 
 - **Phase 1-2 (Foundation + Adaptive V1)**: ✅ Complete
-- **Phase 3 (Thompson Sampling)**: ✅ Complete
+- **Phase 3 (Thompson Sampling)**: 🔄 In Progress
 - **Phase 4 (Scale & Dashboards)**: ✅ Complete
 - **Phase 5 (A/B Validation)**: ✅ Complete
 - **Phase 6 (Publication & Dataset Release)**: 🔄 In Progress

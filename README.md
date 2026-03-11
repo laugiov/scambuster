@@ -132,8 +132,8 @@ Six specialized AI agents work in concert:
 
 ScamBuster does not rely on a single fixed "best" conversational approach. Instead, it uses **adaptive strategy selection** to learn, per scam category, which persona maximizes **intelligence yield** under strict safety constraints.
 
-- **Epsilon-greedy** (V1): 80% exploitation / 20% exploration
-- **Thompson Sampling**: Bayesian, zero hyperparameters, automatic convergence
+- **Epsilon-greedy**: 80% exploitation / 20% exploration (current production)
+- **Thompson Sampling** (planned): Bayesian, zero hyperparameters, automatic convergence
 - Reward function: `0.40*duration + 0.25*iocs_total + 0.25*iocs_sensitive + 0.10*completion`
 - 27 personas across 7 archetypes (seniors, business, tech, romance, banking, lottery, generic)
 
@@ -316,7 +316,7 @@ Full details in [Security & Guardrails](docs/04_security_guardrails.md).
 |-------|--------|----------|
 | **Phase 1**: Multi-agent LLM architecture | ✅ Complete | Oct-Nov 2025 |
 | **Phase 2**: Adaptive engagement (epsilon-greedy) | ✅ Complete | Nov-Dec 2025 |
-| **Phase 3**: Thompson Sampling | ✅ Feature-complete | Dec 2025 |
+| **Phase 3**: Thompson Sampling | 🔄 In Progress | Dec 2025 |
 | **Phase 4**: Scale & Dashboards | ✅ Complete | Jan 2026 |
 | **Phase 5**: A/B Testing & Validation | ✅ Complete | Jan-Feb 2026 |
 | **Phase 6**: Publication & Dataset Release | 🔄 In Progress | Mar 2026 |
