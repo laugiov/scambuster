@@ -546,4 +546,56 @@ class ReplyHandlerTest extends KernelTestCase
         $this->assertIsString($context['persona']);
         $this->assertNotEmpty($context['persona']);
     }
+
+    public function testKillSwitchBlocksReplyGeneration(): void
+    {
+        $data = $this->createTestConversationWithMessage();
+
+        // Activate kill switch
+        $_ENV['SCAMBUSTER_KILL_SWITCH'] = 'true';
+
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('Kill switch is active');
+
+            $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
+        } finally {
+            // Always restore to avoid polluting other tests
+            $_ENV['SCAMBUSTER_KILL_SWITCH'] = 'false';
+        }
+    }
+
+    public function testKillSwitchBlocksSending(): void
+    {
+        $data = $this->createTestConversationWithMessage();
+
+        // Generate reply while kill switch is off
+        $result = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
+
+        // Activate kill switch before composing headers
+        $_ENV['SCAMBUSTER_KILL_SWITCH'] = '1';
+
+        try {
+            $composeData = $this->replyHandler->composeHeaders($result['msg_id']);
+
+            $this->assertFalse($composeData['checks']['kill_switch_off']);
+            $this->assertFalse($composeData['safe_to_send']);
+        } finally {
+            $_ENV['SCAMBUSTER_KILL_SWITCH'] = 'false';
+        }
+    }
+
+    public function testKillSwitchOffAllowsNormalOperation(): void
+    {
+        $_ENV['SCAMBUSTER_KILL_SWITCH'] = 'false';
+
+        $data = $this->createTestConversationWithMessage();
+        $result = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
+
+        $this->assertNotNull($result);
+        $this->assertArrayHasKey('msg_id', $result);
+
+        $composeData = $this->replyHandler->composeHeaders($result['msg_id']);
+        $this->assertTrue($composeData['checks']['kill_switch_off']);
+    }
 }

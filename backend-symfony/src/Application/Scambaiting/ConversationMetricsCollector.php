@@ -76,14 +76,14 @@ class ConversationMetricsCollector
      * Méthode utilitaire pour éviter duplication de logique.
      *
      * Le type d'IOC est extrait du context JSON (clé 'type').
-     * Types sensibles: IBAN, phone, crypto_wallet
+     * Types sensibles: IBAN, phone, crypto_wallet, telegram_username, url
      *
      * @param array<ObservedIoc> $iocs Liste d'IOCs
      * @return int Nombre d'IOCs sensibles
      */
     private function countSensitiveIocs(array $iocs): int
     {
-        $sensitiveTypes = ['IBAN', 'phone', 'crypto_wallet'];
+        $sensitiveTypes = ['IBAN', 'phone', 'crypto_wallet', 'telegram_username', 'url'];
         $count = 0;
 
         foreach ($iocs as $ioc) {

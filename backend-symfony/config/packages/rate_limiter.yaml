@@ -2,21 +2,32 @@
 framework:
   rate_limiter:
     # -----------------------------------------------------------
-    # Limiter used in AuthController to protect the route
-    # POST /api/v1/auth/login
+    # HTTP rate limiters
     # -----------------------------------------------------------
     login_ip:
-      policy: 'sliding_window'   # or 'fixed_window', at choice
-      limit: 5                   # 5 attempts…
-      interval: '1 minute'       # …per minute, per IP
-      # A dedicated cache is not required: we use the default one
-      # cache_pool: cache.app
+      policy: 'sliding_window'
+      limit: 5
+      interval: '1 minute'
 
-    # -----------------------------------------------------------
-    # Example of a global API limiter (optional, but present
-    # car certains tests / services l'invoquent via api_global.limiter)
-    # -----------------------------------------------------------
     api_global:
       policy: 'token_bucket'
-      limit: 100                 # bucket capacity
-      rate: { interval: '1 minute', amount: 100 }  # refill
+      limit: 100
+      rate: { interval: '1 minute', amount: 100 }
+
+    # -----------------------------------------------------------
+    # LLM pipeline rate limits (Redis-backed via cache.app)
+    # -----------------------------------------------------------
+    replies_per_conversation:
+      policy: 'sliding_window'
+      limit: 20
+      interval: '24 hours'
+
+    llm_calls_per_hour:
+      policy: 'sliding_window'
+      limit: 200
+      interval: '1 hour'
+
+    active_conversations_per_day:
+      policy: 'sliding_window'
+      limit: 50
+      interval: '24 hours'

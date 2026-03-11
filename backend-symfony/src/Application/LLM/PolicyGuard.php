@@ -34,6 +34,29 @@ final class PolicyGuard
         '/\bmenace\b/i',
     ];
 
+    /** @var array<string> Threat and intimidation patterns */
+    private const THREAT_PATTERNS = [
+        '/\bje vais vous\s+(?:tuer|frapper|détruire|blesser|éliminer)\b/i',
+        '/\bi will\s+(?:kill|hurt|destroy|harm)\b/i',
+        '/\bje vais te\s+(?:tuer|frapper|détruire|blesser)\b/i',
+        '/\bvous allez (?:le |en )?(?:payer|regretter|souffrir)\b/i',
+        '/\bvous êtes mort\b/i',
+        '/\bje sais où vous (?:habitez|vivez)\b/i',
+        '/\bgare à (?:toi|vous)\b/i',
+    ];
+
+    /** @var array<string> Authority impersonation patterns */
+    private const AUTHORITY_PATTERNS = [
+        '/\bje suis\s+(?:policier|gendarme|commissaire|agent de police|officier|inspecteur|détective)\b/i',
+        '/\bje suis\s+(?:procureur|juge|magistrat|avocat général)\b/i',
+        '/\bje travaille (?:pour|à)\s+(?:la police|la gendarmerie|interpol|europol)\b/i',
+        '/\bje travaille (?:pour|à)\s+(?:la banque de france|l\'autorité des marchés)\b/i',
+        '/\bi am\s+(?:a |an )?(?:police officer|detective|federal agent|fbi agent|cia agent)\b/i',
+        '/\bi work for\s+(?:the police|law enforcement|interpol|europol|the fbi)\b/i',
+        '/\bau nom de la loi\b/i',
+        '/\bmandat d\'arrêt\b/i',
+    ];
+
     /** @var array<string> PII patterns to detect and reject
      *
      * Note: Phone numbers are ALLOWED (we provide fake ones to attackers)
@@ -112,6 +135,28 @@ final class PolicyGuard
             if (preg_match($pattern, $text, $matches)) {
                 $flags[] = 'forbidden_pattern:' . strtolower($matches[0]);
                 $this->logger->warning('[PolicyGuard] ❌ Forbidden pattern detected', [
+                    'pattern' => $pattern,
+                    'matched' => $matches[0],
+                ]);
+            }
+        }
+
+        // Check threat/intimidation patterns
+        foreach (self::THREAT_PATTERNS as $pattern) {
+            if (preg_match($pattern, $text, $matches)) {
+                $flags[] = 'threat_detected:' . strtolower($matches[0]);
+                $this->logger->warning('[PolicyGuard] Threat pattern detected', [
+                    'pattern' => $pattern,
+                    'matched' => $matches[0],
+                ]);
+            }
+        }
+
+        // Check authority impersonation patterns
+        foreach (self::AUTHORITY_PATTERNS as $pattern) {
+            if (preg_match($pattern, $text, $matches)) {
+                $flags[] = 'authority_impersonation:' . strtolower($matches[0]);
+                $this->logger->warning('[PolicyGuard] Authority impersonation detected', [
                     'pattern' => $pattern,
                     'matched' => $matches[0],
                 ]);

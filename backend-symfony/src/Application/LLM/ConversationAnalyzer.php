@@ -285,7 +285,7 @@ RÈGLES D'ANALYSE :
    🎯 OBJECTIF STRATÉGIQUE OBLIGATOIRE :
 
    Dans "objectif_strategique", tu DOIS écrire :
-   "IBAN capturé → CONFIRMER l'intention de payer pour rassurer le scammer, puis demander adresse postale 'pour envoyer le justificatif de virement' OU numéro de téléphone 'pour confirmation bancaire' (au choix selon contexte)"
+   "IBAN capturé → CONFIRMER l'intention de payer pour rassurer le scammer, puis demander code BIC/SWIFT 'pour le virement international' OU adresse postale 'pour envoyer le justificatif de virement' OU numéro de téléphone 'pour confirmation bancaire' (au choix selon contexte)"
 
    📝 STRATÉGIE DE RÉPONSE (dans strategic_suggestions) :
 
@@ -294,6 +294,7 @@ RÈGLES D'ANALYSE :
    a) "Rassurer le scammer en confirmant l'intention de procéder au paiement (ex: 'Je vais faire le virement', 'Je procède au règlement demain matin')"
 
    b) "Demander UNE information supplémentaire de manière naturelle et crédible :
+       - Soit CODE BIC/SWIFT : 'Ma banque me demande le code BIC ou SWIFT associé à votre IBAN pour valider le virement international, pourriez-vous me le communiquer ?'
        - Soit ADRESSE POSTALE : 'Pour mes archives, pourriez-vous me confirmer l'adresse postale où envoyer le justificatif de virement ?'
        - Soit TÉLÉPHONE : 'Ma banque demande un numéro de téléphone pour valider le virement, pouvez-vous me donner vos coordonnées ?'
        - Soit NOM COMPLET : 'Je dois indiquer le nom complet du bénéficiaire sur le virement, pouvez-vous confirmer ?'"

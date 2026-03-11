@@ -11,6 +11,7 @@ use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 class ReplyHandler
 {
@@ -26,7 +27,10 @@ class ReplyHandler
         private \App\Application\Scambaiting\PersonaOptimizer $personaOptimizer,
         private ?ScamClassificationHandler $scamClassificationHandler = null,
         private ?IocHandler $iocHandler = null,
-        private ?ConversationHistoryService $conversationHistoryService = null
+        private ?ConversationHistoryService $conversationHistoryService = null,
+        private ?RateLimiterFactory $repliesPerConversationLimiter = null,
+        private ?RateLimiterFactory $llmCallsPerHourLimiter = null,
+        private ?RateLimiterFactory $activeConversationsPerDayLimiter = null,
     ) {
     }
 
@@ -243,6 +247,10 @@ class ReplyHandler
 
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
 
+        if ($this->isKillSwitchActive()) {
+            throw new \RuntimeException('Kill switch is active - all automated replies are halted');
+        }
+
         if ($conversation->getStatus()->value !== 'open') {
             throw new \RuntimeException('Cannot generate reply for closed conversation');
         }
@@ -250,6 +258,14 @@ class ReplyHandler
         // Check cadence
         if (!$force && !$this->checkCadence($convId)) {
             throw new \RuntimeException('Cadence limit not met');
+        }
+
+        // Check Redis-backed rate limits
+        if (!$force) {
+            $rateLimitResult = $this->checkRateLimits($convId);
+            if ($rateLimitResult !== null) {
+                throw new \RuntimeException('Rate limit exceeded: ' . $rateLimitResult);
+            }
         }
 
         $parentMessage = $this->messageHandler->getMessage($lastMsgId);
@@ -572,12 +588,70 @@ class ReplyHandler
     }
 
     /**
-     * Check if kill switch is active
+     * Check if kill switch is active.
+     *
+     * Reads from SCAMBUSTER_KILL_SWITCH environment variable.
+     * Any truthy value ('1', 'true', 'yes', 'on') activates the kill switch
+     * and halts all automated reply generation and sending.
      */
     private function isKillSwitchActive(): bool
     {
-        // TODO: Load from config/env
-        return false;
+        $value = $_ENV['SCAMBUSTER_KILL_SWITCH'] ?? $_SERVER['SCAMBUSTER_KILL_SWITCH'] ?? '0';
+
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    /**
+     * Check Redis-backed rate limits at three levels.
+     *
+     * Returns null if all limits pass, or a string describing which limit was exceeded.
+     */
+    private function checkRateLimits(string $convId): ?string
+    {
+        // Level 1: max replies per conversation per day
+        if ($this->repliesPerConversationLimiter !== null) {
+            $limiter = $this->repliesPerConversationLimiter->create($convId);
+            $limit = $limiter->consume();
+
+            if (!$limit->isAccepted()) {
+                $this->logger->warning('[ReplyHandler] Rate limit exceeded: replies per conversation', [
+                    'conv_id' => $convId,
+                    'retry_after' => $limit->getRetryAfter()?->format(DATE_ATOM),
+                ]);
+
+                return 'max replies per conversation per day';
+            }
+        }
+
+        // Level 2: max LLM API calls per hour (global)
+        if ($this->llmCallsPerHourLimiter !== null) {
+            $limiter = $this->llmCallsPerHourLimiter->create('global');
+            $limit = $limiter->consume();
+
+            if (!$limit->isAccepted()) {
+                $this->logger->warning('[ReplyHandler] Rate limit exceeded: LLM calls per hour', [
+                    'retry_after' => $limit->getRetryAfter()?->format(DATE_ATOM),
+                ]);
+
+                return 'max LLM API calls per hour';
+            }
+        }
+
+        // Level 3: max active conversations per day
+        if ($this->activeConversationsPerDayLimiter !== null) {
+            $limiter = $this->activeConversationsPerDayLimiter->create('global');
+            $limit = $limiter->consume();
+
+            if (!$limit->isAccepted()) {
+                $this->logger->warning('[ReplyHandler] Rate limit exceeded: active conversations per day', [
+                    'retry_after' => $limit->getRetryAfter()?->format(DATE_ATOM),
+                ]);
+
+                return 'max active conversations per day';
+            }
+        }
+
+        return null;
     }
 
     /**
