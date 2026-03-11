@@ -105,6 +105,7 @@ Implement ε-greedy contextual bandit for automatic persona optimization.
 | Adaptive dashboard (6 panels) | P0 | 🔄 |
 | Threat Intelligence dashboard (6 panels) | P0 | 📅 |
 | Activate Thompson Sampling (20% → 100%) | P0 | ✅ |
+| Prompt injection detection (two-layer forensic) | P0 | ✅ |
 | Intermediate report | P1 | ✅ |
 
 ### Week 3 (Dec 15-21): Scale Volume

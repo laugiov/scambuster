@@ -128,6 +128,15 @@ DPIA documentation covers:
 | **Safety** | No harmful content slipped through |
 | **Strategy** | Aligns with engagement goals |
 
+**Prompt Injection Detector** (forensic analysis):
+
+| Layer | Description |
+|-------|-------------|
+| **Layer 1 (Pattern Matcher)** | Deterministic pre-filter for known injection techniques (<1ms, zero cost) |
+| **Layer 2 (LLM-as-Judge)** | Semantic analysis for novel attack patterns (LLM call, configurable model) |
+
+> **Note**: This detection is forensic -- it does not block message ingestion or modify the reply pipeline. Results are stored per message for offline research analysis.
+
 ### 4. Sandboxing
 
 | Layer | Isolation |
@@ -149,6 +158,7 @@ DPIA documentation covers:
 | **LLM calls** | Call metadata, cost (prompts stored separately in Content layer) |
 | **Validation** | Pass/fail, reasons |
 | **Admin actions** | User, action, timestamp |
+| **Injection detected** | Risk score, techniques, evidence |
 
 Logs are:
 - **Metadata layer**: Retained for 12 months (no raw content)
@@ -204,7 +214,7 @@ Logs are:
 
 | Risk | Mitigation |
 |------|------------|
-| **Prompt injection** | Input sanitization, output validation |
+| **Prompt injection** | Two-layer detection (pattern matching + LLM-as-judge forensic analysis), input sanitization, output validation. Inbound messages are analyzed for injection attempts and results stored for research |
 | **Model abuse** | Rate limiting, cost caps |
 | **Data leakage** | No training on conversation data |
 | **Version drift** | Pinned model version |

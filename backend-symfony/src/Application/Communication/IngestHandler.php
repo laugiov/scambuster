@@ -22,7 +22,8 @@ class IngestHandler
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
-        private readonly IocHandler $iocHandler
+        private readonly IocHandler $iocHandler,
+        private readonly ?PromptInjectionDetector $promptInjectionDetector = null,
     ) {
     }
 
@@ -619,6 +620,27 @@ class IngestHandler
                 'msg_id' => $msgId,
                 'error' => $e->getMessage()
             ]);
+        }
+
+        // Prompt injection forensic analysis (non-blocking, inbound messages only)
+        if ($this->promptInjectionDetector !== null) {
+            try {
+                $analysis = $this->promptInjectionDetector->analyze($messageEntity);
+                if ($analysis !== null) {
+                    $messageEntity->setInjectionAnalysis($analysis->toArray());
+                    $this->em->flush();
+                    $this->logger->info('[IngestHandler] Prompt injection analysis complete', [
+                        'msg_id' => $msgId,
+                        'risk_score' => $analysis->getRiskScore(),
+                        'high_risk' => $analysis->isHighRisk(),
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $this->logger->error('[IngestHandler] Prompt injection analysis failed', [
+                    'msg_id' => $msgId,
+                    'error' => $e->getMessage(),
+                ]);
+            }
         }
 
         return [
