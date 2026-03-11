@@ -37,7 +37,7 @@ ScamBuster is designed as a **modular, event-driven system** with clear separati
 │                          BACKEND SERVICES                                │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐  │
 │  │Conversation │  │   Message   │  │     IOC     │  │   Adaptive   │  │
-│  │  Manager    │  │   Handler   │  │  Extractor  │  │  (Thompson)  │  │
+│  │  Manager    │  │   Handler   │  │  Extractor  │  │  (ε-greedy)  │  │
 │  └─────────────┘  └─────────────┘  └─────────────┘  └──────────────┘  │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          DATA LAYER                                      │
@@ -151,7 +151,7 @@ Domain-Driven Design (DDD) architecture:
 - **Conversation**: Lifecycle, status, risk scoring
 - **Message**: Threading, direction, deduplication
 - **IOC**: Extraction, classification, enrichment
-- **Adaptive**: Thompson Sampling (Bayesian), persona performance tracking
+- **Adaptive**: Epsilon-greedy bandit, persona performance tracking
 
 ### 5. Data Layer
 
@@ -179,7 +179,7 @@ Standard formats for integration:
    Email arrives → Risk scoring → Classification → Injection analysis → Store
 
 2. ENGAGE
-   Select persona (Thompson Sampling) → Generate response → Validate → Send
+   Select persona (ε-greedy bandit) → Generate response → Validate → Send
 
 3. EXTRACT
    Receive reply → Extract IOCs → Deduplicate → Enrich
@@ -195,7 +195,7 @@ Standard formats for integration:
 
 ## Adaptive Scambaiting Component
 
-### Contextual Bandit (Thompson Sampling)
+### Contextual Bandit (Epsilon-Greedy)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -219,9 +219,9 @@ Standard formats for integration:
 │                       ▼                                  │
 │              ┌─────────────────┐                        │
 │              │  Selection      │                        │
-│              │  (Thompson      │                        │
-│              │  Sampling V2:   │                        │
-│              │  Bayesian)      │                        │
+│              │  (ε-greedy:     │                        │
+│              │  80/20 explore/ │                        │
+│              │  exploit)       │                        │
 │              └─────────────────┘                        │
 │                       │                                  │
 │                       ▼                                  │

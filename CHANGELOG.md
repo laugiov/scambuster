@@ -23,21 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Statistical analysis: p < 0.001, Cohen's d = 0.37
 - Test suite expanded to 1,039 automated tests
 
-### Changed
-- Thompson Sampling promoted to default algorithm after validation
-
 ---
 
 ## [1.1.0] - December 2025
 
 ### Added
-- Thompson Sampling implementation (Bayesian, zero hyperparameters)
 - Prompt injection detection via InjectionDetector agent (two-layer forensic)
 - Scaled platform to 1,000+ active conversations
-
-### Changed
-- Upgraded persona selection from epsilon-greedy to Thompson Sampling
-- Added alpha/beta columns for Thompson Sampling to persona_performance_stats
 
 ---
 
