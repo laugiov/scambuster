@@ -7,8 +7,8 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         git unzip curl postgresql-client libpq-dev libzip-dev \
-    && pecl install mailparse \
-    && docker-php-ext-enable mailparse \
+    && pecl install mailparse redis \
+    && docker-php-ext-enable mailparse redis \
     && docker-php-ext-install pdo pdo_pgsql zip \
     && rm -rf /var/lib/apt/lists/*
 
@@ -40,8 +40,8 @@ RUN adduser --disabled-password --gecos '' --uid 10001 appuser
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         postgresql-client curl libpq-dev git unzip libzip-dev \
-    && pecl install mailparse \
-    && docker-php-ext-enable mailparse \
+    && pecl install mailparse redis \
+    && docker-php-ext-enable mailparse redis \
     && curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer \
     && docker-php-ext-install pdo pdo_pgsql zip \
