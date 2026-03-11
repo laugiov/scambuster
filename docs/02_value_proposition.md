@@ -51,12 +51,13 @@ Scam Email → Engage → Extract → Analyze → Learn → Share
 
 ### 1. Multi-Agent LLM Architecture
 
-Unlike single-prompt systems, ScamBuster uses **five specialized agents**:
+Unlike single-prompt systems, ScamBuster uses **six specialized agents**:
 
 | Agent | Responsibility | Key Achievement |
 |-------|---------------|-----------------|
 | **ScamClassifier** | Categorize incoming scams | 82% automatic classification across 13 types |
 | **IocExtractor** | Extract indicators from messages | 100% precision on audited sample, 34 IOC types |
+| **InjectionDetector** | Detect prompt injection attempts in inbound messages | Forensic safety net, 6-technique taxonomy |
 | **Generator** | Create contextual responses | +35% IOC extraction after IBAN detection |
 | **Validator** | Ensure response safety/quality | 95% approval rate (vs 60-70% baseline) |
 | **Orchestrator** | Coordinate agents, optimize costs | <€0.0002 per message |

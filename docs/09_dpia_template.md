@@ -29,7 +29,7 @@ ScamBuster is an automated honeypot platform that engages with inbound scam emai
 
 | Data Category | Examples | Source | Retention |
 |---------------|----------|--------|-----------|
-| Scam email content | Subject, body text, headers | Inbound emails from scammers | 2 years (soft delete), 5 years (hard delete) |
+| Scam email content | Subject, body text, headers | Inbound emails from scammers | 6 months max, then anonymization |
 | Threat indicators (IOCs) | IBANs, crypto wallets, phone numbers, email addresses, URLs, IPs | Extracted from scam emails | Indefinite (intelligence value) |
 | Email metadata | From/To/CC, Message-ID, timestamps, DKIM/SPF results | Email headers | Aligned with email content retention |
 | LLM interaction metadata | Model used, token count, cost estimate, approval status | System-generated | Aligned with email content retention |
@@ -133,7 +133,7 @@ After all mitigations, the residual risk is **LOW**. The primary remaining risk 
 | Kill switch | Environment variable-based, checked before every generation and send |
 | Rate limiting | Redis-backed Symfony rate-limiter at 3 levels |
 | Inbound-only enforcement | Data model FK constraints + handler exceptions + no outbound endpoint |
-| Data retention | PurgeService: soft delete at 2 years, hard delete at 5 years |
+| Data retention | PurgeService: anonymization at 6 months, hard delete at 12 months |
 | IOC validation | IocNormalizer + IocValidator (regex per type, checksum, format) |
 | Network isolation | Docker Compose, n8n self-hosted, no public-facing LLM endpoints |
 | STIX 2.1 export | Standardized threat intelligence format with PII filtering |
@@ -145,7 +145,7 @@ After all mitigations, the residual risk is **LOW**. The primary remaining risk 
 |---------|-------------|
 | Access control | JWT-based authentication, role-based access |
 | Audit trail | LLM metadata (model, cost, approval) stored per message |
-| Automated testing | 955 automated tests (unit, integration, E2E) |
+| Automated testing | 1,039 automated tests (unit, integration, E2E) |
 | Code review | DDD architecture with strict layer separation |
 | Monitoring | SQL views for precision drift detection (7-day sliding window) |
 
