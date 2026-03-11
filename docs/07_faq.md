@@ -54,7 +54,7 @@ Each agent has a single responsibility and can be optimized independently.
 
 ### What's the difference between ε-greedy and Thompson Sampling?
 
-| Aspect | ε-Greedy (V1) | Thompson Sampling (V2) |
+| Aspect | ε-Greedy | Thompson Sampling |
 |--------|---------------|------------------------|
 | **Exploration** | Random 20% of time | Probability-weighted by uncertainty |
 | **Parameters** | ε = 0.20 (fixed) | None (auto-adaptive) |
