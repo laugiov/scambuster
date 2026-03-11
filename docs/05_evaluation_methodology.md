@@ -164,7 +164,7 @@ Target sample size based on:
 2. "Blind" exploration (may test known-bad personas)
 3. No uncertainty quantification
 
-### Thompson Sampling (V2, December 2025)
+### Thompson Sampling (December 2025)
 
 **Parameters**:
 - Prior: Beta(1, 1) uniform

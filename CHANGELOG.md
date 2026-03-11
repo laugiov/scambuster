@@ -31,12 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [1.1.0] - December 2025
 
 ### Added
-- Thompson Sampling V2 implementation (Bayesian, zero hyperparameters)
+- Thompson Sampling implementation (Bayesian, zero hyperparameters)
 - Prompt injection detection via InjectionDetector agent (two-layer forensic)
 - Scaled platform to 1,000+ active conversations
 
 ### Changed
-- Upgraded persona selection from epsilon-greedy V1 to Thompson Sampling V2
+- Upgraded persona selection from epsilon-greedy to Thompson Sampling
 - Added alpha/beta columns for Thompson Sampling to persona_performance_stats
 
 ---
