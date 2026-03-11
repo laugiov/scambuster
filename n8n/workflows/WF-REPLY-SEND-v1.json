@@ -65,7 +65,7 @@
         -16,
         0
       ],
-      "webhookId": "e43cb258-89ec-4dc1-a3e8-a9bfd5257276",
+      "webhookId": "00000000-0000-0000-0000-000000000001",
       "credentials": {
         "gmailOAuth2": {
           "id": "your-gmail-credential-id",
@@ -88,7 +88,7 @@
         176,
         0
       ],
-      "webhookId": "e77fc436-3f31-44e9-aa5b-132c1f5db58f",
+      "webhookId": "00000000-0000-0000-0000-000000000002",
       "credentials": {
         "gmailOAuth2": {
           "id": "your-gmail-credential-id",
@@ -205,7 +205,7 @@
         -912,
         0
       ],
-      "webhookId": "e247f6e7-3293-4e07-88d6-041abcca56a4"
+      "webhookId": "00000000-0000-0000-0000-000000000003"
     }
   ],
   "pinData": {},
@@ -312,10 +312,10 @@
   },
   "active": false,
   "settings": {},
-  "versionId": "b856c556-a748-49f0-96ed-2fab441ea582",
+  "versionId": "00000000-0000-0000-0000-000000000000",
   "meta": {
-    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
+    "instanceId": "your-n8n-instance-id"
   },
-  "id": "5lY7vnyQp8JAv8Da",
+  "id": "your-wf-reply-send-id",
   "tags": []
 }

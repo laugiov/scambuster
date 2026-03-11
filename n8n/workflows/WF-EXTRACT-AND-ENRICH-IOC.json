@@ -124,8 +124,8 @@
       ],
       "credentials": {
         "urlScanIoApi": {
-          "id": "isXw51twUnJK6Hh4",
-          "name": "urlscan.io account"
+          "id": "your-urlscan-credential-id",
+          "name": "urlscan.io API"
         }
       },
       "continueOnFail": true
@@ -157,8 +157,8 @@
       ],
       "credentials": {
         "virusTotalApi": {
-          "id": "oGT5RcCw30dBNwbZ",
-          "name": "VirusTotal account"
+          "id": "your-virustotal-credential-id",
+          "name": "VirusTotal API"
         }
       },
       "continueOnFail": true
@@ -196,7 +196,7 @@
         1600,
         64
       ],
-      "webhookId": "new-webhook-id-extract-enrich"
+      "webhookId": "00000000-0000-0000-0000-000000000001"
     },
     {
       "parameters": {
@@ -213,8 +213,8 @@
       ],
       "credentials": {
         "urlScanIoApi": {
-          "id": "isXw51twUnJK6Hh4",
-          "name": "urlscan.io account"
+          "id": "your-urlscan-credential-id",
+          "name": "urlscan.io API"
         }
       },
       "continueOnFail": true
@@ -245,8 +245,8 @@
       ],
       "credentials": {
         "virusTotalApi": {
-          "id": "oGT5RcCw30dBNwbZ",
-          "name": "VirusTotal account"
+          "id": "your-virustotal-credential-id",
+          "name": "VirusTotal API"
         }
       },
       "continueOnFail": true
@@ -473,10 +473,10 @@
   },
   "active": false,
   "settings": {},
-  "versionId": "3a0e14c6-19c9-4466-a20e-daacb3ef47bf",
+  "versionId": "00000000-0000-0000-0000-000000000000",
   "meta": {
-    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
+    "instanceId": "your-n8n-instance-id"
   },
-  "id": "csaNdBEuJLViUqcz",
+  "id": "your-wf-extract-enrich-ioc-id",
   "tags": []
 }

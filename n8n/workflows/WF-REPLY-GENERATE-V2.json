@@ -163,9 +163,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "5lY7vnyQp8JAv8Da",
+          "value": "your-wf-reply-send-id",
           "mode": "list",
-          "cachedResultUrl": "/workflow/5lY7vnyQp8JAv8Da",
+          "cachedResultUrl": "/workflow/your-wf-reply-send-id",
           "cachedResultName": "WF-REPLY-SEND-v1"
         },
         "workflowInputs": {
@@ -265,10 +265,10 @@
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1"
   },
-  "versionId": "867a07b2-d5d9-47fc-af01-f5f7b88c1591",
+  "versionId": "00000000-0000-0000-0000-000000000000",
   "meta": {
-    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
+    "instanceId": "your-n8n-instance-id"
   },
-  "id": "Jx9lpFM49jf9cBTP",
+  "id": "your-wf-reply-generate-id",
   "tags": []
 }

@@ -44,8 +44,8 @@
       ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "aF2fzV6hdC1yiYMr",
-          "name": "Gmail account scamtest"
+          "id": "your-gmail-credential-id",
+          "name": "Gmail account"
         }
       }
     },
@@ -93,8 +93,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "id": "BhvoITKgFAICsRco",
-          "name": "OpenAi account"
+          "id": "your-openai-credential-id",
+          "name": "OpenAI API"
         }
       }
     },
@@ -129,11 +129,11 @@
         1264,
         304
       ],
-      "webhookId": "9afb4a87-20a0-4451-9225-f9fafd37da62",
+      "webhookId": "00000000-0000-0000-0000-000000000001",
       "credentials": {
         "gmailOAuth2": {
-          "id": "aF2fzV6hdC1yiYMr",
-          "name": "Gmail account scamtest"
+          "id": "your-gmail-credential-id",
+          "name": "Gmail account"
         }
       }
     },
@@ -152,11 +152,11 @@
         368,
         688
       ],
-      "webhookId": "215116d7-2b78-465f-8ae6-49d251aff7a1",
+      "webhookId": "00000000-0000-0000-0000-000000000002",
       "credentials": {
         "gmailOAuth2": {
-          "id": "aF2fzV6hdC1yiYMr",
-          "name": "Gmail account scamtest"
+          "id": "your-gmail-credential-id",
+          "name": "Gmail account"
         }
       }
     },
@@ -204,8 +204,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "id": "BhvoITKgFAICsRco",
-          "name": "OpenAi account"
+          "id": "your-openai-credential-id",
+          "name": "OpenAI API"
         }
       }
     },
@@ -240,11 +240,11 @@
         1424,
         688
       ],
-      "webhookId": "5fc11a93-c416-4c4f-b6f9-3fd335e498d1",
+      "webhookId": "00000000-0000-0000-0000-000000000003",
       "credentials": {
         "gmailOAuth2": {
-          "id": "aF2fzV6hdC1yiYMr",
-          "name": "Gmail account scamtest"
+          "id": "your-gmail-credential-id",
+          "name": "Gmail account"
         }
       }
     }
@@ -359,10 +359,10 @@
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1"
   },
-  "versionId": "df6c5ad7-b4f1-45fe-a790-8a9cc03d310d",
+  "versionId": "00000000-0000-0000-0000-000000000000",
   "meta": {
-    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
+    "instanceId": "your-n8n-instance-id"
   },
-  "id": "MGsIlbizw38nwbpj",
+  "id": "your-wf-gmail-simulator-id",
   "tags": []
 }

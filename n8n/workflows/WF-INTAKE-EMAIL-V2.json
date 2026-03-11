@@ -75,7 +75,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare Payload for /ingest/raw endpoint - V4 WITH THREADING HEADERS\n// Purpose: Prepare data for POST /api/v1/communication/ingest/raw\n// FIXED: Convert base64url (Gmail) to base64 standard (backend)\n// FIXED: Add thread_id and provider_msg_id for threading support\n// FIXED: Attachments at ROOT level (not in parsed)\n// NEW: Extract In-Reply-To and References headers to ROOT level for threading\n// ═══════════════════════════════════════════════════════════════\n\nconst emailData = $('Extract Email Data').item.json;\nconst gmailRaw = $('Gmail Get Raw Message').item.json;\nconst gmailTrigger = $('Gmail Trigger').item.json;\nconst tokenData = $input.item.json;\nconst token = tokenData.access_token;\n\n// Convert base64url to base64 (Gmail API returns base64url, backend expects base64)\nfunction b64urlToB64(u) {\n  if (!u) return '';\n  let s = String(u).replace(/-/g, '+').replace(/_/g, '/');\n  while (s.length % 4) s += '=';\n  return s;\n}\n\n// Gmail account ID from fixtures (active n8n Gmail account)\nconst accountId = '12b3f7b4-8fb1-4830-82d5-58d7fd874d2a';\n\n// Get raw RFC822 from Gmail API and convert base64url to base64\nconst rawSourceB64 = b64urlToB64(gmailRaw.raw || '');\n\n// Get Gmail threading metadata\nconst gmailMessageId = gmailTrigger.id || null;        // Gmail Message ID\nconst gmailThreadId = gmailTrigger.threadId || null;    // Gmail Thread ID\n\n// Get attachments from Extract Email Data\nconst attachments = emailData.attachments || [];\nconst hasAttachments = emailData.has_attachments || false;\nconst attachmentCount = emailData.attachment_count || 0;\n\n// Extract threading headers from email headers\nconst headers = emailData.headers || {};\nconst inReplyTo = headers['in-reply-to'] || null;\nconst references = headers['references'] || null;\nconst messageId = headers['message-id'] || null;\n\nconsole.log('🧵 Threading info:');\nconsole.log('  Message-ID:', messageId);\nconsole.log('  In-Reply-To:', inReplyTo);\nconsole.log('  References:', references);\nconsole.log('  Gmail Thread ID:', gmailThreadId);\n\nconsole.log('📎 Attachments detected:', attachmentCount);\nif (attachments.length > 0) {\n  attachments.forEach((att, idx) => {\n    console.log(`  ${idx + 1}. ${att.filename} (${att.mime_type}, ${att.size_bytes} bytes, SHA256: ${att.sha256?.substring(0,16)}...)`);\n  });\n}\n\n// Prepare payload for /ingest/raw endpoint\n// IMPORTANT: In-Reply-To and References MUST be at root level for backend threading\nconst payload = {\n  account_id: accountId,\n  raw_source_rfc822_b64: rawSourceB64,\n  ts_received: emailData.date || new Date().toISOString(),\n  channel: 'email',\n  rspamd: { score: 0, symbols: ['N8N'] },\n  score_risk: 50,\n  thread_id: gmailThreadId,           // Gmail Thread ID for threading\n  provider_msg_id: gmailMessageId,    // Gmail Message ID for reply operations\n  in_reply_to: inReplyTo,             // ← In-Reply-To header for threading\n  references: references,              // ← References header for threading\n  message_id: messageId,               // ← Message-ID header\n  attachments: attachments,            // ← AT ROOT LEVEL (backend expects this)\n  parsed: {                            // Optional parsed structure\n    headers: emailData.headers || {},\n    body: {\n      text: emailData.body_text || '',\n      html: emailData.body_html || '',\n      has_attachments: hasAttachments,\n      attachment_count: attachmentCount,\n      text_length: (emailData.body_text || '').length,\n      html_length: (emailData.body_html || '').length,\n    }\n  }\n};\n\nconsole.log('✓ Payload prepared with threading headers at root level');\nconsole.log('✓ Attachments:', attachmentCount);\n\nreturn {\n  json: {\n    token: token,\n    payload: payload,\n    email_id: emailData.email_id,\n    full_text: emailData.full_text\n  }\n};\n"
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare Payload for /ingest/raw endpoint - V4 WITH THREADING HEADERS\n// Purpose: Prepare data for POST /api/v1/communication/ingest/raw\n// FIXED: Convert base64url (Gmail) to base64 standard (backend)\n// FIXED: Add thread_id and provider_msg_id for threading support\n// FIXED: Attachments at ROOT level (not in parsed)\n// NEW: Extract In-Reply-To and References headers to ROOT level for threading\n// ═══════════════════════════════════════════════════════════════\n\nconst emailData = $('Extract Email Data').item.json;\nconst gmailRaw = $('Gmail Get Raw Message').item.json;\nconst gmailTrigger = $('Gmail Trigger').item.json;\nconst tokenData = $input.item.json;\nconst token = tokenData.access_token;\n\n// Convert base64url to base64 (Gmail API returns base64url, backend expects base64)\nfunction b64urlToB64(u) {\n  if (!u) return '';\n  let s = String(u).replace(/-/g, '+').replace(/_/g, '/');\n  while (s.length % 4) s += '=';\n  return s;\n}\n\n// Gmail account ID from fixtures (active n8n Gmail account)\nconst accountId = 'your-honeypot-account-uuid';\n\n// Get raw RFC822 from Gmail API and convert base64url to base64\nconst rawSourceB64 = b64urlToB64(gmailRaw.raw || '');\n\n// Get Gmail threading metadata\nconst gmailMessageId = gmailTrigger.id || null;        // Gmail Message ID\nconst gmailThreadId = gmailTrigger.threadId || null;    // Gmail Thread ID\n\n// Get attachments from Extract Email Data\nconst attachments = emailData.attachments || [];\nconst hasAttachments = emailData.has_attachments || false;\nconst attachmentCount = emailData.attachment_count || 0;\n\n// Extract threading headers from email headers\nconst headers = emailData.headers || {};\nconst inReplyTo = headers['in-reply-to'] || null;\nconst references = headers['references'] || null;\nconst messageId = headers['message-id'] || null;\n\nconsole.log('🧵 Threading info:');\nconsole.log('  Message-ID:', messageId);\nconsole.log('  In-Reply-To:', inReplyTo);\nconsole.log('  References:', references);\nconsole.log('  Gmail Thread ID:', gmailThreadId);\n\nconsole.log('📎 Attachments detected:', attachmentCount);\nif (attachments.length > 0) {\n  attachments.forEach((att, idx) => {\n    console.log(`  ${idx + 1}. ${att.filename} (${att.mime_type}, ${att.size_bytes} bytes, SHA256: ${att.sha256?.substring(0,16)}...)`);\n  });\n}\n\n// Prepare payload for /ingest/raw endpoint\n// IMPORTANT: In-Reply-To and References MUST be at root level for backend threading\nconst payload = {\n  account_id: accountId,\n  raw_source_rfc822_b64: rawSourceB64,\n  ts_received: emailData.date || new Date().toISOString(),\n  channel: 'email',\n  rspamd: { score: 0, symbols: ['N8N'] },\n  score_risk: 50,\n  thread_id: gmailThreadId,           // Gmail Thread ID for threading\n  provider_msg_id: gmailMessageId,    // Gmail Message ID for reply operations\n  in_reply_to: inReplyTo,             // ← In-Reply-To header for threading\n  references: references,              // ← References header for threading\n  message_id: messageId,               // ← Message-ID header\n  attachments: attachments,            // ← AT ROOT LEVEL (backend expects this)\n  parsed: {                            // Optional parsed structure\n    headers: emailData.headers || {},\n    body: {\n      text: emailData.body_text || '',\n      html: emailData.body_html || '',\n      has_attachments: hasAttachments,\n      attachment_count: attachmentCount,\n      text_length: (emailData.body_text || '').length,\n      html_length: (emailData.body_html || '').length,\n    }\n  }\n};\n\nconsole.log('✓ Payload prepared with threading headers at root level');\nconsole.log('✓ Attachments:', attachmentCount);\n\nreturn {\n  json: {\n    token: token,\n    payload: payload,\n    email_id: emailData.email_id,\n    full_text: emailData.full_text\n  }\n};\n"
       },
       "id": "cc4ff59e-504b-4435-a592-beca0320c078",
       "name": "Prepare Payload",
@@ -190,9 +190,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "Jx9lpFM49jf9cBTP",
+          "value": "your-wf-reply-generate-id",
           "mode": "list",
-          "cachedResultUrl": "/workflow/Jx9lpFM49jf9cBTP",
+          "cachedResultUrl": "/workflow/your-wf-reply-generate-id",
           "cachedResultName": "WF-REPLY-GENERATE-V2"
         },
         "workflowInputs": {
@@ -251,7 +251,7 @@
         256,
         400
       ],
-      "webhookId": "7af1b893-b66e-4e96-b640-392035804238",
+      "webhookId": "00000000-0000-0000-0000-000000000001",
       "credentials": {
         "gmailOAuth2": {
           "id": "your-gmail-credential-id",
@@ -276,9 +276,9 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "csaNdBEuJLViUqcz",
+          "value": "your-wf-extract-enrich-ioc-id",
           "mode": "list",
-          "cachedResultUrl": "/workflow/csaNdBEuJLViUqcz",
+          "cachedResultUrl": "/workflow/your-wf-extract-enrich-ioc-id",
           "cachedResultName": "WF-EXTRACT-AND-ENRICH-IOC"
         },
         "options": {}
@@ -442,11 +442,11 @@
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1"
   },
-  "versionId": "c37d8b10-25ea-47fc-81fc-88532b1aa972",
+  "versionId": "00000000-0000-0000-0000-000000000000",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
+    "instanceId": "your-n8n-instance-id"
   },
-  "id": "Cibqm3bYOOAQz3HL",
+  "id": "your-wf-intake-email-id",
   "tags": []
 }
