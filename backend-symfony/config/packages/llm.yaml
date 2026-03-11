@@ -101,5 +101,24 @@ services:
             $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
             $logger: '@monolog.logger.llm'
 
+    # Application - Prompt Injection Detection (forensic analysis of inbound messages)
+    App\Application\Communication\PromptInjectionPatternMatcher:
+        arguments:
+            $logger: '@monolog.logger.llm'
+
+    App\Application\Communication\PromptInjectionLlmAnalyzer:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $logger: '@monolog.logger.llm'
+            $model: '%env(PROMPT_INJECTION_MODEL)%'
+            $temperature: '%env(float:PROMPT_INJECTION_TEMPERATURE)%'
+
+    App\Application\Communication\PromptInjectionDetector:
+        arguments:
+            $patternMatcher: '@App\Application\Communication\PromptInjectionPatternMatcher'
+            $llmAnalyzer: '@App\Application\Communication\PromptInjectionLlmAnalyzer'
+            $logger: '@monolog.logger.llm'
+            $enabled: '%env(bool:PROMPT_INJECTION_ENABLED)%'
+
 monolog:
     channels: ['llm']

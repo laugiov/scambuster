@@ -46,6 +46,9 @@ class Message
     #[ORM\Column(name: 'url_analysis', type: 'json', nullable: true)]
     private ?array $urlAnalysis = null;
 
+    #[ORM\Column(name: 'injection_analysis', type: 'json', nullable: true)]
+    private ?array $injectionAnalysis = null;
+
     #[ORM\Column(name: 'composite_hash', type: 'string', length: 64, unique: true)]
     private string $compositeHash;
 
@@ -232,6 +235,16 @@ class Message
     public function setUrlAnalysis(?array $urlAnalysis): void
     {
         $this->urlAnalysis = $urlAnalysis;
+    }
+
+    public function getInjectionAnalysis(): ?array
+    {
+        return $this->injectionAnalysis;
+    }
+
+    public function setInjectionAnalysis(?array $injectionAnalysis): void
+    {
+        $this->injectionAnalysis = $injectionAnalysis;
     }
 
     public function setTsMsg(\DateTimeImmutable $tsMsg): void

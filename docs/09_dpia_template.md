@@ -23,6 +23,7 @@ ScamBuster is an automated honeypot platform that engages with inbound scam emai
 - Validates all outgoing replies through a two-layer safety filter (PolicyGuard + LLM Validator)
 - Extracts, normalizes, and deduplicates IOCs from scammer messages
 - Exports IOCs in STIX 2.1 and MISP-compatible formats for threat intelligence sharing
+- Analyzes inbound messages for prompt injection attempts using two-layer detection (pattern matching + LLM-as-judge forensic analysis)
 
 ### 1.2 Scope of Processing
 
@@ -113,6 +114,7 @@ No special category data (Article 9) is intentionally processed. If scam emails 
 | R7 | IOC poisoning (false indicators) | Low | Medium | IocValidator + confidence scoring + manual audit |
 | R8 | Scammer detects automation | Medium | Low | Persona variability, tone adaptation, repetition avoidance |
 | R9 | Unintended outbound contact | Very Low | High | Inbound-only architecture (data model FK, handler exceptions, no standalone outbound endpoint) |
+| R10 | Scammer attempts prompt injection to extract system prompt or manipulate LLM behavior | Low | High | Two-layer injection detection (pattern + LLM-as-judge), system prompt hardening, output validation via PolicyGuard + LLM Validator |
 
 ### 4.2 Residual Risk
 
@@ -135,6 +137,7 @@ After all mitigations, the residual risk is **LOW**. The primary remaining risk 
 | IOC validation | IocNormalizer + IocValidator (regex per type, checksum, format) |
 | Network isolation | Docker Compose, n8n self-hosted, no public-facing LLM endpoints |
 | STIX 2.1 export | Standardized threat intelligence format with PII filtering |
+| Prompt injection detection | Two-layer analysis (deterministic pattern matching + LLM-as-judge) on all inbound messages, results stored per message |
 
 ### 5.2 Organizational Measures
 

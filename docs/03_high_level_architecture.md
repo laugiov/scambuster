@@ -11,11 +11,11 @@ ScamBuster is designed as a **modular, event-driven system** with clear separati
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                           INGESTION LAYER                                │
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐                │
-│  │  Email (IMAP) │  │   Scraping    │  │   Honeypots   │                │
-│  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘                │
-│          └──────────────────┼──────────────────┘                        │
-│                             ▼                                            │
+│              ┌───────────────┐  ┌───────────────┐                       │
+│              │  Email (IMAP) │  │   Honeypots   │                       │
+│              └───────┬───────┘  └───────┬───────┘                       │
+│                      └──────────┬───────┘                               │
+│                                 ▼                                        │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                         ORCHESTRATION LAYER                              │
 │                    ┌─────────────────────┐                               │
@@ -25,20 +25,20 @@ ScamBuster is designed as a **modular, event-driven system** with clear separati
 │                               ▼                                          │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                           LLM PIPELINE                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌─────────────┐ │
-│  │ ScamClassifier│→│ IocExtractor │→│  Generator   │→│  Validator  │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  └─────────────┘ │
-│                               ▲                                          │
-│                    ┌──────────┴──────────┐                               │
-│                    │    Orchestrator     │                               │
-│                    │  (cost & quality)   │                               │
-│                    └─────────────────────┘                               │
+│  ┌─────────────┐ ┌────────────┐ ┌──────────────┐ ┌──────────┐         │
+│  │ScamClassifier│→│IocExtractor│→│InjectionDet. │→│Generator │         │
+│  └─────────────┘ └────────────┘ └──────────────┘ └────┬─────┘         │
+│                               ▲                        ▼                │
+│                    ┌──────────┴──────────┐   ┌──────────────┐          │
+│                    │    Orchestrator     │   │  Validator   │          │
+│                    │  (cost & quality)   │   │  (safety)    │          │
+│                    └─────────────────────┘   └──────────────┘          │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          BACKEND SERVICES                                │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐│
-│  │Conversation │  │   Message   │  │     IOC     │  │ Adaptive Bandit ││
-│  │  Manager    │  │   Handler   │  │  Extractor  │  │(ε-greedy/Thompson)│
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────┘│
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌──────────────┐  │
+│  │Conversation │  │   Message   │  │     IOC     │  │   Adaptive   │  │
+│  │  Manager    │  │   Handler   │  │  Extractor  │  │   (ε-greedy) │  │
+│  └─────────────┘  └─────────────┘  └─────────────┘  └──────────────┘  │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          DATA LAYER                                      │
 │  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────┐ │
@@ -48,10 +48,10 @@ ScamBuster is designed as a **modular, event-driven system** with clear separati
 │  └─────────────────────┘  └─────────────────────┘  └─────────────────┘ │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          EXPORT LAYER                                    │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐│
-│  │  STIX 2.1   │  │    MISP     │  │  REST API   │  │   Dashboards    ││
-│  │   Export    │  │    Feed     │  │  (JSON)     │  │   (Grafana)     ││
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────────┘│
+│         ┌─────────────┐  ┌─────────────┐                               │
+│         │  STIX 2.1   │  │  REST API   │                               │
+│         │   Export    │  │  (JSON)     │                               │
+│         └─────────────┘  └─────────────┘                               │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,18 +61,17 @@ ScamBuster is designed as a **modular, event-driven system** with clear separati
 
 ### 1. Ingestion Layer
 
-Multiple channels feed scam emails into the system:
+Scam emails are received via monitored mailboxes:
 
 | Source | Method | Volume |
 |--------|--------|--------|
 | **Email (IMAP)** | Real-time monitoring of honeypot accounts | Passive |
-| **Scraping** | Public scam reporting sites | Active |
 | **Honeypots** | Dedicated email accounts exposed on forums | Passive |
 
 **Key features**:
-- Deduplication (Message-ID based)
+- Deduplication (composite hash based)
 - Risk scoring (integration with Rspamd)
-- Buffering for reliability
+- Automatic conversation reopening on new inbound message
 
 ### 2. Orchestration Layer
 
@@ -81,13 +80,12 @@ Workflow engine coordinates all processing steps:
 - **Email intake**: Parse, score, classify, store
 - **Response generation**: Select persona, generate, validate, send
 - **IOC extraction**: Extract, deduplicate, enrich, store
-- **Campaign detection**: Cluster IOCs, identify patterns
 
 **Technology**: n8n (self-hosted, 400+ integrations)
 
 ### 3. LLM Pipeline
 
-Five specialized agents with distinct responsibilities:
+Six specialized agents with distinct responsibilities:
 
 ```
                     ┌─────────────────┐
@@ -95,19 +93,32 @@ Five specialized agents with distinct responsibilities:
                     │ (coordination)  │
                     └────────┬────────┘
                              │
-         ┌───────────────────┼───────────────────┐
-         ▼                   ▼                   ▼
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│  ScamClassifier │ │  IocExtractor   │ │    Generator    │
-│  (categorize)   │ │  (extract)      │ │  (respond)      │
-└─────────────────┘ └─────────────────┘ └────────┬────────┘
-                                                  │
-                                                  ▼
-                                        ┌─────────────────┐
-                                        │    Validator    │
-                                        │  (safety)       │
-                                        └─────────────────┘
+       ┌─────────────────────┼─────────────────────┐
+       ▼                     ▼                     ▼
+┌──────────────┐  ┌───────────────┐  ┌──────────────────┐
+│ScamClassifier│  │ IocExtractor  │  │InjectionDetector │
+│ (categorize) │  │  (extract)    │  │   (forensic)     │
+└──────────────┘  └───────────────┘  └──────────────────┘
+
+                  ┌───────────────┐
+                  │   Generator   │
+                  │  (respond)    │
+                  └───────┬───────┘
+                          ▼
+                  ┌───────────────┐
+                  │   Validator   │
+                  │   (safety)    │
+                  └───────────────┘
 ```
+
+| Agent | Role | Phase |
+|-------|------|-------|
+| **ScamClassifier** | Categorize inbound scam emails (13 types) | Ingestion |
+| **IocExtractor** | Extract IOCs from messages (34 types, hybrid regex+LLM) | Ingestion |
+| **InjectionDetector** | Forensic analysis of inbound messages for prompt injection | Ingestion |
+| **Generator** | Generate contextual replies using persona system prompts | Reply |
+| **Validator** | Two-layer safety validation (PolicyGuard + LLM Validator) | Reply |
+| **Orchestrator** | Coordinate generation loop (3 attempts, cost tracking) | Reply |
 
 **Design principles**:
 - Single responsibility per agent
@@ -140,7 +151,7 @@ Domain-Driven Design (DDD) architecture:
 - **Conversation**: Lifecycle, status, risk scoring
 - **Message**: Threading, direction, deduplication
 - **IOC**: Extraction, classification, enrichment
-- **Adaptive**: Bandit algorithm, performance tracking
+- **Adaptive**: ε-greedy bandit, persona performance tracking
 
 ### 5. Data Layer
 
@@ -148,7 +159,7 @@ Domain-Driven Design (DDD) architecture:
 |-------|---------|--------------|
 | **PostgreSQL** | Primary data | Access control, application-level audit trail |
 | **Redis** | Cache, sessions | Rate limiting, temporary state |
-| **Secrets Store** | Credentials | API keys, service accounts |
+| **Vault** | Credentials | IMAP passwords, API keys |
 
 ### 6. Export Layer
 
@@ -157,9 +168,7 @@ Standard formats for integration:
 | Format | Use Case |
 |--------|----------|
 | **STIX 2.1** | Threat intelligence platforms |
-| **MISP** | Information sharing communities |
-| **REST API** | Custom integrations |
-| **Grafana** | Operational dashboards |
+| **REST API** | Custom integrations (JSON) |
 
 ---
 
@@ -167,10 +176,10 @@ Standard formats for integration:
 
 ```
 1. INGEST
-   Email arrives → Risk scoring → Classification → Store
+   Email arrives → Risk scoring → Classification → Injection analysis → Store
 
 2. ENGAGE
-   Select persona (bandit) → Generate response → Validate → Send
+   Select persona (ε-greedy) → Generate response → Validate → Send
 
 3. EXTRACT
    Receive reply → Extract IOCs → Deduplicate → Enrich
@@ -179,14 +188,14 @@ Standard formats for integration:
    Conversation ends → Calculate reward → Update bandit
 
 5. EXPORT
-   IOCs aggregated → Format (STIX/MISP) → Publish
+   IOCs aggregated → Format (STIX 2.1) → Publish
 ```
 
 ---
 
 ## Adaptive Scambaiting Component
 
-### Contextual Bandit Architecture
+### ε-greedy Contextual Bandit
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -210,8 +219,9 @@ Standard formats for integration:
 │                       ▼                                  │
 │              ┌─────────────────┐                        │
 │              │  Selection      │                        │
-│              │  (ε-greedy or   │                        │
-│              │  Thompson)      │                        │
+│              │  (ε-greedy:     │                        │
+│              │  80% exploit,   │                        │
+│              │  20% explore)   │                        │
 │              └─────────────────┘                        │
 │                       │                                  │
 │                       ▼                                  │
@@ -226,7 +236,46 @@ Standard formats for integration:
 | Sessions count | Per persona × scam_type | Conversation start |
 | Reward sum | Per persona × scam_type | Conversation end |
 | Reward average | Computed | On update |
-| Alpha/Beta (Thompson) | Per persona × scam_type | Conversation end |
+
+---
+
+## Prompt Injection Detection
+
+### Two-Layer Forensic Architecture
+
+ScamBuster includes a forensic prompt injection detector that analyzes every inbound message. This is **research-oriented** -- it does not block ingestion or modify the reply pipeline.
+
+```
+Inbound message
+       │
+       ▼
+┌──────────────────┐
+│  Layer 1         │  < 1ms, zero cost
+│  Pattern Matcher │  Known injection signatures (regex)
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  Layer 2         │  LLM call (configurable model)
+│  LLM-as-Judge   │  Semantic analysis, 6-technique taxonomy
+└────────┬─────────┘
+         │
+         ▼
+┌──────────────────┐
+│  Analysis stored │  JSON column on message entity
+│  (forensic)      │  risk_score, techniques, confidence
+└──────────────────┘
+```
+
+**Technique taxonomy** (Layer 2):
+1. Direct injection (explicit override instructions)
+2. Indirect injection (hidden instructions in content)
+3. Jailbreak (bypass safety constraints)
+4. Prompt extraction (reveal system prompt)
+5. Encoding tricks (base64, Unicode obfuscation)
+6. Social engineering to break character (AI detection)
+
+**Key research question**: Do real-world scammers attempt prompt injection against LLM-based honeypots?
 
 ---
 
@@ -238,8 +287,8 @@ ScamBuster is deployed as a **containerized application** with:
 
 - **Isolated environments**: Separate production and pre-production
 - **Automated CI/CD**: GitLab CI with security scanning
-- **Secrets management**: Dedicated secrets store (credentials never in code)
-- **Network isolation**: Defense-in-depth with layered access controls
+- **Secrets management**: HashiCorp Vault (credentials never in code)
+- **Network isolation**: Docker Compose, defense-in-depth
 
 > **Note**: Detailed infrastructure specifications available under NDA for pilot programs.
 
@@ -251,7 +300,7 @@ ScamBuster is deployed as a **containerized application** with:
 |-----------|------------|-----------|
 | **Language** | PHP 8.3 | Strong typing, mature ecosystem, DDD support |
 | **Framework** | Symfony 7 | Enterprise-grade, security features |
-| **Database** | PostgreSQL | JSON support, reliability, access control |
+| **Database** | PostgreSQL 15 | JSON support, reliability, access control |
 | **LLM** | OpenAI API | Cost-effective, consistent quality |
 | **Orchestration** | n8n | Visual debugging, 400+ integrations |
 | **CI/CD** | GitLab CI | Integrated, security scanning |
@@ -260,7 +309,7 @@ ScamBuster is deployed as a **containerized application** with:
 
 ## Scalability Considerations
 
-### Current State (February 2026)
+### Current State (March 2026)
 
 | Metric | Value |
 |--------|-------|
@@ -283,7 +332,6 @@ ScamBuster is deployed as a **containerized application** with:
 - Horizontal scaling of backend (stateless)
 - Read replicas for database
 - Dedicated n8n workers for parallel processing
-- CDN for static assets (if web UI added)
 
 ---
 
