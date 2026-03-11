@@ -149,7 +149,7 @@ class ConversationGenerator
                 conversation: $conversation,
                 channel: $channel,
                 direction: $direction,
-                langDetect: 'fr',
+                langDetect: 'en',
                 subject: $i === 0 ? $this->generateSubject($scamType, $context) : null,
                 bodyText: $messageContent,
                 bodyHtml: null,
