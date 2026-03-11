@@ -39,6 +39,9 @@ class IocGenerator
         'support-center.org',
         'payment-pending.info',
         'verify-account.co',
+        'login-secure.xyz',
+        'myaccount-verify.com',
+        'portal-access.net',
     ];
 
     /**
@@ -69,8 +72,9 @@ class IocGenerator
                 $this->generateSpoofedEmail('support'),
                 $this->generateSpoofedEmail('security'),
             ],
-            'phones' => [],
+            'phones' => [$this->generatePhone('toll-free')],
             'ibans' => [],
+            'message_ids' => [$this->generateMessageId()],
         ];
     }
 
@@ -129,6 +133,7 @@ class IocGenerator
             ],
             'crypto_wallets' => [
                 $this->generateBitcoinAddress(),
+                $this->generateEthereumAddress(),
             ],
         ];
     }
@@ -158,6 +163,7 @@ class IocGenerator
             'emails' => [$this->generatePersonalEmail()],
             'phones' => [$this->generatePhone()],
             'ibans' => [$this->generateIban()],
+            'message_ids' => [$this->generateMessageId()],
         ];
     }
 
@@ -213,7 +219,27 @@ class IocGenerator
     }
 
     /**
-     * Génère une URL suspecte
+     * Generates a realistic (but invalid) Ethereum address
+     */
+    private function generateEthereumAddress(): string
+    {
+        return '0x' . bin2hex(random_bytes(20));
+    }
+
+    /**
+     * Generates a realistic email Message-ID header
+     */
+    private function generateMessageId(): string
+    {
+        $domains = ['mail.gmail.com', 'outlook.com', 'yahoo.com', 'protonmail.ch'];
+        $domain = $this->randomChoice($domains);
+        $id = bin2hex(random_bytes(16));
+
+        return sprintf('<%s@%s>', $id, $domain);
+    }
+
+    /**
+     * Generates a suspicious URL
      */
     private function generateSuspiciousUrl(string $context = ''): string
     {
