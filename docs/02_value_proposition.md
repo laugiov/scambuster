@@ -8,7 +8,7 @@ ScamBuster is a **novel adaptive conversational honeypot** that combines:
 2. **Multi-agent LLM architecture** for realistic, scalable engagement
 3. **Hybrid IOC extraction** with 100% precision on audited sample (vs 44% regex-only)
 4. **Reinforcement learning** to automatically optimize strategies per scam type
-5. **Pilot-proven results**: +1K conversations, +20K IOCs, €5.2 total cost
+5. **Pilot-proven results**: 5.34 unique IOCs/conversation, 100% extraction precision, EUR 0.0002/IOC
 
 ---
 
@@ -109,7 +109,7 @@ Context (scam type) → Select persona → Observe reward → Update model
 | Algorithm | Version | Status | Key Properties |
 |-----------|---------|--------|----------------|
 | **ε-greedy** | V1 | ✅ Complete | 80% exploitation, 20% exploration |
-| **Thompson Sampling** | — | 🔄 Planned | Bayesian, zero hyperparameters |
+| **Thompson Sampling** | - | 🔄 Planned | Bayesian, zero hyperparameters |
 
 **Reward function** (validated empirically):
 
@@ -145,14 +145,14 @@ Generator → PolicyGuard (hard rules) → LLM Validator (quality) → Send
 
 | Metric | Value |
 |--------|-------|
-| **Conversations** | +1K real scammers engaged |
-| **IOCs extracted** | +20K total |
-| **High-value IOCs** | IBANs, phone numbers, crypto wallets |
+| **Unique IOCs per conversation** | 5.34 (deduplicated) |
+| **IOC Precision** | 100% on audited sample (N=107) |
+| **Persona variance** | 5.5x between best/worst per scam type |
+| **Scammer response rate** | 54% |
+| **Cost per IOC** | EUR 0.0002 |
 | **System uptime** | 60 days (0 incidents) |
-| **Total cost** | €5.2 |
-| **Cost per IOC** | €0.0002 |
 
-> **Metrics scope**: Figures from controlled live deployment (December 2025 - February 2026). 60-day run for stability, scale, and ROI indicators. See [Evaluation Methodology](05_evaluation_methodology.md) for definitions.
+> **Metrics scope**: Quality metrics from controlled live deployment (December 2025 - February 2026). These ratios are reproducible regardless of deployment scale. See [Evaluation Methodology](05_evaluation_methodology.md) for definitions.
 
 ### Validation Dataset
 
@@ -178,30 +178,18 @@ From pilot data, identified patterns suggesting coordinated operations:
 
 ## ROI Analysis
 
-### Cost Structure
+### Cost Efficiency
 
-| Component | Total Cost (60 days) |
-|-----------|----------------------|
-| LLM API calls (GPT-4o-mini) | €5.2 |
-| Infrastructure (Docker) | Existing |
-| Human intervention | Zero |
-| **Total** | **€5.2** |
+| Metric | Value |
+|--------|-------|
+| **Cost per IOC** | EUR 0.0002 |
+| **LLM provider** | GPT-4o-mini |
+| **Infrastructure** | Docker (existing) |
+| **Human intervention** | Zero |
 
-### Value Generated
+At EUR 0.0002 per IOC, the system is **orders of magnitude cheaper** than manual threat intelligence collection. The Ponemon Institute estimates $137 per phishing incident handled manually.
 
-| Asset | Count | Estimated Value |
-|-------|-------|-----------------|
-| Total IOCs | +20K | €2-5 each |
-| High-value IOCs (IBANs, phones) | ~500 | €50-100 each |
-| Campaign attributions | Multiple | €100-500 each |
-
-### ROI Calculation
-
-At conservative estimates (€2/IOC for basic indicators):
-- **Base value**: 20,000 × €2 = €40,000
-- **ROI**: €40,000 / €5.2 = **~7,700×**
-
-> **Note on value estimates**: These figures reflect **defensive operational value** for SOC/fraud-prevention workflows (triage time saved, faster blocking/reporting, campaign correlation). They do not imply resale and are internal estimates, not claims about commercial markets.
+> **Note**: Cost per IOC is a unit metric, reproducible at any scale. Infrastructure costs (hosting, email) are deployment-dependent and not included.
 
 ---
 
@@ -209,7 +197,7 @@ At conservative estimates (€2/IOC for basic indicators):
 
 | Capability | Traditional Honeypot | Manual Scambaiting | ScamBuster |
 |------------|---------------------|-------------------|------------|
-| **Scale** | Limited | Very limited | **+1K conversations demonstrated** |
+| **Scale** | Limited | Very limited | **Fully automated, 60 days continuous** |
 | **IOC precision** | Low (regex) | High (human) | **100% on audited sample** |
 | **Learning** | None | Slow (experience) | **Automatic** |
 | **Cost per conversation** | N/A | €50-100 (analyst) | **<€0.01** |
