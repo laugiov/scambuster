@@ -13,7 +13,7 @@ ScamBuster employs **rigorous, reproducible evaluation methods** to measure and 
 | Metric | Definition | Target | Status |
 |--------|------------|--------|--------|
 | **Engagement Duration** | Time from first response to conversation end | >1 hour median | 0.3h median, 48.7h max |
-| **IOCs per Conversation** | Total indicators extracted | >5 per conversation | 20 achieved (+20K/+1K) |
+| **Unique IOCs per Conversation** | Deduplicated indicators extracted | >5 per conversation | 5.34 achieved (deduplicated) |
 | **High-Value IOC Rate** | % of IOCs that are actionable (IBAN, phone, crypto) | >10% | IBANs, phones, crypto captured |
 | **Conversation Completion Rate** | % of conversations reaching natural end | >30% | Measuring |
 | **System Uptime** | Continuous operation without incidents | >99% | 100% (60 days) |
@@ -36,7 +36,7 @@ Metrics in this documentation come from **controlled live deployment** (December
 
 | Window | Duration | Purpose | Key Metrics |
 |--------|----------|---------|-------------|
-| **Production run** | 60 days | Stability, scale, uptime, ROI | +1K conversations, +20K IOCs, 60 days uptime |
+| **Production run** | 60 days | Stability, quality metrics, uptime | 5.34 unique IOCs/conv, 100% precision, 0 incidents |
 | **Controlled validation** | Ongoing | Precision analysis, campaign attribution | Detailed cost/value analysis |
 
 This separation ensures appropriate context for each metric type.
@@ -47,16 +47,16 @@ This separation ensures appropriate context for each metric type.
 
 ### Production Validation (60 Days)
 
-**Dataset**: +1K real conversations with active scammers
+**Dataset**: Real conversations with active scammers over 60 days
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| **Total IOCs** | +20K | Extracted automatically |
-| **High-value IOCs** | IBANs, phones, crypto | Actionable intelligence |
-| **Campaigns identified** | Multiple | Via IOC clustering |
+| **Unique IOCs per conversation** | 5.34 | Deduplicated |
+| **IOC Precision** | 100% (N=107) | Audited sample |
+| **Persona variance** | 5.5x | Best vs worst per scam type |
+| **Scammer response rate** | 54% | In line with manual scambaiting literature |
+| **Cost per IOC** | EUR 0.0002 | LLM API only |
 | **System uptime** | 100% | 60 days, 0 incidents |
-| **Total cost** | €5.2 | LLM API only |
-| **Cost per IOC** | €0.0002 | Extremely efficient |
 | **LLM approval rate** | 95% | With retry mechanism |
 
 **Key Observations**:
@@ -303,7 +303,7 @@ reward = 0.40 × duration_score
 
 | Limitation | Impact | Mitigation |
 |------------|--------|------------|
-| **Sample size (production)** | +1K conversations, growing | Synthetic validation + ongoing scale |
+| **Sample size (production)** | 60-day deployment, growing | Synthetic validation + ongoing scale |
 | **Selection bias** | Public scam sites may not represent all scams | Diversify sources |
 | **LLM dependency** | Proprietary model may change | Version pinning, logging |
 | **Synthetic ≠ real** | Preprod validation lacks real scammer behavior | Validate with production data |

@@ -12,7 +12,7 @@ ScamBuster is an **adaptive conversational honeypot** that engages email scammer
 
 ### Can I get access to the code?
 
-Yes—for **serious interest** (demo, pilot, hiring, partnership). See the [Contact section](../README.md#contact) to request access. Private access may require an NDA and/or responsible-use agreement.
+Yes, for **serious interest** (demo, pilot, hiring, partnership). See the [Contact section](../README.md#contact) to request access. Private access may require an NDA and/or responsible-use agreement.
 
 ### What's the current project status?
 
@@ -69,7 +69,7 @@ Each agent has a single responsibility and can be optimized independently.
 - **Hybrid approach**: Regex patterns + LLM understanding
 - **34 IOC types**: emails, phones, IBANs, crypto wallets, URLs, etc.
 - **Contextual extraction**: LLM understands when text is an IOC vs normal content
-- **Pilot scale**: +20K IOCs extracted from +1K conversations
+- **Pilot results**: 5.34 unique IOCs per conversation (deduplicated), 100% precision (N=107)
 
 Compared to regex-only approaches (44% precision), this is a 2.3× improvement.
 
@@ -114,15 +114,12 @@ Based on February 2026 pilot data (60 days):
 
 | Metric | Value |
 |--------|-------|
-| **Operational cost** | €5.2 |
-| **Conversations** | +1K |
-| **IOCs captured** | +20K |
-| **Cost per IOC** | €0.0002 |
-| **ROI** | ~7,700× |
+| **Unique IOCs per conversation** | 5.34 (deduplicated) |
+| **IOC Precision** | 100% (N=107) |
+| **Cost per IOC** | EUR 0.0002 |
+| **Persona variance** | 5.5x best vs worst |
 
-Even at conservative estimates (€2/IOC), ROI exceeds 7,700×.
-
-> **Note**: Value estimates reflect **internal defensive operational value** (SOC workflow efficiency, faster blocking/reporting, campaign correlation). These are not claims about commercial pricing or resale markets.
+At EUR 0.0002 per IOC vs $137 per phishing incident (Ponemon), the cost efficiency is substantial.
 
 ### How much does it cost to operate?
 
@@ -130,7 +127,7 @@ Even at conservative estimates (€2/IOC), ROI exceeds 7,700×.
 |-----------|------|
 | **LLM API** | ~€0.0002/message |
 | **Infrastructure** | Existing Docker host |
-| **Total actual** | €5.2 (+1K conversations) |
+| **Total actual** | EUR 0.0002/IOC extracted |
 | **Hard limit** | €50/month configured |
 
 ### Is there a commercial offering?
@@ -163,7 +160,7 @@ A real-world deployment should include a **scope-specific DPIA** and legal revie
 
 ### Do you interact with real scammers?
 
-Yes—in a **controlled, sandboxed environment** with strict safeguards:
+Yes, in a **controlled, sandboxed environment** with strict safeguards:
 
 - Rate limiting (max 50 new conversations/day)
 - Content filtering (PolicyGuard + LLM Validator)

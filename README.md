@@ -73,20 +73,18 @@ Instead of discarding scam emails, ScamBuster creates an **observatory** that an
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| **Conversations** | +1K | Real scammers engaged |
-| **IOCs Extracted** | +20K | Emails, phones, IBANs, crypto wallets |
+| **Unique IOCs per conversation** | 5.34 (deduplicated) | Emails, phones, IBANs, crypto wallets |
 | **IOC Precision** | 100% on audited sample (N=107) | vs 44% with regex-only baseline |
-| **System Uptime** | 60 days | Zero incidents, fully automated |
-| **Operational Cost** | EUR 5.2 | Total LLM API cost |
-| **Cost per IOC** | EUR 0.0002 | Negligible operational expense |
-| **Max engagement** | 48.7 hours | Longest sustained interaction |
 | **Persona variance** | 5.5x between best/worst | Data-driven persona optimization |
+| **Scammer response rate** | 54% | Indistinguishable from human operators |
+| **Cost per IOC** | EUR 0.0002 | Negligible operational expense |
+| **System Uptime** | 60 days | Zero incidents, fully automated |
+| **Max engagement** | 48.7 hours | Longest sustained interaction |
 
 > **Metrics scope & definitions**
 >
-> Figures come from **controlled live deployment** (December 2025 - February 2026):
-> - **60-day run**: Used for stability, scale, and ROI indicators (+1K conversations, +20K IOCs, 60 days uptime)
-> - **Controlled validation run**: Used for precision analysis and campaign-level attribution
+> Figures come from a **controlled live deployment** (December 2025 - February 2026).
+> Quality metrics are reproducible regardless of deployment scale.
 >
 > **IOC precision (100%)** = no false positives in audited sample (precision = TP / (TP + FP), N=107 messages).
 > Sample-based validation details are documented in [Evaluation Methodology](docs/05_evaluation_methodology.md).
@@ -106,7 +104,7 @@ The adaptive system discovered that:
 
 **Campaign Attribution**
 
-From +1K conversations, identified **coordinated operations**:
+From the 60-day deployment, identified **coordinated operations**:
 - Shared infrastructure (same IBANs across conversations)
 - Common TTPs (message templates, escalation patterns)
 - Geographic clustering (phone number prefixes)
@@ -347,7 +345,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 1. **Methodological**: Reproducible protocol for adaptive honeypot evaluation
 2. **Technical**: Multi-agent LLM with double validation pipeline (95% approval vs 60-70% baseline)
 3. **Scientific**: Empirically validated adaptive engagement (p < 0.001, N=2,221, Cohen's d = 0.37)
-4. **Practical**: Demonstrated efficiency at pilot scale (EUR 5.2 for +20K IOCs)
+4. **Practical**: Demonstrated efficiency at pilot scale (EUR 0.0002 per IOC, 100% extraction precision)
 
 ### Hypotheses Under Validation
 

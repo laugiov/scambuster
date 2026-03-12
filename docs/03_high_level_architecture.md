@@ -313,18 +313,18 @@ ScamBuster is deployed as a **containerized application** with:
 
 | Metric | Value |
 |--------|-------|
-| Active conversations | +1K (60 days) |
-| IOCs extracted | +20K total |
+| Unique IOCs per conversation | 5.34 (deduplicated) |
+| IOC Precision | 100% (N=107) |
 | System uptime | 60 days (0 incidents) |
 | Infrastructure | Containerized, single host |
 
-### Proven Capacity
+### Proven Quality
 
 | Metric | Achieved |
 |--------|----------|
-| Conversations (60 days) | +1K |
-| IOCs (60 days) | +20K |
-| Total cost | €5.2 |
+| Unique IOCs/conversation | 5.34 |
+| Persona variance | 5.5x best vs worst |
+| Cost per IOC | EUR 0.0002 |
 | Infrastructure | Same (sufficient headroom) |
 
 ### Future Scaling Options

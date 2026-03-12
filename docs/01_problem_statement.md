@@ -13,9 +13,9 @@ Email-based fraud represents one of the most significant and growing cyber threa
 | **Average BEC loss per incident** | $125,000 | [Verizon DBIR 2024](https://www.verizon.com/business/resources/reports/dbir/) |
 
 The threat continues to grow:
-- **+65%** increase in BEC attacks (2022-2024) — [FBI IC3](https://www.ic3.gov/)
-- **+300%** increase in AI-generated phishing content — industry estimates
-- **<1%** of scam infrastructure gets taken down — based on takedown reporting
+- **+65%** increase in BEC attacks (2022-2024), [FBI IC3](https://www.ic3.gov/)
+- **+300%** increase in AI-generated phishing content, industry estimates
+- **<1%** of scam infrastructure gets taken down, based on takedown reporting
 
 ---
 
@@ -58,7 +58,7 @@ Security teams lack visibility into:
 - **Campaign attribution**: Linking individual scams to organized operations
 - **Behavioral patterns**: Tactics, techniques, and procedures (TTPs)
 
-This intelligence exists—but scammers only reveal it to "victims."
+This intelligence exists, but scammers only reveal it to "victims."
 
 ---
 
@@ -157,13 +157,13 @@ ScamBuster is designed for organizations that:
 
 ## References
 
-1. **FBI IC3 Annual Report 2023** — Internet Crime Complaint Center. *2023 Internet Crime Report*. https://www.ic3.gov/Media/PDF/AnnualReport/2023_IC3Report.pdf
+1. **FBI IC3 Annual Report 2023**:Internet Crime Complaint Center. *2023 Internet Crime Report*. https://www.ic3.gov/Media/PDF/AnnualReport/2023_IC3Report.pdf
 
-2. **Verizon DBIR 2024** — Verizon Enterprise. *2024 Data Breach Investigations Report*. https://www.verizon.com/business/resources/reports/dbir/
+2. **Verizon DBIR 2024**:Verizon Enterprise. *2024 Data Breach Investigations Report*. https://www.verizon.com/business/resources/reports/dbir/
 
-3. **Proofpoint State of the Phish 2024** — Proofpoint Inc. *2024 State of the Phish Report*. https://www.proofpoint.com/us/resources/threat-reports/state-of-phish
+3. **Proofpoint State of the Phish 2024**:Proofpoint Inc. *2024 State of the Phish Report*. https://www.proofpoint.com/us/resources/threat-reports/state-of-phish
 
-4. **Statista 2024** — Statista Research Department. *Spam and Phishing Statistics*. https://www.statista.com/topics/2162/spam-and-phishing/
+4. **Statista 2024**:Statista Research Department. *Spam and Phishing Statistics*. https://www.statista.com/topics/2162/spam-and-phishing/
 
 > **Note**: Statistics marked as "industry estimates" are aggregated from multiple vendor reports and may vary by methodology.
 
