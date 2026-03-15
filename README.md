@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207%20|%20PostgreSQL%20|%20LLM-green)
-![Tests](https://img.shields.io/badge/tests-1039%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1054%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > **Last updated**: 2026-03-11 | **Data period**: December 2025 - February 2026
@@ -133,8 +133,9 @@ Five specialized AI agents form the core pipeline, supported by one forensic mod
 
 ScamBuster does not rely on a single fixed "best" conversational approach. Instead, it uses **adaptive strategy selection** to learn, per scam category, which persona maximizes **intelligence yield** under strict safety constraints.
 
-- **Epsilon-greedy**: 80% exploitation / 20% exploration (current production)
-- **Thompson Sampling** (planned): Bayesian, zero hyperparameters, automatic convergence
+- **Epsilon-greedy**: 80% exploitation / 20% exploration with UCB1 exploration bonus
+- **Convergence detection**: 60% single-persona selection share triggers exploitation mode
+- **Thompson Sampling** (planned v2): Bayesian, zero hyperparameters, automatic convergence
 - Reward function: `0.40*duration + 0.25*iocs_total + 0.25*iocs_sensitive + 0.10*completion`
 - 27 personas across 7 archetypes (seniors, business, tech, romance, banking, lottery, generic)
 
@@ -211,7 +212,7 @@ make upd                 # Start Docker stack (background)
 make composer-install    # Install PHP dependencies
 make migration           # Create database schema
 make fixtures-dev        # Seed reference data + default users
-make test                # Run 1039 automated tests
+make test                # Run 1054 automated tests
 ```
 
 **Minimum `.env` configuration** before starting:
@@ -250,7 +251,7 @@ scambuster/
   n8n/                     # Workflow definitions (JSON)
   prompts/personas/        # Persona YAML templates
   infra/                   # Docker configs
-  docs/                    # Detailed documentation (9 documents)
+  docs/                    # Detailed documentation (10 documents)
 ```
 
 ---
@@ -282,7 +283,7 @@ scambuster/
 
 ## Testing
 
-1039 automated tests covering:
+1054 automated tests covering:
 - **E2E**: Full API flow with real JWT, database, and fixtures
 - **Integration**: Service/repository logic, business rules
 - **Unit**: Domain logic, value objects, algorithms
@@ -317,7 +318,7 @@ Full details in [Security & Guardrails](docs/04_security_guardrails.md).
 |-------|--------|----------|
 | **Phase 1**: Multi-agent LLM architecture | ✅ Complete | Oct-Nov 2025 |
 | **Phase 2**: Adaptive engagement (epsilon-greedy) | ✅ Complete | Nov-Dec 2025 |
-| **Phase 3**: Thompson Sampling | 🔄 In Progress | Dec 2025 |
+| **Phase 3**: Thompson Sampling | Planned (v2) | -- |
 | **Phase 4**: Scale & Dashboards | ✅ Complete | Jan 2026 |
 | **Phase 5**: A/B Testing & Validation | ✅ Complete | Jan-Feb 2026 |
 | **Phase 6**: Publication & Dataset Release | 🔄 In Progress | Mar 2026 |
