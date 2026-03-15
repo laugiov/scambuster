@@ -41,14 +41,15 @@ Yes, for **serious interest** (demo, pilot, hiring, partnership). See the [Conta
 
 ### How does the LLM architecture work?
 
-ScamBuster uses **six specialized agents**:
+ScamBuster uses **five specialized agents** supported by one forensic module:
 
-1. **ScamClassifier**: Categorizes incoming scams (13 types)
+1. **ScamClassifier**: Categorizes incoming scams (12 types)
 2. **IocExtractor**: Extracts indicators with 100% precision on audited sample
-3. **InjectionDetector**: Detects prompt injection attempts in inbound messages (forensic safety net)
-4. **Generator**: Creates contextual responses
-5. **Validator**: Ensures safety and quality (95% approval rate)
-6. **Orchestrator**: Coordinates agents and optimizes costs
+3. **Generator**: Creates contextual responses
+4. **Validator**: Ensures safety and quality (95% approval rate)
+5. **Orchestrator**: Coordinates agents and optimizes costs
+
+Additionally, the **InjectionDetector** forensic module analyzes inbound messages for prompt injection attempts (non-blocking, results stored for research).
 
 Each agent has a single responsibility and can be optimized independently.
 
@@ -60,7 +61,7 @@ Each agent has a single responsibility and can be optimized independently.
 | **Parameters** | ε = 0.20 (fixed) | None (auto-adaptive) |
 | **Bad performers** | Keep testing | Naturally eliminated |
 | **Convergence** | ~200 sessions | ~100 sessions expected |
-| **Status** | ✅ Validated | ✅ Complete (validated) |
+| **Status** | Validated (production) | Planned (roadmap v2) |
 
 ### How accurate is IOC extraction?
 
@@ -75,23 +76,22 @@ Compared to regex-only approaches (44% precision), this is a 2.3× improvement.
 
 ### What scam types are supported?
 
-Currently 13 scam types:
+Currently 12 scam types:
 
 | Type | Description |
 |------|-------------|
-| ADVANCE_FEE_419 | Nigerian prince / inheritance |
+| UNKNOWN | Unclassified |
+| PHISHING | Generic phishing |
 | PHISH_CREDENTIALS | Password/login theft |
-| FAKE_INVOICE | Business email compromise |
-| TECH_SUPPORT | Microsoft/Apple impersonation |
+| PHISH_MALWARE | Malware delivery via phishing |
+| INVOICE_FRAUD | Fake invoices / BEC |
 | ROMANCE | Dating/emotional manipulation |
+| TECH_SUPPORT | Microsoft/Apple impersonation |
+| CEO_FRAUD | Executive impersonation |
 | INVESTMENT | Crypto/stock pump-and-dump |
 | LOTTERY | Fake winnings |
-| AUTHORITY_IMPERSONATION | Government/police/tax authority |
-| RENTAL | Fake property listings |
 | JOB_OFFER | Employment scams |
 | CHARITY | Disaster relief fraud |
-| RESHIPPING | Package forwarding |
-| OTHER | Unclassified |
 
 ---
 

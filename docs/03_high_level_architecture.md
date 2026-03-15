@@ -85,7 +85,7 @@ Workflow engine coordinates all processing steps:
 
 ### 3. LLM Pipeline
 
-Six specialized agents with distinct responsibilities:
+Five specialized agents form the core pipeline, supported by one forensic module:
 
 ```
                     ┌─────────────────┐
@@ -113,12 +113,15 @@ Six specialized agents with distinct responsibilities:
 
 | Agent | Role | Phase |
 |-------|------|-------|
-| **ScamClassifier** | Categorize inbound scam emails (13 types) | Ingestion |
+| **ScamClassifier** | Categorize inbound scam emails (12 types) | Ingestion |
 | **IocExtractor** | Extract IOCs from messages (34 types, hybrid regex+LLM) | Ingestion |
-| **InjectionDetector** | Forensic analysis of inbound messages for prompt injection | Ingestion |
 | **Generator** | Generate contextual replies using persona system prompts | Reply |
 | **Validator** | Two-layer safety validation (PolicyGuard + LLM Validator) | Reply |
 | **Orchestrator** | Coordinate generation loop (3 attempts, cost tracking) | Reply |
+
+| Forensic Module | Role | Phase |
+|-----------------|------|-------|
+| **InjectionDetector** | Non-blocking prompt injection analysis (pattern + LLM-as-judge) | Ingestion |
 
 **Design principles**:
 - Single responsibility per agent
