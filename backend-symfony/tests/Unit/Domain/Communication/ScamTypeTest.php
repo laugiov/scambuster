@@ -33,7 +33,7 @@ class ScamTypeTest extends TestCase
     public function test_it_creates_scam_type_without_attack_id(): void
     {
         $scamType = new ScamType(
-            'ROMANCE_SCAM',
+            'ROMANCE',
             'Arnaque sentimentale',
             'Etablit confiance puis demande argent',
             'rsit:fraud="scam"',
@@ -43,7 +43,7 @@ class ScamTypeTest extends TestCase
             new \DateTimeImmutable()
         );
 
-        $this->assertSame('ROMANCE_SCAM', $scamType->getCode());
+        $this->assertSame('ROMANCE', $scamType->getCode());
         $this->assertSame('Arnaque sentimentale', $scamType->getLabel());
         $this->assertSame('Etablit confiance puis demande argent', $scamType->getDescription());
         $this->assertSame('rsit:fraud="scam"', $scamType->getMispTaxonomy());

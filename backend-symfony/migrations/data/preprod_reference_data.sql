@@ -37,7 +37,6 @@ INSERT INTO lkp_scam_type (scam_type_id, code, label_en, label_fr, attack_id) VA
     (DEFAULT, 'PHISH_MALWARE', 'Malware Phishing', 'Phishing avec malware', 'T1566.001'),
     (DEFAULT, 'INVOICE_FRAUD', 'Invoice Fraud', 'Fraude à la facture', NULL),
     (DEFAULT, 'ROMANCE', 'Romance Scam', 'Arnaque sentimentale', NULL),
-    (DEFAULT, 'ROMANCE_SCAM', 'Romance Scam', 'Arnaque sentimentale', NULL),
     (DEFAULT, 'TECH_SUPPORT', 'Tech Support Scam', 'Faux support technique', 'T1566.004'),
     (DEFAULT, 'CEO_FRAUD', 'CEO Fraud', 'Fraude au président', NULL),
     (DEFAULT, 'INVESTMENT', 'Investment Scam', 'Arnaque à l''investissement', NULL),

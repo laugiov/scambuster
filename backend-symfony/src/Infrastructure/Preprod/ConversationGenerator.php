@@ -1025,7 +1025,7 @@ PROMPT;
                     'urgency_level' => 'critical',
                 ],
             ],
-            'ROMANCE_SCAM' => [
+            'ROMANCE' => [
                 [
                     'scenario' => 'Romance scam - person in distress abroad',
                     'hook' => 'Stranded abroad, need urgent help',
@@ -1077,7 +1077,7 @@ PROMPT;
                 'Social Security Administration - Action Required',
                 'DMV: License renewal notice',
             ],
-            'ROMANCE_SCAM' => [
+            'ROMANCE' => [
                 'I need your help...',
                 'Please read this, it\'s urgent',
                 'Missing you, but something happened...',
