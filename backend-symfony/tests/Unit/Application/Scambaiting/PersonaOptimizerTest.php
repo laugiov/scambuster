@@ -295,6 +295,53 @@ class PersonaOptimizerTest extends TestCase
         $this->assertCount(3, $result['top_5']);
     }
 
+    public function testExplorationBonusDoesNotOverrideClearWinner(): void
+    {
+        // A clearly dominant persona (0.9 reward, 15 sessions) should still win
+        // even though a weaker persona (0.3 reward, 3 sessions) gets a UCB1 bonus
+        $personas = [
+            $this->createMockPersona('persona_strong'),
+            $this->createMockPersona('persona_weak'),
+        ];
+
+        $scamType = $this->createMockScamType('PHISHING', $personas);
+
+        $scamTypeRepo = $this->createMock(EntityRepository::class);
+        $scamTypeRepo->method('findOneBy')->willReturn($scamType);
+
+        $personaRepo = $this->createMock(EntityRepository::class);
+        $personaRepo->method('findBy')->willReturn($personas);
+
+        $this->em->method('getRepository')
+            ->willReturnCallback(function ($entityClass) use ($scamTypeRepo, $personaRepo) {
+                if ($entityClass === ScamType::class) {
+                    return $scamTypeRepo;
+                }
+                if ($entityClass === Persona::class) {
+                    return $personaRepo;
+                }
+                throw new \RuntimeException("Unexpected entity class: $entityClass");
+            });
+
+        $stats = [
+            $this->createMockStats($personas[0], $scamType, 15, 13.5, 0.9),
+            $this->createMockStats($personas[1], $scamType, 3, 0.9, 0.3),
+        ];
+
+        $this->statsRepository->method('findAllByScamType')->willReturn($stats);
+
+        // Run 100 selections: strong persona should still dominate
+        $results = [];
+        for ($i = 0; $i < 100; $i++) {
+            $results[] = $this->optimizer->selectPersona('PHISHING');
+        }
+
+        $strongCount = count(array_filter($results, fn($code) => $code === 'persona_strong'));
+        $this->assertGreaterThan(55, $strongCount,
+            'UCB1 bonus should not override a clearly dominant persona (0.9 vs 0.3 reward)'
+        );
+    }
+
     public function testIsConvergedReturnsFalseWhenAllColdStart(): void
     {
         $personas = [
