@@ -335,6 +335,8 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 | [Roadmap](docs/06_roadmap.md) | Timeline and milestones |
 | [FAQ](docs/07_faq.md) | Common questions |
 | [Getting Started](docs/08_getting_started.md) | Setup, run, test -- full tutorial |
+| [DPIA Template](docs/09_dpia_template.md) | Data Protection Impact Assessment template |
+| [Threat Model](docs/10_threat_model.md) | T1-T9 threat categories and mitigations |
 
 ---
 
