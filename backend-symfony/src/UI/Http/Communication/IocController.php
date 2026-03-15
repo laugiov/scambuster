@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Communication;
 
+use App\Application\Communication\IocExtractor;
 use App\Application\Communication\IocHandler;
 use App\UI\Http\Dto\IocEnrichedResponseDto;
 use Nelmio\ApiDocBundle\Attribute\Model;
@@ -186,12 +187,15 @@ final class IocController
             }
         }
 
-        // Validate IOC type
-        $validTypes = ['url', 'domain', 'ip', 'hash', 'email', 'iban', 'phone'];
+        // Validate IOC type against the canonical list + known aliases
+        $validTypes = array_merge(
+            IocExtractor::getSupportedTypes(),
+            ['ip', 'hash', 'file_hash']
+        );
 
         if (!in_array($iocData['type'], $validTypes, true)) {
             return new JsonResponse(
-                ['error' => 'Invalid IOC type. Must be one of: ' . implode(', ', $validTypes)],
+                ['error' => 'Invalid IOC type: ' . $iocData['type']],
                 Response::HTTP_BAD_REQUEST
             );
         }

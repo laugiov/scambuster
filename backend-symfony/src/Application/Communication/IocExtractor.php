@@ -250,7 +250,7 @@ USER;
      *
      * @return array<string>
      */
-    public function getSupportedTypes(): array
+    public static function getSupportedTypes(): array
     {
         return self::ALL_IOC_TYPES;
     }
