@@ -279,7 +279,11 @@ class PersonaOptimizerTest extends TestCase
         $this->assertSame('PHISHING', $result['scam_type_code']);
         $this->assertSame(3, $result['total_personas']);
         $this->assertSame(1, $result['cold_start_count']);
-        $this->assertSame(0.20, $result['epsilon']);
+        // epsilon depends on convergence: persona_2 has 10/15 eligible sessions (66% > 60%)
+        // so this scam type IS converged, epsilon should be 0.05
+        $this->assertSame(0.05, $result['epsilon']);
+        $this->assertTrue($result['converged']);
+        $this->assertSame(0.60, $result['convergence_threshold']);
         $this->assertSame(3, $result['cold_start_threshold']);
 
         // best_persona is an array with persona details
@@ -289,6 +293,176 @@ class PersonaOptimizerTest extends TestCase
         $this->assertSame(10, $result['best_persona']['sessions_count']);
 
         $this->assertCount(3, $result['top_5']);
+    }
+
+    public function testIsConvergedReturnsFalseWhenAllColdStart(): void
+    {
+        $personas = [
+            $this->createMockPersona('persona_1'),
+            $this->createMockPersona('persona_2'),
+        ];
+
+        $scamType = $this->createMockScamType('PHISHING', $personas);
+
+        $scamTypeRepo = $this->createMock(EntityRepository::class);
+        $scamTypeRepo->method('findOneBy')->willReturn($scamType);
+
+        $personaRepo = $this->createMock(EntityRepository::class);
+        $personaRepo->method('findBy')->willReturn($personas);
+
+        $this->em->method('getRepository')
+            ->willReturnCallback(function ($entityClass) use ($scamTypeRepo, $personaRepo) {
+                if ($entityClass === ScamType::class) {
+                    return $scamTypeRepo;
+                }
+                if ($entityClass === Persona::class) {
+                    return $personaRepo;
+                }
+                throw new \RuntimeException("Unexpected entity class: $entityClass");
+            });
+
+        $stats = [
+            $this->createMockStats($personas[0], $scamType, 1, 0.5, 0.5),
+            $this->createMockStats($personas[1], $scamType, 2, 0.8, 0.4),
+        ];
+
+        $this->statsRepository->method('findAllByScamType')->willReturn($stats);
+
+        $this->assertFalse($this->optimizer->isConverged('PHISHING'));
+    }
+
+    public function testIsConvergedReturnsFalseWithInsufficientSessions(): void
+    {
+        $personas = [
+            $this->createMockPersona('persona_1'),
+            $this->createMockPersona('persona_2'),
+        ];
+
+        $scamType = $this->createMockScamType('PHISHING', $personas);
+
+        $scamTypeRepo = $this->createMock(EntityRepository::class);
+        $scamTypeRepo->method('findOneBy')->willReturn($scamType);
+
+        $personaRepo = $this->createMock(EntityRepository::class);
+        $personaRepo->method('findBy')->willReturn($personas);
+
+        $this->em->method('getRepository')
+            ->willReturnCallback(function ($entityClass) use ($scamTypeRepo, $personaRepo) {
+                if ($entityClass === ScamType::class) {
+                    return $scamTypeRepo;
+                }
+                if ($entityClass === Persona::class) {
+                    return $personaRepo;
+                }
+                throw new \RuntimeException("Unexpected entity class: $entityClass");
+            });
+
+        // Both have enough for cold start exit but best has < 10 sessions
+        $stats = [
+            $this->createMockStats($personas[0], $scamType, 5, 4.5, 0.9),
+            $this->createMockStats($personas[1], $scamType, 4, 1.6, 0.4),
+        ];
+
+        $this->statsRepository->method('findAllByScamType')->willReturn($stats);
+
+        $this->assertFalse($this->optimizer->isConverged('PHISHING'));
+    }
+
+    public function testIsConvergedReturnsTrueWhenDominantPersonaExists(): void
+    {
+        $personas = [
+            $this->createMockPersona('persona_dominant'),
+            $this->createMockPersona('persona_weak'),
+        ];
+
+        $scamType = $this->createMockScamType('PHISHING', $personas);
+
+        $scamTypeRepo = $this->createMock(EntityRepository::class);
+        $scamTypeRepo->method('findOneBy')->willReturn($scamType);
+
+        $personaRepo = $this->createMock(EntityRepository::class);
+        $personaRepo->method('findBy')->willReturn($personas);
+
+        $this->em->method('getRepository')
+            ->willReturnCallback(function ($entityClass) use ($scamTypeRepo, $personaRepo) {
+                if ($entityClass === ScamType::class) {
+                    return $scamTypeRepo;
+                }
+                if ($entityClass === Persona::class) {
+                    return $personaRepo;
+                }
+                throw new \RuntimeException("Unexpected entity class: $entityClass");
+            });
+
+        // Dominant persona: 15 sessions out of 20 total = 75% > 60% threshold
+        $stats = [
+            $this->createMockStats($personas[0], $scamType, 15, 13.5, 0.9),
+            $this->createMockStats($personas[1], $scamType, 5, 1.5, 0.3),
+        ];
+
+        $this->statsRepository->method('findAllByScamType')->willReturn($stats);
+
+        $this->assertTrue($this->optimizer->isConverged('PHISHING'));
+    }
+
+    public function testConvergedReducesEpsilon(): void
+    {
+        $personas = [
+            $this->createMockPersona('persona_dominant'),
+            $this->createMockPersona('persona_weak'),
+        ];
+
+        $scamType = $this->createMockScamType('PHISHING', $personas);
+
+        $scamTypeRepo = $this->createMock(EntityRepository::class);
+        $scamTypeRepo->method('findOneBy')->willReturn($scamType);
+
+        $personaRepo = $this->createMock(EntityRepository::class);
+        $personaRepo->method('findBy')->willReturn($personas);
+
+        $this->em->method('getRepository')
+            ->willReturnCallback(function ($entityClass) use ($scamTypeRepo, $personaRepo) {
+                if ($entityClass === ScamType::class) {
+                    return $scamTypeRepo;
+                }
+                if ($entityClass === Persona::class) {
+                    return $personaRepo;
+                }
+                throw new \RuntimeException("Unexpected entity class: $entityClass");
+            });
+
+        // Converged: dominant has 80% of sessions
+        $stats = [
+            $this->createMockStats($personas[0], $scamType, 40, 36.0, 0.9),
+            $this->createMockStats($personas[1], $scamType, 10, 3.0, 0.3),
+        ];
+
+        $this->statsRepository->method('findAllByScamType')->willReturn($stats);
+        $this->statsRepository->method('countColdStartPersonas')->willReturn(0);
+        $this->statsRepository->method('findBestPerformingPersona')->willReturn($stats[0]);
+        $this->statsRepository->method('findTopPerformingPersonas')->willReturn($stats);
+
+        // Verify convergence detected
+        $this->assertTrue($this->optimizer->isConverged('PHISHING'));
+
+        // Run selections: with converged epsilon=0.05, dominant should be selected >90%
+        $results = [];
+        for ($i = 0; $i < 200; $i++) {
+            $results[] = $this->optimizer->selectPersona('PHISHING');
+        }
+
+        $dominantCount = count(array_filter($results, fn($code) => $code === 'persona_dominant'));
+        $dominantRatio = $dominantCount / 200;
+
+        $this->assertGreaterThan(0.85, $dominantRatio,
+            'Converged category should select dominant persona >85% of the time (ε=0.05)'
+        );
+
+        // Verify stats report convergence
+        $selectionStats = $this->optimizer->getSelectionStats('PHISHING');
+        $this->assertTrue($selectionStats['converged']);
+        $this->assertSame(0.60, $selectionStats['convergence_threshold']);
+        $this->assertSame(0.05, $selectionStats['epsilon']);
     }
 
     private function createMockScamType(string $code, array $personas): ScamType

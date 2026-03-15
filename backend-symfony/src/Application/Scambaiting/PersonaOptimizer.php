@@ -22,11 +22,11 @@ use Psr\Log\LoggerInterface;
  */
 final class PersonaOptimizer
 {
-    // Epsilon : probabilité d'exploration (20% = 0.20)
     private const EPSILON = 0.20;
-
-    // Cold start : minimum de sessions avant d'activer l'exploitation
     private const COLD_START_THRESHOLD = 3;
+    private const CONVERGENCE_THRESHOLD = 0.60;
+    private const MIN_SESSIONS_FOR_CONVERGENCE = 10;
+    private const CONVERGED_EPSILON = 0.05;
 
     public function __construct(
         private readonly PersonaPerformanceStatsRepository $statsRepository,
@@ -124,10 +124,14 @@ final class PersonaOptimizer
             return ['persona_code' => $selectedPersona->getPersonaCode(), 'strategy' => 'cold_start'];
         }
 
-        // 8. ε-greedy : exploration vs exploitation
-        $random = mt_rand() / mt_getrandmax(); // Génère [0.0, 1.0]
+        // 8. Check convergence to reduce exploration when a dominant persona exists
+        $converged = $this->isConvergedFromPerformances($performances);
+        $effectiveEpsilon = $converged ? self::CONVERGED_EPSILON : self::EPSILON;
 
-        if ($random < self::EPSILON) {
+        // 9. ε-greedy : exploration vs exploitation
+        $random = mt_rand() / mt_getrandmax();
+
+        if ($random < $effectiveEpsilon) {
             // EXPLORATION (20%) : Sélection aléatoire
             $selectedPersona = $this->selectRandomPersona($performances);
 
@@ -135,7 +139,8 @@ final class PersonaOptimizer
                 'scam_type_code' => $scamTypeCode,
                 'selected_persona' => $selectedPersona->getPersonaCode(),
                 'strategy' => 'exploration',
-                'epsilon' => self::EPSILON,
+                'epsilon' => $effectiveEpsilon,
+                'converged' => $converged,
                 'random_value' => $random,
             ]);
 
@@ -151,6 +156,8 @@ final class PersonaOptimizer
             'strategy' => 'exploitation',
             'reward_avg' => $selectedPersona->getRewardAvg(),
             'sessions_count' => $selectedPersona->getSessionsCount(),
+            'converged' => $converged,
+            'epsilon' => $effectiveEpsilon,
             'random_value' => $random,
         ]);
 
@@ -225,6 +232,66 @@ final class PersonaOptimizer
     }
 
     /**
+     * Check if the bandit has converged for a given scam type.
+     * Convergence = best persona would be selected >= CONVERGENCE_THRESHOLD of the time.
+     */
+    public function isConverged(string $scamTypeCode): bool
+    {
+        $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => $scamTypeCode]);
+        if ($scamType === null) {
+            return false;
+        }
+
+        $allPersonas = $this->em->getRepository(Persona::class)->findBy(['isActive' => true]);
+        $statsEntities = $this->statsRepository->findAllByScamType($scamType);
+
+        $statsMap = [];
+        foreach ($statsEntities as $entity) {
+            $perf = $entity->toPersonaPerformance();
+            $statsMap[$perf->getPersonaCode()] = $perf;
+        }
+
+        $performances = [];
+        foreach ($allPersonas as $persona) {
+            $code = $persona->getPersonaCode();
+            $performances[] = $statsMap[$code] ?? new PersonaPerformance($code, $scamTypeCode, 0, 0.0);
+        }
+
+        return $this->isConvergedFromPerformances($performances);
+    }
+
+    /**
+     * Internal convergence check from a pre-built performance list.
+     *
+     * @param PersonaPerformance[] $performances
+     */
+    private function isConvergedFromPerformances(array $performances): bool
+    {
+        $eligible = array_filter($performances, static fn(PersonaPerformance $p) => !$p->isInColdStart());
+
+        if (count($eligible) < 2) {
+            return false;
+        }
+
+        usort($eligible, static fn(PersonaPerformance $a, PersonaPerformance $b) => $b->getRewardAvg() <=> $a->getRewardAvg());
+
+        $best = $eligible[0];
+
+        if ($best->getSessionsCount() < self::MIN_SESSIONS_FOR_CONVERGENCE) {
+            return false;
+        }
+
+        $totalSessions = array_sum(array_map(static fn(PersonaPerformance $p) => $p->getSessionsCount(), $eligible));
+        if ($totalSessions === 0) {
+            return false;
+        }
+
+        $selectionShare = $best->getSessionsCount() / $totalSessions;
+
+        return $selectionShare >= self::CONVERGENCE_THRESHOLD;
+    }
+
+    /**
      * Retourne les statistiques de sélection pour un scam_type (pour debugging/monitoring).
      *
      * @param string $scamTypeCode Code du scam type
@@ -234,6 +301,8 @@ final class PersonaOptimizer
      *     cold_start_count: int,
      *     epsilon: float,
      *     cold_start_threshold: int,
+     *     converged: bool,
+     *     convergence_threshold: float,
      *     best_persona: array{persona_code: string, reward_avg: float, sessions_count: int}|null,
      *     top_5: array<array{persona_code: string, reward_avg: float, sessions_count: int}>
      * }|array{error: string, scam_type_code: string, total_personas: int, cold_start_count: int, epsilon: float, cold_start_threshold: int, best_persona: null, top_5: array<never>}
@@ -280,12 +349,16 @@ final class PersonaOptimizer
             ];
         }, $top5Entities);
 
+        $converged = $this->isConverged($scamTypeCode);
+
         return [
             'scam_type_code' => $scamTypeCode,
             'total_personas' => count($allPersonas),
             'cold_start_count' => $coldStartCount,
-            'epsilon' => self::EPSILON,
+            'epsilon' => $converged ? self::CONVERGED_EPSILON : self::EPSILON,
             'cold_start_threshold' => self::COLD_START_THRESHOLD,
+            'converged' => $converged,
+            'convergence_threshold' => self::CONVERGENCE_THRESHOLD,
             'best_persona' => $bestPersona,
             'top_5' => $top5,
         ];
