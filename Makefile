@@ -224,6 +224,15 @@ fixtures-dev: ##@fixtures Load Doctrine fixtures in DEV env
 	$(CONSOLE_DEV) doctrine:fixtures:load --no-interaction --env=dev
 
 # ======================================================================
+#  SCAMBAITING OPERATIONS
+# ======================================================================
+close-stale: ##@scambaiting Close stale conversations (default: 7 days, use d= to override)
+	$(CONSOLE_DEV) app:close-stale-conversations $(if $(d),--days=$(d),)
+
+close-stale-dry: ##@scambaiting Preview stale conversations without closing
+	$(CONSOLE_DEV) app:close-stale-conversations --dry-run $(if $(d),--days=$(d),)
+
+# ======================================================================
 #  TESTS – E2E
 # ======================================================================
 endToEndTest:  ##@test Load fixtures then run end-to-end tests
