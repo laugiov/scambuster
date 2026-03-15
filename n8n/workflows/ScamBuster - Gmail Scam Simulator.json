@@ -351,7 +351,7 @@
       ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "saveExecutionProgress": true,
     "saveManualExecutions": true,
