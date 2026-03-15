@@ -37,7 +37,7 @@ Instead of discarding scam emails, ScamBuster creates an **observatory** that an
 
 | Question | ScamBuster Insight |
 |----------|-------------------|
-| **What scam types are trending?** | Real-time classification across 13 categories |
+| **What scam types are trending?** | Real-time classification across 12 categories |
 | **Which personas maximize engagement?** | Adaptive learning identifies optimal strategies per scam type |
 | **What IOCs do scammers reveal?** | Automatic extraction of 34 indicator types |
 | **How do campaigns evolve?** | Clustering and attribution over time |
@@ -113,18 +113,21 @@ From the 60-day deployment, identified **coordinated operations**:
 
 ## How It Works
 
-### Multi-Agent LLM Architecture (6 Agents)
+### Multi-Agent LLM Architecture (5 Agents + 1 Forensic Module)
 
-Six specialized AI agents work in concert:
+Five specialized AI agents form the core pipeline, supported by one forensic module:
 
 | Agent | Role | Achievement |
 |-------|------|-------------|
-| **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 13 types |
+| **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 12 types |
 | **IocExtractor** | Extract threat indicators | 100% precision on audited sample, 34 IOC types |
-| **InjectionDetector** | Forensic prompt injection analysis | Two-layer detection (pattern + LLM-as-judge) |
 | **Generator** | Create contextual responses | +35% IOCs post-IBAN detection |
 | **Validator** | Ensure safety & quality | 95% approval rate (PolicyGuard + LLM) |
 | **Orchestrator** | Coordinate & optimize costs | <EUR 0.0002/message |
+
+| Forensic Module | Role | Notes |
+|-----------------|------|-------|
+| **InjectionDetector** | Prompt injection analysis | Two-layer detection (pattern + LLM-as-judge), non-blocking |
 
 ### Adaptive Strategy Selection
 
@@ -138,7 +141,7 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 | Aspect | Summary |
 |--------|---------|
 | Approach | Contextual bandit / adaptive experimentation |
-| Context | One policy per scam category (13 types, extensible) |
+| Context | One policy per scam category (12 types, extensible) |
 | Strategy space | 27 personas with tailored system prompts |
 | Objectives | Intelligence yield, safety compliance, and cost efficiency |
 

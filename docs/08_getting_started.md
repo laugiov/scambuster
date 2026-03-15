@@ -100,7 +100,7 @@ make fixtures-dev
 
 > **What `make migration` does**: executes all Doctrine migrations to create the schema (tables, indexes, foreign keys, views).
 
-> **What `make fixtures-dev` does**: seeds the development database with reference data (13 scam types, 6 personas, lookup tables for channels and directions) **and creates two default users** (see below).
+> **What `make fixtures-dev` does**: seeds the development database with reference data (12 scam types, 6 personas, lookup tables for channels and directions) **and creates two default users** (see below).
 
 ### Default Users
 
