@@ -100,7 +100,7 @@ make fixtures-dev
 
 > **What `make migration` does**: executes all Doctrine migrations to create the schema (tables, indexes, foreign keys, views).
 
-> **What `make fixtures-dev` does**: seeds the development database with reference data (12 scam types, 6 personas, lookup tables for channels and directions) **and creates two default users** (see below).
+> **What `make fixtures-dev` does**: seeds the development database with reference data (12 scam types, 27 personas across 7 archetypes, lookup tables for channels and directions) **and creates two default users** (see below).
 
 ### Default Users
 
@@ -134,7 +134,7 @@ If you see a number (even `0`), the backend, database, auth, and API are all wor
 
 ## 4. Run the Tests
 
-ScamBuster has **1039 automated tests** organized in three suites.
+ScamBuster has **1054 automated tests** organized in three suites.
 
 ### Unit + Integration Tests (recommended first run)
 
@@ -398,6 +398,19 @@ Run `make help` for the full list. Here are the most useful commands:
 | `make reset-db` | Drop + create + migrate (dev) |
 | `make fixtures-dev` | Load dev fixtures |
 | `make respawn-all` | Full reset of all environments + Vault |
+
+### Scambaiting Operations
+
+| Command | Description |
+|---------|-------------|
+| `make close-stale` | Close conversations inactive > 7 days (use `d=N` to override) |
+| `make close-stale-dry` | Preview stale conversations without closing |
+
+### Deployment
+
+| Command | Description |
+|---------|-------------|
+| `make deploy` | Build, start, migrate, load fixtures, and activate n8n workflows |
 
 ### Development
 
