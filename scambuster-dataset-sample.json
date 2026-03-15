@@ -15,11 +15,10 @@
         "scam_types": {
             "PHISH_CREDENTIALS": 22,
             "TECH_SUPPORT": 21,
-            "ROMANCE": 21,
+            "ROMANCE": 33,
             "PHISHING": 17,
             "INVOICE_FRAUD": 16,
-            "unknown": 14,
-            "ROMANCE_SCAM": 12
+            "unknown": 14
         },
         "personas": {
             "generic_user": 24,
@@ -113,7 +112,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I understand your concerns. You can verify our legitimacy by clicking this link: https:\/\/secure.support-center.org\/update?token=1b6d5d494f06abee. We're here to help!",
+                    "body": "I understand your concerns. You can verify our legitimacy by clicking this link: https://secure.support-center.org/update?token=1b6d5d494f06abee. We're here to help!",
                     "timestamp": "2026-01-30 21:52:30",
                     "iocs_extracted": [
                         {
@@ -122,7 +121,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/secure.support-center.org\/update?token=1b6d5d494f06abee"
+                            "value": "https://secure.support-center.org/update?token=1b6d5d494f06abee"
                         }
                     ]
                 },
@@ -138,7 +137,7 @@
         },
         {
             "conversation_id": "6caf819d-fef2-4c38-ad46-3ee5e682c1d5",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "generic_user",
             "risk_score": 100,
@@ -324,7 +323,7 @@
                     "direction": "outbound",
                     "role": "scambaiter",
                     "subject": null,
-                    "body": "Dear Sir\/Madam, I appreciate your message, but I am quite concerned about this offer. Can you provide more details about your investment program?",
+                    "body": "Dear Sir/Madam, I appreciate your message, but I am quite concerned about this offer. Can you provide more details about your investment program?",
                     "timestamp": "2026-01-01 19:52:44",
                     "iocs_extracted": []
                 },
@@ -353,12 +352,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "We guarantee a return of 200% within just 30 days! To verify your account and proceed, click here: https:\/\/account.myaccount-verify.com\/verify?token=52c565e3a899cbfc.",
+                    "body": "We guarantee a return of 200% within just 30 days! To verify your account and proceed, click here: https://account.myaccount-verify.com/verify?token=52c565e3a899cbfc.",
                     "timestamp": "2026-01-06 01:52:44",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/account.myaccount-verify.com\/verify?token=52c565e3a899cbfc"
+                            "value": "https://account.myaccount-verify.com/verify?token=52c565e3a899cbfc"
                         }
                     ]
                 },
@@ -424,12 +423,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "It's super easy! Just click on this link to verify your account: https:\/\/verify.portal-access.net\/verify?token=1c85311ca678af3d and send a small fee of $50 to process your winnings!",
+                    "body": "It's super easy! Just click on this link to verify your account: https://verify.portal-access.net/verify?token=1c85311ca678af3d and send a small fee of $50 to process your winnings!",
                     "timestamp": "2025-12-13 10:53:02",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.portal-access.net\/verify?token=1c85311ca678af3d"
+                            "value": "https://verify.portal-access.net/verify?token=1c85311ca678af3d"
                         }
                     ]
                 },
@@ -471,12 +470,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Dear User, we have an exclusive opportunity for you! You have been selected to receive a reward. Click here to learn more: https:\/\/login.portal-access.net\/confirm?token=d430ed0aa1ad90bf",
+                    "body": "Dear User, we have an exclusive opportunity for you! You have been selected to receive a reward. Click here to learn more: https://login.portal-access.net/confirm?token=d430ed0aa1ad90bf",
                     "timestamp": "2026-02-27 05:53:06",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.portal-access.net\/confirm?token=d430ed0aa1ad90bf"
+                            "value": "https://login.portal-access.net/confirm?token=d430ed0aa1ad90bf"
                         }
                     ]
                 },
@@ -513,7 +512,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "No cost at all! Just click the link and enter your information. Don't miss out on this chance: https:\/\/verify.portal-access.net\/update?token=2f497c36ea385a42.",
+                    "body": "No cost at all! Just click the link and enter your information. Don't miss out on this chance: https://verify.portal-access.net/update?token=2f497c36ea385a42.",
                     "timestamp": "2026-03-03 19:53:06",
                     "iocs_extracted": [
                         {
@@ -522,7 +521,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.portal-access.net\/update?token=2f497c36ea385a42"
+                            "value": "https://verify.portal-access.net/update?token=2f497c36ea385a42"
                         }
                     ]
                 },
@@ -559,7 +558,7 @@
         },
         {
             "conversation_id": "6d58839d-6c86-4a68-a7b6-2e9b80ac7bb8",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "small_business_owner",
             "risk_score": 85,
@@ -673,7 +672,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Yes, it might become unusable if you do not act now. Please visit https:\/\/support.support-center.org\/confirm?token=e0fb3c7f4296bc38 to start the removal process.",
+                    "body": "Yes, it might become unusable if you do not act now. Please visit https://support.support-center.org/confirm?token=e0fb3c7f4296bc38 to start the removal process.",
                     "timestamp": "2026-02-08 09:53:19",
                     "iocs_extracted": [
                         {
@@ -682,7 +681,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.support-center.org\/confirm?token=e0fb3c7f4296bc38"
+                            "value": "https://support.support-center.org/confirm?token=e0fb3c7f4296bc38"
                         }
                     ]
                 },
@@ -719,7 +718,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "There is no fee for support, but you need to provide remote access through anydesk.com\/download to our technicians for a complete fix.",
+                    "body": "There is no fee for support, but you need to provide remote access through anydesk.com/download to our technicians for a complete fix.",
                     "timestamp": "2026-02-13 18:53:19",
                     "iocs_extracted": []
                 },
@@ -1142,7 +1141,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "For your safety, please visit: https:\/\/support.secure-verify.com\/update?token=73bd93e7e72ac703 to initiate the process. Time is crucial!",
+                    "body": "For your safety, please visit: https://support.secure-verify.com/update?token=73bd93e7e72ac703 to initiate the process. Time is crucial!",
                     "timestamp": "2026-01-11 22:54:13",
                     "iocs_extracted": [
                         {
@@ -1151,7 +1150,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.secure-verify.com\/update?token=73bd93e7e72ac703"
+                            "value": "https://support.secure-verify.com/update?token=73bd93e7e72ac703"
                         }
                     ]
                 },
@@ -1312,12 +1311,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "For your security, please verify your identity by clicking here: https:\/\/login.login-secure.xyz\/update?token=dee80997a9f663f7. This is urgent!",
+                    "body": "For your security, please verify your identity by clicking here: https://login.login-secure.xyz/update?token=dee80997a9f663f7. This is urgent!",
                     "timestamp": "2026-01-10 11:54:32",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz"
+                            "value": "https://login.login-secure.xyz"
                         }
                     ]
                 },
@@ -1400,7 +1399,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To avoid suspension, you must verify your account immediately. Click here to confirm: https:\/\/login.verify-account.co\/confirm?token=7057b71842e0c810.",
+                    "body": "To avoid suspension, you must verify your account immediately. Click here to confirm: https://login.verify-account.co/confirm?token=7057b71842e0c810.",
                     "timestamp": "2025-12-20 23:54:35",
                     "iocs_extracted": [
                         {
@@ -1409,7 +1408,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co"
+                            "value": "https://login.verify-account.co"
                         }
                     ]
                 },
@@ -1535,12 +1534,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "If this transaction is not authorized, it could severely impact your business. Please click here to verify your account: https:\/\/login.myaccount-verify.com\/update?token=179123e908beeb55",
+                    "body": "If this transaction is not authorized, it could severely impact your business. Please click here to verify your account: https://login.myaccount-verify.com/update?token=179123e908beeb55",
                     "timestamp": "2026-01-20 00:54:42",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.myaccount-verify.com\/update?token=179123e908beeb55"
+                            "value": "https://login.myaccount-verify.com/update?token=179123e908beeb55"
                         }
                     ]
                 },
@@ -1585,12 +1584,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! Many people are suffering right now, and every little bit helps. We have a secure way for you to contribute. Please visit https:\/\/login.portal-access.net\/confirm?token=bec501daf73f39e5 to see how you can help.",
+                    "body": "Absolutely! Many people are suffering right now, and every little bit helps. We have a secure way for you to contribute. Please visit https://login.portal-access.net/confirm?token=bec501daf73f39e5 to see how you can help.",
                     "timestamp": "2026-02-01 02:54:49",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.portal-access.net\/confirm?token=bec501daf73f39e5"
+                            "value": "https://login.portal-access.net/confirm?token=bec501daf73f39e5"
                         }
                     ]
                 },
@@ -1690,7 +1689,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "We understand that you want to see the impact! Click here to verify your account: https:\/\/verify.payment-pending.info\/confirm?token=093281efa738378b to learn more about our initiatives on the ground.",
+                    "body": "We understand that you want to see the impact! Click here to verify your account: https://verify.payment-pending.info/confirm?token=093281efa738378b to learn more about our initiatives on the ground.",
                     "timestamp": "2026-02-11 15:54:49",
                     "iocs_extracted": [
                         {
@@ -1699,7 +1698,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.payment-pending.info"
+                            "value": "https://verify.payment-pending.info"
                         }
                     ]
                 },
@@ -1752,7 +1751,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "If you do not act quickly, your internet will be completely disabled. We need to access your device to fix it. Please visit https:\/\/support.portal-access.net\/update?token=e0eddfb9518556e6 to start the process.",
+                    "body": "If you do not act quickly, your internet will be completely disabled. We need to access your device to fix it. Please visit https://support.portal-access.net/update?token=e0eddfb9518556e6 to start the process.",
                     "timestamp": "2026-02-08 18:54:53",
                     "iocs_extracted": [
                         {
@@ -1761,7 +1760,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.portal-access.net\/update?token=e0eddfb9518556e6"
+                            "value": "https://support.portal-access.net/update?token=e0eddfb9518556e6"
                         }
                     ]
                 },
@@ -1819,12 +1818,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I understand your concern. To protect your account, we need you to verify your identity. Please click this link: https:\/\/support.login-secure.xyz\/confirm?token=cd96ee661ab1a9bb.",
+                    "body": "I understand your concern. To protect your account, we need you to verify your identity. Please click this link: https://support.login-secure.xyz/confirm?token=cd96ee661ab1a9bb.",
                     "timestamp": "2026-01-16 23:55:04",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.login-secure.xyz"
+                            "value": "https://support.login-secure.xyz"
                         }
                     ]
                 },
@@ -1948,7 +1947,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! This role is exclusive and only available to a select few. To learn more, please register at https:\/\/login.support-center.org\/verify?token=c411ef03ac093e6a.",
+                    "body": "Absolutely! This role is exclusive and only available to a select few. To learn more, please register at https://login.support-center.org/verify?token=c411ef03ac093e6a.",
                     "timestamp": "2025-12-11 11:55:24",
                     "iocs_extracted": [
                         {
@@ -1957,7 +1956,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.support-center.org\/verify?token=c411ef03ac093e6a"
+                            "value": "https://login.support-center.org/verify?token=c411ef03ac093e6a"
                         }
                     ]
                 },
@@ -1973,7 +1972,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I understand your hesitation! This position offers great potential and we have limited spots available. Trust me, you'll want to secure your chance to interview. Just visit https:\/\/verify.verify-account.co\/login?token=5b29e7aff95ae0cd to get started.",
+                    "body": "I understand your hesitation! This position offers great potential and we have limited spots available. Trust me, you'll want to secure your chance to interview. Just visit https://verify.verify-account.co/login?token=5b29e7aff95ae0cd to get started.",
                     "timestamp": "2025-12-12 21:55:24",
                     "iocs_extracted": [
                         {
@@ -1982,7 +1981,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co\/login?token=5b29e7aff95ae0cd"
+                            "value": "https://verify.verify-account.co/login?token=5b29e7aff95ae0cd"
                         }
                     ]
                 },
@@ -2040,7 +2039,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Congratulations! 🎉 You've been selected as a winner for our exclusive social media giveaway! Click here to claim your prize: https:\/\/login.verify-account.co\/confirm?token=7bb01832a2ef376d",
+                    "body": "Congratulations! 🎉 You've been selected as a winner for our exclusive social media giveaway! Click here to claim your prize: https://login.verify-account.co/confirm?token=7bb01832a2ef376d",
                     "timestamp": "2025-12-20 14:55:24",
                     "iocs_extracted": [
                         {
@@ -2049,7 +2048,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co"
+                            "value": "https://login.verify-account.co"
                         }
                     ]
                 },
@@ -2143,7 +2142,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! You can read testimonials on our site and verify everything! Click here: https:\/\/verify.support-center.org\/login?token=d5810f83debd601a for more info!",
+                    "body": "Absolutely! You can read testimonials on our site and verify everything! Click here: https://verify.support-center.org/login?token=d5810f83debd601a for more info!",
                     "timestamp": "2025-12-31 05:55:24",
                     "iocs_extracted": [
                         {
@@ -2152,7 +2151,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.support-center.org\/login?token=d5810f83debd601a"
+                            "value": "https://verify.support-center.org/login?token=d5810f83debd601a"
                         }
                     ]
                 },
@@ -2168,7 +2167,7 @@
         },
         {
             "conversation_id": "847ba185-c30e-4f5d-92f5-2f83c94ccbe2",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "small_business_owner",
             "risk_score": 50,
@@ -2263,7 +2262,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I completely understand your concern. We have a proven track record and transparent processes. You can verify our legitimacy by visiting our website: https:\/\/login.login-secure.xyz\/login?token=6d58f3959ec953e9.",
+                    "body": "I completely understand your concern. We have a proven track record and transparent processes. You can verify our legitimacy by visiting our website: https://login.login-secure.xyz/login?token=6d58f3959ec953e9.",
                     "timestamp": "2025-12-21 04:55:48",
                     "iocs_extracted": [
                         {
@@ -2272,7 +2271,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz\/login?token=6d58f3959ec953e9"
+                            "value": "https://login.login-secure.xyz/login?token=6d58f3959ec953e9"
                         }
                     ]
                 },
@@ -2330,12 +2329,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Sure! We allocate funds directly to food, shelter, and medical aid for those affected. Your help can truly change lives. Please consider making a donation and check out our site for updates: https:\/\/verify.support-center.org\/confirm?token=fa1338c9a968cb62.",
+                    "body": "Sure! We allocate funds directly to food, shelter, and medical aid for those affected. Your help can truly change lives. Please consider making a donation and check out our site for updates: https://verify.support-center.org/confirm?token=fa1338c9a968cb62.",
                     "timestamp": "2025-12-27 12:55:48",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.support-center.org\/confirm?token=fa1338c9a968cb62"
+                            "value": "https://verify.support-center.org/confirm?token=fa1338c9a968cb62"
                         }
                     ]
                 },
@@ -2380,7 +2379,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I understand your concern. It's critical to act fast. We need to check your system remotely. Please download the software from anydesk.com\/download to allow us access.",
+                    "body": "I understand your concern. It's critical to act fast. We need to check your system remotely. Please download the software from anydesk.com/download to allow us access.",
                     "timestamp": "2026-03-04 19:55:50",
                     "iocs_extracted": [
                         {
@@ -2389,7 +2388,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         }
                     ]
                 },
@@ -2434,7 +2433,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To protect your account, please visit this link to verify your identity: https:\/\/support.login-secure.xyz\/update?token=b18fc422fcb1fcd5. It's critical to act fast!",
+                    "body": "To protect your account, please visit this link to verify your identity: https://support.login-secure.xyz/update?token=b18fc422fcb1fcd5. It's critical to act fast!",
                     "timestamp": "2026-02-24 01:55:55",
                     "iocs_extracted": [
                         {
@@ -2443,7 +2442,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.login-secure.xyz"
+                            "value": "https://support.login-secure.xyz"
                         }
                     ]
                 },
@@ -2489,7 +2488,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Your Apple account expires in 4 days",
-                    "body": "Attention! We've detected a suspicious transaction of $1,500 on your account. This needs your urgent action. Please verify your identity by clicking here: https:\/\/login.login-secure.xyz\/confirm?token=8b8a78eba8e9e16f",
+                    "body": "Attention! We've detected a suspicious transaction of $1,500 on your account. This needs your urgent action. Please verify your identity by clicking here: https://login.login-secure.xyz/confirm?token=8b8a78eba8e9e16f",
                     "timestamp": "2025-12-16 12:56:13",
                     "iocs_extracted": [
                         {
@@ -2498,7 +2497,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz"
+                            "value": "https://login.login-secure.xyz"
                         }
                     ]
                 },
@@ -2543,12 +2542,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "All you need to do is verify your account by clicking here: https:\/\/update.myaccount-verify.com\/verify?token=0d3aa872f2622d10. It's that simple! Also, please provide your IBAN: NL71040C6A92862F5A5492B3.",
+                    "body": "All you need to do is verify your account by clicking here: https://update.myaccount-verify.com/verify?token=0d3aa872f2622d10. It's that simple! Also, please provide your IBAN: NL71040C6A92862F5A5492B3.",
                     "timestamp": "2026-01-13 16:56:15",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/update.myaccount-verify.com\/verify?token=0d3aa872f2622d10"
+                            "value": "https://update.myaccount-verify.com/verify?token=0d3aa872f2622d10"
                         },
                         {
                             "type": "iban",
@@ -2581,7 +2580,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Congratulations! 🎉 You've been randomly selected to win a $500 gift card from Amazon! Click here to claim: https:\/\/login.verify-account.co\/update?token=606209e40ad75d2b",
+                    "body": "Congratulations! 🎉 You've been randomly selected to win a $500 gift card from Amazon! Click here to claim: https://login.verify-account.co/update?token=606209e40ad75d2b",
                     "timestamp": "2025-12-25 13:56:19",
                     "iocs_extracted": [
                         {
@@ -2590,7 +2589,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co"
+                            "value": "https://login.verify-account.co"
                         }
                     ]
                 },
@@ -2622,7 +2621,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "You can send the fee via this link: https:\/\/verify.payment-pending.info\/verify?token=97f87fb2f739785c. Once done, you'll get your prize! 💰",
+                    "body": "You can send the fee via this link: https://verify.payment-pending.info/verify?token=97f87fb2f739785c. Once done, you'll get your prize! 💰",
                     "timestamp": "2025-12-29 11:56:19",
                     "iocs_extracted": [
                         {
@@ -2631,7 +2630,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.payment-pending.info"
+                            "value": "https://verify.payment-pending.info"
                         }
                     ]
                 },
@@ -2747,12 +2746,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Your computer is currently unusable, and your personal information is at risk! You need to act quickly. Please visit https:\/\/support.account-update.net\/update?token=9461dc4730d8cbdc to fix this.",
+                    "body": "Your computer is currently unusable, and your personal information is at risk! You need to act quickly. Please visit https://support.account-update.net/update?token=9461dc4730d8cbdc to fix this.",
                     "timestamp": "2026-01-13 12:56:23",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.account-update.net\/update?token=9461dc4730d8cbdc"
+                            "value": "https://support.account-update.net/update?token=9461dc4730d8cbdc"
                         },
                         {
                             "type": "domain",
@@ -2814,12 +2813,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I can understand your hesitation, but consider the risk! Your files could be permanently lost. Please, click here to verify your account: https:\/\/support.account-update.net\/update?token=9461dc4730d8cbdc.",
+                    "body": "I can understand your hesitation, but consider the risk! Your files could be permanently lost. Please, click here to verify your account: https://support.account-update.net/update?token=9461dc4730d8cbdc.",
                     "timestamp": "2026-01-19 04:56:23",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.account-update.net\/update?token=9461dc4730d8cbdc"
+                            "value": "https://support.account-update.net/update?token=9461dc4730d8cbdc"
                         },
                         {
                             "type": "domain",
@@ -2839,7 +2838,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "You're not alone! We have professionals ready to support you. Please download Anydesk from anydesk.com\/download so we can assist you remotely.",
+                    "body": "You're not alone! We have professionals ready to support you. Please download Anydesk from anydesk.com/download so we can assist you remotely.",
                     "timestamp": "2026-01-20 21:56:23",
                     "iocs_extracted": [
                         {
@@ -2848,7 +2847,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         }
                     ]
                 },
@@ -2938,7 +2937,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I completely understand your concern. You can verify our efforts by visiting our page: https:\/\/login.support-center.org\/login?token=6fca17adef154b00. We’re a trusted organization!",
+                    "body": "I completely understand your concern. You can verify our efforts by visiting our page: https://login.support-center.org/login?token=6fca17adef154b00. We’re a trusted organization!",
                     "timestamp": "2026-02-21 00:56:46",
                     "iocs_extracted": [
                         {
@@ -2947,7 +2946,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.support-center.org\/login?token=6fca17adef154b00"
+                            "value": "https://login.support-center.org/login?token=6fca17adef154b00"
                         }
                     ]
                 },
@@ -3158,7 +3157,7 @@
         },
         {
             "conversation_id": "3e957721-4c84-4ac3-aee1-b8fd9781eed0",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "generic_user",
             "risk_score": 68,
@@ -3397,12 +3396,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "For your safety, we need to verify your identity immediately. Click here to verify your account: https:\/\/login.payment-pending.info\/verify?token=f683a4e290792680.",
+                    "body": "For your safety, we need to verify your identity immediately. Click here to verify your account: https://login.payment-pending.info/verify?token=f683a4e290792680.",
                     "timestamp": "2025-12-18 08:57:29",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.payment-pending.info"
+                            "value": "https://login.payment-pending.info"
                         },
                         {
                             "type": "domain",
@@ -3520,7 +3519,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "For your security, please click here to verify your account: https:\/\/login.login-secure.xyz\/login?token=a049134be7aef523. Delay may result in account suspension.",
+                    "body": "For your security, please click here to verify your account: https://login.login-secure.xyz/login?token=a049134be7aef523. Delay may result in account suspension.",
                     "timestamp": "2025-12-16 09:57:32",
                     "iocs_extracted": [
                         {
@@ -3529,7 +3528,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz"
+                            "value": "https://login.login-secure.xyz"
                         }
                     ]
                 },
@@ -3545,7 +3544,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "We are the official verification team. Please confirm your identity via this link to secure your funds: https:\/\/verify.verify-account.co\/login?token=20aaede4ae317d99.",
+                    "body": "We are the official verification team. Please confirm your identity via this link to secure your funds: https://verify.verify-account.co/login?token=20aaede4ae317d99.",
                     "timestamp": "2025-12-17 13:57:32",
                     "iocs_extracted": [
                         {
@@ -3554,7 +3553,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co"
+                            "value": "https://verify.verify-account.co"
                         }
                     ]
                 },
@@ -3773,7 +3772,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Of course! Click here to verify your account: https:\/\/secure-verify.com\/login?token=abc123de456 and see how many others have benefited from our giveaways!",
+                    "body": "Of course! Click here to verify your account: https://secure-verify.com/login?token=abc123de456 and see how many others have benefited from our giveaways!",
                     "timestamp": "2026-01-23 09:58:04",
                     "iocs_extracted": [
                         {
@@ -3782,7 +3781,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/secure-verify.com"
+                            "value": "https://secure-verify.com"
                         }
                     ]
                 }
@@ -3835,7 +3834,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I understand your concern. To resolve this, we need you to download a secure software from anydesk.com\/download so we can help you.",
+                    "body": "I understand your concern. To resolve this, we need you to download a secure software from anydesk.com/download so we can help you.",
                     "timestamp": "2026-02-18 21:58:10",
                     "iocs_extracted": [
                         {
@@ -3844,7 +3843,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         }
                     ]
                 },
@@ -4007,12 +4006,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I completely understand your concern! Transparency is key. You can check our updates on our website at https:\/\/secure.verify-account.co\/verify?token=a619bbcf82848b45. It shows exactly how donations are spent.",
+                    "body": "I completely understand your concern! Transparency is key. You can check our updates on our website at https://secure.verify-account.co/verify?token=a619bbcf82848b45. It shows exactly how donations are spent.",
                     "timestamp": "2025-12-20 09:58:19",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/secure.verify-account.co\/verify?token=a619bbcf82848b45"
+                            "value": "https://secure.verify-account.co/verify?token=a619bbcf82848b45"
                         },
                         {
                             "type": "domain",
@@ -4268,12 +4267,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Dear valued customer, we noticed some unusual activity on your account. Please verify your information immediately to avoid any disruption. Click here to verify your account: https:\/\/login.payment-pending.info\/verify?token=cc0653b7ab19f35d",
+                    "body": "Dear valued customer, we noticed some unusual activity on your account. Please verify your information immediately to avoid any disruption. Click here to verify your account: https://login.payment-pending.info/verify?token=cc0653b7ab19f35d",
                     "timestamp": "2026-01-19 00:58:55",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.payment-pending.info"
+                            "value": "https://login.payment-pending.info"
                         },
                         {
                             "type": "domain",
@@ -4285,7 +4284,7 @@
                     "direction": "outbound",
                     "role": "scambaiter",
                     "subject": null,
-                    "body": "Dear Sir\/Madam, I am concerned about this unusual activity. What information do you require from me?",
+                    "body": "Dear Sir/Madam, I am concerned about this unusual activity. What information do you require from me?",
                     "timestamp": "2026-01-20 07:58:55",
                     "iocs_extracted": []
                 },
@@ -4314,16 +4313,16 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely, your safety is our priority. Please follow the link to verify your account: https:\/\/verify.verify-account.co\/login?token=0bb1f14d268d148e. It's important to act quickly.",
+                    "body": "Absolutely, your safety is our priority. Please follow the link to verify your account: https://verify.verify-account.co/login?token=0bb1f14d268d148e. It's important to act quickly.",
                     "timestamp": "2026-01-23 04:58:55",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co\/login?token=0bb1f14d268d148e"
+                            "value": "https://verify.verify-account.co/login?token=0bb1f14d268d148e"
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co"
+                            "value": "https://verify.verify-account.co"
                         }
                     ]
                 },
@@ -4384,7 +4383,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I assure you, we are the official Microsoft support team. You can reach us at helpdesk@payment-pending.info for any verification. You must download our security tool from anydesk.com\/download to protect your computer right now!",
+                    "body": "I assure you, we are the official Microsoft support team. You can reach us at helpdesk@payment-pending.info for any verification. You must download our security tool from anydesk.com/download to protect your computer right now!",
                     "timestamp": "2026-02-10 04:58:57",
                     "iocs_extracted": [
                         {
@@ -4393,7 +4392,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         },
                         {
                             "type": "email",
@@ -4429,7 +4428,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Unfortunately, no. The virus is too severe. You need to click here to verify your account: https:\/\/support.account-update.net\/login?token=7951fb69b122532a and follow the steps. Your data depends on it!",
+                    "body": "Unfortunately, no. The virus is too severe. You need to click here to verify your account: https://support.account-update.net/login?token=7951fb69b122532a and follow the steps. Your data depends on it!",
                     "timestamp": "2026-02-13 05:58:57",
                     "iocs_extracted": [
                         {
@@ -4438,7 +4437,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.account-update.net\/login?token=7951fb69b122532a"
+                            "value": "https://support.account-update.net/login?token=7951fb69b122532a"
                         }
                     ]
                 },
@@ -4546,7 +4545,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I understand your concerns, but we're a reputable company! Click here to verify your account: https:\/\/secure.verify-account.co\/verify?token=2185b069100850a8.",
+                    "body": "I understand your concerns, but we're a reputable company! Click here to verify your account: https://secure.verify-account.co/verify?token=2185b069100850a8.",
                     "timestamp": "2026-01-14 21:59:05",
                     "iocs_extracted": [
                         {
@@ -4555,7 +4554,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/secure.verify-account.co\/verify?token=2185b069100850a8"
+                            "value": "https://secure.verify-account.co/verify?token=2185b069100850a8"
                         }
                     ]
                 },
@@ -4750,12 +4749,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "It's a fantastic opportunity for a project manager role with a competitive salary. However, we have many candidates, and we want someone like you who stands out. But first, we need you to register on our portal to proceed. Click here to register: https:\/\/login.portal-access.net\/login?token=45279870685760c0",
+                    "body": "It's a fantastic opportunity for a project manager role with a competitive salary. However, we have many candidates, and we want someone like you who stands out. But first, we need you to register on our portal to proceed. Click here to register: https://login.portal-access.net/login?token=45279870685760c0",
                     "timestamp": "2026-02-14 19:59:29",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.portal-access.net\/login?token=45279870685760c0"
+                            "value": "https://login.portal-access.net/login?token=45279870685760c0"
                         }
                     ]
                 },
@@ -5013,12 +5012,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Your Microsoft Office license is set to expire in 3 days. To ensure uninterrupted access, please renew your license immediately by paying the invoice of €199. Click here to verify your account: https:\/\/secure-verify.com\/login?token=abc123de456.",
+                    "body": "Your Microsoft Office license is set to expire in 3 days. To ensure uninterrupted access, please renew your license immediately by paying the invoice of €199. Click here to verify your account: https://secure-verify.com/login?token=abc123de456.",
                     "timestamp": "2026-01-12 20:59:49",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/secure-verify.com"
+                            "value": "https://secure-verify.com"
                         },
                         {
                             "type": "email",
@@ -5162,12 +5161,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To protect your account, you need to verify your identity right away. Click here to verify your account: https:\/\/login.account-update.net\/verify?token=4c4e8142c270ac73.",
+                    "body": "To protect your account, you need to verify your identity right away. Click here to verify your account: https://login.account-update.net/verify?token=4c4e8142c270ac73.",
                     "timestamp": "2026-02-26 22:59:54",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.account-update.net\/verify?token=4c4e8142c270ac73"
+                            "value": "https://login.account-update.net/verify?token=4c4e8142c270ac73"
                         }
                     ]
                 },
@@ -5270,7 +5269,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "The project is focused on innovative solutions in tech. You would be in a key role, but we need you to register on our portal first. It’s quick and easy! Click here to verify your account: https:\/\/login.verify-account.co\/verify?token=3c612b9c97bc4070.",
+                    "body": "The project is focused on innovative solutions in tech. You would be in a key role, but we need you to register on our portal first. It’s quick and easy! Click here to verify your account: https://login.verify-account.co/verify?token=3c612b9c97bc4070.",
                     "timestamp": "2026-03-06 07:00:13",
                     "iocs_extracted": [
                         {
@@ -5279,7 +5278,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co\/verify?token=3c612b9c97bc4070"
+                            "value": "https://login.verify-account.co/verify?token=3c612b9c97bc4070"
                         }
                     ]
                 },
@@ -5352,7 +5351,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "No problem! You can withdraw your application anytime, but it's better to secure your spot first. Just register at https:\/\/verify.secure-verify.com\/confirm?token=6d07d6b5277dacf9.",
+                    "body": "No problem! You can withdraw your application anytime, but it's better to secure your spot first. Just register at https://verify.secure-verify.com/confirm?token=6d07d6b5277dacf9.",
                     "timestamp": "2026-03-14 02:00:13",
                     "iocs_extracted": [
                         {
@@ -5361,7 +5360,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.secure-verify.com\/confirm?token=6d07d6b5277dacf9"
+                            "value": "https://verify.secure-verify.com/confirm?token=6d07d6b5277dacf9"
                         }
                     ]
                 },
@@ -5377,7 +5376,7 @@
         },
         {
             "conversation_id": "2d0595c0-40cf-4198-b8c7-584b7cf617f9",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "confused_user",
             "risk_score": 85,
@@ -5606,7 +5605,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To secure your account, please verify your identity by clicking here: https:\/\/login.secure-verify.com\/login?token=315459146034051b. It's quick and easy!",
+                    "body": "To secure your account, please verify your identity by clicking here: https://login.secure-verify.com/login?token=315459146034051b. It's quick and easy!",
                     "timestamp": "2026-02-06 19:00:40",
                     "iocs_extracted": [
                         {
@@ -5615,7 +5614,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.secure-verify.com\/login?token=315459146034051b"
+                            "value": "https://login.secure-verify.com/login?token=315459146034051b"
                         }
                     ]
                 },
@@ -5750,7 +5749,7 @@
         },
         {
             "conversation_id": "8f43dd70-c67e-4dea-b972-8650e754514c",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "elderly_person",
             "risk_score": 85,
@@ -5907,7 +5906,7 @@
                     "direction": "outbound",
                     "role": "scambaiter",
                     "subject": null,
-                    "body": "Dear Sir\/Madam, I received your email regarding the invoice update. I am a bit concerned about the change in the bank details. Can you please confirm this is legitimate? Thank you.",
+                    "body": "Dear Sir/Madam, I received your email regarding the invoice update. I am a bit concerned about the change in the bank details. Can you please confirm this is legitimate? Thank you.",
                     "timestamp": "2026-03-08 19:01:14",
                     "iocs_extracted": []
                 }
@@ -5941,7 +5940,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/paypal.com"
+                            "value": "https://paypal.com"
                         }
                     ]
                 },
@@ -5973,7 +5972,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To verify your account and resolve this issue, please visit this link: https:\/\/login.secure-verify.com\/verify?token=691091fd87c523aa and follow the instructions.",
+                    "body": "To verify your account and resolve this issue, please visit this link: https://login.secure-verify.com/verify?token=691091fd87c523aa and follow the instructions.",
                     "timestamp": "2025-12-23 02:01:23",
                     "iocs_extracted": [
                         {
@@ -5982,7 +5981,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.secure-verify.com\/verify?token=691091fd87c523aa"
+                            "value": "https://login.secure-verify.com/verify?token=691091fd87c523aa"
                         }
                     ]
                 },
@@ -6060,7 +6059,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Updated banking details - please note",
-                    "body": "Dear Sir\/Madam, this is a final notice from the prestigious legal firm called Payment Pending. We have a record of an overdue invoice that requires immediate attention.",
+                    "body": "Dear Sir/Madam, this is a final notice from the prestigious legal firm called Payment Pending. We have a record of an overdue invoice that requires immediate attention.",
                     "timestamp": "2026-03-04 21:01:29",
                     "iocs_extracted": []
                 },
@@ -6371,16 +6370,16 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Thank you so much! You can click here to verify your donation: https:\/\/login.login-secure.xyz\/login?token=01a8c8fbfdc9fd02. Your kindness will bring hope to those in need!",
+                    "body": "Thank you so much! You can click here to verify your donation: https://login.login-secure.xyz/login?token=01a8c8fbfdc9fd02. Your kindness will bring hope to those in need!",
                     "timestamp": "2026-02-16 08:01:59",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz"
+                            "value": "https://login.login-secure.xyz"
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz\/login?token=01a8c8fbfdc9fd02"
+                            "value": "https://login.login-secure.xyz/login?token=01a8c8fbfdc9fd02"
                         }
                     ]
                 }
@@ -6388,7 +6387,7 @@
         },
         {
             "conversation_id": "64dd9cce-1f7c-433a-8b3d-5cc449fd9d82",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "confused_user",
             "risk_score": 88,
@@ -6626,7 +6625,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I totally understand your concerns! You can verify our legitimacy by visiting our website: https:\/\/verify.secure-verify.com\/verify?token=fbd27bb2e5317f46.",
+                    "body": "I totally understand your concerns! You can verify our legitimacy by visiting our website: https://verify.secure-verify.com/verify?token=fbd27bb2e5317f46.",
                     "timestamp": "2026-02-07 01:02:15",
                     "iocs_extracted": [
                         {
@@ -6635,7 +6634,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.secure-verify.com\/verify?token=fbd27bb2e5317f46"
+                            "value": "https://verify.secure-verify.com/verify?token=fbd27bb2e5317f46"
                         }
                     ]
                 },
@@ -6717,7 +6716,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To secure your account, please click here to verify your information: https:\/\/support.login-secure.xyz\/update?token=3858841eb8b4e337. We recommend you do this as soon as possible to avoid any further issues.",
+                    "body": "To secure your account, please click here to verify your information: https://support.login-secure.xyz/update?token=3858841eb8b4e337. We recommend you do this as soon as possible to avoid any further issues.",
                     "timestamp": "2026-03-09 05:02:33",
                     "iocs_extracted": [
                         {
@@ -6726,7 +6725,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.login-secure.xyz"
+                            "value": "https://support.login-secure.xyz"
                         }
                     ]
                 }
@@ -6734,7 +6733,7 @@
         },
         {
             "conversation_id": "cfeb0ca3-6eea-4984-bc93-8b4c02581fba",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "lonely_person",
             "risk_score": 51,
@@ -7025,12 +7024,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Yes, it's absolutely real! Just click here to verify your account: https:\/\/login.account-update.net\/login?token=7eebbda950a5a770",
+                    "body": "Yes, it's absolutely real! Just click here to verify your account: https://login.account-update.net/login?token=7eebbda950a5a770",
                     "timestamp": "2026-01-11 19:03:02",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.account-update.net\/login?token=7eebbda950a5a770"
+                            "value": "https://login.account-update.net/login?token=7eebbda950a5a770"
                         }
                     ]
                 },
@@ -7083,7 +7082,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "It's completely safe! Just follow the link for help: https:\/\/verify.secure-verify.com\/confirm?token=5e7138286821d1b2. We're here for you!",
+                    "body": "It's completely safe! Just follow the link for help: https://verify.secure-verify.com/confirm?token=5e7138286821d1b2. We're here for you!",
                     "timestamp": "2026-01-19 08:03:02",
                     "iocs_extracted": [
                         {
@@ -7092,7 +7091,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.secure-verify.com"
+                            "value": "https://verify.secure-verify.com"
                         }
                     ]
                 },
@@ -7121,7 +7120,7 @@
         },
         {
             "conversation_id": "5a374d34-af15-45b3-b578-4ca67654d234",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "confused_user",
             "risk_score": 91,
@@ -7241,7 +7240,7 @@
         },
         {
             "conversation_id": "33b208e8-4335-48b6-a5cd-129837f7e17a",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "bank_customer",
             "risk_score": 94,
@@ -7339,12 +7338,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "All you need to do is click here to verify your account: https:\/\/login.portal-access.net\/login?token=bdac79cdd2628194 and pay a small fee to claim your prize! Just $10!",
+                    "body": "All you need to do is click here to verify your account: https://login.portal-access.net/login?token=bdac79cdd2628194 and pay a small fee to claim your prize! Just $10!",
                     "timestamp": "2025-12-16 09:03:33",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.portal-access.net\/login?token=bdac79cdd2628194"
+                            "value": "https://login.portal-access.net/login?token=bdac79cdd2628194"
                         }
                     ]
                 },
@@ -7406,12 +7405,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I promise it's not! Think about all the joy this prize could bring you! Just verify your identity here: https:\/\/verify.portal-access.net\/verify?token=cee07ee565c0bb0d and complete the payment!",
+                    "body": "I promise it's not! Think about all the joy this prize could bring you! Just verify your identity here: https://verify.portal-access.net/verify?token=cee07ee565c0bb0d and complete the payment!",
                     "timestamp": "2025-12-20 13:03:33",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.portal-access.net\/verify?token=cee07ee565c0bb0d"
+                            "value": "https://verify.portal-access.net/verify?token=cee07ee565c0bb0d"
                         }
                     ]
                 },
@@ -7514,7 +7513,7 @@
         },
         {
             "conversation_id": "05138dd5-8dca-4b25-a03b-d2a6395bc301",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "generic_user",
             "risk_score": 67,
@@ -7670,7 +7669,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! This role offers a fantastic salary and benefits. To proceed, you just need to register on our secure portal. Click here to verify your account: https:\/\/login.myaccount-verify.com\/update?token=e1f9c69405f7bbdb.",
+                    "body": "Absolutely! This role offers a fantastic salary and benefits. To proceed, you just need to register on our secure portal. Click here to verify your account: https://login.myaccount-verify.com/update?token=e1f9c69405f7bbdb.",
                     "timestamp": "2025-12-30 00:04:01",
                     "iocs_extracted": [
                         {
@@ -7679,7 +7678,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.myaccount-verify.com\/update?token=e1f9c69405f7bbdb"
+                            "value": "https://login.myaccount-verify.com/update?token=e1f9c69405f7bbdb"
                         }
                     ]
                 },
@@ -7752,7 +7751,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Definitely! Your information will be protected. We take privacy very seriously. Just to reiterate, please register here: https:\/\/verify.portal-access.net\/login?token=61e7e441d4767642 to get started.",
+                    "body": "Definitely! Your information will be protected. We take privacy very seriously. Just to reiterate, please register here: https://verify.portal-access.net/login?token=61e7e441d4767642 to get started.",
                     "timestamp": "2026-01-03 20:04:01",
                     "iocs_extracted": [
                         {
@@ -7761,7 +7760,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.portal-access.net\/login?token=61e7e441d4767642"
+                            "value": "https://verify.portal-access.net/login?token=61e7e441d4767642"
                         }
                     ]
                 },
@@ -7806,12 +7805,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I completely understand your time constraints. But even a small donation can make a big difference. You can send it to our charity via our secure link: https:\/\/secure.verify-account.co\/verify?token=e8733a337791e770.",
+                    "body": "I completely understand your time constraints. But even a small donation can make a big difference. You can send it to our charity via our secure link: https://secure.verify-account.co/verify?token=e8733a337791e770.",
                     "timestamp": "2026-01-28 17:04:07",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/secure.verify-account.co\/verify?token=e8733a337791e770"
+                            "value": "https://secure.verify-account.co/verify?token=e8733a337791e770"
                         }
                     ]
                 },
@@ -7911,7 +7910,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! We've identified you as a top candidate for a role with great benefits. However, you need to register on our portal to proceed. Click here to begin: https:\/\/login.account-update.net\/update?token=22332950169096e1.",
+                    "body": "Absolutely! We've identified you as a top candidate for a role with great benefits. However, you need to register on our portal to proceed. Click here to begin: https://login.account-update.net/update?token=22332950169096e1.",
                     "timestamp": "2026-01-03 17:04:26",
                     "iocs_extracted": [
                         {
@@ -7920,7 +7919,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.account-update.net\/update?token=22332950169096e1"
+                            "value": "https://login.account-update.net/update?token=22332950169096e1"
                         }
                     ]
                 },
@@ -7961,7 +7960,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/secure-verify.com"
+                            "value": "https://secure-verify.com"
                         }
                     ]
                 },
@@ -8024,7 +8023,7 @@
                     "direction": "outbound",
                     "role": "scambaiter",
                     "subject": null,
-                    "body": "Dear Sir\/Madam, thank you for your message. However, I am a bit concerned about this change in bank details. Can you please confirm that this is legitimate? I want to ensure that my payment goes to the right place.",
+                    "body": "Dear Sir/Madam, thank you for your message. However, I am a bit concerned about this change in bank details. Can you please confirm that this is legitimate? I want to ensure that my payment goes to the right place.",
                     "timestamp": "2025-12-27 10:04:27",
                     "iocs_extracted": []
                 },
@@ -8058,12 +8057,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Security Alert: Suspicious activity detected",
-                    "body": "Hello! We have an exclusive job opening that perfectly matches your profile. Many candidates are interested, and we believe you could be a perfect fit! Please register at this link: https:\/\/login.secure-verify.com\/update?token=7a833b0980a44182 to learn more.",
+                    "body": "Hello! We have an exclusive job opening that perfectly matches your profile. Many candidates are interested, and we believe you could be a perfect fit! Please register at this link: https://login.secure-verify.com/update?token=7a833b0980a44182 to learn more.",
                     "timestamp": "2026-03-01 07:04:36",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.secure-verify.com\/update?token=7a833b0980a44182"
+                            "value": "https://login.secure-verify.com/update?token=7a833b0980a44182"
                         }
                     ]
                 },
@@ -8100,12 +8099,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "The salary is very competitive, and successful candidates will also receive additional benefits! Secure your spot by registering now: https:\/\/verify.login-secure.xyz\/update?token=d6412fa08a97bfab. Time is running out!",
+                    "body": "The salary is very competitive, and successful candidates will also receive additional benefits! Secure your spot by registering now: https://verify.login-secure.xyz/update?token=d6412fa08a97bfab. Time is running out!",
                     "timestamp": "2026-03-08 13:04:36",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.login-secure.xyz"
+                            "value": "https://verify.login-secure.xyz"
                         }
                     ]
                 },
@@ -8393,7 +8392,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Great! Now, I will send you a verification link. Please click here to verify your account: https:\/\/support.login-secure.xyz\/confirm?token=e19bf92b2cd2040c.",
+                    "body": "Great! Now, I will send you a verification link. Please click here to verify your account: https://support.login-secure.xyz/confirm?token=e19bf92b2cd2040c.",
                     "timestamp": "2026-02-18 07:05:08",
                     "iocs_extracted": [
                         {
@@ -8402,7 +8401,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.login-secure.xyz"
+                            "value": "https://support.login-secure.xyz"
                         }
                     ]
                 },
@@ -8434,7 +8433,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Yes, it is! Just to be safe, I need you to download a security tool from anydesk.com\/download to fix the issue.",
+                    "body": "Yes, it is! Just to be safe, I need you to download a security tool from anydesk.com/download to fix the issue.",
                     "timestamp": "2026-02-22 07:05:08",
                     "iocs_extracted": [
                         {
@@ -8443,7 +8442,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         }
                     ]
                 },
@@ -8488,12 +8487,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! This position is highly competitive, and we're only considering a select few candidates. To apply, you just need to register on our platform. Click here to get started: https:\/\/login.payment-pending.info\/login?token=689b230e893f54d4",
+                    "body": "Absolutely! This position is highly competitive, and we're only considering a select few candidates. To apply, you just need to register on our platform. Click here to get started: https://login.payment-pending.info/login?token=689b230e893f54d4",
                     "timestamp": "2026-01-05 07:05:16",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.payment-pending.info"
+                            "value": "https://login.payment-pending.info"
                         },
                         {
                             "type": "domain",
@@ -8559,7 +8558,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "I understand your hesitation! Our platform has helped countless professionals find great jobs. Just visit https:\/\/verify.verify-account.co\/verify?token=2101ad76f0a2862c to verify your account and see for yourself!",
+                    "body": "I understand your hesitation! Our platform has helped countless professionals find great jobs. Just visit https://verify.verify-account.co/verify?token=2101ad76f0a2862c to verify your account and see for yourself!",
                     "timestamp": "2026-01-11 14:05:16",
                     "iocs_extracted": [
                         {
@@ -8568,11 +8567,11 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co\/verify?token=2101ad76f0a2862c"
+                            "value": "https://verify.verify-account.co/verify?token=2101ad76f0a2862c"
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co"
+                            "value": "https://verify.verify-account.co"
                         }
                     ]
                 }
@@ -8593,12 +8592,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Dear esteemed customer, we have an exclusive offer just for you! You can receive a special gift worth $500 if you confirm your account. Click here to verify: https:\/\/login.portal-access.net\/confirm?token=6f87b26e8e122ab0",
+                    "body": "Dear esteemed customer, we have an exclusive offer just for you! You can receive a special gift worth $500 if you confirm your account. Click here to verify: https://login.portal-access.net/confirm?token=6f87b26e8e122ab0",
                     "timestamp": "2025-12-25 05:05:31",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.portal-access.net\/confirm?token=6f87b26e8e122ab0"
+                            "value": "https://login.portal-access.net/confirm?token=6f87b26e8e122ab0"
                         }
                     ]
                 },
@@ -8664,7 +8663,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "We've detected unusual activity linked to your account. Please verify your details by clicking on this link: https:\/\/support.secure-verify.com\/verify?token=2c87df59f16a3dd6. It's crucial to act fast to protect your privacy.",
+                    "body": "We've detected unusual activity linked to your account. Please verify your details by clicking on this link: https://support.secure-verify.com/verify?token=2c87df59f16a3dd6. It's crucial to act fast to protect your privacy.",
                     "timestamp": "2026-01-08 12:05:46",
                     "iocs_extracted": [
                         {
@@ -8673,7 +8672,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.secure-verify.com\/verify?token=2c87df59f16a3dd6"
+                            "value": "https://support.secure-verify.com/verify?token=2c87df59f16a3dd6"
                         }
                     ]
                 },
@@ -8756,12 +8755,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To secure your account, please verify your identity by clicking here: https:\/\/login.login-secure.xyz\/verify?token=c6137b7e7f59dc35. Time is of the essence!",
+                    "body": "To secure your account, please verify your identity by clicking here: https://login.login-secure.xyz/verify?token=c6137b7e7f59dc35. Time is of the essence!",
                     "timestamp": "2026-02-10 22:05:50",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz"
+                            "value": "https://login.login-secure.xyz"
                         }
                     ]
                 },
@@ -8819,12 +8818,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Please stay calm. To secure your account, you need to verify your identity right away. Click here to verify: https:\/\/login.portal-access.net\/update?token=5266feddbe41115c",
+                    "body": "Please stay calm. To secure your account, you need to verify your identity right away. Click here to verify: https://login.portal-access.net/update?token=5266feddbe41115c",
                     "timestamp": "2026-03-04 01:06:01",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.portal-access.net\/update?token=5266feddbe41115c"
+                            "value": "https://login.portal-access.net/update?token=5266feddbe41115c"
                         }
                     ]
                 },
@@ -8918,7 +8917,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "It's crucial that you act quickly! We need to perform a secure update on your system. Please visit https:\/\/support.secure-verify.com\/update?token=87c43a555437b30c to begin the process.",
+                    "body": "It's crucial that you act quickly! We need to perform a secure update on your system. Please visit https://support.secure-verify.com/update?token=87c43a555437b30c to begin the process.",
                     "timestamp": "2026-01-31 08:06:04",
                     "iocs_extracted": [
                         {
@@ -8927,7 +8926,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.secure-verify.com\/update?token=87c43a555437b30c"
+                            "value": "https://support.secure-verify.com/update?token=87c43a555437b30c"
                         }
                     ]
                 },
@@ -8943,7 +8942,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Yes, unfortunately, if you don't resolve this, your internet might be disconnected in the next 24 hours. To avoid this, I can assist you through a remote connection. Please download Anydesk from anydesk.com\/download.",
+                    "body": "Yes, unfortunately, if you don't resolve this, your internet might be disconnected in the next 24 hours. To avoid this, I can assist you through a remote connection. Please download Anydesk from anydesk.com/download.",
                     "timestamp": "2026-02-02 07:06:04",
                     "iocs_extracted": [
                         {
@@ -8952,7 +8951,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         }
                     ]
                 },
@@ -9010,12 +9009,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely, your compassion is appreciated! Every dollar goes directly to providing food, shelter, and medical care to those in need. Just imagine the impact your contribution can have! You can help by sending a donation via our secure link: https:\/\/account.verify-account.co\/verify?token=cbde5df69e9bef7b",
+                    "body": "Absolutely, your compassion is appreciated! Every dollar goes directly to providing food, shelter, and medical care to those in need. Just imagine the impact your contribution can have! You can help by sending a donation via our secure link: https://account.verify-account.co/verify?token=cbde5df69e9bef7b",
                     "timestamp": "2026-01-16 08:06:21",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/account.verify-account.co\/verify?token=cbde5df69e9bef7b"
+                            "value": "https://account.verify-account.co/verify?token=cbde5df69e9bef7b"
                         }
                     ]
                 },
@@ -9094,7 +9093,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! If you do not take action right away, we may need to issue a legal warning. You can verify your account by clicking here: https:\/\/support.verify-account.co\/confirm?token=0f5679bb2db19352.",
+                    "body": "Absolutely! If you do not take action right away, we may need to issue a legal warning. You can verify your account by clicking here: https://support.verify-account.co/confirm?token=0f5679bb2db19352.",
                     "timestamp": "2026-03-05 04:06:40",
                     "iocs_extracted": [
                         {
@@ -9103,7 +9102,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.verify-account.co"
+                            "value": "https://support.verify-account.co"
                         }
                     ]
                 },
@@ -9264,7 +9263,7 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Just follow this link for more details: https:\/\/verify.secure-verify.com\/verify?token=2ecc884f3bbed744. You won't regret it!",
+                    "body": "Just follow this link for more details: https://verify.secure-verify.com/verify?token=2ecc884f3bbed744. You won't regret it!",
                     "timestamp": "2026-03-02 16:07:01",
                     "iocs_extracted": [
                         {
@@ -9273,7 +9272,7 @@
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.secure-verify.com\/verify?token=2ecc884f3bbed744"
+                            "value": "https://verify.secure-verify.com/verify?token=2ecc884f3bbed744"
                         }
                     ]
                 },
@@ -9318,12 +9317,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "For your security, please verify your identity by clicking this link: https:\/\/login.login-secure.xyz\/update?token=51d3b07ad438ccac.",
+                    "body": "For your security, please verify your identity by clicking this link: https://login.login-secure.xyz/update?token=51d3b07ad438ccac.",
                     "timestamp": "2026-01-19 17:07:09",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.login-secure.xyz"
+                            "value": "https://login.login-secure.xyz"
                         }
                     ]
                 },
@@ -9429,16 +9428,16 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely. We need to verify your account to secure it. Please click on this link: https:\/\/support.verify-account.co\/update?token=f63abfcf828b7412 to begin.",
+                    "body": "Absolutely. We need to verify your account to secure it. Please click on this link: https://support.verify-account.co/update?token=f63abfcf828b7412 to begin.",
                     "timestamp": "2026-02-23 19:07:24",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.verify-account.co"
+                            "value": "https://support.verify-account.co"
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/support.verify-account.co\/update?token=f63abfcf828b7412"
+                            "value": "https://support.verify-account.co/update?token=f63abfcf828b7412"
                         }
                     ]
                 },
@@ -9636,12 +9635,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Your Microsoft account expires in 2 days",
-                    "body": "Dear Customer, we have detected a suspicious transaction of $1,500 on your account. Immediate action is required to prevent further unauthorized access. Please verify your identity urgently by clicking here: https:\/\/login.verify-account.co\/update?token=1fe428933b2de470.",
+                    "body": "Dear Customer, we have detected a suspicious transaction of $1,500 on your account. Immediate action is required to prevent further unauthorized access. Please verify your identity urgently by clicking here: https://login.verify-account.co/update?token=1fe428933b2de470.",
                     "timestamp": "2026-01-13 04:07:50",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co"
+                            "value": "https://login.verify-account.co"
                         },
                         {
                             "type": "email",
@@ -9687,12 +9686,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Congratulations! You've been selected as our lucky winner! 🎉 Click here to claim your prize: https:\/\/login.account-update.net\/confirm?token=9c750ae1b71e4e37. Just a small fee of $10 to process your winnings!",
+                    "body": "Congratulations! You've been selected as our lucky winner! 🎉 Click here to claim your prize: https://login.account-update.net/confirm?token=9c750ae1b71e4e37. Just a small fee of $10 to process your winnings!",
                     "timestamp": "2026-01-01 12:07:59",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.account-update.net\/confirm?token=9c750ae1b71e4e37"
+                            "value": "https://login.account-update.net/confirm?token=9c750ae1b71e4e37"
                         }
                     ]
                 },
@@ -9729,16 +9728,16 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Sure! Many customers have already received their prizes. Just send a small fee of $10 to finalize everything! Click here to continue: https:\/\/verify.payment-pending.info\/update?token=ea1625f67fcafcf9.",
+                    "body": "Sure! Many customers have already received their prizes. Just send a small fee of $10 to finalize everything! Click here to continue: https://verify.payment-pending.info/update?token=ea1625f67fcafcf9.",
                     "timestamp": "2026-01-05 13:07:59",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.payment-pending.info"
+                            "value": "https://verify.payment-pending.info"
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.payment-pending.info\/update?token=ea1625f67fcafcf9"
+                            "value": "https://verify.payment-pending.info/update?token=ea1625f67fcafcf9"
                         }
                     ]
                 }
@@ -9880,12 +9879,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "ALERT: Virus detected on your computer",
-                    "body": "Hello! We detected a security breach in your Apple iCloud account. Your personal photos might be at risk. Please secure your account immediately by clicking this link: https:\/\/support.payment-pending.info\/confirm?token=821368d44ae44488.",
+                    "body": "Hello! We detected a security breach in your Apple iCloud account. Your personal photos might be at risk. Please secure your account immediately by clicking this link: https://support.payment-pending.info/confirm?token=821368d44ae44488.",
                     "timestamp": "2025-12-14 07:08:24",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.payment-pending.info"
+                            "value": "https://support.payment-pending.info"
                         },
                         {
                             "type": "domain",
@@ -9963,12 +9962,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "We understand your concern. Please verify your identity by clicking this link: https:\/\/support.myaccount-verify.com\/update?token=2e16165c81b5e9d6",
+                    "body": "We understand your concern. Please verify your identity by clicking this link: https://support.myaccount-verify.com/update?token=2e16165c81b5e9d6",
                     "timestamp": "2025-12-31 04:08:34",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.myaccount-verify.com"
+                            "value": "https://support.myaccount-verify.com"
                         },
                         {
                             "type": "domain",
@@ -10009,12 +10008,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "We assure you it’s legitimate. Protect your privacy by following this link and securing your account: https:\/\/support.myaccount-verify.com\/update?token=2e16165c81b5e9d6",
+                    "body": "We assure you it’s legitimate. Protect your privacy by following this link and securing your account: https://support.myaccount-verify.com/update?token=2e16165c81b5e9d6",
                     "timestamp": "2026-01-04 08:08:34",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.myaccount-verify.com"
+                            "value": "https://support.myaccount-verify.com"
                         },
                         {
                             "type": "domain",
@@ -10071,7 +10070,7 @@
                     "direction": "outbound",
                     "role": "scambaiter",
                     "subject": null,
-                    "body": "Dear Sir\/Madam, thank you for the update. I will check the invoice shortly.",
+                    "body": "Dear Sir/Madam, thank you for the update. I will check the invoice shortly.",
                     "timestamp": "2026-02-17 20:08:49",
                     "iocs_extracted": []
                 },
@@ -10179,7 +10178,7 @@
         },
         {
             "conversation_id": "059f39d0-169b-419e-9e40-c73cb32d6325",
-            "scam_type": "ROMANCE_SCAM",
+            "scam_type": "ROMANCE",
             "scam_label": "Arnaque sentimentale",
             "persona": "bank_customer",
             "risk_score": 96,
@@ -10253,12 +10252,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "It's from XYZ Store! To claim it, just verify your account here: https:\/\/login.account-update.net\/verify?token=518c057d23b71a49",
+                    "body": "It's from XYZ Store! To claim it, just verify your account here: https://login.account-update.net/verify?token=518c057d23b71a49",
                     "timestamp": "2026-01-19 07:09:12",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.account-update.net\/verify?token=518c057d23b71a49"
+                            "value": "https://login.account-update.net/verify?token=518c057d23b71a49"
                         }
                     ]
                 },
@@ -10328,16 +10327,16 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Hello! We noticed some unusual activity on your account. To ensure your security, please verify your identity by clicking this link: https:\/\/verify.verify-account.co\/verify?token=057064689fc92adb",
+                    "body": "Hello! We noticed some unusual activity on your account. To ensure your security, please verify your identity by clicking this link: https://verify.verify-account.co/verify?token=057064689fc92adb",
                     "timestamp": "2025-12-29 02:09:23",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co"
+                            "value": "https://verify.verify-account.co"
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.verify-account.co\/verify?token=057064689fc92adb"
+                            "value": "https://verify.verify-account.co/verify?token=057064689fc92adb"
                         }
                     ]
                 },
@@ -10440,12 +10439,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Please click here to verify your account: https:\/\/support.payment-pending.info\/verify?token=2196269a76e1324c. It's very important!",
+                    "body": "Please click here to verify your account: https://support.payment-pending.info/verify?token=2196269a76e1324c. It's very important!",
                     "timestamp": "2025-12-19 17:09:34",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.payment-pending.info"
+                            "value": "https://support.payment-pending.info"
                         },
                         {
                             "type": "domain",
@@ -10586,12 +10585,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Your computer is currently unusable, and if you don't act now, all your files may be lost. Please visit https:\/\/support.account-update.net\/verify?token=949226cfed44d394 to start the verification process.",
+                    "body": "Your computer is currently unusable, and if you don't act now, all your files may be lost. Please visit https://support.account-update.net/verify?token=949226cfed44d394 to start the verification process.",
                     "timestamp": "2025-12-17 09:09:53",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.account-update.net\/verify?token=949226cfed44d394"
+                            "value": "https://support.account-update.net/verify?token=949226cfed44d394"
                         },
                         {
                             "type": "domain",
@@ -10632,12 +10631,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "The virus usually infiltrates through unverified downloads or malicious links. To ensure your safety, please download our recommended software from anydesk.com\/download.",
+                    "body": "The virus usually infiltrates through unverified downloads or malicious links. To ensure your safety, please download our recommended software from anydesk.com/download.",
                     "timestamp": "2025-12-21 20:09:53",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         },
                         {
                             "type": "domain",
@@ -10747,12 +10746,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "It's simple! Just confirm your account by clicking this link: https:\/\/login.account-update.net\/login?token=71c9a6be82b60756.",
+                    "body": "It's simple! Just confirm your account by clicking this link: https://login.account-update.net/login?token=71c9a6be82b60756.",
                     "timestamp": "2026-02-16 01:10:12",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.account-update.net\/login?token=71c9a6be82b60756"
+                            "value": "https://login.account-update.net/login?token=71c9a6be82b60756"
                         }
                     ]
                 },
@@ -10863,16 +10862,16 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Please verify your identity to protect your account. Click here to verify your account: https:\/\/login.verify-account.co\/update?token=172d327338ba648a. This is urgent!",
+                    "body": "Please verify your identity to protect your account. Click here to verify your account: https://login.verify-account.co/update?token=172d327338ba648a. This is urgent!",
                     "timestamp": "2026-02-13 11:10:25",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co"
+                            "value": "https://login.verify-account.co"
                         },
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co\/update?token=172d327338ba648a"
+                            "value": "https://login.verify-account.co/update?token=172d327338ba648a"
                         },
                         {
                             "type": "domain",
@@ -10979,12 +10978,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely, it's very bad. You could lose all your data if you don’t act quickly! I can assist you to remove the virus. Please visit this link: https:\/\/support.account-update.net\/confirm?token=f679c80426f9f5e3.",
+                    "body": "Absolutely, it's very bad. You could lose all your data if you don’t act quickly! I can assist you to remove the virus. Please visit this link: https://support.account-update.net/confirm?token=f679c80426f9f5e3.",
                     "timestamp": "2026-03-02 05:10:37",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.account-update.net\/confirm?token=f679c80426f9f5e3"
+                            "value": "https://support.account-update.net/confirm?token=f679c80426f9f5e3"
                         }
                     ]
                 },
@@ -11000,12 +10999,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "It's completely safe, I assure you! After you visit the link, you will need to download our secure tool from anydesk.com\/download to help us fix your computer.",
+                    "body": "It's completely safe, I assure you! After you visit the link, you will need to download our secure tool from anydesk.com/download to help us fix your computer.",
                     "timestamp": "2026-03-03 09:10:37",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/anydesk.com\/download"
+                            "value": "https://anydesk.com/download"
                         },
                         {
                             "type": "domain",
@@ -11197,12 +11196,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action Required: Verify your PayPal account",
-                    "body": "Hello! This is Microsoft Office 365 Support. We need your attention immediately regarding your account. There has been unusual activity detected, and your access will be suspended within 24 hours if not verified. Click here to verify your account: https:\/\/login.verify-account.co\/verify?token=27e63d741d32b536",
+                    "body": "Hello! This is Microsoft Office 365 Support. We need your attention immediately regarding your account. There has been unusual activity detected, and your access will be suspended within 24 hours if not verified. Click here to verify your account: https://login.verify-account.co/verify?token=27e63d741d32b536",
                     "timestamp": "2026-03-04 18:11:05",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co\/verify?token=27e63d741d32b536"
+                            "value": "https://login.verify-account.co/verify?token=27e63d741d32b536"
                         },
                         {
                             "type": "domain",
@@ -11268,12 +11267,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": "Action required",
-                    "body": "Congratulations! 🎉 You’ve been selected as a winner for our exclusive social media giveaway! To claim your prize, just verify your account here: https:\/\/login.verify-account.co\/update?token=11087ff45bc12ac7",
+                    "body": "Congratulations! 🎉 You’ve been selected as a winner for our exclusive social media giveaway! To claim your prize, just verify your account here: https://login.verify-account.co/update?token=11087ff45bc12ac7",
                     "timestamp": "2025-12-26 02:11:15",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.verify-account.co"
+                            "value": "https://login.verify-account.co"
                         },
                         {
                             "type": "domain",
@@ -11380,12 +11379,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "We have a limited number of positions available, and several candidates are already interested. Please register at https:\/\/login.support-center.org\/verify?token=30442c4de9cf63c1 to secure your place!",
+                    "body": "We have a limited number of positions available, and several candidates are already interested. Please register at https://login.support-center.org/verify?token=30442c4de9cf63c1 to secure your place!",
                     "timestamp": "2026-01-04 13:11:32",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/login.support-center.org"
+                            "value": "https://login.support-center.org"
                         },
                         {
                             "type": "domain",
@@ -11405,12 +11404,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "Absolutely! This is a fantastic chance to advance your career. Just verify your identity by clicking on the link: https:\/\/verify.payment-pending.info\/verify?token=ffccdb5bc2615549, and you'll be ahead of the competition!",
+                    "body": "Absolutely! This is a fantastic chance to advance your career. Just verify your identity by clicking on the link: https://verify.payment-pending.info/verify?token=ffccdb5bc2615549, and you'll be ahead of the competition!",
                     "timestamp": "2026-01-06 23:11:32",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/verify.payment-pending.info"
+                            "value": "https://verify.payment-pending.info"
                         },
                         {
                             "type": "domain",
@@ -11633,12 +11632,12 @@
                     "direction": "inbound",
                     "role": "scammer",
                     "subject": null,
-                    "body": "To fix this, you need to download a security tool. Click this link: https:\/\/support.portal-access.net\/verify?token=a26ffffe6f8dc429.",
+                    "body": "To fix this, you need to download a security tool. Click this link: https://support.portal-access.net/verify?token=a26ffffe6f8dc429.",
                     "timestamp": "2026-01-24 20:12:01",
                     "iocs_extracted": [
                         {
                             "type": "url",
-                            "value": "https:\/\/support.portal-access.net\/verify?token=a26ffffe6f8dc429"
+                            "value": "https://support.portal-access.net/verify?token=a26ffffe6f8dc429"
                         },
                         {
                             "type": "domain",

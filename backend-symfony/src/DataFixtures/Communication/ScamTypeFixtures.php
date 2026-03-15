@@ -66,15 +66,6 @@ class ScamTypeFixtures extends Fixture
                 'ref' => null,
             ],
             [
-                'code' => 'ROMANCE_SCAM',
-                'label' => 'Arnaque sentimentale',
-                'description' => 'Etablit confiance puis demande argent',
-                'misp_taxonomy' => 'rsit:fraud="scam"',
-                'attck_technique' => null,
-                'active' => true,
-                'ref' => null,
-            ],
-            [
                 'code' => 'TECH_SUPPORT',
                 'label' => 'Faux support technique',
                 'description' => 'Se fait passer pour support Microsoft/Apple',

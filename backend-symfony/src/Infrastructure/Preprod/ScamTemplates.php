@@ -30,7 +30,7 @@ class ScamTemplates
             'BANK_IMPERSONATION' => self::getBankImpersonationTemplates(),
             'GOV_IMPERSONATION' => self::getGovImpersonationTemplates(),
             'TECH_SUPPORT' => self::getTechSupportTemplates(),
-            'ROMANCE_SCAM' => self::getRomanceScamTemplates(),
+            'ROMANCE' => self::getRomanceScamTemplates(),
             'ADVANCE_FEE_419' => self::getAdvanceFeeTemplates(),
             'INVESTMENT_SCAM' => self::getInvestmentScamTemplates(),
             'DELIVERY_SCAM' => self::getDeliveryScamTemplates(),
