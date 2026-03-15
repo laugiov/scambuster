@@ -27,6 +27,7 @@ final class PersonaOptimizer
     private const CONVERGENCE_THRESHOLD = 0.60;
     private const MIN_SESSIONS_FOR_CONVERGENCE = 10;
     private const CONVERGED_EPSILON = 0.05;
+    private const EXPLORATION_BONUS_C = 0.5;
 
     public function __construct(
         private readonly PersonaPerformanceStatsRepository $statsRepository,
@@ -204,22 +205,30 @@ final class PersonaOptimizer
             return $this->selectRandomPersona($performances);
         }
 
-        // Trier par reward_avg DESC, puis par sessions_count DESC
-        usort($eligiblePerformances, function (PersonaPerformance $a, PersonaPerformance $b) {
-            $rewardDiff = $b->getRewardAvg() <=> $a->getRewardAvg();
+        // Compute total sessions for UCB1 bonus calculation
+        $totalSessions = array_sum(array_map(
+            static fn(PersonaPerformance $p) => $p->getSessionsCount(),
+            $eligiblePerformances
+        ));
 
-            if ($rewardDiff !== 0) {
-                return $rewardDiff;
+        // Sort by UCB1 adjusted score DESC (reward_avg + exploration bonus)
+        usort($eligiblePerformances, function (PersonaPerformance $a, PersonaPerformance $b) use ($totalSessions) {
+            $scoreA = $a->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C);
+            $scoreB = $b->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C);
+
+            $scoreDiff = $scoreB <=> $scoreA;
+
+            if ($scoreDiff !== 0) {
+                return $scoreDiff;
             }
 
-            // Égalité de reward : départager par sessions_count
             return $b->getSessionsCount() <=> $a->getSessionsCount();
         });
 
-        // Prendre tous les personas avec le meilleur reward_avg (gestion des ex-aequo)
-        $bestReward = $eligiblePerformances[0]->getRewardAvg();
-        $bestPerformances = array_filter($eligiblePerformances, function (PersonaPerformance $perf) use ($bestReward) {
-            return abs($perf->getRewardAvg() - $bestReward) < 0.0001; // Tolérance float
+        // Handle ex-aequo on adjusted score
+        $bestScore = $eligiblePerformances[0]->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C);
+        $bestPerformances = array_filter($eligiblePerformances, function (PersonaPerformance $perf) use ($totalSessions, $bestScore) {
+            return abs($perf->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C) - $bestScore) < 0.0001;
         });
 
         // Si plusieurs ex-aequo, sélection aléatoire

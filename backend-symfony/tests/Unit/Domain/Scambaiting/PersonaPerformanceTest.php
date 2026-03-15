@@ -163,4 +163,46 @@ final class PersonaPerformanceTest extends TestCase
         $this->assertStringContainsString('rewardAvg=0.7500', $string);
         $this->assertStringNotContainsString('[COLD START]', $string);
     }
+
+    public function testGetAdjustedScoreFavorsUnderexploredArms(): void
+    {
+        $underexplored = new PersonaPerformance('UNDER', 'PHISHING', 3, 0.50);
+        $wellExplored = new PersonaPerformance('WELL', 'PHISHING', 100, 0.50);
+
+        $totalSessions = 103;
+        $c = 0.5;
+
+        $scoreUnder = $underexplored->getAdjustedScore($totalSessions, $c);
+        $scoreWell = $wellExplored->getAdjustedScore($totalSessions, $c);
+
+        // Same reward_avg, but underexplored arm should get a higher adjusted score
+        $this->assertGreaterThan($scoreWell, $scoreUnder);
+        // Both should be > base reward_avg due to bonus
+        $this->assertGreaterThan(0.50, $scoreUnder);
+        $this->assertGreaterThan(0.50, $scoreWell);
+    }
+
+    public function testGetAdjustedScoreDecaysWithSessions(): void
+    {
+        $c = 0.5;
+        $totalSessions = 200;
+
+        $few = new PersonaPerformance('FEW', 'PHISHING', 5, 0.60);
+        $many = new PersonaPerformance('MANY', 'PHISHING', 150, 0.60);
+
+        $bonusFew = $few->getAdjustedScore($totalSessions, $c) - 0.60;
+        $bonusMany = $many->getAdjustedScore($totalSessions, $c) - 0.60;
+
+        // Bonus should be much larger for the arm with fewer sessions
+        $this->assertGreaterThan($bonusMany, $bonusFew);
+        // Bonus for well-explored arm should be small
+        $this->assertLessThan(0.15, $bonusMany);
+    }
+
+    public function testGetAdjustedScoreReturnsRewardAvgWhenZeroSessions(): void
+    {
+        $perf = new PersonaPerformance('NEW', 'PHISHING', 0, 0.0);
+
+        $this->assertSame(0.0, $perf->getAdjustedScore(100, 0.5));
+    }
 }

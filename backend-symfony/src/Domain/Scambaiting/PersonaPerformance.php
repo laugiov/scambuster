@@ -116,6 +116,21 @@ final readonly class PersonaPerformance
         return $this->rewardAvg;
     }
 
+    /**
+     * UCB1 adjusted score: reward_avg + C * sqrt(ln(totalSessions) / personaSessions).
+     * Gives an exploration bonus to underexplored arms that decays with more observations.
+     */
+    public function getAdjustedScore(int $totalSessions, float $explorationC): float
+    {
+        if ($this->sessionsCount === 0 || $totalSessions <= 1) {
+            return $this->rewardAvg;
+        }
+
+        $bonus = $explorationC * sqrt(log($totalSessions) / $this->sessionsCount);
+
+        return $this->rewardAvg + $bonus;
+    }
+
     public static function getColdStartThreshold(): int
     {
         return self::COLD_START_THRESHOLD;
