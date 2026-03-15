@@ -240,6 +240,14 @@ services:
             $statsRepository: '@App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository'
             $em: '@doctrine.orm.entity_manager'
             $logger: '@monolog.logger.scambaiting'
+    App\Infrastructure\EventListener\ConversationStatusChangeListener:
+        arguments:
+            $metricsCollector: '@App\Application\Scambaiting\ConversationMetricsCollector'
+            $eventDispatcher: '@event_dispatcher'
+            $logger: '@monolog.logger.scambaiting'
+        tags:
+            - { name: doctrine.event_listener, event: onFlush }
+            - { name: doctrine.event_listener, event: postFlush }
     ###< Scambaiting Adaptatif - Infrastructure Layer ###
 
     ###> Scambaiting Adaptatif - Application Layer ###
