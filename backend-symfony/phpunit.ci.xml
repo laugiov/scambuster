@@ -7,9 +7,12 @@
     cacheDirectory="/tmp/.phpunit.cache"
     colors="true"
 >
+    <!-- DAMA disabled for CI debugging - testing if it causes Kernel double-include -->
+    <!--
     <extensions>
         <bootstrap class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
     </extensions>
+    -->
 
     <php>
         <env name="APP_ENV" value="test"/>
