@@ -53,7 +53,7 @@ jobs:
         run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress --no-scripts
 
       - name: Fix permissions
-        run: docker compose exec --user root backend-dev chown -R 10001:10001 /app/vendor /app/var
+        run: docker compose exec --user root backend-dev sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
 
       - name: Run PHPStan
         run: docker compose exec backend-dev vendor/bin/phpstan analyse src --memory-limit=1G
@@ -101,7 +101,7 @@ jobs:
         run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress --no-scripts
 
       - name: Fix permissions
-        run: docker compose exec --user root backend-dev chown -R 10001:10001 /app/vendor /app/var
+        run: docker compose exec --user root backend-dev sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
 
       - name: Run PHP-CS-Fixer (dry-run)
         run: docker compose exec backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no
@@ -166,7 +166,7 @@ jobs:
         run: docker compose exec --user root backend-test composer install --no-interaction --no-progress --no-scripts
 
       - name: Fix permissions
-        run: docker compose exec --user root backend-test chown -R 10001:10001 /app/vendor /app/var
+        run: docker compose exec --user root backend-test sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
 
       - name: Create test database
         run: docker compose exec postgres psql -U postgres -c "CREATE DATABASE scambuster_test;" || true
