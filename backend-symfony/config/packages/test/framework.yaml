@@ -3,6 +3,5 @@ framework:
   session:
     storage_factory_id: session.storage.factory.mock_file
 
-services:
-  _defaults:
-    container.dumper.inline_class_loader: false
+parameters:
+  container.dumper.inline_class_loader: false
