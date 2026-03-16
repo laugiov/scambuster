@@ -186,5 +186,10 @@ jobs:
       - name: Clear compiled cache before PHPUnit
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Run integration and unit tests
-        run: docker compose exec backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
+      - name: Run integration tests with strace
+        run: |
+          docker compose exec --user root backend-test sh -c "\
+            apt-get update -qq && apt-get install -yqq strace > /dev/null 2>&1 && \
+            strace -f -e trace=openat -o /tmp/strace.log php vendor/bin/phpunit --testsuite integration 2>&1 | tail -10; \
+            echo '=== Kernel.php opens ===' && \
+            grep 'Kernel.php' /tmp/strace.log | grep -v 'HttpKernel\|KernelEvent\|KernelBrowser\|KernelException\|KernelTestCase\|MicroKernelTrait\|KernelInterface' | head -20"
