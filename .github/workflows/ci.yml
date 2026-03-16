@@ -56,7 +56,7 @@ jobs:
         run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
 
       - name: Run PHPStan
-        run: docker compose exec backend-dev vendor/bin/phpstan analyse --memory-limit=1G
+        run: docker compose exec backend-dev vendor/bin/phpstan analyse src --memory-limit=1G
 
   code-style:
     name: Code Style (PHP-CS-Fixer)
@@ -178,4 +178,4 @@ jobs:
         run: docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
 
       - name: Run tests
-        run: docker compose exec backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
+        run: docker compose run --rm backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
