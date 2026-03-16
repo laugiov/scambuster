@@ -140,25 +140,22 @@ jobs:
           EOF
           cp .env .env.test
 
-      - name: Start stack
-        run: docker compose up -d --build postgres redis backend-test
+      - name: Start full stack
+        run: docker compose up -d --build
 
       - name: Wait for services
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress --no-scripts
+        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress
 
       - name: Fix permissions
-        run: docker compose exec --user root backend-test sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
+        run: docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var"
 
-      - name: Create test database
-        run: docker compose exec postgres psql -U postgres -c "CREATE DATABASE scambuster_test;" || true
-
-      - name: Run migrations and fixtures
+      - name: Setup test database
         run: |
-          docker compose exec backend-test php bin/console doctrine:migrations:migrate --env=test --no-interaction
-          docker compose exec backend-test php bin/console doctrine:fixtures:load --env=test --no-interaction
+          make migration-test
+          make fixtures
 
-      - name: Run tests (like make test)
-        run: docker compose exec backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
+      - name: Run tests (make test)
+        run: make test
