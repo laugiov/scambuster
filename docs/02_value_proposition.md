@@ -111,8 +111,8 @@ Context (scam type) → Select persona → Observe reward → Update model
 
 | Algorithm | Version | Status | Key Properties |
 |-----------|---------|--------|----------------|
-| **ε-greedy** | V1 | ✅ Complete | 80% exploitation, 20% exploration |
-| **Thompson Sampling** | - | 🔄 Planned | Bayesian, zero hyperparameters |
+| **ε-greedy + UCB1** | V1 | ✅ Production | 80/20 exploit/explore, UCB1 bonus, 60% convergence detection |
+| **Thompson Sampling** | V2 | Planned | Bayesian, zero hyperparameters |
 
 **Reward function** (validated empirically):
 

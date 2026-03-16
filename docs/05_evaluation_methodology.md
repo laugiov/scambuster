@@ -111,7 +111,7 @@ This separation ensures appropriate context for each metric type.
 | Group | Strategy | Size Target |
 |-------|----------|-------------|
 | **A (Control)** | Random persona selection | 200+ conversations |
-| **B (Test)** | Adaptive bandit (Thompson Sampling) | 200+ conversations |
+| **B (Test)** | Adaptive bandit (epsilon-greedy + UCB1) | 200+ conversations |
 
 #### Hypotheses
 
@@ -164,27 +164,19 @@ Target sample size based on:
 2. "Blind" exploration (may test known-bad personas)
 3. No uncertainty quantification
 
-### Thompson Sampling (December 2025)
+### Thompson Sampling (Planned -- v2 Roadmap)
 
-**Parameters**:
-- Prior: Beta(1, 1) uniform
-- Update: Bayesian (α += reward, β += 1-reward)
-- Selection: Sample from Beta, choose max
+Thompson Sampling is planned as a v2 upgrade. It is **not implemented** in the current codebase. The current production algorithm (epsilon-greedy + UCB1) already demonstrates strong convergence properties (9/12 scam types converged in <100 sessions).
 
-**Expected Advantages**:
+**Expected Advantages** (if implemented):
 
-| Aspect | ε-Greedy | Thompson Sampling |
-|--------|----------|-------------------|
-| **Exploration** | Random 20% | Probability-weighted |
-| **Hyperparameters** | ε to tune | None |
-| **Uncertainty** | Ignored | Explicit in Beta |
-| **Bad arms** | Keep testing | Natural elimination |
-| **Convergence** | Good | Excellent |
-
-**Completed Validation**:
-- Side-by-side comparison (same traffic split)
-- Convergence speed measurement
-- Final performance comparison
+| Aspect | ε-Greedy + UCB1 (current) | Thompson Sampling (planned) |
+|--------|---------------------------|----------------------------|
+| **Exploration** | UCB1 bonus + 20% random | Probability-weighted by uncertainty |
+| **Hyperparameters** | ε, C, convergence threshold | None (auto-adaptive) |
+| **Uncertainty** | UCB1 approximation | Explicit in Beta distribution |
+| **Bad arms** | UCB1 reduces over time | Natural elimination |
+| **Convergence** | Good (60% threshold detection) | Expected: faster |
 
 ---
 

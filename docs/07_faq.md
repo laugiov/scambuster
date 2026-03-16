@@ -17,10 +17,10 @@ Yes, for **serious interest** (demo, pilot, hiring, partnership). See the [Conta
 ### What's the current project status?
 
 - **Phase 1-2 (Foundation + Adaptive V1)**: ✅ Complete
-- **Phase 3 (Thompson Sampling)**: 🔄 In Progress
+- **Phase 3 (Thompson Sampling)**: Planned (v2 roadmap)
 - **Phase 4 (Scale & Dashboards)**: ✅ Complete
 - **Phase 5 (A/B Validation)**: ✅ Complete
-- **Phase 6 (Publication & Dataset Release)**: 🔄 In Progress
+- **Phase 6 (Publication & Dataset Release)**: In Progress
 
 ---
 
@@ -30,13 +30,13 @@ Yes, for **serious interest** (demo, pilot, hiring, partnership). See the [Conta
 
 | Layer | Technology |
 |-------|------------|
-| **Backend** | PHP 8.3, Symfony 7 |
+| **Backend** | PHP 8.3, Symfony 7.2 |
 | **Architecture** | Domain-Driven Design (DDD) |
-| **Database** | PostgreSQL 15, Redis |
+| **Database** | PostgreSQL 15, Redis 7 |
 | **LLM** | GPT-4o-mini (OpenAI API) |
 | **Orchestration** | n8n (workflow automation) |
-| **Infrastructure** | Docker |
-| **CI/CD** | GitLab CI |
+| **Infrastructure** | Docker, Docker Compose |
+| **CI/CD** | GitHub Actions |
 | **Secrets** | Dedicated secrets management |
 
 ### How does the LLM architecture work?
@@ -53,14 +53,14 @@ Additionally, the **InjectionDetector** forensic module analyzes inbound message
 
 Each agent has a single responsibility and can be optimized independently.
 
-### What's the difference between ε-greedy and Thompson Sampling?
+### What's the difference between the current algorithm and Thompson Sampling?
 
-| Aspect | ε-Greedy | Thompson Sampling |
-|--------|---------------|------------------------|
-| **Exploration** | Random 20% of time | Probability-weighted by uncertainty |
-| **Parameters** | ε = 0.20 (fixed) | None (auto-adaptive) |
-| **Bad performers** | Keep testing | Naturally eliminated |
-| **Convergence** | ~200 sessions | ~100 sessions expected |
+| Aspect | ε-Greedy + UCB1 (current) | Thompson Sampling (planned v2) |
+|--------|---------------------------|-------------------------------|
+| **Exploration** | UCB1 bonus + 20% random | Probability-weighted by uncertainty |
+| **Parameters** | ε=0.20, C=0.5, convergence=60% | None (auto-adaptive) |
+| **Bad performers** | UCB1 reduces over time | Naturally eliminated |
+| **Convergence** | 9/12 types in <100 sessions | Expected: faster |
 | **Status** | Validated (production) | Planned (roadmap v2) |
 
 ### How accurate is IOC extraction?

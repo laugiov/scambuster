@@ -3,11 +3,11 @@
 **A Defensive Engagement & Threat Intelligence Research Laboratory (Email-first)**
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
-![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207%20|%20PostgreSQL%20|%20LLM-green)
+![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207.2%20|%20PostgreSQL%2015%20|%20LLM-green)
 ![Tests](https://img.shields.io/badge/tests-1310%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> **Last updated**: 2026-03-11 | **Data period**: December 2025 - February 2026
+> **Last updated**: 2026-03-16 | **Data period**: December 2025 - February 2026
 
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
 
@@ -189,13 +189,10 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 
 | Layer | Technology |
 |-------|------------|
-| **Backend** | PHP 8.3, Symfony 7, DDD architecture |
-| **Frontend** | React |
-| **Email Listener** | Node.js, ImapFlow |
-| **AI Services** | Python, FastAPI |
+| **Backend** | PHP 8.3, Symfony 7.2, DDD architecture |
 | **Database** | PostgreSQL 15, Redis 7 |
 | **LLM** | OpenAI API (GPT-4o-mini, pinned version) |
-| **Orchestration** | n8n workflow automation |
+| **Orchestration** | n8n (self-hosted workflow automation) |
 | **Secrets** | HashiCorp Vault |
 | **Infrastructure** | Docker, Docker Compose |
 
@@ -249,7 +246,6 @@ scambuster/
     tests/                 # PHPUnit (unit, integration, E2E)
     migrations/            # Doctrine migrations + reference data
   n8n/                     # Workflow definitions (JSON)
-  prompts/personas/        # Persona YAML templates
   infra/                   # Docker configs
   docs/                    # Detailed documentation (10 documents)
 ```
@@ -356,14 +352,18 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 3. **Scientific**: Empirically validated adaptive engagement (p < 0.001, N=2,221, Cohen's d = 0.37)
 4. **Practical**: Demonstrated efficiency at pilot scale (EUR 0.0002 per IOC, 100% extraction precision)
 
-### Hypotheses Under Validation
+### Validated Hypotheses (Epsilon-Greedy with UCB1)
 
-| ID | Hypothesis | Expected |
-|----|------------|----------|
-| H1 | Thompson Sampling improves engagement duration | +100% median |
-| H2 | Thompson Sampling increases IOCs/conversation | +30% |
-| H3 | Thompson Sampling reduces early abandonment | -20% at 2nd turn |
-| H4 | Thompson Sampling converges faster | <100 sessions |
+| ID | Hypothesis | Result |
+|----|------------|--------|
+| H1 | Adaptive selection improves engagement duration vs random | Validated (p < 0.001) |
+| H2 | Adaptive selection increases IOCs/conversation vs random | Validated (+51.3% median) |
+| H3 | Adaptive selection reduces early abandonment | Validated (48.6% -> 36.4%) |
+| H4 | Per-scam-type policy converges in <100 sessions | Validated (9/12 types) |
+
+### Planned (v2): Thompson Sampling
+
+Thompson Sampling is planned as a v2 upgrade to the current epsilon-greedy algorithm. It is **not implemented** in the current codebase. Expected improvements: faster convergence, no hyperparameter tuning, automatic exploration-exploitation balance.
 
 ### Citation
 
