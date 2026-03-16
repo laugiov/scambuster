@@ -156,11 +156,22 @@ jobs:
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Run all tests in fresh container
+      - name: Run tests in minimal container (no Dockerfile build artifacts)
         run: |
-          docker compose run --rm backend-test sh -c "\
-            composer install --no-interaction --no-progress && \
-            php bin/console doctrine:database:create --env=test --if-not-exists && \
-            php bin/console doctrine:migrations:migrate --env=test --no-interaction && \
-            php bin/console doctrine:fixtures:load --env=test --no-interaction && \
-            vendor/bin/phpunit --testdox --testsuite integration,unit"
+          docker run --rm \
+            --network scambuster_scambuster \
+            -v "$(pwd)/backend-symfony:/app" \
+            -v "$(pwd)/.env:/app/.env:ro" \
+            -v "$(pwd)/.env.test:/app/.env.test:ro" \
+            -w /app \
+            -e APP_ENV=test \
+            php:8.3.27-cli sh -c "\
+              apt-get update -qq && apt-get install -yqq libpq-dev libzip-dev git unzip > /dev/null 2>&1 && \
+              docker-php-ext-install pdo pdo_pgsql zip > /dev/null 2>&1 && \
+              pecl install mailparse redis > /dev/null 2>&1 && docker-php-ext-enable mailparse redis > /dev/null 2>&1 && \
+              curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer > /dev/null 2>&1 && \
+              composer install --no-interaction --no-progress && \
+              php bin/console doctrine:database:create --env=test --if-not-exists && \
+              php bin/console doctrine:migrations:migrate --env=test --no-interaction && \
+              php bin/console doctrine:fixtures:load --env=test --no-interaction && \
+              vendor/bin/phpunit --testdox --testsuite integration,unit"
