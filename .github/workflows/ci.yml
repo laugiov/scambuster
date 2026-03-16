@@ -207,4 +207,4 @@ jobs:
           "
 
       - name: Run unit and integration tests
-        run: vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
+        run: php -d opcache.enable=0 vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
