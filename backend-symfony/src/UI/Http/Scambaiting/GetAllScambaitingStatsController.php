@@ -19,7 +19,8 @@ final class GetAllScambaitingStatsController extends AbstractController
 {
     public function __construct(
         private readonly PersonaPerformanceStatsRepository $statsRepository
-    ) {}
+    ) {
+    }
 
     public function __invoke(): JsonResponse
     {

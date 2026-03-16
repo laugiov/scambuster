@@ -19,7 +19,8 @@ final class GetScambaitingStatsController extends AbstractController
 {
     public function __construct(
         private readonly PersonaOptimizer $personaOptimizer
-    ) {}
+    ) {
+    }
 
     public function __invoke(string $scamTypeCode): JsonResponse
     {

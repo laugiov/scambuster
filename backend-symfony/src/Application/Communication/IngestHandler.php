@@ -626,6 +626,7 @@ class IngestHandler
         if ($this->promptInjectionDetector !== null) {
             try {
                 $analysis = $this->promptInjectionDetector->analyze($messageEntity);
+
                 if ($analysis !== null) {
                     $messageEntity->setInjectionAnalysis($analysis->toArray());
                     $this->em->flush();

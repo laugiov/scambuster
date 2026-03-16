@@ -66,6 +66,7 @@ class ConversationHandler
     }
 
     /**
+     * @param array<string, mixed> $data
      */
     public function patchConversation(string $convId, array $data): Conversation|null|false
     {
@@ -88,7 +89,9 @@ class ConversationHandler
         }
 
         if (array_key_exists('score_risk', $data)) {
-            $conv->setScoreRisk((int)$data['score_risk']);
+            /** @var int|string $scoreRisk */
+            $scoreRisk = $data['score_risk'];
+            $conv->setScoreRisk((int) $scoreRisk);
             $updated = true;
         }
 
@@ -103,7 +106,9 @@ class ConversationHandler
         }
 
         if (array_key_exists('scam_type_id', $data)) {
-            $scamType = $this->em->getRepository(ScamType::class)->find((int)$data['scam_type_id']);
+            /** @var int|string $scamTypeId */
+            $scamTypeId = $data['scam_type_id'];
+            $scamType = $this->em->getRepository(ScamType::class)->find((int) $scamTypeId);
 
             if (!$scamType) {
                 throw new \RuntimeException('Invalid scam_type_id');
@@ -156,12 +161,14 @@ class ConversationHandler
         return $this->em->getRepository(MailAccount::class)->find($accountId);
     }
 
+    /** @return array<int, ConversationChannel> */
     public function getConversationChannels(Conversation $conv): array
     {
         return $this->em->getRepository(ConversationChannel::class)->findBy(['conversation' => $conv]);
     }
 
-    public function getFilteredConversations(int $page, int $limit, $status = null, $from = null, $to = null): array
+    /** @return array<int, Conversation> */
+    public function getFilteredConversations(int $page, int $limit, ?string $status = null, ?string $from = null, ?string $to = null): array
     {
         $offset = ($page - 1) * $limit;
         $qb = $this->em->createQueryBuilder();
@@ -192,7 +199,7 @@ class ConversationHandler
     /**
      * Get paginated messages for a conversation.
      *
-     * @return array{total: int, messages: array}
+     * @return array{total: int, messages: array<int, mixed>}
      */
     public function getConversationMessages(string $convId, int $page, int $limit): array
     {

@@ -33,12 +33,12 @@ final class FeatureExtractor
      */
     private function extractTextFeatures(Message $message): array
     {
-        $subject = $message->getSubject() ?? '';
-        $bodyHtml = $message->getBodyHtml() ?? '';
-        $bodyText = $message->getBodyText() ?? '';
+        $subject = $message->getSubject();
+        $bodyHtml = $message->getBodyHtml();
+        $bodyText = $message->getBodyText();
 
         // Utiliser HTML si disponible, sinon texte brut
-        $body = $bodyHtml !== '' ? $this->stripHtml($bodyHtml) : $bodyText;
+        $body = ($bodyHtml !== null && $bodyHtml !== '') ? $this->stripHtml($bodyHtml) : ($bodyText ?: '');
         $bodyNormalized = $this->defangUrls($body);
 
         $fullText = $subject . ' ' . $bodyNormalized;
@@ -58,14 +58,16 @@ final class FeatureExtractor
      */
     private function extractInfraFeatures(Message $message): array
     {
-        $bodyText = $message->getBodyText() ?? '';
+        $bodyText = $message->getBodyText();
         $urls = $this->extractUrls($bodyText);
         $domains = array_filter(array_map(fn ($url) => parse_url($url, PHP_URL_HOST), $urls));
 
         // Récupérer métadonnées depuis headers JSONB
-        $headers = $message->getHeaders() ?? [];
-        $dkim = $headers['auth']['dkim'] ?? false;
-        $spf = $headers['auth']['spf'] ?? false;
+        $headers = $message->getHeaders();
+        /** @var array<string, mixed> $auth */
+        $auth = $headers['auth'] ?? [];
+        $dkim = $auth['dkim'] ?? false;
+        $spf = $auth['spf'] ?? false;
 
         return [
             'url_domains' => array_values($domains),
@@ -83,7 +85,7 @@ final class FeatureExtractor
      */
     private function extractStyleFeatures(Message $message): array
     {
-        $text = $message->getBodyText() ?? '';
+        $text = $message->getBodyText();
 
         return [
             'punct_ratio' => $this->calculatePunctuationRatio($text),
@@ -100,7 +102,11 @@ final class FeatureExtractor
     private function computeSimhash(string $text): string
     {
         $tokens = preg_split('/\s+/', mb_strtolower($text), -1, PREG_SPLIT_NO_EMPTY);
-        $normalized = implode(' ', $tokens ?? []);
+
+        if ($tokens === false) {
+            $tokens = [];
+        }
+        $normalized = implode(' ', $tokens);
 
         return md5($normalized);
     }
@@ -133,7 +139,7 @@ final class FeatureExtractor
         $pattern = '/https?:\/\/[^\s<>"]+/i';
         preg_match_all($pattern, $text, $matches);
 
-        return $matches[0] ?? [];
+        return $matches[0];
     }
 
     /**
@@ -175,9 +181,7 @@ final class FeatureExtractor
         return array_fill(0, count($domains), 365); // 1 an par défaut
     }
 
-    /**
-     * Détecte le provider MX (stub pour MVP).
-     */
+    /** @phpstan-ignore return.unusedType */
     private function getMxProvider(Message $message): ?string
     {
         // MVP : stub
@@ -206,11 +210,15 @@ final class FeatureExtractor
     {
         $sentences = preg_split('/[.!?]+/', $text, -1, PREG_SPLIT_NO_EMPTY);
 
-        if (count($sentences ?? []) === 0) {
+        if ($sentences === false) {
             return 0.0;
         }
 
-        $totalChars = array_sum(array_map('mb_strlen', $sentences ?? []));
+        if (count($sentences) === 0) {
+            return 0.0;
+        }
+
+        $totalChars = array_sum(array_map('mb_strlen', $sentences));
 
         return $totalChars / count($sentences);
     }
@@ -222,11 +230,15 @@ final class FeatureExtractor
     {
         $words = preg_split('/\s+/', mb_strtolower($text), -1, PREG_SPLIT_NO_EMPTY);
 
-        if (count($words ?? []) === 0) {
+        if ($words === false) {
             return 0.0;
         }
 
-        $longWords = array_filter($words ?? [], fn ($w) => mb_strlen($w) > 6);
+        if (count($words) === 0) {
+            return 0.0;
+        }
+
+        $longWords = array_filter($words, fn ($w) => mb_strlen($w) > 6);
 
         return count($longWords) / count($words);
     }

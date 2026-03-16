@@ -48,7 +48,7 @@ final class DSLTranspiler
     /**
      * Parse DSL en AST simplifié.
      *
-     * @return array{predicates: array<array>}
+     * @return array{predicates: array<int, array<string, mixed>>}
      */
     private function parseDSL(string $dsl): array
     {
@@ -152,11 +152,14 @@ final class DSLTranspiler
     /**
      * Génère SQL depuis AST avec parameterized queries.
      *
+     * @param array{predicates: array<int, array<string, mixed>>} $parsed
+     *
      * @return array{sql: string, params: array<string, mixed>}
      */
     private function generateSQL(array $parsed): array
     {
         $sqlClauses = [];
+        /** @var array<string, mixed> $params */
         $params = [];
         $paramIndex = 0;
 
@@ -183,70 +186,102 @@ final class DSLTranspiler
     /**
      * Génère SQL pour un prédicat avec params.
      *
-     * @param array{type: string, ...} $pred
-     * @param array<string, mixed>     $params Référence modifiée
-     * @param int                      $index  Référence modifiée
+     * @param array<string, mixed> $pred
+     * @param array<string, mixed> $params Référence modifiée
+     * @param int                  $index  Référence modifiée
      */
     private function generateSQLForPredicate(array $pred, array &$params, int &$index): string
     {
-        return match ($pred['type']) {
+        /** @var string $type */
+        $type = $pred['type'];
+
+        return match ($type) {
             'simhash' => $this->generateSimhashSQL($pred, $params, $index),
             'containsAny' => $this->generateContainsAnySQL($pred, $params, $index),
             'domain_age' => $this->generateDomainAgeSQL($pred, $params, $index),
             'sender_fuzzy' => $this->generateSenderFuzzySQL($pred, $params, $index),
             'dkim' => "(headers->'auth'->>'dkim')::bool IS NOT TRUE",
             'spf' => "(headers->'auth'->>'spf')::bool IS NOT TRUE",
-            default => throw new \RuntimeException('Unknown predicate type: ' . $pred['type']),
+            default => throw new \RuntimeException('Unknown predicate type: ' . $type),
         };
     }
 
+    /**
+     * @param array<string, mixed> $pred
+     * @param array<string, mixed> $params
+     */
     private function generateSimhashSQL(array $pred, array &$params, int &$index): string
     {
         $paramKey = 'p' . $index++;
         $params[$paramKey] = $pred['value'];
 
-        $threshold = 1.0 - ($pred['tolerance'] / 100.0);
+        /** @var int $tolerance */
+        $tolerance = $pred['tolerance'];
+        $threshold = 1.0 - ((float) $tolerance / 100.0);
 
         return sprintf('similarity(subject, :%s) >= %f', $paramKey, $threshold);
     }
 
+    /**
+     * @param array<string, mixed> $pred
+     * @param array<string, mixed> $params
+     */
     private function generateContainsAnySQL(array $pred, array &$params, int &$index): string
     {
         $patterns = [];
 
-        foreach ($pred['values'] as $value) {
+        /** @var array<int, string> $values */
+        $values = $pred['values'];
+
+        foreach ($values as $value) {
             $paramKey = 'p' . $index++;
             $params[$paramKey] = '%' . $value . '%';
             $patterns[] = ':' . $paramKey;
         }
 
         // Determine SQL column based on field (subject or body)
-        $column = match($pred['field']) {
+        /** @var string $field */
+        $field = $pred['field'];
+        $column = match($field) {
             'subject' => 'subject',
             'body' => 'body_text',
-            default => throw new \RuntimeException('Unsupported field for containsAny: ' . $pred['field'])
+            default => throw new \RuntimeException('Unsupported field for containsAny: ' . $field)
         };
 
         return sprintf('%s ILIKE ANY(ARRAY[%s])', $column, implode(',', $patterns));
     }
 
+    /**
+     * @param array<string, mixed> $pred
+     * @param array<string, mixed> $params
+     */
     private function generateDomainAgeSQL(array $pred, array &$params, int &$index): string
     {
         $paramKey = 'p' . $index++;
         $params[$paramKey] = $pred['value'];
 
+        /** @var string $operator */
+        $operator = $pred['operator'];
+
         return sprintf(
             "(headers->'url_meta'->>'age_days')::int %s :%s",
-            $pred['operator'],
+            $operator,
             $paramKey
         );
     }
 
+    /**
+     * @param array<string, mixed> $pred
+     * @param array<string, mixed> $params
+     */
     private function generateSenderFuzzySQL(array $pred, array &$params, int &$index): string
     {
         $conditions = [];
 
-        foreach ($pred['values'] as $name) {
+        /** @var array<int, string> $names */
+        $names = $pred['values'];
+
+        foreach ($names as $name) {
             $paramKey = 'p' . $index++;
             $params[$paramKey] = $name;
             $conditions[] = sprintf("similarity(headers->>'from_display', :%s) >= 0.7", $paramKey);

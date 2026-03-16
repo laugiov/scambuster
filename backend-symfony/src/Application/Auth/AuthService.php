@@ -19,7 +19,8 @@ class AuthService implements AuthServiceInterface
     private EntityManagerInterface $em;
     private UserPasswordHasherInterface $hasher;
     private JWTTokenManagerInterface $jwtManager;
-    private $refreshTokenRepository;
+    /** @var \Doctrine\ORM\EntityRepository<RefreshToken> */
+    private \Doctrine\ORM\EntityRepository $refreshTokenRepository;
 
     public function __construct(
         EntityManagerInterface $em,

@@ -16,6 +16,7 @@ use Psr\Log\LoggerInterface;
  */
 class ScamClassificationHandler
 {
+    /** @phpstan-ignore classConstant.unused */
     private const MAX_AUTO_CREATED_PERSONAS = 100;
 
     public function __construct(
@@ -63,6 +64,7 @@ class ScamClassificationHandler
                 'scam_type' => $result->scamTypeCode,
                 'confidence' => $result->confidence,
             ]);
+
             throw new \RuntimeException("Classification confidence too low: {$result->confidence}");
         }
 
@@ -93,6 +95,7 @@ class ScamClassificationHandler
     private function createScamTypeWithPersona(ClassificationResult $result, string $convId): void
     {
         $personaData = $result->getPersonaData();
+
         if (!$personaData) {
             throw new \RuntimeException('No label data for new scam type');
         }
@@ -103,7 +106,7 @@ class ScamClassificationHandler
         // If we're creating a new persona, use it as the primary persona
         if ($result->isNewPersona && isset($personaData['persona_code'])) {
             // Use the new persona code as the main persona
-            if (!$suggestedPersonaCodes || count($suggestedPersonaCodes) < 1) {
+            if (!$suggestedPersonaCodes) {
                 $suggestedPersonaCodes = [$personaData['persona_code']];
             } elseif (!in_array($personaData['persona_code'], $suggestedPersonaCodes, true)) {
                 // Add new persona to suggested list
@@ -111,7 +114,7 @@ class ScamClassificationHandler
             }
         } else {
             // No new persona - use fallback if needed
-            if (!$suggestedPersonaCodes || count($suggestedPersonaCodes) < 1) {
+            if (!$suggestedPersonaCodes) {
                 $suggestedPersonaCodes = ['generic_user'];
                 $this->logger->warning('No personas suggested by LLM, using generic_user', [
                     'scam_type_code' => $result->scamTypeCode,
@@ -158,6 +161,7 @@ class ScamClassificationHandler
 
             // Check if scam_type already exists
             $existingScamType = $this->scamTypeManager->findByCode($result->scamTypeCode);
+
             if ($existingScamType) {
                 $this->logger->info('Scam type already exists, skipping creation', [
                     'scam_type_code' => $result->scamTypeCode,
@@ -185,8 +189,10 @@ class ScamClassificationHandler
 
             // Link suggested personas to the scam type
             $linkedCount = 0;
+
             foreach ($suggestedPersonaCodes as $personaCode) {
                 $persona = $this->personaManager->findByCode($personaCode);
+
                 if ($persona) {
                     // Check if persona is already linked
                     if (!$scamType->getPersonas()->contains($persona)) {
@@ -221,6 +227,7 @@ class ScamClassificationHandler
             $this->logger->error('Failed to create scam type + link personas', [
                 'error' => $e->getMessage(),
             ]);
+
             throw new \RuntimeException('Failed to create scam type + link personas: ' . $e->getMessage());
         }
     }
@@ -236,6 +243,7 @@ class ScamClassificationHandler
             $this->logger->info('Scam type already exists', [
                 'scam_type_code' => $result->scamTypeCode,
             ]);
+
             return;
         }
 
@@ -310,11 +318,13 @@ class ScamClassificationHandler
     /**
      * Manually classify a conversation with a specific scam type and optional persona
      *
-     * @param string $convId Conversation ID
-     * @param string $scamTypeCode Scam type code (e.g., PHISHING, INVOICE_FRAUD)
-     * @param string|null $personaCode Optional persona code to assign
-     * @return array{scam_type_code: string, scam_type_label: string, persona_code: string|null, persona_label: string|null}
+     * @param string      $convId       Conversation ID
+     * @param string      $scamTypeCode Scam type code (e.g., PHISHING, INVOICE_FRAUD)
+     * @param string|null $personaCode  Optional persona code to assign
+     *
      * @throws \RuntimeException if conversation or scam type not found
+     *
+     * @return array{scam_type_code: string, scam_type_label: string, persona_code: string|null, persona_label: string|null}
      */
     public function manualClassifyConversation(string $convId, string $scamTypeCode, ?string $personaCode = null): array
     {
@@ -337,6 +347,7 @@ class ScamClassificationHandler
 
         // Handle persona assignment
         $persona = null;
+
         if ($personaCode) {
             $persona = $this->personaManager->findByCode($personaCode);
 
@@ -348,8 +359,10 @@ class ScamClassificationHandler
         } else {
             // Auto-assign persona if scam type has associated personas
             $personas = $scamType->getPersonas();
+
             if (!$personas->isEmpty()) {
                 $persona = $this->personaManager->assignRandomPersona($scamType);
+
                 if ($persona) {
                     $conversation->setPersona($persona);
                 }
@@ -375,11 +388,13 @@ class ScamClassificationHandler
     /**
      * Auto-classify a conversation using LLM
      *
-     * @param string $convId Conversation ID
-     * @param bool $force Force reclassification even if already classified
-     * @param float $confidenceThreshold Minimum confidence threshold (0.0-1.0)
-     * @return array{scam_type_code: string, scam_type_label: string, persona_code: string|null, persona_label: string|null, confidence: float, is_new_scam_type: bool, is_new_persona: bool}
+     * @param string $convId              Conversation ID
+     * @param bool   $force               Force reclassification even if already classified
+     * @param float  $confidenceThreshold Minimum confidence threshold (0.0-1.0)
+     *
      * @throws \RuntimeException if conversation not found or classification fails
+     *
+     * @return array{scam_type_code: string, scam_type_label: string, persona_code: string|null, persona_label: string|null, confidence: float, is_new_scam_type: bool, is_new_persona: bool}
      */
     public function autoClassifyConversation(string $convId, bool $force = false, float $confidenceThreshold = 0.75): array
     {
@@ -392,7 +407,8 @@ class ScamClassificationHandler
 
         // Check if already classified (unless force=true)
         $currentScamType = $conversation->getScamType();
-        if (!$force && $currentScamType && strtoupper($currentScamType->getCode()) !== 'UNKNOWN') {
+
+        if (!$force && strtoupper($currentScamType->getCode()) !== 'UNKNOWN') {
             $this->logger->info('Conversation already classified, skipping', [
                 'conv_id' => $convId,
                 'scam_type_code' => $currentScamType->getCode(),
@@ -400,6 +416,7 @@ class ScamClassificationHandler
 
             // Return current classification
             $persona = $conversation->getPersona();
+
             return [
                 'scam_type_code' => $currentScamType->getCode(),
                 'scam_type_label' => $currentScamType->getLabel(),
@@ -433,6 +450,7 @@ class ScamClassificationHandler
                 'confidence' => $result->confidence,
                 'threshold' => $confidenceThreshold,
             ]);
+
             throw new \RuntimeException("Classification confidence too low: {$result->confidence} (threshold: {$confidenceThreshold})");
         }
 
@@ -456,10 +474,12 @@ class ScamClassificationHandler
         $persona = $conversation->getPersona();
 
         // Auto-assign persona if not assigned and scam type has associated personas
-        if (!$persona && $scamType) {
+        if (!$persona) {
             $personas = $scamType->getPersonas();
+
             if (!$personas->isEmpty()) {
                 $persona = $this->personaManager->assignRandomPersona($scamType);
+
                 if ($persona) {
                     $conversation->setPersona($persona);
                     $this->em->flush();

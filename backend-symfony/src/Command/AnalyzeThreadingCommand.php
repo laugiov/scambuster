@@ -7,10 +7,10 @@ namespace App\Command;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\Table;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Helper\Table;
 
 #[AsCommand(
     name: 'app:analyze-threading',
@@ -31,6 +31,7 @@ class AnalyzeThreadingCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        /** @var string $subjectPattern */
         $subjectPattern = $input->getArgument('subject_pattern');
 
         $output->writeln("Analyzing threading for subject pattern: <info>{$subjectPattern}</info>");
@@ -62,29 +63,32 @@ class AnalyzeThreadingCommand extends Command
 
         if (empty($messages)) {
             $output->writeln('<error>No messages found</error>');
+
             return Command::FAILURE;
         }
 
-        $output->writeln("Found <info>" . count($messages) . "</info> messages");
+        $output->writeln('Found <info>' . count($messages) . '</info> messages');
         $output->writeln('');
 
         // Group by conversation
         $conversations = [];
+
         foreach ($messages as $msg) {
             $convId = $msg['conv_id'];
+
             if (!isset($conversations[$convId])) {
                 $conversations[$convId] = [];
             }
             $conversations[$convId][] = $msg;
         }
 
-        $output->writeln("Messages are split across <error>" . count($conversations) . "</error> conversations");
+        $output->writeln('Messages are split across <error>' . count($conversations) . '</error> conversations');
         $output->writeln('');
 
         // Display each conversation
         foreach ($conversations as $convId => $msgs) {
             $output->writeln("=== Conversation: <comment>{$convId}</comment> ===");
-            $output->writeln("Messages: " . count($msgs));
+            $output->writeln('Messages: ' . count($msgs));
             $output->writeln('');
 
             $table = new Table($output);
@@ -107,13 +111,15 @@ class AnalyzeThreadingCommand extends Command
 
             // Show threading analysis
             $output->writeln('<info>Threading Analysis:</info>');
+
+            /** @var array<string, string|null> $msg */
             foreach ($msgs as $msg) {
-                $output->writeln("  - Message {$msg['msg_id']} (dir={$msg['direction']}):");
-                $output->writeln("      Message-ID: " . ($msg['message_id'] ?: 'NONE'));
-                $output->writeln("      In-Reply-To: " . ($msg['in_reply_to'] ?: 'NONE'));
-                $output->writeln("      References: " . ($msg['references'] ?: 'NONE'));
-                $output->writeln("      Thread-ID: " . ($msg['thread_id'] ?: 'NONE'));
-                $output->writeln("      Reply-To (internal): " . ($msg['reply_to_msg_id'] ?: 'NONE'));
+                $output->writeln('  - Message ' . ($msg['msg_id'] ?? '') . ' (dir=' . ($msg['direction'] ?? '') . '):');
+                $output->writeln('      Message-ID: ' . ($msg['message_id'] ?: 'NONE'));
+                $output->writeln('      In-Reply-To: ' . ($msg['in_reply_to'] ?: 'NONE'));
+                $output->writeln('      References: ' . ($msg['references'] ?: 'NONE'));
+                $output->writeln('      Thread-ID: ' . ($msg['thread_id'] ?: 'NONE'));
+                $output->writeln('      Reply-To (internal): ' . ($msg['reply_to_msg_id'] ?: 'NONE'));
                 $output->writeln('');
             }
 

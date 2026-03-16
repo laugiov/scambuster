@@ -26,7 +26,7 @@ final class ConversationAnalyzer
     private const MAX_TOKENS = 3000; // Increased for structured instructions JSON (was 2500)
     private const MAX_MESSAGES_WITHOUT_SUMMARY = 10;
 
-    /** @var array<string, array<string, mixed>> In-memory cache */
+    /** @var array<string, array{analysis: string, repetitions_detected: array<string>, strategic_suggestions: array<string>, tone_recommendation: string, instructions_for_llm: array<string, mixed>}> In-memory cache */
     private array $analysisCache = [];
 
     public function __construct(
@@ -51,7 +51,7 @@ final class ConversationAnalyzer
      *   repetitions_detected: array<string>,
      *   strategic_suggestions: array<string>,
      *   tone_recommendation: string,
-     *   instructions_for_llm: string
+     *   instructions_for_llm: array<string, mixed>
      * }
      */
     public function analyzeAndGenerateInstructions(array $context): array
@@ -156,10 +156,18 @@ final class ConversationAnalyzer
 
     /**
      * Generate cache key based on conversation state
+     *
+     * @param array<string, mixed> $context
      */
     private function generateCacheKey(array $context): string
     {
-        return $context['conversation_id'] . '_' . count($context['all_messages']);
+        /** @var array<mixed> $allMessages */
+        $allMessages = $context['all_messages'] ?? [];
+
+        /** @var string $conversationId */
+        $conversationId = $context['conversation_id'] ?? '';
+
+        return $conversationId . '_' . count($allMessages);
     }
 
     /**
@@ -198,13 +206,18 @@ final class ConversationAnalyzer
     /**
      * Build analysis prompt for LLM
      *
+     * @param array<string, mixed>                                                                 $context
      * @param array<array{direction: string, body_text: string, ts_msg: string, subject?: string}> $preparedMessages
      */
     private function buildAnalysisPrompt(array $context, array $preparedMessages): string
     {
+        /** @var string $scamType */
         $scamType = $context['scam_type'] ?? 'unknown';
+        /** @var string $personaCode */
         $personaCode = $context['persona_code'] ?? 'generic_user';
-        $messageCount = count($context['all_messages']);
+        /** @var array<mixed> $contextMessages */
+        $contextMessages = $context['all_messages'] ?? [];
+        $messageCount = count($contextMessages);
 
         // Format IOCs summary
         $iocsSummary = $this->formatIocsSummary($context['extracted_iocs'] ?? []);
@@ -498,8 +511,8 @@ PROMPT;
         $iocsByType = [];
 
         foreach ($iocs as $ioc) {
-            $type = $ioc['type'] ?? 'unknown';
-            $iocsByType[$type][] = $ioc['value'] ?? '';
+            $type = $ioc['type'];
+            $iocsByType[$type][] = $ioc['value'];
         }
 
         $summary = [];
@@ -546,7 +559,7 @@ PROMPT;
      *   repetitions_detected: array<string>,
      *   strategic_suggestions: array<string>,
      *   tone_recommendation: string,
-     *   instructions_for_llm: string
+     *   instructions_for_llm: array<string, mixed>
      * }
      */
     private function parseAnalysisResponse(string $llmResponse): array
@@ -556,6 +569,10 @@ PROMPT;
             $jsonString = $this->extractJsonFromResponse($llmResponse);
 
             $decoded = json_decode($jsonString, true, 512, JSON_THROW_ON_ERROR);
+
+            if (!is_array($decoded)) {
+                throw new \RuntimeException('LLM response is not a valid JSON object');
+            }
 
             // Validate required fields
             if (!isset($decoded['repetitions_detected'], $decoded['tone_recommendation'], $decoded['instructions'])) {
@@ -568,12 +585,19 @@ PROMPT;
                 throw new \RuntimeException('Invalid instructions structure: missing interdictions or obligations');
             }
 
+            /** @var array<string> $repetitions */
+            $repetitions = $decoded['repetitions_detected'];
+            /** @var array<string> $suggestions */
+            $suggestions = $decoded['strategic_suggestions'] ?? [];
+            /** @var array<string, mixed> $instructions */
+            $instructions = $decoded['instructions'];
+
             return [
-                'analysis' => $decoded['strategic_analysis'] ?? '',
-                'repetitions_detected' => $decoded['repetitions_detected'] ?? [],
-                'strategic_suggestions' => $decoded['strategic_suggestions'] ?? [],
-                'tone_recommendation' => $decoded['tone_recommendation'] ?? 'méfiant',
-                'instructions_for_llm' => $decoded['instructions'], // Now an object instead of string
+                'analysis' => (string) ($decoded['strategic_analysis'] ?? ''),
+                'repetitions_detected' => $repetitions,
+                'strategic_suggestions' => $suggestions,
+                'tone_recommendation' => (string) $decoded['tone_recommendation'],
+                'instructions_for_llm' => $instructions,
             ];
         } catch (\JsonException $e) {
             $this->logger->error('[ConversationAnalyzer] Failed to parse JSON response', [
@@ -645,7 +669,7 @@ PROMPT;
      *   repetitions_detected: array<string>,
      *   strategic_suggestions: array<string>,
      *   tone_recommendation: string,
-     *   instructions_for_llm: string
+     *   instructions_for_llm: array<string, mixed>
      * }
      */
     private function generateGenericInstructions(): array

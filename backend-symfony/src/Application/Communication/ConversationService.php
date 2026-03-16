@@ -118,7 +118,7 @@ class ConversationService implements ConversationServiceInterface
     /**
      * Update one or more fields of a conversation.
      *
-     * @param array $fields Associative array of field => value
+     * @param array<string, mixed> $fields Associative array of field => value
      *
      * @throws ConversationNotFoundException
      */

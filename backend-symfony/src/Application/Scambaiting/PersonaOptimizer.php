@@ -33,18 +33,21 @@ final class PersonaOptimizer
         private readonly PersonaPerformanceStatsRepository $statsRepository,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     /**
      * Sélectionne le persona optimal pour un scam_type donné.
      * Retourne le persona_code du persona sélectionné.
      *
      * @param string $scamTypeCode Code du scam type (ex: 'PHISHING')
+     *
      * @return string|null persona_code du persona sélectionné, ou null si aucun persona actif
      */
     public function selectPersona(string $scamTypeCode): ?string
     {
         $result = $this->selectPersonaWithStrategy($scamTypeCode);
+
         return $result['persona_code'] ?? null;
     }
 
@@ -53,6 +56,7 @@ final class PersonaOptimizer
      * Retourne le persona_code ET la stratégie utilisée.
      *
      * @param string $scamTypeCode Code du scam type (ex: 'PHISHING')
+     *
      * @return array{persona_code: string|null, strategy: string|null}
      */
     public function selectPersonaWithStrategy(string $scamTypeCode): array
@@ -62,6 +66,7 @@ final class PersonaOptimizer
 
         if ($scamType === null) {
             $this->logger->error('ScamType not found', ['scam_type_code' => $scamTypeCode]);
+
             return ['persona_code' => null, 'strategy' => null];
         }
 
@@ -70,6 +75,7 @@ final class PersonaOptimizer
 
         if (empty($allPersonas)) {
             $this->logger->error('No active personas found');
+
             return ['persona_code' => null, 'strategy' => null];
         }
 
@@ -78,6 +84,7 @@ final class PersonaOptimizer
 
         // 4. Convertir en map persona_code => PersonaPerformance
         $statsMap = [];
+
         foreach ($statsEntities as $statsEntity) {
             $performance = $statsEntity->toPersonaPerformance();
             $statsMap[$performance->getPersonaCode()] = $performance;
@@ -85,6 +92,7 @@ final class PersonaOptimizer
 
         // 5. Construire la liste complète avec cold start pour personas sans stats
         $performances = [];
+
         foreach ($allPersonas as $persona) {
             $personaCode = $persona->getPersonaCode();
 
@@ -103,9 +111,11 @@ final class PersonaOptimizer
 
         // 6. Vérifier si TOUS les personas sont en cold start
         $allInColdStart = true;
+
         foreach ($performances as $perf) {
             if (!$perf->isInColdStart()) {
                 $allInColdStart = false;
+
                 break;
             }
         }
@@ -169,7 +179,6 @@ final class PersonaOptimizer
      * Sélectionne un persona aléatoire (distribution uniforme).
      *
      * @param PersonaPerformance[] $performances
-     * @return PersonaPerformance
      */
     private function selectRandomPersona(array $performances): PersonaPerformance
     {
@@ -178,6 +187,7 @@ final class PersonaOptimizer
         }
 
         $randomIndex = array_rand($performances);
+
         return $performances[$randomIndex];
     }
 
@@ -187,7 +197,6 @@ final class PersonaOptimizer
      * Si égalité parfaite, sélectionne aléatoirement parmi les ex-aequo.
      *
      * @param PersonaPerformance[] $performances
-     * @return PersonaPerformance
      */
     private function selectBestPersona(array $performances): PersonaPerformance
     {
@@ -207,7 +216,7 @@ final class PersonaOptimizer
 
         // Compute total sessions for UCB1 bonus calculation
         $totalSessions = array_sum(array_map(
-            static fn(PersonaPerformance $p) => $p->getSessionsCount(),
+            static fn (PersonaPerformance $p) => $p->getSessionsCount(),
             $eligiblePerformances
         ));
 
@@ -234,6 +243,7 @@ final class PersonaOptimizer
         // Si plusieurs ex-aequo, sélection aléatoire
         if (count($bestPerformances) > 1) {
             $randomIndex = array_rand($bestPerformances);
+
             return $bestPerformances[$randomIndex];
         }
 
@@ -247,6 +257,7 @@ final class PersonaOptimizer
     public function isConverged(string $scamTypeCode): bool
     {
         $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => $scamTypeCode]);
+
         if ($scamType === null) {
             return false;
         }
@@ -255,12 +266,14 @@ final class PersonaOptimizer
         $statsEntities = $this->statsRepository->findAllByScamType($scamType);
 
         $statsMap = [];
+
         foreach ($statsEntities as $entity) {
             $perf = $entity->toPersonaPerformance();
             $statsMap[$perf->getPersonaCode()] = $perf;
         }
 
         $performances = [];
+
         foreach ($allPersonas as $persona) {
             $code = $persona->getPersonaCode();
             $performances[] = $statsMap[$code] ?? new PersonaPerformance($code, $scamTypeCode, 0, 0.0);
@@ -276,13 +289,13 @@ final class PersonaOptimizer
      */
     private function isConvergedFromPerformances(array $performances): bool
     {
-        $eligible = array_filter($performances, static fn(PersonaPerformance $p) => !$p->isInColdStart());
+        $eligible = array_filter($performances, static fn (PersonaPerformance $p) => !$p->isInColdStart());
 
         if (count($eligible) < 2) {
             return false;
         }
 
-        usort($eligible, static fn(PersonaPerformance $a, PersonaPerformance $b) => $b->getRewardAvg() <=> $a->getRewardAvg());
+        usort($eligible, static fn (PersonaPerformance $a, PersonaPerformance $b) => $b->getRewardAvg() <=> $a->getRewardAvg());
 
         $best = $eligible[0];
 
@@ -290,7 +303,8 @@ final class PersonaOptimizer
             return false;
         }
 
-        $totalSessions = array_sum(array_map(static fn(PersonaPerformance $p) => $p->getSessionsCount(), $eligible));
+        $totalSessions = array_sum(array_map(static fn (PersonaPerformance $p) => $p->getSessionsCount(), $eligible));
+
         if ($totalSessions === 0) {
             return false;
         }
@@ -304,6 +318,7 @@ final class PersonaOptimizer
      * Retourne les statistiques de sélection pour un scam_type (pour debugging/monitoring).
      *
      * @param string $scamTypeCode Code du scam type
+     *
      * @return array{
      *     scam_type_code: string,
      *     total_personas: int,
@@ -340,6 +355,7 @@ final class PersonaOptimizer
         $top5Entities = $this->statsRepository->findTopPerformingPersonas($scamType, 5);
 
         $bestPersona = null;
+
         if ($bestEntity !== null) {
             $bestPerf = $bestEntity->toPersonaPerformance();
             $bestPersona = [
@@ -351,6 +367,7 @@ final class PersonaOptimizer
 
         $top5 = array_map(static function ($entity) {
             $perf = $entity->toPersonaPerformance();
+
             return [
                 'persona_code' => $perf->getPersonaCode(),
                 'reward_avg' => $perf->getRewardAvg(),

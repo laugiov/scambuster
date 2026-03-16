@@ -39,15 +39,17 @@ class MailAccountSecretResolver
                 'X-Vault-Token' => $vaultToken,
             ],
         ]);
+        /** @var array{data?: array{data?: array{login?: string, secret?: string}}} $data */
         $data = json_decode($resp->getBody()->getContents(), true);
+        $secrets = $data['data']['data'] ?? null;
 
-        if (!isset($data['data']['data']['login'], $data['data']['data']['secret'])) {
+        if (!is_array($secrets) || !isset($secrets['login'], $secrets['secret'])) {
             throw new \RuntimeException('Vault secret missing login or secret');
         }
 
         return new MailAccountSecretDto(
-            $data['data']['data']['login'],
-            $data['data']['data']['secret'],
+            $secrets['login'],
+            $secrets['secret'],
             $account->getProtocol(),
             $account->getEndpoint(),
             $account->getOauthScopes()

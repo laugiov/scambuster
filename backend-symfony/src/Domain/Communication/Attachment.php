@@ -28,7 +28,7 @@ class Attachment
     private int $sizeBytes;
 
     #[ORM\Column(name: 'content_hash', type: 'binary', length: 32, unique: true)]
-    private $contentHash;
+    private mixed $contentHash; // @phpstan-ignore property.unusedType
 
     #[ORM\Column(name: 's3_key', type: 'string', length: 255, nullable: true)]
     private ?string $s3Key = null;
@@ -51,6 +51,7 @@ class Attachment
     #[ORM\Column(name: 'deleted_at', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $deletedAt = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(type: 'json', nullable: true)]
     private ?array $metadata = null;
 
@@ -112,10 +113,14 @@ class Attachment
     public function getContentHash(): string
     {
         if (is_resource($this->contentHash)) {
-            return stream_get_contents($this->contentHash);
+            return stream_get_contents($this->contentHash) ?: '';
         }
 
-        return $this->contentHash;
+        if (is_string($this->contentHash)) {
+            return $this->contentHash;
+        }
+
+        return '';
     }
 
     public function getS3Key(): ?string
@@ -153,11 +158,13 @@ class Attachment
         return $this->deletedAt;
     }
 
+    /** @return array<string, mixed>|null */
     public function getMetadata(): ?array
     {
         return $this->metadata;
     }
 
+    /** @param array<string, mixed>|null $metadata */
     public function setMetadata(?array $metadata): void
     {
         $this->metadata = $metadata;

@@ -20,7 +20,7 @@ final class CampaignHunter
     /**
      * Exécute toutes les règles actives en shadow mode.
      *
-     * @return array{total_rules: int, total_hits: int, results: array}
+     * @return array{total_rules: int, total_hits: int, results: array<int, array<string, mixed>>}
      */
     public function hunt(): array
     {
@@ -86,7 +86,7 @@ final class CampaignHunter
         }
 
         // Valider la structure des données compilées
-        if (!isset($compiledData['sql']) || !isset($compiledData['params'])) {
+        if (!isset($compiledData['sql']) || !is_string($compiledData['sql']) || !isset($compiledData['params']) || !is_array($compiledData['params'])) {
             $this->logger->warning('Compiled data has invalid structure', [
                 'rule_id' => $ruleId,
                 'keys' => array_keys($compiledData),
@@ -169,7 +169,7 @@ final class CampaignHunter
     /**
      * Valide les hits (vrais positifs vs faux positifs).
      *
-     * @param array<array> $hits
+     * @param array<int, array<string, mixed>> $hits
      *
      * @return array{true_pos: int, false_pos: int}
      */
@@ -199,13 +199,6 @@ final class CampaignHunter
 
             $conversation = $message->getConversation();
 
-            if (!$conversation) {
-                // Conversation manquante = faux positif
-                $falsePos++;
-
-                continue;
-            }
-
             // Heuristique : score_risk >= 30 = vrai positif
             if ($conversation->getScoreRisk() >= 30) {
                 $truePos++;
@@ -222,6 +215,8 @@ final class CampaignHunter
 
     /**
      * Calcule Positive Predictive Value (PPV).
+     *
+     * @param array{true_pos: int, false_pos: int} $validation
      */
     private function calculatePPV(array $validation): float
     {
@@ -237,7 +232,7 @@ final class CampaignHunter
     /**
      * Calcule le lead-time (premier hit → pic campagne).
      *
-     * @param array<array> $hits Résultats SQL triés par ts_msg
+     * @param array<int, array<string, mixed>> $hits Résultats SQL triés par ts_msg
      *
      * @return int|null Lead-time en secondes, null si insuffisant
      */
@@ -272,7 +267,7 @@ final class CampaignHunter
     /**
      * Trouve le moment du pic de la campagne (fenêtre glissante 1h).
      *
-     * @param array<array> $hits Hits triés par ts_msg
+     * @param array<int, array<string, mixed>> $hits Hits triés par ts_msg
      *
      * @return \DateTimeImmutable|null Timestamp du pic
      */
@@ -282,7 +277,6 @@ final class CampaignHunter
             return null;
         }
 
-        $windowSize = 3600; // 1 heure en secondes
         $maxHitsInWindow = 0;
         $peakTime = null;
 
@@ -310,11 +304,14 @@ final class CampaignHunter
 
     /**
      * Met à jour les métriques d'une règle.
+     *
+     * @param array<string, mixed> $result
      */
     private function updateRuleMetrics(CampaignRule $rule, array $result): void
     {
         // Récupérer validation pour true_pos et false_pos
-        $validation = $result['validation'] ?? ['true_pos' => 0, 'false_pos' => 0];
+        /** @var array{true_pos: int, false_pos: int} $validation */
+        $validation = $result['validation'];
 
         $rule->updateMetrics(
             $result['hits_count'],

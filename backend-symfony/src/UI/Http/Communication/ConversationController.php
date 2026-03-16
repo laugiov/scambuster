@@ -524,6 +524,7 @@ final class ConversationController
             if (str_contains($e->getMessage(), 'not found')) {
                 return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
             }
+
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }
@@ -611,6 +612,7 @@ final class ConversationController
             if (str_contains($e->getMessage(), 'not found')) {
                 return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
             }
+
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }

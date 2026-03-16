@@ -70,6 +70,7 @@ class JsonValidator
      * Validate LLM classification response structure
      *
      * @param array<string, mixed> $data
+     *
      * @return array{valid: bool, errors: string[]}
      */
     public function validateStructure(array $data): array
@@ -104,6 +105,7 @@ class JsonValidator
                     $errors[] = 'persona must be an object';
                 } else {
                     $requiredPersonaFields = ['persona_code', 'persona_label', 'persona_tone', 'system_prompt'];
+
                     foreach ($requiredPersonaFields as $field) {
                         if (!isset($data['persona'][$field]) || !is_string($data['persona'][$field])) {
                             $errors[] = "persona.{$field} missing or invalid";
@@ -156,10 +158,12 @@ class JsonValidator
     {
         // Remove markdown code blocks
         $cleaned = preg_replace('/```json\s*/i', '', $jsonString);
+
         if ($cleaned === null) {
             $cleaned = $jsonString;
         }
         $cleaned = preg_replace('/```\s*$/i', '', $cleaned);
+
         if ($cleaned === null) {
             $cleaned = $jsonString;
         }

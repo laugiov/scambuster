@@ -11,7 +11,9 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 class FakeAuthService implements AuthServiceInterface
 {
+    /** @var array<string, int> */
     private static array $loginAttempts = [];
+    /** @var array<int, string> */
     private static array $invalidatedRefreshTokens = [];
 
     public static function resetFakeState(): void

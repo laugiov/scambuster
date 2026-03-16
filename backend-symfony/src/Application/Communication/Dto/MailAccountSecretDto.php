@@ -6,6 +6,9 @@ namespace App\Application\Communication\Dto;
 
 class MailAccountSecretDto
 {
+    /**
+     * @param array<int, string> $oauthScopes
+     */
     public function __construct(
         public string $login,
         public string $secret,
@@ -17,6 +20,7 @@ class MailAccountSecretDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

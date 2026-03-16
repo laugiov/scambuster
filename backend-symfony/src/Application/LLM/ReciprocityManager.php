@@ -131,6 +131,8 @@ final class ReciprocityManager
 
     /**
      * Count how many times victim gave information
+     *
+     * @param array<int, array{direction: string, body_text: string}> $messages
      */
     private function countVictimGives(array $messages): int
     {
@@ -157,6 +159,8 @@ final class ReciprocityManager
 
     /**
      * Count how many times victim asked for information
+     *
+     * @param array<int, array{direction: string, body_text: string}> $messages
      */
     private function countVictimTakes(array $messages): int
     {
@@ -186,6 +190,8 @@ final class ReciprocityManager
 
     /**
      * Get last attacker message
+     *
+     * @param array<int, array{direction: string, body_text: string}> $messages
      */
     private function getLastAttackerMessage(array $messages): string
     {
@@ -230,6 +236,8 @@ final class ReciprocityManager
 
     /**
      * Generate fake data suggestions for the LLM
+     *
+     * @param array<string, mixed> $context
      */
     public function generateFakeDataSuggestions(array $context): string
     {

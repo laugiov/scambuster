@@ -14,10 +14,11 @@ final readonly class PersonaPerformance
     private const COLD_START_THRESHOLD = 3;
 
     /**
-     * @param string $personaCode Code du persona (ex: 'elderly_person')
-     * @param string $scamTypeCode Code du scam type (ex: 'PHISHING')
-     * @param int $sessionsCount Nombre de sessions complétées (>= 0)
-     * @param float $rewardAvg Reward moyen [0.0, 1.0]
+     * @param string $personaCode   Code du persona (ex: 'elderly_person')
+     * @param string $scamTypeCode  Code du scam type (ex: 'PHISHING')
+     * @param int    $sessionsCount Nombre de sessions complétées (>= 0)
+     * @param float  $rewardAvg     Reward moyen [0.0, 1.0]
+     *
      * @throws \InvalidArgumentException Si les valeurs sont invalides
      */
     public function __construct(
@@ -34,6 +35,7 @@ final readonly class PersonaPerformance
      * Formule : reward_avg_new = (reward_avg_old × sessions_count + reward_new) / (sessions_count + 1)
      *
      * @param float $newReward Nouveau reward à intégrer [0.0, 1.0]
+     *
      * @return self Nouvelle instance avec stats mises à jour
      */
     public function withNewReward(float $newReward): self
@@ -142,6 +144,7 @@ final readonly class PersonaPerformance
     public function __toString(): string
     {
         $coldStartStatus = $this->isInColdStart() ? ' [COLD START]' : '';
+
         return sprintf(
             'PersonaPerformance(persona=%s, scamType=%s, sessions=%d, rewardAvg=%.4f%s)',
             $this->personaCode,

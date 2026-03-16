@@ -21,7 +21,8 @@ final class CloseConversationController extends AbstractController
     public function __construct(
         private readonly ConversationClosureService $closureService,
         private readonly LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     public function __invoke(string $convId): JsonResponse
     {

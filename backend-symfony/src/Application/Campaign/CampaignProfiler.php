@@ -74,7 +74,7 @@ final class CampaignProfiler
 
         // Tenter de récupérer depuis le cache
         try {
-            $cached = $this->cache->get($cacheKey, function (ItemInterface $item) use ($sampleMessages, $startTime) {
+            $cached = $this->cache->get($cacheKey, function (ItemInterface $item) use ($sampleMessages) {
                 $item->expiresAfter(self::CACHE_TTL);
 
                 $this->logger->info('Cache miss - Profiling campaign via LLM', [
@@ -88,18 +88,19 @@ final class CampaignProfiler
             });
 
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
-            $cacheHit = isset($cached['profile_yaml']);
+            /** @var array{profile_yaml: string, attempts: int} $cached */
+            $cacheHit = true;
 
             $this->logger->info('Campaign profiling completed', [
                 'cache_hit' => $cacheHit,
                 'latency_ms' => $latencyMs,
-                'attempts' => $cached['attempts'] ?? 1,
+                'attempts' => $cached['attempts'],
             ]);
 
             return [
                 'profile_yaml' => $cached['profile_yaml'],
                 'cache_hit' => $cacheHit,
-                'attempts' => $cached['attempts'] ?? 1,
+                'attempts' => $cached['attempts'],
             ];
         } catch (\Throwable $e) {
             $this->logger->error('Campaign profiling failed', [
@@ -176,7 +177,7 @@ final class CampaignProfiler
 
                 // Si ce n'est pas la dernière tentative, attendre avec backoff
                 if ($attempt < self::MAX_RETRIES) {
-                    $delay = self::BACKOFF_DELAYS[$attempt - 1] ?? 4;
+                    $delay = self::BACKOFF_DELAYS[$attempt - 1];
                     $this->logger->debug("Retrying in {$delay}s...");
                     sleep($delay);
                 }
@@ -184,8 +185,9 @@ final class CampaignProfiler
         }
 
         // Toutes les tentatives ont échoué
+        /** @var \Throwable $lastException */
         throw new \RuntimeException(
-            'Campaign profiling failed after ' . self::MAX_RETRIES . ' attempts: ' . ($lastException?->getMessage() ?? 'Unknown error'),
+            'Campaign profiling failed after ' . self::MAX_RETRIES . ' attempts: ' . $lastException->getMessage(),
             previous: $lastException
         );
     }
@@ -223,6 +225,10 @@ final class CampaignProfiler
             throw new \RuntimeException("Invalid YAML syntax: {$e->getMessage()}", previous: $e);
         }
 
+        if (!is_array($data)) {
+            throw new \RuntimeException('Invalid YAML: expected an array');
+        }
+
         // Vérifier structure minimale requise
         $requiredKeys = ['campaign', 'variants', 'infra'];
 
@@ -233,29 +239,41 @@ final class CampaignProfiler
         }
 
         // Vérifier sous-clés campaign
+        $campaignData = $data['campaign'];
+
+        if (!is_array($campaignData)) {
+            throw new \RuntimeException('campaign must be an array');
+        }
+
         $campaignKeys = ['summary', 'tactics', 'target_audience', 'cta', 'risk'];
 
         foreach ($campaignKeys as $key) {
-            if (!isset($data['campaign'][$key])) {
+            if (!isset($campaignData[$key])) {
                 throw new \RuntimeException("Missing required campaign key: {$key}");
             }
         }
 
         // Vérifier sous-clés variants
+        $variantsData = $data['variants'];
+
+        if (!is_array($variantsData)) {
+            throw new \RuntimeException('variants must be an array');
+        }
+
         $variantsKeys = ['subjects', 'display_names', 'url_shapes'];
 
         foreach ($variantsKeys as $key) {
-            if (!isset($data['variants'][$key])) {
+            if (!isset($variantsData[$key])) {
                 throw new \RuntimeException("Missing required variants key: {$key}");
             }
         }
 
         // Vérifier types
-        if (!is_array($data['campaign']['tactics'])) {
+        if (!is_array($campaignData['tactics'])) {
             throw new \RuntimeException('campaign.tactics must be an array');
         }
 
-        if (!is_int($data['campaign']['risk']) || $data['campaign']['risk'] < 1 || $data['campaign']['risk'] > 5) {
+        if (!is_int($campaignData['risk']) || $campaignData['risk'] < 1 || $campaignData['risk'] > 5) {
             throw new \RuntimeException('campaign.risk must be integer between 1 and 5');
         }
     }

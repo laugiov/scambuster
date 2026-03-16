@@ -47,6 +47,7 @@ class CloseStaleConversationsCommand extends Command
 
         if ($days < 1) {
             $io->error('Days must be >= 1');
+
             return Command::FAILURE;
         }
 
@@ -66,6 +67,7 @@ class CloseStaleConversationsCommand extends Command
 
         if (empty($conversations)) {
             $io->success('No stale conversations found.');
+
             return Command::SUCCESS;
         }
 
@@ -85,6 +87,7 @@ class CloseStaleConversationsCommand extends Command
                 }, $conversations)
             );
             $io->warning('Dry run -- no changes made.');
+
             return Command::SUCCESS;
         }
 

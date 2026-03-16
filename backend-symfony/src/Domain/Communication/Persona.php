@@ -16,7 +16,7 @@ class Persona
     #[ORM\Id]
     #[ORM\Column(name: 'persona_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $personaId;
+    private int $personaId; // @phpstan-ignore-line
 
     #[ORM\Column(name: 'persona_code', type: 'string', length: 32, unique: true)]
     private string $personaCode;

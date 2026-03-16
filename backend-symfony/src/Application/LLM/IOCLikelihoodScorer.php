@@ -118,10 +118,15 @@ final class IOCLikelihoodScorer
     /**
      * Check if text targets a specific communication channel
      */
+    /**
+     * @param array<string, mixed> $context
+     */
     private function targetsSpecificChannel(string $textLower, array $context): bool
     {
         // Get canal_cible from context if available
-        $canalCible = $context['state_slots']['canal_cible'] ?? null;
+        /** @var array<string, mixed> $stateSlots */
+        $stateSlots = $context['state_slots'] ?? [];
+        $canalCible = $stateSlots['canal_cible'] ?? null;
 
         // Check if text mentions the target channel keywords
         foreach (self::CHANNEL_KEYWORDS as $channel => $keywords) {
@@ -144,8 +149,12 @@ final class IOCLikelihoodScorer
     /**
      * Check if text references content from last attacker message
      */
+    /**
+     * @param array<string, mixed> $context
+     */
     private function referencesLastMessage(string $textLower, array $context): bool
     {
+        /** @var array<int, array{direction: string, body_text: string}> $lastMessages */
         $lastMessages = $context['last_messages'] ?? [];
 
         // Find last attacker message
@@ -167,7 +176,7 @@ final class IOCLikelihoodScorer
 
         // Extract keywords from attacker message (words >4 chars, excluding common words)
         $commonWords = ['pour', 'votre', 'vous', 'avec', 'dans', 'cette', 'plus', 'tout', 'tous', 'faire', 'être', 'avoir'];
-        $attackerWords = preg_split('/\s+/', $attackerTextLower);
+        $attackerWords = preg_split('/\s+/', $attackerTextLower) ?: [];
         $significantWords = array_filter($attackerWords, fn ($w) => strlen($w) > 4 && !in_array($w, $commonWords, true));
 
         // Check if reply references at least one significant word
@@ -183,9 +192,15 @@ final class IOCLikelihoodScorer
     /**
      * Check if text mentions missing IOC types
      */
+    /**
+     * @param array<string, mixed> $context
+     */
     private function mentionsMissingIOCs(string $textLower, array $context): bool
     {
-        $missingIOCs = $context['state_slots']['missing_iocs'] ?? [];
+        /** @var array<string, mixed> $stateSlots */
+        $stateSlots = $context['state_slots'] ?? [];
+        /** @var array<string> $missingIOCs */
+        $missingIOCs = $stateSlots['missing_iocs'] ?? [];
 
         foreach ($missingIOCs as $iocType) {
             $keywords = self::CHANNEL_KEYWORDS[$iocType] ?? [];
@@ -217,8 +232,12 @@ final class IOCLikelihoodScorer
     /**
      * Check if text repeats a question already asked
      */
+    /**
+     * @param array<string, mixed> $context
+     */
     private function repeatsQuestion(string $textLower, array $context): bool
     {
+        /** @var array<int, array{direction: string, body_text: string}> $lastMessages */
         $lastMessages = $context['last_messages'] ?? [];
 
         // Extract questions from previous victim messages

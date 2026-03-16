@@ -30,8 +30,8 @@ final class CompileRulesHandler
     /**
      * Compile des règles DSL pour une campagne et les stocke en BDD.
      *
-     * @param Uuid                          $campaignId ID de la campagne
-     * @param array{pos: array, neg: array} $examples   Exemples optionnels pour affiner les règles
+     * @param Uuid                                                  $campaignId ID de la campagne
+     * @param array{pos: array<int, mixed>, neg: array<int, mixed>} $examples   Exemples optionnels pour affiner les règles
      *
      * @throws \RuntimeException Si la campagne n'existe pas ou n'a pas de profil
      *
@@ -43,8 +43,8 @@ final class CompileRulesHandler
 
         $this->logger->info('Starting DSL rule compilation for campaign', [
             'campaign_id' => $campaignId->toRfc4122(),
-            'examples_pos' => count($examples['pos'] ?? []),
-            'examples_neg' => count($examples['neg'] ?? []),
+            'examples_pos' => count($examples['pos']),
+            'examples_neg' => count($examples['neg']),
         ]);
 
         // 1. Vérifier que la campagne existe
@@ -107,7 +107,6 @@ final class CompileRulesHandler
             // Créer CampaignRule entity
             $rule = new CampaignRule(
                 $campaign->getCampaignId(),
-                $ruleName,
                 $ruleBody
             );
 

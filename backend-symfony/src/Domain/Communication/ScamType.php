@@ -16,7 +16,7 @@ class ScamType
     #[ORM\Id]
     #[ORM\Column(name: 'scam_type_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $scamTypeId;
+    private int $scamTypeId; // @phpstan-ignore-line
 
     #[ORM\Column(type: 'string', length: 32, unique: true)]
     private string $code;

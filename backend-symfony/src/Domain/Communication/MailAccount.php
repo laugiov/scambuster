@@ -26,6 +26,7 @@ class MailAccount
     #[ORM\Column(name: 'login_hash', type: 'string', length: 255)]
     private string $loginHash;
 
+    /** @var array<int, string> */
     #[ORM\Column(name: 'oauth_scopes', type: 'json')]
     private array $oauthScopes;
 
@@ -44,6 +45,9 @@ class MailAccount
     #[ORM\Column(name: 'secure', type: 'boolean', nullable: true)]
     private ?bool $secure = null;
 
+    /**
+     * @param array<int, string> $oauthScopes
+     */
     public function __construct(
         string $accountId,
         string $ownerId,
@@ -95,6 +99,7 @@ class MailAccount
         return $this->loginHash;
     }
 
+    /** @return array<int, string> */
     public function getOauthScopes(): array
     {
         return $this->oauthScopes;

@@ -12,8 +12,9 @@ interface LLMServiceInterface
     /**
      * Génère une complétion de texte
      *
-     * @param string $prompt Le prompt à envoyer au LLM
-     * @param array $options Options additionnelles (temperature, max_tokens, etc.)
+     * @param string $prompt  Le prompt à envoyer au LLM
+     * @param array  $options Options additionnelles (temperature, max_tokens, etc.)
+     *
      * @return string La réponse du LLM
      */
     public function complete(string $prompt, array $options = []): string;

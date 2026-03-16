@@ -6,7 +6,6 @@ namespace App\Application\Scambaiting;
 
 use App\Application\Communication\IocHandler;
 use App\Domain\Communication\Conversation;
-use App\Domain\Communication\ConversationStatus;
 use App\Domain\Communication\ObservedIoc;
 use App\Domain\Scambaiting\ConversationMetrics;
 use Psr\Log\LoggerInterface;
@@ -20,14 +19,17 @@ class ConversationMetricsCollector
     public function __construct(
         private readonly IocHandler $iocHandler,
         private readonly LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     /**
      * Collecte les métriques d'une conversation et retourne un Value Object.
      *
      * @param Conversation $conversation Conversation terminée
-     * @return ConversationMetrics Value Object avec métriques calculées
+     *
      * @throws \InvalidArgumentException Si les métriques sont invalides
+     *
+     * @return ConversationMetrics Value Object avec métriques calculées
      */
     public function collect(Conversation $conversation): ConversationMetrics
     {
@@ -79,6 +81,7 @@ class ConversationMetricsCollector
      * Types sensibles: IBAN, phone, crypto_wallet, telegram_username, url
      *
      * @param array<ObservedIoc> $iocs Liste d'IOCs
+     *
      * @return int Nombre d'IOCs sensibles
      */
     private function countSensitiveIocs(array $iocs): int

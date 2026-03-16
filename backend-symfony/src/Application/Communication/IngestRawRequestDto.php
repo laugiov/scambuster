@@ -10,15 +10,15 @@ use Symfony\Component\Validator\Constraints as Assert;
 class IngestRawRequestDto
 {
     #[Assert\NotBlank]
-    public string $account_id;
+    public string $account_id = '';
 
     public ?string $raw_source = null;
 
     #[Assert\NotBlank]
-    public string $ts_received;
+    public string $ts_received = '';
 
     #[Assert\NotBlank]
-    public string $channel;
+    public string $channel = '';
 
     /**
      * @var array<string, mixed>|null
@@ -28,28 +28,29 @@ class IngestRawRequestDto
 
     #[OA\Property(type: 'number', nullable: true)]
     #[Assert\NotBlank]
-    public $score_risk;
+    public ?float $score_risk = null;
 
     #[OA\Property(type: 'string', nullable: true)]
-    public $raw_headers = null;
+    public ?string $raw_headers = null;
 
     #[OA\Property(type: 'string', nullable: true)]
-    public $raw_headers_b64 = null;
+    public ?string $raw_headers_b64 = null;
 
+    /** @var array<string, mixed>|null */
     #[OA\Property(type: 'object', nullable: true)]
-    public $parsed = null;
+    public ?array $parsed = null;
 
     #[OA\Property(type: 'string', nullable: true)]
-    public $origin_ip = null;
+    public ?string $origin_ip = null;
 
     #[OA\Property(type: 'string', nullable: true)]
-    public $raw_source_rfc822_b64 = null;
+    public ?string $raw_source_rfc822_b64 = null;
 
     #[OA\Property(type: 'string', nullable: true)]
-    public $message_id = null;
+    public ?string $message_id = null;
 
     #[OA\Property(type: 'string', nullable: true)]
-    public $in_reply_to = null;
+    public ?string $in_reply_to = null;
 
     /**
      * @var array<string>|string|null

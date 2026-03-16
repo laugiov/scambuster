@@ -14,7 +14,7 @@ class Direction
     #[ORM\Id]
     #[ORM\Column(name: 'dir_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $directionId;
+    private int $directionId; // @phpstan-ignore-line
 
     #[ORM\Column(type: 'string', length: 16, unique: true)]
     private string $code;

@@ -20,7 +20,8 @@ final class SelectPersonaController extends AbstractController
 {
     public function __construct(
         private readonly PersonaOptimizer $personaOptimizer
-    ) {}
+    ) {
+    }
 
     public function __invoke(Request $request): JsonResponse
     {

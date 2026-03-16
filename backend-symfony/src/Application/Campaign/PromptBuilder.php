@@ -57,14 +57,14 @@ PROMPT;
         );
 
         foreach ($sampleMessages as $i => $message) {
-            $bodyText = $message->getBodyText() ?? '';
+            $bodyText = $message->getBodyText();
             $sanitizedBody = $this->maskEmailsInText($bodyText);
             $sanitizedBody = $this->defangUrlsInText($sanitizedBody);
 
             $userPrompt .= sprintf(
                 "---\nMessage %d:\nSujet: %s\nDe: %s\nCorps (extrait): %s\nURL(s): %s\nDKIM: %s\n---\n\n",
                 $i + 1,
-                $message->getSubject() ?? 'no subject',
+                $message->getSubject() ?: 'no subject',
                 $this->maskEmail($message->getHeaders()['from'] ?? 'unknown'),
                 $this->truncateText($sanitizedBody, 200),
                 implode(', ', $this->extractUrls($bodyText)),
@@ -83,8 +83,8 @@ PROMPT;
     /**
      * Construit les prompts pour la compilation de règles DSL.
      *
-     * @param string                        $profileYaml Profil YAML généré par CampaignProfiler
-     * @param array{pos: array, neg: array} $examples    Exemples positifs/négatifs
+     * @param string                                                $profileYaml Profil YAML généré par CampaignProfiler
+     * @param array{pos: array<int, mixed>, neg: array<int, mixed>} $examples    Exemples positifs/négatifs
      *
      * @return array{system: string, user: string}
      */
@@ -119,6 +119,7 @@ PROMPT;
             $userPrompt .= "Exemples positifs (doivent matcher) :\n";
 
             foreach ($examples['pos'] as $ex) {
+                /** @var array{subject?: string, body?: string, dkim?: string} $ex */
                 $userPrompt .= sprintf(
                     "- Sujet: %s, Body: %s, DKIM: %s\n",
                     $ex['subject'] ?? 'N/A',
@@ -133,6 +134,7 @@ PROMPT;
             $userPrompt .= "Exemples négatifs (ne doivent PAS matcher) :\n";
 
             foreach ($examples['neg'] as $ex) {
+                /** @var array{subject?: string, body?: string, dkim?: string} $ex */
                 $userPrompt .= sprintf(
                     "- Sujet: %s, Body: %s, DKIM: %s\n",
                     $ex['subject'] ?? 'N/A',
@@ -213,7 +215,7 @@ PROMPT;
         $pattern = '/https?:\/\/[^\s<>"]+/i';
         preg_match_all($pattern, $text, $matches);
 
-        $urls = $matches[0] ?? [];
+        $urls = $matches[0];
 
         // Defang URLs
         return array_map(fn ($url) => str_replace(['http://', 'https://'], ['hxxp://', 'hxxps://'], $url), $urls);
@@ -224,8 +226,10 @@ PROMPT;
      */
     private function getDkimStatus(Message $message): string
     {
-        $headers = $message->getHeaders() ?? [];
-        $dkim = $headers['auth']['dkim'] ?? null;
+        $headers = $message->getHeaders();
+        /** @var array<string, mixed> $auth */
+        $auth = $headers['auth'] ?? [];
+        $dkim = $auth['dkim'] ?? null;
 
         if ($dkim === true) {
             return 'pass';

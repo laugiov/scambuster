@@ -36,6 +36,7 @@ class CheckMessageHeadersCommand extends Command
 
         if (!$message) {
             $output->writeln('<error>Message not found</error>');
+
             return Command::FAILURE;
         }
 
@@ -48,25 +49,38 @@ class CheckMessageHeadersCommand extends Command
         $headers = $message->getHeaders();
 
         $output->writeln('<info>=== Important Headers ===</info>');
-        $output->writeln("Message-ID: " . ($headers['message-id'] ?? '<none>'));
-        $output->writeln("In-Reply-To: " . ($headers['in-reply-to'] ?? '<none>'));
-        $output->writeln("References: " . ($headers['references'] ?? '<none>'));
-        $output->writeln("Thread-ID: " . ($headers['thread_id'] ?? '<none>'));
-        $output->writeln("Send Status: " . ($headers['send_status'] ?? '<none>'));
+        /** @var string $messageIdHeader */
+        $messageIdHeader = $headers['message-id'] ?? '<none>';
+        $output->writeln('Message-ID: ' . $messageIdHeader);
+        /** @var string $inReplyToHeader */
+        $inReplyToHeader = $headers['in-reply-to'] ?? '<none>';
+        $output->writeln('In-Reply-To: ' . $inReplyToHeader);
+        /** @var string $referencesHeader */
+        $referencesHeader = $headers['references'] ?? '<none>';
+        $output->writeln('References: ' . $referencesHeader);
+        /** @var string $threadIdHeader */
+        $threadIdHeader = $headers['thread_id'] ?? '<none>';
+        $output->writeln('Thread-ID: ' . $threadIdHeader);
+        /** @var string $sendStatusHeader */
+        $sendStatusHeader = $headers['send_status'] ?? '<none>';
+        $output->writeln('Send Status: ' . $sendStatusHeader);
         $output->writeln('');
 
         $output->writeln('<info>=== All Headers (JSON) ===</info>');
-        $output->writeln(json_encode($headers, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        $output->writeln((string) json_encode($headers, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         // Check if this is a reply
         $replyTo = $message->getReplyTo();
+
         if ($replyTo) {
             $output->writeln('');
             $output->writeln('<info>=== Reply To (Internal) ===</info>');
             $output->writeln("Reply To Message ID: {$replyTo->getMsgId()}");
             $output->writeln("Reply To Subject: {$replyTo->getSubject()}");
             $parentHeaders = $replyTo->getHeaders();
-            $output->writeln("Parent Message-ID: " . ($parentHeaders['message-id'] ?? '<none>'));
+            /** @var string $parentMessageId */
+            $parentMessageId = $parentHeaders['message-id'] ?? '<none>';
+            $output->writeln('Parent Message-ID: ' . $parentMessageId);
         }
 
         return Command::SUCCESS;

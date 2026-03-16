@@ -29,8 +29,9 @@ final class IocNormalizer
     /**
      * Normalize an IOC value based on its type.
      *
-     * @param string $type IOC type
+     * @param string $type  IOC type
      * @param string $value IOC value to normalize
+     *
      * @return string Normalized value
      */
     public function normalize(string $type, string $value): string
@@ -150,7 +151,9 @@ final class IocNormalizer
         // IPv6: convert to canonical format
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             // Expand compressed IPv6
-            return inet_ntop(inet_pton($ip)) ?: $ip;
+            $packed = inet_pton($ip);
+
+            return $packed !== false ? (inet_ntop($packed) ?: $ip) : $ip;
         }
 
         // Invalid IP, return as-is
@@ -173,6 +176,7 @@ final class IocNormalizer
         // Keep the leading + if present
         $phone = trim($phone);
         $prefix = '';
+
         if (str_starts_with($phone, '+')) {
             $prefix = '+';
             $phone = substr($phone, 1);  // Remove + temporarily

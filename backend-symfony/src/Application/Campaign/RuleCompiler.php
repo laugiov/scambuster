@@ -62,8 +62,8 @@ final class RuleCompiler
     /**
      * Compile un profil YAML en règles DSL MailGuard.
      *
-     * @param string                        $profileYaml Profil YAML généré par CampaignProfiler
-     * @param array{pos: array, neg: array} $examples    Exemples positifs/négatifs (optionnel)
+     * @param string                                                $profileYaml Profil YAML généré par CampaignProfiler
+     * @param array{pos: array<int, mixed>, neg: array<int, mixed>} $examples    Exemples positifs/négatifs (optionnel)
      *
      * @throws \RuntimeException Si la compilation échoue après MAX_RETRIES tentatives
      *
@@ -75,8 +75,8 @@ final class RuleCompiler
 
         $this->logger->info('Starting DSL rule compilation', [
             'profile_length' => strlen($profileYaml),
-            'examples_pos' => count($examples['pos'] ?? []),
-            'examples_neg' => count($examples['neg'] ?? []),
+            'examples_pos' => count($examples['pos']),
+            'examples_neg' => count($examples['neg']),
         ]);
 
         $result = $this->compileWithRetry($profileYaml, $examples);
@@ -95,7 +95,7 @@ final class RuleCompiler
     /**
      * Compile avec retry logic et exponential backoff.
      *
-     * @param array{pos: array, neg: array} $examples
+     * @param array{pos: array<int, mixed>, neg: array<int, mixed>} $examples
      *
      * @throws \RuntimeException Si toutes les tentatives échouent
      *
@@ -154,7 +154,7 @@ final class RuleCompiler
 
                 // Si ce n'est pas la dernière tentative, attendre avec backoff
                 if ($attempt < self::MAX_RETRIES) {
-                    $delay = self::BACKOFF_DELAYS[$attempt - 1] ?? 4;
+                    $delay = self::BACKOFF_DELAYS[$attempt - 1];
                     $this->logger->debug("Retrying in {$delay}s...");
                     sleep($delay);
                 }
@@ -162,8 +162,9 @@ final class RuleCompiler
         }
 
         // Toutes les tentatives ont échoué
+        /** @var \Throwable $lastException */
         throw new \RuntimeException(
-            'DSL compilation failed after ' . self::MAX_RETRIES . ' attempts: ' . ($lastException?->getMessage() ?? 'Unknown error'),
+            'DSL compilation failed after ' . self::MAX_RETRIES . ' attempts: ' . $lastException->getMessage(),
             previous: $lastException
         );
     }
@@ -263,17 +264,18 @@ final class RuleCompiler
     /**
      * Génère des tests automatiques pour les règles DSL.
      *
-     * @param string                        $rulesDsl Règles DSL générées
-     * @param array{pos: array, neg: array} $examples Exemples utilisés pour la génération
+     * @param string                                                $rulesDsl Règles DSL générées
+     * @param array{pos: array<int, mixed>, neg: array<int, mixed>} $examples Exemples utilisés pour la génération
      *
-     * @return array{test_cases: array<array{description: string, input: array, expected: bool}>}
+     * @return array{test_cases: array<int, array{description: string, input: array<string, mixed>, expected: bool}>}
      */
     public function generateTests(string $rulesDsl, array $examples): array
     {
         $testCases = [];
 
         // Tests positifs (doivent matcher)
-        foreach ($examples['pos'] ?? [] as $i => $ex) {
+        foreach ($examples['pos'] as $i => $ex) {
+            /** @var array<string, mixed> $ex */
             $testCases[] = [
                 'description' => "Positive example {$i} should match",
                 'input' => [
@@ -286,7 +288,8 @@ final class RuleCompiler
         }
 
         // Tests négatifs (ne doivent PAS matcher)
-        foreach ($examples['neg'] ?? [] as $i => $ex) {
+        foreach ($examples['neg'] as $i => $ex) {
+            /** @var array<string, mixed> $ex */
             $testCases[] = [
                 'description' => "Negative example {$i} should NOT match",
                 'input' => [
@@ -300,8 +303,8 @@ final class RuleCompiler
 
         $this->logger->info('Generated test cases', [
             'test_count' => count($testCases),
-            'positive' => count($examples['pos'] ?? []),
-            'negative' => count($examples['neg'] ?? []),
+            'positive' => count($examples['pos']),
+            'negative' => count($examples['neg']),
         ]);
 
         return ['test_cases' => $testCases];

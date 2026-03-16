@@ -50,6 +50,7 @@ class LinkScamTypesPersonasCommand extends Command
             if (!$scamType) {
                 $io->note("ScamType '{$scamTypeCode}' not found, skipping");
                 $skipped++;
+
                 continue;
             }
 
@@ -64,6 +65,7 @@ class LinkScamTypesPersonasCommand extends Command
 
                 if (!$persona) {
                     $io->warning("Persona '{$personaCode}' not found for scam type '{$scamTypeCode}', skipping this persona");
+
                     continue;
                 }
 

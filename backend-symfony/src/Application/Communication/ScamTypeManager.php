@@ -85,6 +85,7 @@ class ScamTypeManager
 
         // Check if scam type already exists
         $existing = $this->findByCode($normalizedCode);
+
         if ($existing) {
             throw new \RuntimeException(
                 "ScamType with code '{$normalizedCode}' already exists"
@@ -100,10 +101,8 @@ class ScamTypeManager
             active: $active
         );
 
-        // Link persona if provided (ManyToMany relationship)
-        if ($persona) {
-            $scamType->addPersona($persona);
-        }
+        // Link persona (ManyToMany relationship)
+        $scamType->addPersona($persona);
 
         $this->em->persist($scamType);
         $this->em->flush();
@@ -136,6 +135,7 @@ class ScamTypeManager
 
         // Check if scam type already exists
         $existing = $this->findByCode($normalizedCode);
+
         if ($existing) {
             throw new \RuntimeException(
                 "ScamType with code '{$normalizedCode}' already exists"

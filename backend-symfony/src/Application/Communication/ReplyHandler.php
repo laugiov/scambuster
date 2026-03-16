@@ -16,6 +16,7 @@ use Symfony\Component\RateLimiter\RateLimiterFactory;
 class ReplyHandler
 {
     private const MIN_HOURS_BETWEEN_REPLIES = 6;
+    /** @phpstan-ignore classConstant.unused */
     private const MAX_REPLIES_PER_DAY = 20;
 
     public function __construct(
@@ -23,7 +24,7 @@ class ReplyHandler
         private MessageHandler $messageHandler,
         private ReplyOrchestrator $replyOrchestrator,
         private LoggerInterface $logger,
-        private PersonaManager $personaManager,
+        private PersonaManager $personaManager, // @phpstan-ignore property.onlyWritten
         private \App\Application\Scambaiting\PersonaOptimizer $personaOptimizer,
         private ?ScamClassificationHandler $scamClassificationHandler = null,
         private ?IocHandler $iocHandler = null,
@@ -45,6 +46,7 @@ class ReplyHandler
     /**
      * Get conversation context for LLM generation
      */
+    /** @return array<string, mixed>|null */
     public function getConversationContext(string $convId, int $messageLimit = 5): ?array
     {
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
@@ -80,6 +82,7 @@ class ReplyHandler
         }
 
         // Get last N messages ordered by ts_msg desc
+        /** @var Message[] $messages */
         $messages = $this->em->createQueryBuilder()
             ->select('m')
             ->from(Message::class, 'm')
@@ -94,6 +97,7 @@ class ReplyHandler
         // Reverse to get chronological order
         $messages = array_reverse($messages);
 
+        /** @var array<int, array<string, mixed>> $lastMessages */
         $lastMessages = array_map(function (Message $msg) {
             return [
                 'msg_id' => $msg->getMsgId(),
@@ -182,7 +186,10 @@ class ReplyHandler
             $firstInboundMsg = null;
 
             foreach ($lastMessages as $msg) {
-                if ($msg['direction'] === 'in' && isset($msg['headers']['from'])) {
+                /** @var array<string, mixed> $msgHeaders */
+                $msgHeaders = $msg['headers'] ?? [];
+
+                if ($msg['direction'] === 'in' && isset($msgHeaders['from'])) {
                     $firstInboundMsg = $msg;
 
                     break;
@@ -190,7 +197,10 @@ class ReplyHandler
             }
 
             if ($firstInboundMsg !== null) {
-                $senderEmail = $firstInboundMsg['headers']['from'];
+                /** @var array<string, mixed> $firstInboundHeaders */
+                $firstInboundHeaders = $firstInboundMsg['headers'] ?? [];
+                /** @var string $senderEmail */
+                $senderEmail = $firstInboundHeaders['from'] ?? '';
 
                 try {
                     $senderHistorySummary = $this->conversationHistoryService->getSenderHistorySummary(
@@ -236,6 +246,7 @@ class ReplyHandler
     /**
      * Generate reply draft (placeholder - will be implemented with LLM)
      */
+    /** @return array<string, mixed>|null */
     public function generateReply(string $convId, string $lastMsgId, bool $force = false, string $reason = 'manual'): ?array
     {
         // getConversationContext() handles automatic classification if needed
@@ -263,6 +274,7 @@ class ReplyHandler
         // Check Redis-backed rate limits
         if (!$force) {
             $rateLimitResult = $this->checkRateLimits($convId);
+
             if ($rateLimitResult !== null) {
                 throw new \RuntimeException('Rate limit exceeded: ' . $rateLimitResult);
             }
@@ -397,6 +409,7 @@ class ReplyHandler
     /**
      * Compose headers for threaded email sending
      */
+    /** @return array<string, mixed>|null */
     public function composeHeaders(string $msgId): ?array
     {
         $message = $this->messageHandler->getMessage($msgId);
@@ -416,7 +429,7 @@ class ReplyHandler
         $parentHeaders = $parent->getHeaders();
 
         if (!empty($parentHeaders['references'])) {
-            $refs = preg_split('/\s+/', trim($parentHeaders['references']));
+            $refs = preg_split('/\s+/', trim($parentHeaders['references'])) ?: [];
         }
 
         if (!empty($parentHeaders['in_reply_to']) && !in_array($parentHeaders['in_reply_to'], $refs, true)) {
@@ -428,7 +441,7 @@ class ReplyHandler
         }
 
         // Keep only last 12 unique references
-        $refs = array_slice(array_unique($refs), -12);
+        $refs = array_slice(array_unique(array_filter($refs, 'is_string')), -12);
 
         $to = $message->getHeaders()['to'] ?? null;
         $from = $message->getHeaders()['from'] ?? null;
@@ -464,6 +477,9 @@ class ReplyHandler
 
     /**
      * Mark message as sent and store threading headers
+     */
+    /**
+     * @param array<string, mixed>|null $sentHeaders
      */
     public function markAsSent(
         string $msgId,
@@ -503,6 +519,7 @@ class ReplyHandler
         // Direction is an entity, fetch it first
         $directionIn = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'in']);
 
+        /** @var Message[] $inboundMessages */
         $inboundMessages = $this->em->createQueryBuilder()
             ->select('m')
             ->from(Message::class, 'm')
@@ -517,11 +534,14 @@ class ReplyHandler
             ->getResult();
 
         if (count($inboundMessages) > 0) {
+            /** @var Message $lastInbound */
             $lastInbound = $inboundMessages[0];
             $parentHeaders = $lastInbound->getHeaders();
 
             // Headers can be stored with either 'message-id' (with dash) or 'message_id' (with underscore)
+            /** @var string|null $parentMessageId */
             $parentMessageId = $parentHeaders['message-id'] ?? $parentHeaders['message_id'] ?? null;
+            /** @var string $parentReferences */
             $parentReferences = $parentHeaders['references'] ?? '';
 
             // Build RFC 5322 compliant headers
@@ -542,7 +562,7 @@ class ReplyHandler
         }
 
         // Store additional headers from n8n
-        if ($sentHeaders !== null && is_array($sentHeaders)) {
+        if ($sentHeaders !== null) {
             if (isset($sentHeaders['thread_id'])) {
                 $currentHeaders['thread_id'] = $sentHeaders['thread_id'];
             }
@@ -616,7 +636,7 @@ class ReplyHandler
             if (!$limit->isAccepted()) {
                 $this->logger->warning('[ReplyHandler] Rate limit exceeded: replies per conversation', [
                     'conv_id' => $convId,
-                    'retry_after' => $limit->getRetryAfter()?->format(DATE_ATOM),
+                    'retry_after' => $limit->getRetryAfter()->format(DATE_ATOM),
                 ]);
 
                 return 'max replies per conversation per day';
@@ -630,7 +650,7 @@ class ReplyHandler
 
             if (!$limit->isAccepted()) {
                 $this->logger->warning('[ReplyHandler] Rate limit exceeded: LLM calls per hour', [
-                    'retry_after' => $limit->getRetryAfter()?->format(DATE_ATOM),
+                    'retry_after' => $limit->getRetryAfter()->format(DATE_ATOM),
                 ]);
 
                 return 'max LLM API calls per hour';
@@ -644,7 +664,7 @@ class ReplyHandler
 
             if (!$limit->isAccepted()) {
                 $this->logger->warning('[ReplyHandler] Rate limit exceeded: active conversations per day', [
-                    'retry_after' => $limit->getRetryAfter()?->format(DATE_ATOM),
+                    'retry_after' => $limit->getRetryAfter()->format(DATE_ATOM),
                 ]);
 
                 return 'max active conversations per day';
@@ -660,6 +680,7 @@ class ReplyHandler
     private function checkCadence(string $convId): bool
     {
         // Get last outgoing message in this conversation
+        /** @var Message|null $lastOut */
         $lastOut = $this->em->createQueryBuilder()
             ->select('m')
             ->from(Message::class, 'm')

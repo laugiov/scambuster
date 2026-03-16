@@ -42,18 +42,7 @@ final class ReplyOrchestrator
      * @param array<string, mixed> $context     Conversation context
      * @param string               $personaCode Persona code
      *
-     * @return array{
-     *     text: string,
-     *     approved: bool,
-     *     fallback_used?: bool,
-     *     policy_flags: array<string>,
-     *     validation_reasons: array<string>,
-     *     model: string,
-     *     persona: string,
-     *     cost_estimate: float,
-     *     attempts: int,
-     *     ioc_likelihood?: int
-     * }
+     * @return array<string, mixed>
      */
     public function generate(array $context, string $personaCode): array
     {
@@ -73,7 +62,7 @@ final class ReplyOrchestrator
 
         try {
             for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
-                $this->logger->info("[ReplyOrchestrator] ─────────────────────────────────────────────────────────", [
+                $this->logger->info('[ReplyOrchestrator] ─────────────────────────────────────────────────────────', [
                     'conversation_id' => $context['conv_id'],
                 ]);
                 $this->logger->info("[ReplyOrchestrator] 🔄 ATTEMPT {$attempt}/" . self::MAX_ATTEMPTS, [
@@ -271,6 +260,11 @@ final class ReplyOrchestrator
 
     /**
      * Enrichit le contexte avec l'historique du dialogue générateur ↔ validateur
+     *
+     * @param array<string, mixed>             $context
+     * @param array<int, array<string, mixed>> $dialogue
+     *
+     * @return array<string, mixed>
      */
     private function enrichContextWithDialogue(array $context, array $dialogue): array
     {
@@ -282,30 +276,44 @@ final class ReplyOrchestrator
         $dialogueHistory = [];
 
         foreach ($dialogue as $entry) {
-            if ($entry['role'] === 'generator') {
+            /** @var string $role */
+            $role = $entry['role'];
+            /** @var int $attempt */
+            $attempt = $entry['attempt'] ?? 0;
+
+            if ($role === 'generator') {
                 $dialogueHistory[] = [
-                    'role' => 'Générateur (tentative ' . $entry['attempt'] . ')',
+                    'role' => 'Générateur (tentative ' . $attempt . ')',
                     'content' => $entry['text'],
                 ];
-            } elseif ($entry['role'] === 'validator') {
-                $status = $entry['approved'] ? '✅ APPROUVÉ' : '❌ REJETÉ';
+            } elseif ($role === 'validator') {
+                /** @var bool $approved */
+                $approved = $entry['approved'] ?? false;
+                $status = $approved ? '✅ APPROUVÉ' : '❌ REJETÉ';
                 $content = $status;
 
-                if (!$entry['approved']) {
-                    $content .= "\nRaisons: " . implode(', ', $entry['reasons']);
+                if (!$approved) {
+                    /** @var array<string> $reasons */
+                    $reasons = $entry['reasons'] ?? [];
+                    $content .= "\nRaisons: " . implode(', ', $reasons);
 
-                    if ($entry['fix_suggestion']) {
-                        $content .= "\nSuggestion: " . $entry['fix_suggestion'];
+                    /** @var string|null $fixSuggestion */
+                    $fixSuggestion = $entry['fix_suggestion'] ?? null;
+
+                    if ($fixSuggestion) {
+                        $content .= "\nSuggestion: " . $fixSuggestion;
                     }
                 }
                 $dialogueHistory[] = [
-                    'role' => 'Validateur (tentative ' . $entry['attempt'] . ')',
+                    'role' => 'Validateur (tentative ' . $attempt . ')',
                     'content' => $content,
                 ];
-            } elseif ($entry['role'] === 'policy_guard') {
+            } elseif ($role === 'policy_guard') {
+                /** @var string $feedback */
+                $feedback = $entry['feedback'] ?? '';
                 $dialogueHistory[] = [
-                    'role' => 'PolicyGuard (tentative ' . $entry['attempt'] . ')',
-                    'content' => '❌ REJETÉ - ' . $entry['feedback'],
+                    'role' => 'PolicyGuard (tentative ' . $attempt . ')',
+                    'content' => '❌ REJETÉ - ' . $feedback,
                 ];
             }
         }
@@ -318,6 +326,8 @@ final class ReplyOrchestrator
 
     /**
      * Génère le texte avec le LLM
+     *
+     * @param array<string, mixed> $context
      */
     private function generateText(array $context, string $personaCode): string
     {
@@ -360,6 +370,8 @@ final class ReplyOrchestrator
 
     /**
      * Construit un feedback lisible depuis les flags PolicyGuard
+     *
+     * @param array<string> $flags
      */
     private function buildPolicyFeedback(array $flags): string
     {
@@ -388,6 +400,12 @@ final class ReplyOrchestrator
      *
      * Utilisé quand tous les attempts de génération ont échoué.
      * Retourne un texte placeholder sûr et approuvé pour ne pas bloquer la conversation.
+     *
+     * @param array<string>                    $policyFlags
+     * @param array<string>                    $validationReasons
+     * @param array<int, array<string, mixed>> $dialogue
+     *
+     * @return array<string, mixed>
      */
     private function buildFallbackResponse(
         array $policyFlags,
@@ -411,6 +429,8 @@ final class ReplyOrchestrator
 
     /**
      * Estime le coût total de tous les appels LLM dans le dialogue
+     *
+     * @param array<int, array<string, mixed>> $dialogue
      */
     private function estimateTotalCost(array $dialogue): float
     {

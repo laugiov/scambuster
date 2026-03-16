@@ -47,10 +47,12 @@ class CalculateRewardsCommand extends Command
             $qb->andWhere('c.rewardValue IS NULL');
         }
 
+        /** @var Conversation[] $conversations */
         $conversations = $qb->getQuery()->getResult();
 
         if (empty($conversations)) {
             $io->success('Aucune conversation à traiter');
+
             return Command::SUCCESS;
         }
 
