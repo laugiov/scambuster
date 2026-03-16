@@ -189,8 +189,17 @@ jobs:
       - name: Clear compiled cache before PHPUnit
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
+      - name: Check container for direct Kernel includes
+        run: |
+          docker compose exec backend-test bash -c "
+            echo '=== Direct Kernel includes in container ===' && \
+            grep -rn 'Kernel\.php' /app/var/cache/test/Container*/*.php 2>/dev/null | grep 'include\|require' | head -10 && \
+            echo '=== include_once count ===' && \
+            grep -c 'include_once' /app/var/cache/test/Container*/App_*TestDebugContainer.php 2>/dev/null
+          " || echo "No cache"
+
       - name: Clear compiled cache before tests
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Run integration and unit tests
+      - name: Run integration and unit tests (NO DAMA)
         run: docker compose exec backend-test vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit 2>&1
