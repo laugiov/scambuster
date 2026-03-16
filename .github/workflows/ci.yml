@@ -110,46 +110,86 @@ jobs:
     name: Tests (PHPUnit)
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: scambuster_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    defaults:
+      run:
+        working-directory: backend-symfony
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: "1"
+      APP_SECRET: ci-test-app-secret
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/scambuster_test"
+      REDIS_URL: "redis://localhost:6379"
+      JWT_SECRET: ci-test-jwt-secret
+      VAULT_ADDR: "http://localhost:8200"
+      VAULT_TOKEN: ci-test-token
+      LOGIN_HASH_SALT: ci-test-salt
+      LLM_API_KEY: sk-test-not-a-real-key
+      LLM_PROVIDER: openai
+      LLM_MODEL: gpt-4o-mini
+      LLM_API_URL: "https://api.openai.com/v1"
+      SCAMBUSTER_KILL_SWITCH: "false"
+      PROMPT_INJECTION_ENABLED: "false"
+      STIX_EXPORT_PATH: /tmp/stix-test
+      SCORE_RISK_MIN: "30"
+      CAMPAIGN_PROMOTION_PPV_THRESHOLD: "0.85"
+      CAMPAIGN_PROMOTION_MIN_HITS: "5"
+      CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC: "10800"
+      REPLY_MIN_WORDS: "5"
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create environment files
-        run: |
-          cat > .env << 'EOF'
-          APP_ENV=test
-          APP_SECRET=ci-test-app-secret
-          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
-          REDIS_URL=redis://redis:6379
-          JWT_SECRET=ci-test-jwt-secret
-          VAULT_ADDR=http://vault:8200
-          VAULT_TOKEN=root
-          VAULT_IMAP_PATH=secret/scambuster/imap/
-          LOGIN_HASH_SALT=ci-test-salt
-          LLM_API_KEY=sk-test-not-a-real-key
-          LLM_PROVIDER=openai
-          LLM_MODEL=gpt-4o-mini
-          LLM_API_URL=https://api.openai.com/v1
-          SCAMBUSTER_KILL_SWITCH=false
-          PROMPT_INJECTION_ENABLED=false
-          STIX_EXPORT_PATH=/tmp/stix-test
-          SCORE_RISK_MIN=30
-          CAMPAIGN_PROMOTION_PPV_THRESHOLD=0.85
-          CAMPAIGN_PROMOTION_MIN_HITS=5
-          CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
-          EOF
-          cp .env .env.test
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_pgsql, redis, intl, mailparse
+          tools: composer:v2
 
-      - name: Start services
-        run: docker compose up -d --build postgres redis
+      - name: Create .env for Symfony
+        run: echo "APP_ENV=test" > .env
 
-      - name: Wait for services
-        run: make wait-healthy
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend-symfony/vendor
+          key: composer-${{ hashFiles('backend-symfony/composer.lock') }}
+          restore-keys: composer-
 
-      - name: Run tests
-        run: |
-          docker compose run --rm --user root backend-test sh -c "\
-            composer install --no-interaction --no-progress && \
-            php bin/console doctrine:database:create --env=test --if-not-exists && \
-            php bin/console doctrine:migrations:migrate --env=test --no-interaction && \
-            php bin/console doctrine:fixtures:load --env=test --no-interaction && \
-            vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit"
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Run database migrations
+        run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Load test fixtures
+        run: php bin/console doctrine:fixtures:load --env=test --no-interaction
+
+      - name: Run unit and integration tests
+        run: vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
