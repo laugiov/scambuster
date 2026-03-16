@@ -2,8 +2,23 @@
 
 /**
  * CI-specific bootstrap that skips Dotenv file loading.
- * All environment variables are injected via docker-compose env_file and phpunit.ci.xml.
+ * All environment variables are injected via GitHub Actions env block and phpunit.ci.xml.
  */
+
+// Trace App\Kernel loading to debug double-declaration issue
+spl_autoload_register(function ($class) {
+    if ($class === 'App\Kernel') {
+        $trace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 15);
+        $frames = [];
+        foreach ($trace as $i => $frame) {
+            $file = $frame['file'] ?? '?';
+            $line = $frame['line'] ?? '?';
+            $fn = ($frame['class'] ?? '') . ($frame['type'] ?? '') . ($frame['function'] ?? '');
+            $frames[] = "#$i $file:$line $fn";
+        }
+        file_put_contents('/tmp/kernel_autoload_trace.log', implode("\n", $frames) . "\n\n", FILE_APPEND);
+    }
+}, true, true);
 
 require __DIR__ . '/../vendor/autoload.php';
 
