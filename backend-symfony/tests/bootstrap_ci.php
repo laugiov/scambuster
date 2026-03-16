@@ -20,6 +20,9 @@ foreach (spl_autoload_functions() as $loader) {
         spl_autoload_unregister($loader);
         spl_autoload_register(
             function (string $class) use ($composerLoader): void {
+                if (\class_exists($class, false) || \interface_exists($class, false) || \trait_exists($class, false)) {
+                    return; // Already defined, skip
+                }
                 $file = $composerLoader->findFile($class);
                 if ($file !== false) {
                     include_once $file;

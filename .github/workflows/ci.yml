@@ -177,38 +177,5 @@ jobs:
       - name: Load fixtures
         run: docker compose exec backend-test php bin/console doctrine:fixtures:load --env=test --no-interaction
 
-      - name: Debug - check compiled cache for Kernel
-        run: |
-          echo "=== App\Kernel in compiled cache ==="
-          docker compose exec backend-test sh -c "grep -rn 'App.Kernel' /app/var/cache/test/Container*/*.php 2>/dev/null | grep -v 'HttpKernel\|KernelEvent\|KernelBrowser\|KernelException' | head -10" || echo "No matches"
-          echo "=== App\Kernel in classmap ==="
-          docker compose exec backend-test sh -c "grep 'Kernel' /app/vendor/composer/autoload_classmap.php 2>/dev/null" || echo "Not in classmap"
-          echo "=== include_once in container ==="
-          docker compose exec backend-test sh -c "grep -c 'include_once' /app/var/cache/test/Container*/*.php 2>/dev/null" || echo "No container"
-
-      - name: Clear compiled cache before PHPUnit
-        run: docker compose exec backend-test rm -rf /app/var/cache/test/
-
-      - name: Check container for direct Kernel includes
-        run: |
-          docker compose exec backend-test bash -c "
-            echo '=== Direct Kernel includes in container ===' && \
-            grep -rn 'Kernel\.php' /app/var/cache/test/Container*/*.php 2>/dev/null | grep 'include\|require' | head -10 && \
-            echo '=== include_once count ===' && \
-            grep -c 'include_once' /app/var/cache/test/Container*/App_*TestDebugContainer.php 2>/dev/null
-          " || echo "No cache"
-
-      - name: Clear compiled cache before tests
-        run: docker compose exec backend-test rm -rf /app/var/cache/test/
-
-      - name: Prepare debug + show config/bootstrap.php
-        run: |
-          docker compose exec --user root backend-test sh -c "touch /app/var/kernel_loads.txt && chmod 666 /app/var/kernel_loads.txt"
-          docker compose exec backend-test cat /app/config/bootstrap.php
-
-      - name: Run PHPUnit (Kernel.php logs to /tmp/kernel_loads.txt)
-        run: docker compose exec backend-test vendor/bin/phpunit -c phpunit.ci.xml --no-extensions --testsuite integration 2>&1 | tail -10 || true
-
-      - name: Show Kernel load traces (THE ANSWER)
-        if: always()
-        run: docker compose exec backend-test cat /app/var/kernel_loads.txt 2>/dev/null || echo "No trace file"
+      - name: Run integration and unit tests
+        run: docker compose exec backend-test vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
