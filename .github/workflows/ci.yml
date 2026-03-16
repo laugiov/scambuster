@@ -191,24 +191,5 @@ jobs:
       - name: Load test fixtures
         run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
-      - name: Clear Symfony cache
-        run: rm -rf var/cache/test/
-
-      - name: Test raw Kernel boot (no PHPUnit)
-        run: |
-          php -r "
-            require 'vendor/autoload.php';
-            \$_SERVER['APP_ENV'] = 'test';
-            \$_SERVER['APP_DEBUG'] = '1';
-            \$kernel = new App\Kernel('test', true);
-            \$kernel->boot();
-            echo 'Kernel booted OK' . PHP_EOL;
-            echo 'Included Kernel files: ' . implode(', ', array_filter(get_included_files(), fn(\$f) => str_contains(\$f, 'Kernel'))) . PHP_EOL;
-          "
-
       - name: Run unit and integration tests
-        run: php vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
-
-      - name: Show Kernel fatal trace
-        if: always()
-        run: cat /tmp/kernel_fatal.log 2>/dev/null || echo "No fatal log"
+        run: vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
