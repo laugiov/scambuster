@@ -15,7 +15,6 @@
 ###< friendsofphp/php-cs-fixer ###
 
 ###> phpstan/phpstan ###
-phpstan.neon
 ###< phpstan/phpstan ###
 
 ###> lexik/jwt-authentication-bundle ###

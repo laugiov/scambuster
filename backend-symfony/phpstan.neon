@@ -1,0 +1,32 @@
+includes:
+    - vendor/phpstan/phpstan/conf/bleedingEdge.neon
+
+parameters:
+    level: 6
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - src/Infrastructure/*
+        - src/UI/*
+    checkMissingIterableValueType: true
+    checkGenericClassInNonGenericObjectType: true
+    checkUnionTypes: true
+    checkExplicitMixed: true
+    checkMissingVarTagTypehint: true
+    checkFunctionNameCase: true
+    checkClassCaseSensitivity: true
+    checkPhpDocMethodSignatures: true
+    checkUninitializedProperties: true
+    reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#Call to an undefined method Symfony\\Component\\HttpFoundation\\Response::#'
+        - '#Call to an undefined method Symfony\\Bundle\\FrameworkBundle\\KernelBrowser::#'
+        - '#Access to an undefined property App\\Tests\\Integration\\Auth\\.*::\$client#'
+        - '#Access to an undefined property App\\Tests\\Integration\\Auth\\.*::\$entityManager#'
+        - '#Access to an undefined property App\\Tests\\Integration\\Auth\\.*::\$passwordHasher#'
+        - '#Call to an undefined method App\\Tests\\Integration\\Auth\\.*::getValidLoginPayload#'
+        - '#Call to an undefined method App\\Tests\\Integration\\Auth\\.*::loginAndGetJwt#'
+    bootstrapFiles:
+        - vendor/autoload.php
+
