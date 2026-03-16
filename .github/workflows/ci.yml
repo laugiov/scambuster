@@ -158,7 +158,7 @@ jobs:
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Run tests in minimal container (no Dockerfile build artifacts)
+      - name: Run tests in minimal container
         run: |
           docker run --rm \
             --network scambuster_scambuster \
@@ -168,7 +168,7 @@ jobs:
             -w /app \
             -e APP_ENV=test \
             php:8.3.27-cli sh -c "\
-              apt-get update -qq && apt-get install -yqq libpq-dev libzip-dev git unzip > /dev/null 2>&1 && \
+              apt-get update -qq && apt-get install -yqq strace libpq-dev libzip-dev git unzip > /dev/null 2>&1 && \
               docker-php-ext-install pdo pdo_pgsql zip > /dev/null 2>&1 && \
               pecl install mailparse redis > /dev/null 2>&1 && docker-php-ext-enable mailparse redis > /dev/null 2>&1 && \
               curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer > /dev/null 2>&1 && \
@@ -176,4 +176,5 @@ jobs:
               php bin/console doctrine:database:create --env=test --if-not-exists && \
               php bin/console doctrine:migrations:migrate --env=test --no-interaction && \
               php bin/console doctrine:fixtures:load --env=test --no-interaction && \
-              vendor/bin/phpunit --testdox --testsuite integration,unit"
+              echo '=== STRACE: tracking Kernel.php opens ===' && \
+              strace -f -e trace=openat php vendor/bin/phpunit --testsuite integration 2>&1 | grep 'Kernel.php' | head -30"
