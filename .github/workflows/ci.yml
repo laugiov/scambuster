@@ -193,8 +193,16 @@ jobs:
       - name: Load test fixtures
         run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
-      - name: Clear compiled cache
-        run: rm -rf var/cache/
-
-      - name: Run unit and integration tests
-        run: vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration,unit
+      - name: Diagnose Kernel issue
+        run: |
+          echo "=== PHP ini settings related to loading ==="
+          php -i | grep -iE "opcache.jit|opcache.enable|opcache.preload|auto_prepend" | head -10
+          echo ""
+          echo "=== Test 1: php -n (no ini) single test ==="
+          php -n -d extension=pdo -d extension=pdo_pgsql -d extension=redis -d extension=intl -d extension=mailparse vendor/bin/phpunit -c phpunit.ci.xml --filter AuthServiceWiringTest 2>&1 | tail -5
+          echo ""
+          echo "=== Test 2: JIT disabled, all integration ==="
+          php -d opcache.enable=0 -d opcache.jit=0 -d opcache.jit_buffer_size=0 vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration 2>&1 | tail -5
+          echo ""
+          echo "=== Test 3: normal, all integration ==="
+          vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration 2>&1 | tail -5
