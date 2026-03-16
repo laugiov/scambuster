@@ -201,12 +201,14 @@ jobs:
       - name: Clear compiled cache before tests
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Show config/bootstrap.php (never examined)
-        run: docker compose exec backend-test cat /app/config/bootstrap.php
+      - name: Prepare debug + show config/bootstrap.php
+        run: |
+          docker compose exec --user root backend-test sh -c "touch /app/var/kernel_loads.txt && chmod 666 /app/var/kernel_loads.txt"
+          docker compose exec backend-test cat /app/config/bootstrap.php
 
       - name: Run PHPUnit (Kernel.php logs to /tmp/kernel_loads.txt)
         run: docker compose exec backend-test vendor/bin/phpunit -c phpunit.ci.xml --no-extensions --testsuite integration 2>&1 | tail -10 || true
 
       - name: Show Kernel load traces (THE ANSWER)
         if: always()
-        run: docker compose exec backend-test cat /tmp/kernel_loads.txt 2>/dev/null || echo "No trace file"
+        run: docker compose exec backend-test cat /app/var/kernel_loads.txt 2>/dev/null || echo "No trace file"
