@@ -177,5 +177,28 @@ jobs:
       - name: Load fixtures
         run: docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
 
+      - name: Debug Kernel issue
+        if: always()
+        run: |
+          echo "=== Check Kernel.php ==="
+          docker compose exec backend-test ls -la /app/src/Kernel.php
+          echo "=== Check classmap for Kernel ==="
+          docker compose exec backend-test grep -c "Kernel" /app/vendor/composer/autoload_classmap.php || echo "not in classmap"
+          echo "=== Check autoload type ==="
+          docker compose exec backend-test head -5 /app/vendor/composer/autoload_classmap.php
+          echo "=== Test class loading ==="
+          docker compose run --rm backend-test php -r "
+            require 'vendor/autoload.php';
+            echo 'After autoload: class_exists=' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . PHP_EOL;
+            require 'config/bootstrap.php';
+            echo 'After bootstrap: class_exists=' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . PHP_EOL;
+            \$dotenv = new \Symfony\Component\Dotenv\Dotenv();
+            \$dotenv->usePutenv();
+            \$dotenv->bootEnv('../' . dirname('/app/tests') . '/.env');
+            echo 'After bootEnv: class_exists=' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . PHP_EOL;
+            echo 'APP_ENV=' . (\$_SERVER['APP_ENV'] ?? 'NOT SET') . PHP_EOL;
+            echo 'APP_DEBUG=' . (\$_SERVER['APP_DEBUG'] ?? 'NOT SET') . PHP_EOL;
+          "
+
       - name: Run tests
         run: docker compose run --rm backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
