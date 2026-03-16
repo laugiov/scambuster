@@ -21,6 +21,7 @@ jobs:
         run: |
           cat > .env << 'EOF'
           APP_ENV=test
+          APP_DEBUG=0
           APP_SECRET=ci-test-app-secret
           DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
           REDIS_URL=redis://redis:6379
@@ -70,6 +71,7 @@ jobs:
         run: |
           cat > .env << 'EOF'
           APP_ENV=test
+          APP_DEBUG=0
           APP_SECRET=ci-test-app-secret
           DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
           REDIS_URL=redis://redis:6379
@@ -119,6 +121,7 @@ jobs:
         run: |
           cat > .env << 'EOF'
           APP_ENV=test
+          APP_DEBUG=0
           APP_SECRET=ci-test-app-secret
           DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
           REDIS_URL=redis://redis:6379
