@@ -193,4 +193,4 @@ jobs:
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
       - name: Run integration and unit tests
-        run: docker compose exec backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
+        run: docker compose exec backend-test vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit 2>&1
