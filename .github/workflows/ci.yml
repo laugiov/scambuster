@@ -195,7 +195,15 @@ jobs:
         run: rm -rf var/cache/test/
 
       - name: Run unit and integration tests
-        run: php vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit || true
+        run: |
+          echo "=== Test WITHOUT extensions ==="
+          php vendor/bin/phpunit -c phpunit.ci.xml --no-extensions --testdox --testsuite unit 2>&1 | tail -5
+          echo "=== Test WITH DAMA only ==="
+          php vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite unit 2>&1 | tail -5
+          echo "=== Test integration WITHOUT extensions ==="
+          php vendor/bin/phpunit -c phpunit.ci.xml --no-extensions --testdox --testsuite integration 2>&1 | tail -5
+          echo "=== Test integration WITH DAMA ==="
+          php vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration 2>&1 | tail -5
 
       - name: Show Kernel fatal trace
         if: always()
