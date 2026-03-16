@@ -5,20 +5,22 @@
  * All environment variables are injected via GitHub Actions env block and phpunit.ci.xml.
  */
 
-file_put_contents('/tmp/kernel_debug.log',
-    'Bootstrap start' . "\n" .
-    'App\Kernel already loaded: ' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . "\n" .
-    'Included Kernel files: ' . implode(', ', array_filter(get_included_files(), fn($f) => str_contains($f, 'Kernel'))) . "\n"
-);
+// Capture fatal error details
+register_shutdown_function(function () {
+    $error = error_get_last();
+    if ($error && str_contains($error['message'] ?? '', 'Kernel')) {
+        $kernelFiles = array_filter(get_included_files(), fn($f) => str_contains($f, 'Kernel'));
+        file_put_contents('/tmp/kernel_fatal.log',
+            "=== FATAL ERROR ===\n" .
+            print_r($error, true) . "\n" .
+            "=== ALL INCLUDED FILES WITH 'Kernel' ===\n" .
+            implode("\n", $kernelFiles) . "\n" .
+            "=== TOTAL INCLUDED FILES: " . count(get_included_files()) . " ===\n"
+        );
+    }
+});
 
-$loader = require __DIR__ . '/../vendor/autoload.php';
-
-file_put_contents('/tmp/kernel_debug.log',
-    'After autoload require' . "\n" .
-    'App\Kernel loaded: ' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . "\n" .
-    'ClassMap has App\\Kernel: ' . (array_key_exists('App\\Kernel', $loader->getClassMap()) ? 'YES' : 'NO') . "\n",
-    FILE_APPEND
-);
+require __DIR__ . '/../vendor/autoload.php';
 
 $_SERVER['APP_ENV'] = $_SERVER['APP_ENV'] ?? 'test';
 $_SERVER['APP_DEBUG'] = $_SERVER['APP_DEBUG'] ?? '1';
