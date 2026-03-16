@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\DataFixtures\Scambaiting;
 
+use App\DataFixtures\Communication\PersonaFixtures;
+use App\DataFixtures\Communication\ScamTypeFixtures;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
 use App\Infrastructure\Doctrine\Entity\PersonaPerformanceStatsEntity;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
-use App\DataFixtures\Communication\PersonaFixtures;
-use App\DataFixtures\Communication\ScamTypeFixtures;
 
 final class PersonaPerformanceStatsFixtures extends Fixture implements DependentFixtureInterface
 {

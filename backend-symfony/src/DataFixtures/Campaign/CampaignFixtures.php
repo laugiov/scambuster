@@ -159,8 +159,7 @@ class CampaignFixtures extends Fixture implements DependentFixtureInterface
                 Uuid::fromString($messages[0]->getMsgId()),
                 $campaign1->getCampaignId(),
                 0.87,
-                'shadow-hunter-v1',
-                new \DateTimeImmutable('-7 days')
+                'shadow-hunter-v1'
             );
             $manager->persist($msgCamp1);
 
@@ -168,8 +167,7 @@ class CampaignFixtures extends Fixture implements DependentFixtureInterface
                 Uuid::fromString($messages[1]->getMsgId()),
                 $campaign1->getCampaignId(),
                 0.92,
-                'shadow-hunter-v1',
-                new \DateTimeImmutable('-6 days')
+                'shadow-hunter-v1'
             );
             $manager->persist($msgCamp2);
 
@@ -177,8 +175,7 @@ class CampaignFixtures extends Fixture implements DependentFixtureInterface
                 Uuid::fromString($messages[2]->getMsgId()),
                 $campaign2->getCampaignId(),
                 0.95,
-                'promoted-rule-v1',
-                new \DateTimeImmutable('-25 days')
+                'promoted-rule-v1'
             );
             $manager->persist($msgCamp3);
         }
