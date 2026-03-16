@@ -116,9 +116,9 @@ jobs:
       - name: Create environment files
         run: |
           cat > .env << 'EOF'
-          APP_ENV=dev
+          APP_ENV=test
           APP_SECRET=ci-test-app-secret
-          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster
+          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
           REDIS_URL=redis://redis:6379
           JWT_SECRET=ci-test-jwt-secret
           VAULT_ADDR=http://vault:8200
