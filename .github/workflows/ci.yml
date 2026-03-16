@@ -50,13 +50,13 @@ jobs:
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress --no-scripts
+        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
 
       - name: Fix permissions
-        run: docker compose exec --user root backend-dev sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
+        run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
 
       - name: Run PHPStan
-        run: docker compose exec backend-dev vendor/bin/phpstan analyse -c phpstan.neon --memory-limit=1G
+        run: docker compose exec backend-dev vendor/bin/phpstan analyse --memory-limit=1G
 
   code-style:
     name: Code Style (PHP-CS-Fixer)
@@ -98,10 +98,10 @@ jobs:
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress --no-scripts
+        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
 
       - name: Fix permissions
-        run: docker compose exec --user root backend-dev sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
+        run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
 
       - name: Run PHP-CS-Fixer (dry-run)
         run: docker compose exec backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no
@@ -163,13 +163,10 @@ jobs:
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress --no-scripts
+        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress
 
       - name: Fix permissions
-        run: docker compose exec --user root backend-test sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
-
-      - name: Warm up cache
-        run: docker compose exec backend-test php bin/console cache:clear --env=test
+        run: docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var"
 
       - name: Create test database
         run: docker compose exec postgres psql -U postgres -c "CREATE DATABASE scambuster_test;" || true
