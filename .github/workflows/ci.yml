@@ -115,7 +115,7 @@ jobs:
 
       - name: Create environment files
         run: |
-          cat > .env << 'EOF'
+          cat > .env <<'EOF'
           APP_ENV=test
           APP_SECRET=ci-test-app-secret
           DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
@@ -145,6 +145,8 @@ jobs:
           LLM_VALIDATION_ENABLED=true
           LOCK_DSN=flock
           EOF
+          # Remove leading spaces from heredoc indentation
+          sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
 
       - name: Fix host permissions
