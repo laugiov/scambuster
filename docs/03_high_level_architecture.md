@@ -289,7 +289,7 @@ Inbound message
 ScamBuster is deployed as a **containerized application** with:
 
 - **Isolated environments**: Separate production and pre-production
-- **Automated CI/CD**: GitLab CI with security scanning
+- **Automated CI/CD**: GitHub Actions (PHPStan, PHP-CS-Fixer, PHPUnit)
 - **Secrets management**: HashiCorp Vault (credentials never in code)
 - **Network isolation**: Docker Compose, defense-in-depth
 
@@ -302,11 +302,13 @@ ScamBuster is deployed as a **containerized application** with:
 | Component | Technology | Rationale |
 |-----------|------------|-----------|
 | **Language** | PHP 8.3 | Strong typing, mature ecosystem, DDD support |
-| **Framework** | Symfony 7 | Enterprise-grade, security features |
+| **Framework** | Symfony 7.2 | Enterprise-grade, security features |
 | **Database** | PostgreSQL 15 | JSON support, reliability, access control |
-| **LLM** | OpenAI API | Cost-effective, consistent quality |
+| **Cache & Locks** | Redis 7 | Rate limiting, distributed locks |
+| **LLM** | OpenAI API (GPT-4o-mini) | Cost-effective, consistent quality |
 | **Orchestration** | n8n | Visual debugging, 400+ integrations |
-| **CI/CD** | GitLab CI | Integrated, security scanning |
+| **Secrets** | HashiCorp Vault | IMAP credentials, API keys |
+| **CI/CD** | GitHub Actions | PHPStan, PHP-CS-Fixer, PHPUnit |
 
 ---
 

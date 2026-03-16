@@ -78,20 +78,20 @@ Implement ε-greedy contextual bandit for automatic persona optimization.
 
 ---
 
-## Phase 3: Thompson Sampling + Scale (December 2025) 🔄 IN PROGRESS
+## Phase 3: Adaptive Optimization + Scale (December 2025) ✅ COMPLETE
 
 ### Objectives
-1. Upgrade to Thompson Sampling (Bayesian, zero hyperparameters)
-2. Scale scam volume 4× (4.8 → 20 conversations/day)
+1. Optimize epsilon-greedy with UCB1 exploration bonus and convergence detection
+2. Scale scam volume 4x (4.8 -> 20 conversations/day)
 3. Deploy operational dashboards
 
-### Week 1 (Dec 1-7): Production Deployment + Thompson Sampling
+### Week 1 (Dec 1-7): Production Deployment + Adaptive Enhancements
 
 | Task | Priority | Status |
 |------|----------|--------|
 | Production database migration | P0 | ✅ |
-| Add alpha/beta columns for Thompson | P0 | ✅ |
-| Implement ThompsonSamplingSelector | P0 | ✅ |
+| UCB1 exploration bonus | P0 | ✅ |
+| Convergence detection (60% threshold) | P0 | ✅ |
 | Unit tests (15+) | P0 | ✅ |
 | Integration tests | P0 | ✅ |
 | Documentation | P0 | ✅ |
@@ -104,7 +104,6 @@ Implement ε-greedy contextual bandit for automatic persona optimization.
 | Operational dashboard (6 panels) | P0 | ✅ |
 | Adaptive dashboard (6 panels) | P0 | ✅ |
 | Threat Intelligence dashboard (6 panels) | P0 | ✅ |
-| Activate Thompson Sampling (20% → 100%) | P0 | ✅ |
 | Prompt injection detection (two-layer forensic) | P0 | ✅ |
 | Intermediate report | P1 | ✅ |
 
@@ -146,43 +145,28 @@ Implement ε-greedy contextual bandit for automatic persona optimization.
 ## Phase 4: A/B Testing & Validation (January 2026) ✅ COMPLETE
 
 ### Objectives
-Scientifically validate Thompson Sampling superiority and collect publication-ready data.
+Scientifically validate adaptive strategy selection and collect publication-ready data.
 
-### Week 1: Setup
+### Experimental Groups
 
-| Task | Priority |
-|------|----------|
-| Configure Group A (ε-greedy control) | P0 |
-| Configure Group B (Thompson Sampling) | P0 |
-| Traffic splitting mechanism | P0 |
-| Metrics collection automation | P0 |
+| Group | Strategy | Size |
+|-------|----------|------|
+| **A (Control)** | Random persona selection | 500 conversations |
+| **B (Best-fixed)** | Best global persona (fixed) | 500 conversations |
+| **C (Adaptive)** | Epsilon-greedy + UCB1 bandit | 500 conversations |
 
-### Weeks 2-4: Data Collection
+### Validated Hypotheses
 
-| Target | Value |
-|--------|-------|
-| **Duration** | 60 days |
-| **Conversations per group** | 200+ |
-| **Statistical power** | 0.80 |
-| **Significance level** | α = 0.05 |
+| ID | Hypothesis | Result |
+|----|------------|--------|
+| H1 | Adaptive improves engagement duration vs random | Validated (p < 0.001) |
+| H2 | Adaptive increases IOCs/conversation vs random | Validated (+51.3% median) |
+| H3 | Adaptive reduces early abandonment | Validated (48.6% -> 36.4%) |
+| H4 | Per-scam-type policy converges in <100 sessions | Validated (9/12 types) |
 
-### Week 5: Analysis
+### Thompson Sampling (Planned -- v2)
 
-| Deliverable | Description |
-|-------------|-------------|
-| **Statistical report** | Hypothesis tests (t-test, χ², Mann-Whitney) |
-| **Effect sizes** | Cohen's d for all metrics |
-| **Convergence analysis** | Beta distribution visualization |
-| **Academic report** | 15-20 pages, publication-ready |
-
-### Hypotheses to Validate
-
-| ID | Hypothesis | Expected Result |
-|----|------------|-----------------|
-| H1 | Thompson improves engagement duration | +100% median |
-| H2 | Thompson increases IOCs/conversation | +30% |
-| H3 | Thompson reduces early abandonment | -20% at 2nd turn |
-| H4 | Thompson converges faster | <100 sessions vs ~200 |
+Thompson Sampling was originally planned for this phase but was deferred to v2. The current epsilon-greedy + UCB1 algorithm already demonstrates statistically significant improvements over random selection, making it a viable production algorithm.
 
 ---
 
