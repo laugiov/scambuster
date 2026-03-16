@@ -49,6 +49,9 @@ jobs:
       - name: Wait for services
         run: make wait-healthy
 
+      - name: Fix volume permissions
+        run: docker compose exec --user root backend-dev chown -R 10001:10001 /app
+
       - name: Install dependencies
         run: docker compose exec backend-dev composer install --no-interaction --no-progress
 
@@ -93,6 +96,9 @@ jobs:
 
       - name: Wait for services
         run: make wait-healthy
+
+      - name: Fix volume permissions
+        run: docker compose exec --user root backend-dev chown -R 10001:10001 /app
 
       - name: Install dependencies
         run: docker compose exec backend-dev composer install --no-interaction --no-progress
@@ -155,6 +161,9 @@ jobs:
 
       - name: Wait for services
         run: make wait-healthy
+
+      - name: Fix volume permissions
+        run: docker compose exec --user root backend-test chown -R 10001:10001 /app
 
       - name: Install dependencies
         run: docker compose exec backend-test composer install --no-interaction --no-progress
