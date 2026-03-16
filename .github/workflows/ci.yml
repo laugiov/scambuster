@@ -193,16 +193,10 @@ jobs:
       - name: Load test fixtures
         run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
-      - name: Test single integration test
+      - name: Delete cache and run integration tests
         run: |
-          echo "=== Single test ==="
-          vendor/bin/phpunit -c phpunit.ci.xml --filter="AuthServiceWiringTest" 2>&1 | tail -5
-          echo "=== Unit only ==="
-          vendor/bin/phpunit -c phpunit.ci.xml --testsuite unit 2>&1 | tail -3
-          echo "=== Integration only ==="
-          vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration 2>&1 | tail -5
-          echo "=== Both together ==="
-          vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration,unit 2>&1 | tail -5
+          rm -rf var/cache/
+          vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration,unit 2>&1 | tail -10
 
       - name: Show Kernel trace
         if: always()
