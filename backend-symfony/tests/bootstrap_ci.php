@@ -24,6 +24,17 @@ $log('Step 1: require vendor/autoload.php');
 require __DIR__ . '/../vendor/autoload.php';
 $checkKernel();
 
+// Disable PHPStan PharAutoloader to test if it causes the double-include
+$log('Step 1b: disabling PHPStan PharAutoloader');
+define('__PHPSTAN_RUNNING__', true);
+foreach (spl_autoload_functions() as $fn) {
+    if (is_array($fn) && isset($fn[0]) && is_string($fn[0]) && str_contains($fn[0], 'PHPStan')) {
+        spl_autoload_unregister($fn);
+        $log('Unregistered: ' . $fn[0] . '::' . $fn[1]);
+    }
+}
+$checkKernel();
+
 $log('Step 2: set env vars');
 $_SERVER['APP_ENV'] = $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] ?? 'test';
 $_SERVER['APP_DEBUG'] = $_ENV['APP_DEBUG'] = '0';
