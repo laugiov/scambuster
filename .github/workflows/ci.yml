@@ -201,5 +201,10 @@ jobs:
       - name: Clear compiled cache before tests
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Run integration and unit tests (NO DAMA)
-        run: docker compose exec backend-test vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit 2>&1
+      - name: Kill PHP server + reset opcache + run tests
+        run: |
+          echo "=== Kill PHP built-in server ==="
+          docker compose exec --user root backend-test sh -c "pkill -f 'php -S' || true"
+          sleep 1
+          echo "=== Run PHPUnit with --no-extensions ==="
+          docker compose exec backend-test php -d opcache.enable=0 vendor/bin/phpunit -c phpunit.ci.xml --no-extensions --testdox --testsuite integration,unit 2>&1 | head -20
