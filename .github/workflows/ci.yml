@@ -193,11 +193,29 @@ jobs:
       - name: Load test fixtures
         run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
-      - name: Delete cache and run integration tests
+      - name: Find which test file triggers Kernel loading
         run: |
-          rm -rf var/cache/
-          vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration,unit 2>&1 | tail -10
+          php -r "
+            require 'vendor/autoload.php';
+            \$_SERVER['APP_ENV'] = 'test';
+            \$_SERVER['APP_DEBUG'] = '0';
+            \$files = [];
+            foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator('tests/Integration')) as \$f) {
+                if (\$f->isFile() && str_ends_with(\$f->getFilename(), 'Test.php')) \$files[] = \$f->getPathname();
+            }
+            sort(\$files);
+            echo count(\$files) . ' test files found' . PHP_EOL;
+            foreach (\$files as \$f) {
+                include_once \$f;
+                if (class_exists('App\Kernel', false)) {
+                    echo 'App\Kernel DEFINED after including: ' . \$f . PHP_EOL;
+                    break;
+                }
+            }
+            if (!class_exists('App\Kernel', false)) {
+                echo 'App\Kernel NOT defined after including all files' . PHP_EOL;
+            }
+          "
 
-      - name: Show Kernel trace
-        if: always()
-        run: cat /tmp/kernel_trace.log 2>/dev/null || echo "No trace"
+      - name: Run unit and integration tests
+        run: vendor/bin/phpunit -c phpunit.ci.xml --testsuite integration,unit
