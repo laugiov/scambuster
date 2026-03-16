@@ -57,6 +57,7 @@ final class PromptInjectionDetector
 
         // Layer 2: LLM analysis
         $llmResult = null;
+
         try {
             $senderFrom = $message->getHeaders()['from'] ?? 'unknown';
             $llmResult = $this->llmAnalyzer->analyze($subject, $bodyText, $senderFrom);
@@ -83,8 +84,8 @@ final class PromptInjectionDetector
     }
 
     /**
-     * @param array<string>                                                                                             $patternMatches
-     * @param array{risk_score: float, detected_techniques: array, confidence: float, summary: string}|null $llmResult
+     * @param array<string>                                                                                                                                                    $patternMatches
+     * @param array{risk_score: float, detected_techniques: array<int, array{technique: string, evidence: string, severity: string}>, confidence: float, summary: string}|null $llmResult
      */
     private function buildAnalysis(array $patternMatches, float $patternScore, ?array $llmResult): PromptInjectionAnalysis
     {

@@ -24,13 +24,12 @@ final class ConversationEndedListener
         private readonly PersonaPerformanceStatsRepository $statsRepository,
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     /**
      * Traite l'événement ConversationEndedEvent.
      * ⚠️ IMPORTANT : Cette méthode doit être TRANSACTIONNELLE pour éviter les race conditions.
-     *
-     * @param ConversationEndedEvent $event
      */
     public function onConversationEnded(ConversationEndedEvent $event): void
     {
@@ -40,6 +39,7 @@ final class ConversationEndedListener
                 'Conversation ended without persona, skipping performance update',
                 ['conversation_id' => $event->getConversationId()]
             );
+
             return;
         }
 
@@ -74,6 +74,7 @@ final class ConversationEndedListener
                     'persona_code' => $event->getPersonaCode(),
                     'scam_type_code' => $event->getScamTypeCode(),
                 ]);
+
                 return;
             }
 
@@ -114,6 +115,7 @@ final class ConversationEndedListener
                 ]);
             } catch (\Exception $e) {
                 $this->em->rollback();
+
                 throw $e;
             }
         } catch (\Exception $e) {

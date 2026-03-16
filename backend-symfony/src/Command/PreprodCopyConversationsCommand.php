@@ -39,10 +39,13 @@ class PreprodCopyConversationsCommand extends Command
                 'url' => self::PREPROD_DSN,
             ]);
 
-            $preprodCount = (int) $preprodConn->fetchOne('SELECT COUNT(*) FROM conversation');
+            /** @var string|int $preprodCountRaw */
+            $preprodCountRaw = $preprodConn->fetchOne('SELECT COUNT(*) FROM conversation');
+            $preprodCount = (int) $preprodCountRaw;
             $io->success(sprintf('Connecté à preprod: %d conversations trouvées', $preprodCount));
         } catch (\Exception $e) {
             $io->error('Impossible de se connecter à preprod: ' . $e->getMessage());
+
             return Command::FAILURE;
         }
 
@@ -56,6 +59,7 @@ class PreprodCopyConversationsCommand extends Command
             $io->success('Base dev nettoyée');
         } catch (\Exception $e) {
             $io->error('Erreur lors du nettoyage: ' . $e->getMessage());
+
             return Command::FAILURE;
         }
 
@@ -95,6 +99,7 @@ class PreprodCopyConversationsCommand extends Command
         } catch (\Exception $e) {
             $io->error('Erreur lors de la copie: ' . $e->getMessage());
             $io->note('Assurez-vous que l\'extension dblink est installée: CREATE EXTENSION IF NOT EXISTS dblink;');
+
             return Command::FAILURE;
         }
 
@@ -137,8 +142,12 @@ class PreprodCopyConversationsCommand extends Command
         // 5. Statistiques finales
         $io->section('5. Statistiques finales');
 
-        $devCount = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM conversation');
-        $devMsgCount = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM message');
+        /** @var string|int $devCountRaw */
+        $devCountRaw = $this->connection->fetchOne('SELECT COUNT(*) FROM conversation');
+        $devCount = (int) $devCountRaw;
+        /** @var string|int $devMsgCountRaw */
+        $devMsgCountRaw = $this->connection->fetchOne('SELECT COUNT(*) FROM message');
+        $devMsgCount = (int) $devMsgCountRaw;
 
         $io->table(
             ['Métrique', 'Valeur'],

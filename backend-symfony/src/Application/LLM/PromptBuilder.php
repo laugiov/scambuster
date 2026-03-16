@@ -39,7 +39,9 @@ final class PromptBuilder
     {
         $persona = $this->loadPersona($personaCode);
 
-        $scamTypeLabel = $context['scam_type']['label_fr'] ?? 'Menace inconnue';
+        /** @var array<string, string> $scamTypeData */
+        $scamTypeData = $context['scam_type'] ?? [];
+        $scamTypeLabel = (string) ($scamTypeData['label_fr'] ?? 'Menace inconnue');
         $conversationHistory = $this->formatConversationHistory($context['last_messages'] ?? []);
 
         // Analyze conversation context using ContextAnalyzer
@@ -49,6 +51,7 @@ final class PromptBuilder
         $messageCount = $stateSlots['message_count'];
 
         // === SYSTEM PROMPT AVEC INSTRUCTION DE LANGUE ===
+        /** @var string $systemPrompt */
         $systemPrompt = $persona['system_prompt'];
 
         // Ajoute instruction linguistique DANS le system prompt (prioritaire)
@@ -104,7 +107,9 @@ final class PromptBuilder
         if (!empty($context['sender_history_summary'])) {
             $userPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
             $userPrompt .= "📋 CONTEXTE SUPPLÉMENTAIRE - Échanges précédents avec cet expéditeur :\n\n";
-            $userPrompt .= $context['sender_history_summary'] . "\n\n";
+            /** @var string $senderHistory */
+            $senderHistory = $context['sender_history_summary'];
+            $userPrompt .= $senderHistory . "\n\n";
             $userPrompt .= "Note : Ces informations proviennent d'autres conversations avec le même scammer.\n";
             $userPrompt .= "Utilise ce contexte pour maintenir la cohérence et adapter ta stratégie.\n";
             $userPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
@@ -155,7 +160,7 @@ final class PromptBuilder
                 // Prepare context for ConversationAnalyzer
                 $analysisContext = [
                     'conversation_id' => $context['conv_id'] ?? 'unknown',
-                    'scam_type' => $context['scam_type']['code'] ?? 'unknown',
+                    'scam_type' => (string) ($scamTypeData['code'] ?? 'unknown'),
                     'persona_code' => $personaCode,
                     'all_messages' => $context['last_messages'] ?? [],
                     'extracted_iocs' => $context['extracted_iocs'] ?? [],
@@ -294,14 +299,19 @@ Réponds UNIQUEMENT en JSON strict :
 }
 PROMPT;
 
+        /** @var string $personaLabel */
+        $personaLabel = $persona['persona_label'];
+        /** @var string $personaTone */
+        $personaTone = $persona['persona_tone'];
+
         $userPrompt = <<<PROMPT
 Texte à valider :
 """
 {$generatedText}
 """
 
-Persona : {$persona['persona_label']}
-Ton attendu : {$persona['persona_tone']}
+Persona : {$personaLabel}
+Ton attendu : {$personaTone}
 
 ⚠️ Question clé : Est-ce que ce message révèle le honeypot ou contient des mots interdits ?
 Si NON → APPROUVE même si pas parfait.
@@ -334,8 +344,10 @@ PROMPT;
         $output .= "Stage: {$stageLabelFr}\n";
 
         // IOCs manquants uniquement (on garde cette info utile pour le honeypot)
-        if (!empty($stateSlots['missing_iocs'])) {
-            $output .= "Essayer d'obtenir (si opportunité naturelle): " . implode(', ', $stateSlots['missing_iocs']) . "\n";
+        if (!empty($stateSlots['missing_iocs']) && is_array($stateSlots['missing_iocs'])) {
+            /** @var array<string> $missingIocs */
+            $missingIocs = $stateSlots['missing_iocs'];
+            $output .= "Essayer d'obtenir (si opportunité naturelle): " . implode(', ', $missingIocs) . "\n";
         }
 
         $output .= "\n";
@@ -355,7 +367,9 @@ PROMPT;
         $output .= "═══════════════════════════════════════════════════════════\n\n";
 
         foreach ($dialogue as $entry) {
+            /** @var string $role */
             $role = $entry['role'];
+            /** @var string $content */
             $content = $entry['content'];
 
             $output .= ">>> {$role}:\n";
@@ -391,34 +405,36 @@ PROMPT;
         $formatted = '';
 
         // 🚫 INTERDICTIONS
-        if (!empty($instructions['interdictions'])) {
+        if (!empty($instructions['interdictions']) && is_array($instructions['interdictions'])) {
             $formatted .= "🚫 INTERDICTIONS (ce qui est répété et DOIT être évité) :\n";
 
+            /** @var string $interdiction */
             foreach ($instructions['interdictions'] as $interdiction) {
-                $formatted .= "- {$interdiction}\n";
+                $formatted .= '- ' . $interdiction . "\n";
             }
             $formatted .= "\n";
         }
 
         // ✅ OBLIGATIONS
-        if (!empty($instructions['obligations'])) {
+        if (!empty($instructions['obligations']) && is_array($instructions['obligations'])) {
             $formatted .= "✅ OBLIGATIONS (ce qui DOIT être fait à la place) :\n";
 
+            /** @var string $obligation */
             foreach ($instructions['obligations'] as $obligation) {
-                $formatted .= "- {$obligation}\n";
+                $formatted .= '- ' . $obligation . "\n";
             }
             $formatted .= "\n";
         }
 
         // 🎯 OBJECTIF STRATÉGIQUE
-        if (isset($instructions['objectif_strategique']) && !empty($instructions['objectif_strategique'])) {
+        if (isset($instructions['objectif_strategique']) && is_string($instructions['objectif_strategique'])) {
             $formatted .= "🎯 OBJECTIF STRATÉGIQUE :\n";
             $formatted .= '- ' . $instructions['objectif_strategique'] . "\n";
             $formatted .= "\n";
         }
 
         // ➡️ STYLE/TON
-        if (isset($instructions['style_ton']) && !empty($instructions['style_ton'])) {
+        if (isset($instructions['style_ton']) && is_string($instructions['style_ton'])) {
             $formatted .= "➡️ STYLE/TON à adopter :\n";
             $formatted .= '- ' . $instructions['style_ton'] . "\n";
         }
@@ -464,9 +480,16 @@ PROMPT;
 
         foreach ($messages as $msg) {
             $direction = $msg['direction'] === 'in' ? 'Attaquant' : 'Victime';
-            $from = $msg['headers']['from'] ?? 'inconnu';
-            $date = isset($msg['ts_msg']) ? (new \DateTimeImmutable($msg['ts_msg']))->format('d/m/Y H:i') : 'date inconnue';
-            $body = $this->cleanBodyForLLM($msg['body_text'] ?? '');
+            /** @var array<string, mixed> $headers */
+            $headers = $msg['headers'] ?? [];
+            /** @var string $from */
+            $from = $headers['from'] ?? 'inconnu';
+            /** @var string $tsMsg */
+            $tsMsg = $msg['ts_msg'] ?? '';
+            $date = $tsMsg !== '' ? (new \DateTimeImmutable($tsMsg))->format('d/m/Y H:i') : 'date inconnue';
+            /** @var string $bodyText */
+            $bodyText = $msg['body_text'] ?? '';
+            $body = $this->cleanBodyForLLM($bodyText);
 
             $formatted[] = "[$direction - {$from} - {$date}]\n{$body}";
         }

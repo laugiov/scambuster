@@ -66,9 +66,9 @@ PROMPT;
      * @param string $bodyText   Email body text
      * @param string $senderFrom Sender email address (for context)
      *
-     * @return array{risk_score: float, detected_techniques: array, confidence: float, summary: string}
-     *
      * @throws \RuntimeException If the LLM call fails or returns invalid JSON
+     *
+     * @return array{risk_score: float, detected_techniques: array<int, array{technique: string, evidence: string, severity: string}>, confidence: float, summary: string}
      */
     public function analyze(string $subject, string $bodyText, string $senderFrom): array
     {
@@ -99,7 +99,7 @@ PROMPT;
     {
         // Truncate body to avoid excessive token usage
         $truncatedBody = mb_substr($bodyText, 0, 3000);
-        $truncationNote = mb_strlen($bodyText) > 3000 ? "\n[... truncated, original length: " . mb_strlen($bodyText) . " chars]" : '';
+        $truncationNote = mb_strlen($bodyText) > 3000 ? "\n[... truncated, original length: " . mb_strlen($bodyText) . ' chars]' : '';
 
         return <<<PROMPT
 Analyze this inbound scammer email for prompt injection attempts:
@@ -115,7 +115,7 @@ PROMPT;
     }
 
     /**
-     * @return array{risk_score: float, detected_techniques: array, confidence: float, summary: string}
+     * @return array{risk_score: float, detected_techniques: array<int, array{technique: string, evidence: string, severity: string}>, confidence: float, summary: string}
      */
     private function parseResponse(string $response): array
     {
@@ -134,8 +134,12 @@ PROMPT;
         }
 
         // Validate and clamp scores
-        $riskScore = max(0.0, min(1.0, (float) ($data['risk_score'] ?? 0.0)));
-        $confidence = max(0.0, min(1.0, (float) ($data['confidence'] ?? 0.0)));
+        /** @var float|int|string $rawRiskScore */
+        $rawRiskScore = $data['risk_score'] ?? 0.0;
+        $riskScore = max(0.0, min(1.0, (float) $rawRiskScore));
+        /** @var float|int|string $rawConfidence */
+        $rawConfidence = $data['confidence'] ?? 0.0;
+        $confidence = max(0.0, min(1.0, (float) $rawConfidence));
 
         $result = [
             'risk_score' => $riskScore,

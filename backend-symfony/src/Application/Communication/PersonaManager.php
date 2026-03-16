@@ -82,6 +82,7 @@ class PersonaManager
 
         // Check if persona already exists
         $existing = $this->findByCode($personaCode);
+
         if ($existing) {
             throw new \RuntimeException(
                 "Persona with code '{$personaCode}' already exists"
@@ -161,6 +162,7 @@ class PersonaManager
      * to ensure consistency across multiple reply generations.
      *
      * @param \App\Domain\Communication\ScamType $scamType The scam type to select persona for
+     *
      * @return Persona|null Random persona from the scam type's personas, or null if none available
      */
     public function assignRandomPersona(\App\Domain\Communication\ScamType $scamType): ?Persona
@@ -173,6 +175,7 @@ class PersonaManager
 
         // Random selection among compatible personas
         $randomIndex = array_rand($personas);
+
         return $personas[$randomIndex];
     }
 

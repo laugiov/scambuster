@@ -79,8 +79,9 @@ final class IocValidator
     /**
      * Validate an IOC value based on its type.
      *
-     * @param string $type IOC type
+     * @param string $type  IOC type
      * @param string $value IOC value to validate
+     *
      * @return bool True if valid, false otherwise
      */
     public function validate(string $type, string $value): bool
@@ -137,6 +138,7 @@ final class IocValidator
 
             if ($i % 2 === 1) {
                 $digit *= 2;
+
                 if ($digit > 9) {
                     $digit -= 9;
                 }

@@ -22,7 +22,8 @@ final class GetPersonaPerformanceController extends AbstractController
     public function __construct(
         private readonly PersonaPerformanceStatsRepository $statsRepository,
         private readonly EntityManagerInterface $em
-    ) {}
+    ) {
+    }
 
     public function __invoke(string $personaCode): JsonResponse
     {
@@ -42,6 +43,7 @@ final class GetPersonaPerformanceController extends AbstractController
         // 3. Transformer en tableau JSON
         $performanceData = array_map(static function ($statsEntity) {
             $performance = $statsEntity->toPersonaPerformance();
+
             return [
                 'scam_type_code' => $performance->getScamTypeCode(),
                 'sessions_count' => $performance->getSessionsCount(),

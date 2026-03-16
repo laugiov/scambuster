@@ -28,12 +28,14 @@ class ScamClassifier
      * Classify conversation messages and optionally create new scam type + persona
      *
      * @param array<int, array<string, mixed>> $messages Conversation messages
+     *
      * @return ClassificationResult|null Returns null if classification fails
      */
     public function classify(array $messages): ?ClassificationResult
     {
         if (empty($messages)) {
             $this->logger->warning('Cannot classify empty conversation');
+
             return null;
         }
 
@@ -64,6 +66,7 @@ class ScamClassifier
                     'errors' => $result['errors'],
                     'response' => substr($response, 0, 500),
                 ]);
+
                 return null;
             }
 
@@ -119,6 +122,7 @@ class ScamClassifier
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return null;
         }
     }
@@ -126,9 +130,10 @@ class ScamClassifier
     /**
      * Build classification prompt for LLM
      *
-     * @param array<int, array<string, mixed>> $messages
-     * @param string[] $knownTypes
+     * @param array<int, array<string, mixed>>              $messages
+     * @param string[]                                      $knownTypes
      * @param array<int, \App\Domain\Communication\Persona> $availablePersonas
+     *
      * @return array{system: string, user: string}
      */
     private function buildClassificationPrompt(array $messages, array $knownTypes, array $availablePersonas): array
@@ -137,6 +142,7 @@ class ScamClassifier
 
         // Format available personas list
         $personasList = [];
+
         foreach ($availablePersonas as $persona) {
             $personasList[] = sprintf(
                 '  - %s: %s (%s)',

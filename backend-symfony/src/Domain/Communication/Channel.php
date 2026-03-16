@@ -14,7 +14,7 @@ class Channel
     #[ORM\Id]
     #[ORM\Column(name: 'channel_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $channelId;
+    private int $channelId; // @phpstan-ignore-line
 
     #[ORM\Column(type: 'string', length: 32, unique: true)]
     private string $code;

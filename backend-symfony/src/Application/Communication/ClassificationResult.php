@@ -10,8 +10,8 @@ namespace App\Application\Communication;
 final class ClassificationResult
 {
     /**
-     * @param array{label_en: string, label_fr: string}|null $personaData New type labels (deprecated old persona data)
-     * @param string[]|null $suggestedPersonaCodes List of suggested persona codes for new scam types
+     * @param array{label_en?: string, label_fr?: string, persona_code?: string, persona_label?: string, persona_tone?: string, system_prompt?: string}|null $personaData           New type labels and optional persona data
+     * @param string[]|null                                                                                                                                  $suggestedPersonaCodes List of suggested persona codes for new scam types
      */
     public function __construct(
         public readonly string $scamTypeCode,
@@ -36,7 +36,7 @@ final class ClassificationResult
     /**
      * Get persona data if new persona was created (deprecated - use suggestedPersonaCodes)
      *
-     * @return array{label_en: string, label_fr: string}|null
+     * @return array{label_en?: string, label_fr?: string, persona_code?: string, persona_label?: string, persona_tone?: string, system_prompt?: string}|null
      */
     public function getPersonaData(): ?array
     {

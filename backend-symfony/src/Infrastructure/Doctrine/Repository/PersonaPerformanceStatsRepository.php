@@ -26,10 +26,6 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     /**
      * Récupère les stats d'un persona pour un scam_type donné.
      * Retourne null si aucune stat n'existe (cold start).
-     *
-     * @param Persona $persona
-     * @param ScamType $scamType
-     * @return PersonaPerformanceStatsEntity|null
      */
     public function findByPersonaAndScamType(Persona $persona, ScamType $scamType): ?PersonaPerformanceStatsEntity
     {
@@ -43,7 +39,6 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
      * Récupère toutes les stats pour un scam_type donné.
      * Utilisé par PersonaOptimizer pour sélectionner le meilleur persona.
      *
-     * @param ScamType $scamType
      * @return PersonaPerformanceStatsEntity[]
      */
     public function findAllByScamType(ScamType $scamType): array
@@ -58,7 +53,6 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
      * Récupère toutes les stats pour un persona donné.
      * Utile pour afficher la performance d'un persona sur tous les scam types.
      *
-     * @param Persona $persona
      * @return PersonaPerformanceStatsEntity[]
      */
     public function findAllByPersona(Persona $persona): array
@@ -75,10 +69,6 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
      *
      * ⚠️ IMPORTANT : Cette méthode ne fait PAS de persist() automatique.
      * Vous devez appeler $em->persist() et $em->flush() après.
-     *
-     * @param Persona $persona
-     * @param ScamType $scamType
-     * @return PersonaPerformanceStatsEntity
      */
     public function findOrCreate(Persona $persona, ScamType $scamType): PersonaPerformanceStatsEntity
     {
@@ -101,9 +91,7 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
      * Compte le nombre de personas en cold start pour un scam_type.
      * Un persona est en cold start si sessions_count < 3.
      *
-     * @param ScamType $scamType
      * @param int $coldStartThreshold (default: 3)
-     * @return int
      */
     public function countColdStartPersonas(ScamType $scamType, int $coldStartThreshold = 3): int
     {
@@ -122,9 +110,6 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     /**
      * Récupère le meilleur persona (reward_avg max) pour un scam_type.
      * Retourne null si aucune stat n'existe.
-     *
-     * @param ScamType $scamType
-     * @return PersonaPerformanceStatsEntity|null
      */
     public function findBestPerformingPersona(ScamType $scamType): ?PersonaPerformanceStatsEntity
     {
@@ -145,8 +130,8 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     /**
      * Récupère les N meilleurs personas pour un scam_type.
      *
-     * @param ScamType $scamType
      * @param int $limit (default: 5)
+     *
      * @return PersonaPerformanceStatsEntity[]
      */
     public function findTopPerformingPersonas(ScamType $scamType, int $limit = 5): array
@@ -195,6 +180,7 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
         return array_map(
             /**
              * @param array{scam_type_code: string, total_sessions: string, avg_reward: string} $row
+             *
              * @return array{scam_type_code: string, total_sessions: int, avg_reward: float}
              */
             static function (array $row): array {
@@ -211,7 +197,6 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     /**
      * Sauvegarde une entité (raccourci pour persist + flush).
      *
-     * @param PersonaPerformanceStatsEntity $entity
      * @param bool $flush (default: true)
      */
     public function save(PersonaPerformanceStatsEntity $entity, bool $flush = true): void
@@ -226,7 +211,6 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     /**
      * Supprime une entité (raccourci pour remove + flush).
      *
-     * @param PersonaPerformanceStatsEntity $entity
      * @param bool $flush (default: true)
      */
     public function remove(PersonaPerformanceStatsEntity $entity, bool $flush = true): void

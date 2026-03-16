@@ -468,7 +468,7 @@ class IocHandler
      * This method is used by n8n workflows to update IOC enrichment data
      * (URLScan, VirusTotal) after IOCs have been persisted by extractIocsFromMessage().
      *
-     * @param string $obsId Observation ID (UUID)
+     * @param string               $obsId      Observation ID (UUID)
      * @param array<string, mixed> $enrichment Enrichment data (urlscan, virustotal)
      *
      * @throws \RuntimeException If IOC not found
@@ -519,12 +519,15 @@ class IocHandler
     /**
      * Extract IOCs from a message body using regex, LLM, or hybrid approach
      *
-     * @param string $msgId Message ID
-     * @param string $method Extraction method: 'regex', 'llm', or 'hybrid'
-     * @param array $types IOC types to extract (empty = all types)
-     * @param bool $persist Whether to persist IOCs to database and return obs_id
-     * @return array Array of IOCs found (with obs_id if $persist=true)
+     * @param string             $msgId   Message ID
+     * @param string             $method  Extraction method: 'regex', 'llm', or 'hybrid'
+     * @param array              $types   IOC types to extract (empty = all types)
+     * @param bool               $persist Whether to persist IOCs to database and return obs_id
+     * @param array<int, string> $types
+     *
      * @throws \RuntimeException if message not found
+     *
+     * @return array<int, array<string, mixed>> Array of IOCs found (with obs_id if $persist=true)
      */
     public function extractIocsFromMessage(string $msgId, string $method = 'hybrid', array $types = [], bool $persist = false): array
     {
@@ -578,7 +581,12 @@ class IocHandler
         $seen = [];
 
         foreach ($iocs as $ioc) {
-            $key = $ioc['type'] . ':' . $ioc['value_norm'];
+            /** @var string $iocType */
+            $iocType = $ioc['type'] ?? '';
+            /** @var string $iocValueNorm */
+            $iocValueNorm = $ioc['value_norm'] ?? '';
+            $key = $iocType . ':' . $iocValueNorm;
+
             if (!isset($seen[$key])) {
                 $uniqueIocs[] = $ioc;
                 $seen[$key] = true;
@@ -588,6 +596,7 @@ class IocHandler
         // Persist IOCs if requested
         if ($persist) {
             $persistedIocs = [];
+
             foreach ($uniqueIocs as $ioc) {
                 $payload = [
                     'msg_id' => $msgId,
@@ -619,6 +628,7 @@ class IocHandler
                     continue;
                 }
             }
+
             return $persistedIocs;
         }
 
@@ -628,9 +638,10 @@ class IocHandler
     /**
      * Extract IOCs using regex patterns
      *
-     * @param string $text Text to extract IOCs from
-     * @param array $types IOC types to extract (empty = all)
-     * @return array Array of IOCs
+     * @param string             $text  Text to extract IOCs from
+     * @param array<int, string> $types IOC types to extract (empty = all)
+     *
+     * @return array<int, array<string, mixed>> Array of IOCs
      */
     private function extractIocsWithRegex(string $text, array $types = []): array
     {
@@ -711,6 +722,7 @@ class IocHandler
     private function isPrivateIp(string $ip): bool
     {
         $long = ip2long($ip);
+
         if ($long === false) {
             return true;
         }

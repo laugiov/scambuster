@@ -561,6 +561,7 @@ final class MessageController
                 'message_exists' => $message !== null,
                 'deleted_at' => $message ? $message->getDeletedAt() : 'n/a',
             ]);
+
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
         }
 
@@ -572,6 +573,7 @@ final class MessageController
 
         // Parse request body
         $data = json_decode($request->getContent(), true);
+
         if ($data === null && $request->getContent() !== '' && $request->getContent() !== '{}') {
             return new JsonResponse(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
@@ -589,6 +591,7 @@ final class MessageController
 
         // Validate method
         $validMethods = ['regex', 'llm', 'hybrid'];
+
         if (!in_array($method, $validMethods, true)) {
             return new JsonResponse(
                 ['error' => 'Invalid method. Must be one of: ' . implode(', ', $validMethods)],
@@ -598,6 +601,7 @@ final class MessageController
 
         // Extract IOCs using IocHandler
         $startTime = microtime(true);
+
         try {
             $this->logger->info('[IOC-EXTRACT-DEBUG] Calling IocHandler->extractIocsFromMessage', [
                 'msg_id' => $msgId,
@@ -635,6 +639,7 @@ final class MessageController
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }
     }

@@ -55,7 +55,7 @@ final class GetCampaignMessagesHandler
                 'subject' => $message->getSubject(),
                 'from' => $message->getHeaders()['from'] ?? null,
                 'received_at' => $message->getTsMsg()->format(\DateTimeInterface::ATOM),
-                'body_preview' => mb_substr($message->getBodyText() ?? '', 0, 200),
+                'body_preview' => mb_substr($message->getBodyText(), 0, 200),
             ];
         }, $messages);
 

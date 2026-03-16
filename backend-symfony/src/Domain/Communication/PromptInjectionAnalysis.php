@@ -14,13 +14,13 @@ namespace App\Domain\Communication;
 final readonly class PromptInjectionAnalysis
 {
     /**
-     * @param float  $riskScore           Overall risk score [0.0, 1.0]
-     * @param array  $detectedTechniques  List of detected techniques [{technique, evidence, severity}]
-     * @param float  $confidence          Analysis confidence [0.0, 1.0]
-     * @param string $summary             Brief human-readable explanation
-     * @param array  $patternMatches      Layer 1 regex matches (may be empty)
-     * @param string $modelVersion        LLM model used for Layer 2 (empty if Layer 2 skipped)
-     * @param \DateTimeImmutable $analyzedAt Timestamp of analysis
+     * @param float                                                                    $riskScore          Overall risk score [0.0, 1.0]
+     * @param array<int, array{technique: string, evidence: string, severity: string}> $detectedTechniques List of detected techniques
+     * @param float                                                                    $confidence         Analysis confidence [0.0, 1.0]
+     * @param string                                                                   $summary            Brief human-readable explanation
+     * @param array<int, string>                                                       $patternMatches     Layer 1 regex matches (may be empty)
+     * @param string                                                                   $modelVersion       LLM model used for Layer 2 (empty if Layer 2 skipped)
+     * @param \DateTimeImmutable                                                       $analyzedAt         Timestamp of analysis
      *
      * @throws \InvalidArgumentException If scores are out of [0.0, 1.0] range
      */
@@ -118,13 +118,22 @@ final readonly class PromptInjectionAnalysis
      */
     public static function fromArray(array $data): self
     {
+        /** @var float $riskScore */
+        $riskScore = $data['risk_score'] ?? 0.0;
+        /** @var float $confidence */
+        $confidence = $data['confidence'] ?? 0.0;
+        /** @var string $summary */
+        $summary = $data['summary'] ?? '';
+        /** @var string $modelVersion */
+        $modelVersion = $data['model_version'] ?? '';
+
         return new self(
-            riskScore: (float) ($data['risk_score'] ?? 0.0),
+            riskScore: (float) $riskScore,
             detectedTechniques: $data['detected_techniques'] ?? [],
-            confidence: (float) ($data['confidence'] ?? 0.0),
-            summary: (string) ($data['summary'] ?? ''),
+            confidence: (float) $confidence,
+            summary: (string) $summary,
             patternMatches: $data['pattern_matches'] ?? [],
-            modelVersion: (string) ($data['model_version'] ?? ''),
+            modelVersion: (string) $modelVersion,
             analyzedAt: new \DateTimeImmutable($data['analyzed_at'] ?? 'now'),
         );
     }

@@ -11,9 +11,9 @@ use Doctrine\Persistence\ManagerRegistry;
  * @extends ServiceEntityRepository<User>
  *
  * @method User|null find(mixed $id, ?int $lockMode = null, ?int $lockVersion = null)
- * @method User|null findOneBy(array $criteria, ?array $orderBy = null)
+ * @method User|null findOneBy(array<string, mixed> $criteria, ?array<string, string> $orderBy = null)
  * @method User[]    findAll()
- * @method User[]    findBy(array $criteria, ?array $orderBy = null, ?int $limit = null, ?int $offset = null)
+ * @method User[]    findBy(array<string, mixed> $criteria, ?array<string, string> $orderBy = null, ?int $limit = null, ?int $offset = null)
  */
 class UserRepository extends ServiceEntityRepository
 {

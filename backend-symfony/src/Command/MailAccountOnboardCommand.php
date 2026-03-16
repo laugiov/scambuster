@@ -47,10 +47,17 @@ class MailAccountOnboardCommand extends Command
         $password = $input->getOption('password');
         $endpoint = $input->getOption('endpoint');
         $ownerId = $input->getOption('owner-id');
-        $protocol = $input->getOption('protocol') ?? 'IMAP';
-        $scopes = json_decode($input->getOption('scopes') ?? '["mail.read"]', true);
+        /** @var string $protocolOption */
+        $protocolOption = $input->getOption('protocol') ?? 'IMAP';
+        $protocol = $protocolOption;
+        /** @var string $scopesOption */
+        $scopesOption = $input->getOption('scopes') ?? '["mail.read"]';
+        /** @var array<string>|null $scopes */
+        $scopes = json_decode($scopesOption, true);
         $isActive = filter_var($input->getOption('active'), FILTER_VALIDATE_BOOLEAN);
-        $port = $input->getOption('port') !== null ? (int)$input->getOption('port') : null;
+        /** @var string|null $portOption */
+        $portOption = $input->getOption('port');
+        $port = $portOption !== null ? (int) $portOption : null;
         $secure = $input->getOption('secure') !== null ? filter_var($input->getOption('secure'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE) : null;
 
         if (!$login || !$password || !$endpoint || !$ownerId) {
@@ -121,8 +128,10 @@ class MailAccountOnboardCommand extends Command
         $output->writeln('<info>Mail account onboarded successfully!</info>');
         $output->writeln("Account ID: $accountId");
         $output->writeln("Login hash: $loginHash");
-        $output->writeln("Endpoint: $endpoint");
-        $output->writeln("Protocol: $protocol");
+        /** @var string $endpointStr */
+        $endpointStr = $endpoint;
+        $output->writeln('Endpoint: ' . $endpointStr);
+        $output->writeln('Protocol: ' . $protocol);
         $output->writeln('Scopes: ' . json_encode($scopes));
         $output->writeln('Active: ' . ($isActive ? 'true' : 'false'));
         $output->writeln("Secret stored in Vault at: secret/data/scambuster/imap/$loginHash");

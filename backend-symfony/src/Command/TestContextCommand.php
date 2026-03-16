@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Application\Communication\ReplyHandler;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -21,7 +20,6 @@ final class TestContextCommand extends Command
 {
     public function __construct(
         private readonly ReplyHandler $replyHandler,
-        private readonly LoggerInterface $logger
     ) {
         parent::__construct();
     }
@@ -34,6 +32,7 @@ final class TestContextCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        /** @var string $convId */
         $convId = $input->getArgument('conv_id');
 
         $io->title("Testing getConversationContext() for conversation: {$convId}");
@@ -43,11 +42,15 @@ final class TestContextCommand extends Command
 
             if (!$context) {
                 $io->error('Conversation not found');
+
                 return Command::FAILURE;
             }
 
             $io->section('Raw Context Output');
-            $io->writeln(json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+            $io->writeln(json_encode($context, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) ?: '{}');
+
+            /** @var array<string, mixed> $scamTypeCtx */
+            $scamTypeCtx = $context['scam_type'] ?? [];
 
             $io->section('Key Fields');
             $io->table(
@@ -55,8 +58,8 @@ final class TestContextCommand extends Command
                 [
                     ['conv_id', $context['conv_id'] ?? 'NULL'],
                     ['status', $context['status'] ?? 'NULL'],
-                    ['scam_type.code', $context['scam_type']['code'] ?? 'NULL'],
-                    ['scam_type.label_fr', $context['scam_type']['label_fr'] ?? 'NULL'],
+                    ['scam_type.code', $scamTypeCtx['code'] ?? 'NULL'],
+                    ['scam_type.label_fr', $scamTypeCtx['label_fr'] ?? 'NULL'],
                     ['persona', $context['persona'] ?? 'NULL'],
                     ['message_count', count($context['last_messages'] ?? [])],
                     ['ioc_count', count($context['extracted_iocs'] ?? [])],
@@ -64,10 +67,12 @@ final class TestContextCommand extends Command
             );
 
             $io->success('Context retrieved successfully');
+
             return Command::SUCCESS;
         } catch (\Throwable $e) {
             $io->error('Error: ' . $e->getMessage());
             $io->writeln('Trace: ' . $e->getTraceAsString());
+
             return Command::FAILURE;
         }
     }

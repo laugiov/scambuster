@@ -105,6 +105,7 @@ class CampaignRule
 
     /**
      * Récupère le SQL compilé brut (pour compatibilité legacy).
+     *
      * @deprecated Utiliser getCompiledData() à la place
      */
     public function getCompiledSql(): ?string
@@ -113,13 +114,15 @@ class CampaignRule
             return null;
         }
 
-        return json_encode($this->compiledSql);
+        $encoded = json_encode($this->compiledSql);
+
+        return $encoded !== false ? $encoded : null;
     }
 
     /**
      * Récupère les données compilées (SQL + params).
      *
-     * @return array{sql: string, params: array<string, mixed>}|null
+     * @return array<string, mixed>|null
      */
     public function getCompiledData(): ?array
     {
@@ -178,6 +181,7 @@ class CampaignRule
      */
     /**
      * Enregistre le SQL compilé brut (pour compatibilité legacy).
+     *
      * @deprecated Utiliser setCompiledData() à la place
      */
     public function setCompiledSql(string $sql): void
@@ -200,7 +204,7 @@ class CampaignRule
     /**
      * Enregistre les données compilées (SQL + paramètres).
      *
-     * @param array{sql: string, params: array<string, mixed>} $compiledData
+     * @param array<string, mixed> $compiledData
      */
     public function setCompiledData(array $compiledData): void
     {

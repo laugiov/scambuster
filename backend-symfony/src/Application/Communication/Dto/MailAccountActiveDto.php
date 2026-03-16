@@ -6,6 +6,9 @@ namespace App\Application\Communication\Dto;
 
 final class MailAccountActiveDto
 {
+    /**
+     * @param array<int, string> $oauth_scopes
+     */
     public function __construct(
         public string $account_id,
         public string $protocol,
@@ -17,6 +20,7 @@ final class MailAccountActiveDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

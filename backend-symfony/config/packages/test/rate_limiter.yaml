@@ -1,0 +1,17 @@
+# Disable LLM pipeline rate limiters in test environment
+framework:
+  rate_limiter:
+    replies_per_conversation:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
+    llm_calls_per_hour:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '1 hour'
+
+    active_conversations_per_day:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'

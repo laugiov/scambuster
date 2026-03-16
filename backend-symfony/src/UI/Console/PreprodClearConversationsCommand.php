@@ -40,9 +40,11 @@ class PreprodClearConversationsCommand extends Command
 
         // Vérifier qu'on est bien en preprod
         $dbUrl = $_ENV['DATABASE_URL'] ?? '';
+
         if (!str_contains($dbUrl, 'preprod')) {
             $io->error('ATTENTION: Cette commande ne peut être exécutée que sur la base preprod!');
             $io->note('DATABASE_URL doit contenir "preprod"');
+
             return Command::FAILURE;
         }
 
@@ -52,6 +54,7 @@ class PreprodClearConversationsCommand extends Command
 
         if ($countConv === 0) {
             $io->success('Aucune conversation à supprimer');
+
             return Command::SUCCESS;
         }
 
@@ -68,6 +71,7 @@ class PreprodClearConversationsCommand extends Command
         if (!$input->getOption('force')) {
             if (!$io->confirm('Voulez-vous VRAIMENT supprimer toutes ces données ?', false)) {
                 $io->warning('Opération annulée');
+
                 return Command::SUCCESS;
             }
         }
@@ -95,6 +99,7 @@ class PreprodClearConversationsCommand extends Command
             return Command::SUCCESS;
         } catch (\Throwable $e) {
             $io->error('Erreur lors de la suppression: ' . $e->getMessage());
+
             return Command::FAILURE;
         }
     }

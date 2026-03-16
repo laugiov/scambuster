@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Preprod;
 
+use App\Application\Communication\IocHandler;
 use App\Domain\Communication\Channel;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationStatus;
@@ -12,7 +13,6 @@ use App\Domain\Communication\MailAccount;
 use App\Domain\Communication\Message;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
-use App\Application\Communication\IocHandler;
 use App\Infrastructure\LLM\LLMServiceInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -46,11 +46,10 @@ class ConversationGenerator
     /**
      * Génère une conversation scam réaliste
      *
-     * @param ScamType $scamType Type de scam
-     * @param Persona $persona Persona à utiliser
-     * @param Channel $channel Canal de communication
-     * @param int $messageCount Nombre de messages (2-15)
-     * @return Conversation
+     * @param ScamType $scamType     Type de scam
+     * @param Persona  $persona      Persona à utiliser
+     * @param Channel  $channel      Canal de communication
+     * @param int      $messageCount Nombre de messages (2-15)
      */
     public function generateConversation(
         ScamType $scamType,
@@ -346,6 +345,7 @@ PROMPT;
                 'response' => $response,
                 'cleaned' => $cleaned,
             ]);
+
             throw new \RuntimeException('LLM did not return valid JSON array');
         }
 
@@ -569,6 +569,7 @@ PROMPT;
         // Limite de sécurité
         if ($turnNumber >= self::MAX_TURNS) {
             $this->logger->debug('Scammer stops: MAX_TURNS reached', ['turn' => $turnNumber]);
+
             return false;
         }
 
@@ -590,12 +591,14 @@ PROMPT;
 
         // Tirage aléatoire
         $randomValue = mt_rand(1, 100) / 100;
+
         if ($randomValue < $abandonProbability) {
             $this->logger->debug('Scammer stops: random abandon', [
                 'turn' => $turnNumber,
                 'probability' => $abandonProbability,
                 'random' => $randomValue,
             ]);
+
             return false;
         }
 
@@ -639,14 +642,14 @@ PROMPT;
      */
     private function getRecentVictimMessages(array $conversationHistory, int $count): string
     {
-        $victimMessages = array_filter($conversationHistory, fn($msg) => $msg['role'] === 'victim');
+        $victimMessages = array_filter($conversationHistory, fn ($msg) => $msg['role'] === 'victim');
         $recent = array_slice($victimMessages, -$count);
 
         if (empty($recent)) {
-            return "(No victim messages yet)";
+            return '(No victim messages yet)';
         }
 
-        return implode("\n---\n", array_map(fn($msg) => $msg['content'], $recent));
+        return implode("\n---\n", array_map(fn ($msg) => $msg['content'], $recent));
     }
 
     /**
@@ -656,7 +659,7 @@ PROMPT;
     private function formatConversationHistoryForPrompt(array $conversationHistory, int $maxMessages = 8): string
     {
         if (empty($conversationHistory)) {
-            return "(Start of conversation)";
+            return '(Start of conversation)';
         }
 
         // Keep only the N most recent messages to limit prompt size
@@ -664,6 +667,7 @@ PROMPT;
 
         $formatted = [];
         $startIndex = max(0, count($conversationHistory) - $maxMessages);
+
         foreach ($recentHistory as $idx => $msg) {
             $role = strtoupper($msg['role']);
             $formatted[] = sprintf("[Message %d - %s]\n%s", $startIndex + $idx + 1, $role, $msg['content']);
@@ -671,7 +675,7 @@ PROMPT;
 
         $prefix = count($conversationHistory) > $maxMessages
             ? sprintf("(... %d previous messages omitted ...)\n\n", count($conversationHistory) - $maxMessages)
-            : "";
+            : '';
 
         return $prefix . implode("\n\n---\n\n", $formatted);
     }
@@ -725,10 +729,10 @@ PROMPT;
 
         // Parser la réponse pour extraire les messages (séparés par "---MESSAGE---")
         $messages = array_map('trim', explode('---MESSAGE---', trim($response)));
-        $messages = array_filter($messages, fn($m) => !empty($m));
+        $messages = array_filter($messages, fn ($m) => !empty($m));
 
         // Nettoyer les en-têtes parasites "Message X (SCAMMER)" ou "Message X (VICTIM)"
-        $messages = array_map(function($message) {
+        $messages = array_map(function ($message) {
             // Supprimer les lignes comme "Message 1 (SCAMMER)" au début
             return preg_replace('/^Message\s+\d+\s*\([A-Z]+\)\s*\n?/i', '', trim($message));
         }, $messages);
@@ -739,8 +743,8 @@ PROMPT;
             while (count($messages) < $messageCount) {
                 $isScammer = (count($messages) % 2 === 0);
                 $messages[] = $isScammer
-                    ? "Thank you for your response. Could you provide more details?"
-                    : "Yes, of course. What exactly would you like to know?";
+                    ? 'Thank you for your response. Could you provide more details?'
+                    : 'Yes, of course. What exactly would you like to know?';
             }
         }
 
@@ -937,7 +941,7 @@ PROMPT;
     private function getProgressionStep(array $context, int $messageNumber, bool $isScammer): string
     {
         if (!isset($context['progression'])) {
-            return "Continue the conversation naturally";
+            return 'Continue the conversation naturally';
         }
 
         $progression = $context['progression'];
@@ -949,7 +953,7 @@ PROMPT;
             $stepKey = 'victim_' . ceil($messageNumber / 2);
         }
 
-        return $progression[$stepKey] ?? "Continue the conversation coherently";
+        return $progression[$stepKey] ?? 'Continue the conversation coherently';
     }
 
     /**
@@ -958,10 +962,11 @@ PROMPT;
     private function buildConversationHistory(array $messages): string
     {
         if (empty($messages)) {
-            return "(Start of conversation)";
+            return '(Start of conversation)';
         }
 
         $history = [];
+
         foreach ($messages as $idx => $msg) {
             $role = $msg['direction']->getCode() === 'in' ? 'SCAMMER' : 'VICTIM';
             $history[] = sprintf("[Message %d - %s]\n%s\n", $idx + 1, $role, $msg['content']);
@@ -1001,8 +1006,9 @@ PROMPT;
     private function applyVariations(string $template, array $variations): string
     {
         foreach ($variations as $key => $value) {
-            $template = str_replace("{{" . $key . "}}", (string)$value, $template);
+            $template = str_replace('{{' . $key . '}}', (string)$value, $template);
         }
+
         return $template;
     }
 
@@ -1042,6 +1048,7 @@ PROMPT;
         ];
 
         $code = $scamType->getCode();
+
         return $templates[$code] ?? [
             [
                 'scenario' => 'Generic scam',
@@ -1110,6 +1117,7 @@ PROMPT;
         ];
 
         $code = $scamType->getCode();
+
         return $templates[$code] ?? ['Action required'];
     }
 
@@ -1195,6 +1203,7 @@ PROMPT;
             $this->logger->error('[IOC-HTTP-AUTH] Failed to retrieve JWT token', [
                 'error' => $e->getMessage(),
             ]);
+
             throw new \RuntimeException('Failed to authenticate with API: ' . $e->getMessage(), 0, $e);
         }
     }
@@ -1203,6 +1212,7 @@ PROMPT;
      * Extrait les IOCs d'un message via l'API HTTP (comme n8n workflow)
      *
      * @param string $msgId UUID du message
+     *
      * @return int Nombre d'IOCs détectés
      */
     private function extractIocsViaHttp(string $msgId): int

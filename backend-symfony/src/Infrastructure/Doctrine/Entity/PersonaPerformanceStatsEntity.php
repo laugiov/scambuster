@@ -70,8 +70,6 @@ class PersonaPerformanceStatsEntity
     /**
      * Convertit cette entité en Value Object PersonaPerformance (Domain layer).
      * Permet de passer du monde Infrastructure au monde Domain.
-     *
-     * @return PersonaPerformance
      */
     public function toPersonaPerformance(): PersonaPerformance
     {
@@ -88,6 +86,7 @@ class PersonaPerformanceStatsEntity
      * Cette méthode est MUTABLE (modifie l'entité) car c'est une entité Doctrine.
      *
      * @param float $newReward Nouveau reward [0.0, 1.0]
+     *
      * @throws \InvalidArgumentException Si reward invalide
      */
     public function addReward(float $newReward): void

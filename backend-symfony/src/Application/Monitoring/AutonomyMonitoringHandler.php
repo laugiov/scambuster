@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace App\Application\Monitoring;
 
-use App\Domain\Communication\Conversation;
-use App\Domain\Communication\ConversationStatus;
-use App\Domain\Communication\Message;
-use App\Domain\Communication\ObservedIoc;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -23,7 +19,8 @@ final class AutonomyMonitoringHandler
 {
     public function __construct(
         private readonly EntityManagerInterface $em
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<string, mixed>
@@ -106,7 +103,7 @@ final class AutonomyMonitoringHandler
         $total = $this->fetchInt('SELECT COUNT(*) FROM observed_ioc');
         $uniqueIndicators = $this->fetchInt('SELECT COUNT(*) FROM indicator');
         $last24h = $this->fetchInt(
-            "SELECT COUNT(*) FROM observed_ioc WHERE ts_observed > :threshold",
+            'SELECT COUNT(*) FROM observed_ioc WHERE ts_observed > :threshold',
             ['threshold' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s')]
         );
 
@@ -148,6 +145,7 @@ final class AutonomyMonitoringHandler
             );
 
             $totalSessions = 0;
+
             foreach ($stats as $stat) {
                 /** @var int|string $sc */
                 $sc = $stat['sessions_count'];
@@ -156,10 +154,12 @@ final class AutonomyMonitoringHandler
 
             if ($totalSessions < 10) {
                 $details[$code] = false;
+
                 continue;
             }
 
             $maxShare = 0.0;
+
             foreach ($stats as $stat) {
                 /** @var int|string $sc */
                 $sc = $stat['sessions_count'];

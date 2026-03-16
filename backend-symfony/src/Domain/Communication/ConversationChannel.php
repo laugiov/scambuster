@@ -8,7 +8,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'conversation_channel')]
-#[ORM\IdClass(ConversationChannelId::class)]
+#[ORM\IdClass(ConversationChannelId::class)] // @phpstan-ignore-line
 class ConversationChannel
 {
     #[ORM\Id]

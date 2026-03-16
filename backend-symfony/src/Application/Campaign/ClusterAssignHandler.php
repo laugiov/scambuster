@@ -50,7 +50,9 @@ final class ClusterAssignHandler
             $isNew = true;
 
             // Initialiser centroid avec simhash du premier message
-            $campaign->setCentroidSimhash($result['features']['text']['simhash']);
+            /** @var array<string, array<string, mixed>> $features */
+            $features = $result['features'];
+            $campaign->setCentroidSimhash($features['text']['simhash']);
         } else {
             $campaignId = $result['campaign_id'];
             $isNew = false;
@@ -65,9 +67,7 @@ final class ClusterAssignHandler
         );
 
         // Stocker les features pour analyse ultérieure
-        if (isset($result['features'])) {
-            $messageCampaign->setFeatures($result['features']);
-        }
+        $messageCampaign->setFeatures($result['features']);
 
         $this->em->persist($messageCampaign);
 

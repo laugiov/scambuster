@@ -23,12 +23,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private Uuid $tenantId;
 
     #[ORM\Column(length: 255, unique: true)]
-    private string $email;
+    private string $email = '';
 
     // Same logic: we force snake_case
     #[ORM\Column(name: 'password_hash', length: 255)]
-    private string $passwordHash;
+    private string $passwordHash = '';
 
+    /** @var array<string> */
     #[ORM\Column(type: 'json')]
     private array $roles = [];
 
@@ -73,6 +74,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         return $this->roles ?: ['ROLE_USER'];
     }
+    /** @param array<string> $r */
     public function setRoles(array $r): self
     {
         $this->roles = $r;
@@ -81,9 +83,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     }
 
     // --- UserInterface ---
+    /** @return non-empty-string */
     public function getUserIdentifier(): string
     {
-        return $this->email;
+        return $this->email !== '' ? $this->email : 'unknown';
     }
     public function eraseCredentials(): void
     { /* nothing */

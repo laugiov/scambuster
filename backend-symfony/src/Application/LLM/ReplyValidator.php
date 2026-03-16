@@ -27,9 +27,9 @@ final class ReplyValidator
     /**
      * Validate a generated reply text using LLM judge
      *
-     * @param string               $text             Generated reply text to validate
-     * @param string               $personaCode      Persona code for validation context
-     * @param array<string>|null   $previousMessages Previous victim messages (unused, kept for backward compatibility)
+     * @param string             $text             Generated reply text to validate
+     * @param string             $personaCode      Persona code for validation context
+     * @param array<string>|null $previousMessages Previous victim messages (unused, kept for backward compatibility)
      *
      * @throws \RuntimeException If LLM call fails or returns invalid JSON
      *
@@ -79,6 +79,10 @@ final class ReplyValidator
 
             $verdict = json_decode($jsonText, true, 512, JSON_THROW_ON_ERROR);
 
+            if (!is_array($verdict)) {
+                throw new \RuntimeException('Invalid validator response: not a JSON object');
+            }
+
             // Validate verdict structure
             if (!isset($verdict['approved']) || !is_bool($verdict['approved'])) {
                 throw new \RuntimeException('Invalid validator response: missing or invalid "approved" field');
@@ -106,7 +110,7 @@ final class ReplyValidator
         } catch (\JsonException $e) {
             $this->logger->error('LLM validator returned invalid JSON', [
                 'error' => $e->getMessage(),
-                'response' => $response ?? null,
+                'response' => $response,
             ]);
 
             throw new \RuntimeException(

@@ -22,10 +22,11 @@ final readonly class ConversationMetrics
     private const WEIGHT_COMPLETION = 0.10;
 
     /**
-     * @param int $durationSec Durée de la conversation en secondes (>= 0)
-     * @param int $iocsTotal Nombre total d'IOCs capturés (>= 0)
-     * @param int $iocsSensibles Nombre d'IOCs haute valeur (IBAN, phone, crypto) (>= 0)
-     * @param bool $isCompleted True si la conversation s'est terminée normalement
+     * @param int  $durationSec   Durée de la conversation en secondes (>= 0)
+     * @param int  $iocsTotal     Nombre total d'IOCs capturés (>= 0)
+     * @param int  $iocsSensibles Nombre d'IOCs haute valeur (IBAN, phone, crypto) (>= 0)
+     * @param bool $isCompleted   True si la conversation s'est terminée normalement
+     *
      * @throws \InvalidArgumentException Si les valeurs sont invalides
      */
     public function __construct(
@@ -61,8 +62,9 @@ final readonly class ConversationMetrics
      * Normalise une valeur dans [0, 1] selon min-max scaling.
      *
      * @param int|float $value Valeur à normaliser
-     * @param int|float $min Valeur minimale
-     * @param int|float $max Valeur maximale
+     * @param int|float $min   Valeur minimale
+     * @param int|float $max   Valeur maximale
+     *
      * @return float Valeur normalisée [0.0, 1.0]
      */
     private function normalize(int|float $value, int|float $min, int|float $max): float
@@ -72,6 +74,7 @@ final readonly class ConversationMetrics
         }
 
         $normalized = ($value - $min) / ($max - $min);
+
         return max(0.0, min(1.0, $normalized)); // Clamping
     }
 
@@ -135,6 +138,7 @@ final readonly class ConversationMetrics
     public function __toString(): string
     {
         $reward = $this->calculateReward();
+
         return sprintf(
             'ConversationMetrics(duration=%ds, iocs=%d/%d, completed=%s, reward=%.4f)',
             $this->durationSec,

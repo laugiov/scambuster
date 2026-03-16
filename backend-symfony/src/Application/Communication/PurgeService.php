@@ -28,6 +28,7 @@ class PurgeService
             ->andWhere('c.deletedAt IS NULL')
             ->setParameter('status', ConversationStatus::CLOSED)
             ->setParameter('dateLimit', $dateLimit);
+        /** @var Conversation[] $convs */
         $convs = $qb->getQuery()->getResult();
         $count = 0;
 
@@ -55,6 +56,7 @@ class PurgeService
             ->where('c.tsLast < :dateLimit')
             ->andWhere('c.deletedAt IS NOT NULL')
             ->setParameter('dateLimit', $dateLimit);
+        /** @var Conversation[] $convs */
         $convs = $qb->getQuery()->getResult();
         $count = count($convs);
 

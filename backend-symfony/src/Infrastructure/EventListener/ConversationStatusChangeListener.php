@@ -29,7 +29,8 @@ final class ConversationStatusChangeListener
         private readonly ConversationMetricsCollector $metricsCollector,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     public function onFlush(OnFlushEventArgs $args): void
     {

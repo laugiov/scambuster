@@ -18,6 +18,7 @@ class MessageHandler
     {
     }
 
+    /** @param array<string, mixed> $data */
     public function createMessage(array $data): ?Message
     {
         $conversation = $this->em->getRepository(Conversation::class)->find($data['conv_id']);
@@ -28,7 +29,7 @@ class MessageHandler
             return null;
         }
 
-        if (method_exists($conversation, 'getStatus') && $conversation->getStatus() && $conversation->getStatus()->value === 'closed') {
+        if ($conversation->getStatus()->value === 'closed') {
             throw new \RuntimeException('Cannot add message to closed conversation');
         }
         $msgId = uuid_create(UUID_TYPE_RANDOM);
@@ -79,8 +80,7 @@ class MessageHandler
         return true;
     }
 
-    /**
-     */
+    /** @param array<string, mixed> $data */
     public function patchMessage(string $msgId, array $data): Message|null|false
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
@@ -135,6 +135,7 @@ class MessageHandler
         return false;
     }
 
+    /** @return array<int, Attachment> */
     public function getMessageAttachments(string $msgId): array
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
@@ -146,6 +147,7 @@ class MessageHandler
         return $this->em->getRepository(Attachment::class)->findBy(['message' => $message]);
     }
 
+    /** @return array<int, ObservedIoc> */
     public function getMessageIocs(string $msgId): array
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
@@ -157,7 +159,7 @@ class MessageHandler
         return $this->em->getRepository(ObservedIoc::class)->findBy(['message' => $message]);
     }
 
-    public function addAttachmentToMessage(Message $message, $file): Attachment
+    public function addAttachmentToMessage(Message $message, \Symfony\Component\HttpFoundation\File\UploadedFile $file): Attachment
     {
         $attachment = new Attachment(
             uuid_create(UUID_TYPE_RANDOM),

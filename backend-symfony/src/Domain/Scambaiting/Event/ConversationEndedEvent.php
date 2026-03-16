@@ -17,14 +17,14 @@ use Symfony\Contracts\EventDispatcher\Event;
 final class ConversationEndedEvent extends Event
 {
     /**
-     * @param string $conversationId UUID de la conversation terminée
-     * @param string $scamTypeCode Code du scam type (ex: 'PHISHING')
-     * @param string|null $personaCode Code du persona utilisé (null si aucun)
-     * @param int $durationSec Durée de la conversation en secondes
-     * @param int $turnsCount Nombre de tours de parole
-     * @param int $iocsTotal Nombre total d'IOCs capturés
-     * @param int $iocsSensibles Nombre d'IOCs haute valeur
-     * @param bool $isCompleted True si terminée normalement (vs timeout/erreur)
+     * @param string      $conversationId UUID de la conversation terminée
+     * @param string      $scamTypeCode   Code du scam type (ex: 'PHISHING')
+     * @param string|null $personaCode    Code du persona utilisé (null si aucun)
+     * @param int         $durationSec    Durée de la conversation en secondes
+     * @param int         $turnsCount     Nombre de tours de parole
+     * @param int         $iocsTotal      Nombre total d'IOCs capturés
+     * @param int         $iocsSensibles  Nombre d'IOCs haute valeur
+     * @param bool        $isCompleted    True si terminée normalement (vs timeout/erreur)
      */
     public function __construct(
         private readonly string $conversationId,
@@ -35,7 +35,8 @@ final class ConversationEndedEvent extends Event
         private readonly int $iocsTotal,
         private readonly int $iocsSensibles,
         private readonly bool $isCompleted
-    ) {}
+    ) {
+    }
 
     public function getConversationId(): string
     {

@@ -34,7 +34,9 @@ class VaultAddImapSecretCommand extends Command
     {
         $vaultAddr = $_ENV['VAULT_ADDR'] ?? 'http://vault:8200';
         $vaultToken = $_ENV['VAULT_TOKEN'] ?? 'root';
-        $vaultPath = 'secret/data/scambuster/imap/' . $input->getArgument('login_hash');
+        /** @var string $loginHash */
+        $loginHash = $input->getArgument('login_hash');
+        $vaultPath = 'secret/data/scambuster/imap/' . $loginHash;
 
         $guzzle = new GuzzleClient(['base_uri' => $vaultAddr]);
         $payload = [

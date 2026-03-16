@@ -22,13 +22,15 @@ final class ConversationClosureService
         private readonly ConversationMetricsCollector $metricsCollector,
         private readonly EventDispatcherInterface $eventDispatcher,
         private readonly LoggerInterface $logger
-    ) {}
+    ) {
+    }
 
     /**
      * Ferme une conversation et dispatch l'événement ConversationEndedEvent.
      * Cette méthode doit être appelée par le workflow n8n WF-SCAMBAITING-END-CONVERSATION.
      *
      * @param string $convId ID de la conversation à fermer
+     *
      * @throws \RuntimeException Si la conversation n'existe pas ou est déjà fermée
      */
     public function closeConversation(string $convId): void
@@ -50,6 +52,7 @@ final class ConversationClosureService
                 'conv_id' => $convId,
                 'status' => $conversation->getStatus()->value,
             ]);
+
             return;
         }
 
@@ -92,6 +95,7 @@ final class ConversationClosureService
      * Retourne le nombre de conversations fermées avec succès.
      *
      * @param string[] $convIds Liste des IDs de conversations à fermer
+     *
      * @return int Nombre de conversations fermées
      */
     public function closeConversationsBatch(array $convIds): int

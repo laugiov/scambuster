@@ -71,6 +71,7 @@ class PreprodGenerateConversationsCommand extends Command
 
         if (empty($personas) || empty($scamTypes) || empty($channels)) {
             $io->error('Données de référence manquantes. Assurez-vous que personas, scam_types et channels sont chargés.');
+
             return Command::FAILURE;
         }
 
@@ -140,6 +141,7 @@ class PreprodGenerateConversationsCommand extends Command
                         'scam_type_id' => $item['scam_type_id'],
                         'channel_id' => $item['channel_id'],
                     ]);
+
                     continue;
                 }
 
@@ -234,10 +236,11 @@ class PreprodGenerateConversationsCommand extends Command
      *
      * Uses entity IDs instead of entity references to survive EntityManager::clear()
      *
-     * @param int $count Nombre total de conversations
-     * @param Persona[] $personas Liste des personas
+     * @param int        $count     Nombre total de conversations
+     * @param Persona[]  $personas  Liste des personas
      * @param ScamType[] $scamTypes Liste des scam types
-     * @param Channel[] $channels Liste des channels
+     * @param Channel[]  $channels  Liste des channels
+     *
      * @return array<int, array{persona_id: int, scam_type_id: int, channel_id: int, message_count: int}> Plan de génération
      */
     private function createGenerationPlan(int $count, array $personas, array $scamTypes, array $channels): array
@@ -246,6 +249,7 @@ class PreprodGenerateConversationsCommand extends Command
 
         // Créer toutes les combinaisons possibles (using IDs)
         $combinations = [];
+
         foreach ($personas as $persona) {
             foreach ($scamTypes as $scamType) {
                 $combinations[] = [
@@ -259,10 +263,11 @@ class PreprodGenerateConversationsCommand extends Command
         shuffle($combinations);
 
         // Collect channel IDs
-        $channelIds = array_map(fn(Channel $c) => $c->getChannelId(), $channels);
+        $channelIds = array_map(fn (Channel $c) => $c->getChannelId(), $channels);
 
         // Distribuer les conversations
         $combinationIndex = 0;
+
         for ($i = 0; $i < $count; $i++) {
             $combination = $combinations[$combinationIndex % count($combinations)];
 

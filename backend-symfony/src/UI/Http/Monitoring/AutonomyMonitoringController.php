@@ -18,7 +18,8 @@ final class AutonomyMonitoringController
 {
     public function __construct(
         private readonly AutonomyMonitoringHandler $handler
-    ) {}
+    ) {
+    }
 
     #[OA\Get(
         path: '/api/v1/monitoring/autonomy',

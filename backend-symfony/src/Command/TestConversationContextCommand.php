@@ -32,6 +32,7 @@ class TestConversationContextCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        /** @var string $convId */
         $convId = $input->getArgument('conv_id');
 
         $output->writeln("Testing conversation: {$convId}");
@@ -42,6 +43,7 @@ class TestConversationContextCommand extends Command
 
         if (!$conv) {
             $output->writeln('<error>Conversation not found</error>');
+
             return Command::FAILURE;
         }
 
@@ -52,6 +54,7 @@ class TestConversationContextCommand extends Command
         $output->writeln("Personas count: {$scamType->getPersonas()->count()}");
 
         $persona = $conv->getPersona();
+
         if ($persona) {
             $output->writeln("Conversation Persona ID: {$persona->getPersonaId()}");
             $output->writeln("Conversation Persona code: {$persona->getPersonaCode()}");
@@ -64,12 +67,18 @@ class TestConversationContextCommand extends Command
 
         $output->writeln('');
         $output->writeln('=== ReplyHandler getConversationContext ===');
-        $output->writeln("ScamType code: {$context['scam_type']['code']}");
-        $output->writeln("Persona code: {$context['persona']}");
+        /** @var array<string, mixed> $scamTypeCtx */
+        $scamTypeCtx = $context['scam_type'] ?? [];
+        /** @var string $scamTypeCode */
+        $scamTypeCode = $scamTypeCtx['code'] ?? 'unknown';
+        /** @var string $personaCode */
+        $personaCode = $context['persona'] ?? 'unknown';
+        $output->writeln("ScamType code: {$scamTypeCode}");
+        $output->writeln("Persona code: {$personaCode}");
 
         $output->writeln('');
         $output->writeln('=== Full Context ===');
-        $output->writeln(json_encode($context, JSON_PRETTY_PRINT));
+        $output->writeln(json_encode($context, JSON_PRETTY_PRINT) ?: '{}');
 
         return Command::SUCCESS;
     }

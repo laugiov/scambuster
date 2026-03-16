@@ -14,6 +14,7 @@ class MessageVector
     #[ORM\Column(name: 'vector_id', type: 'uuid', unique: true)]
     private string $vectorId;
 
+    /** @var array<int, float> */
     #[ORM\Column(type: 'json')]
     private array $embedding;
 
@@ -26,6 +27,9 @@ class MessageVector
     #[ORM\Column(name: 'ts_created', type: 'datetime_immutable')]
     private \DateTimeImmutable $tsCreated;
 
+    /**
+     * @param array<int, float> $embedding
+     */
     public function __construct(
         string $vectorId,
         array $embedding,
@@ -45,6 +49,7 @@ class MessageVector
         return $this->vectorId;
     }
 
+    /** @return array<int, float> */
     public function getEmbedding(): array
     {
         return $this->embedding;

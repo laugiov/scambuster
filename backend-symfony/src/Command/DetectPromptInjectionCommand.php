@@ -44,7 +44,9 @@ class DetectPromptInjectionCommand extends Command
         $dryRun = $input->getOption('dry-run');
         $force = $input->getOption('force');
         $patternOnly = $input->getOption('pattern-only');
-        $limit = (int) $input->getOption('limit');
+        /** @var string $limitOption */
+        $limitOption = $input->getOption('limit');
+        $limit = (int) $limitOption;
 
         $io->title('Prompt Injection Detection -- Forensic Analysis');
 
@@ -68,6 +70,7 @@ class DetectPromptInjectionCommand extends Command
             $qb->setMaxResults($limit);
         }
 
+        /** @var Message[] $messages */
         $messages = $qb->getQuery()->getResult();
 
         if (empty($messages)) {
@@ -105,6 +108,7 @@ class DetectPromptInjectionCommand extends Command
 
                 if ($analysis === null) {
                     $progressBar->advance();
+
                     continue;
                 }
 

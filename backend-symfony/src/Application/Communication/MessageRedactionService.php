@@ -9,9 +9,9 @@ class MessageRedactionService
     /**
      * Redact sensitive headers for monitoring/export.
      *
-     * @param array $headers Original headers array
+     * @param array<string, mixed> $headers Original headers array
      *
-     * @return array Redacted headers array
+     * @return array<string, mixed> Redacted headers array
      */
     public function redactHeaders(array $headers): array
     {

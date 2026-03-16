@@ -60,14 +60,16 @@ final class IocExtractor
     /**
      * Extract IOCs from text using LLM
      *
-     * @param string $text Text to extract IOCs from (subject + body)
+     * @param string        $text  Text to extract IOCs from (subject + body)
      * @param array<string> $types IOC types to extract (empty = all types)
+     *
      * @return array<array{type: string, value: string}> Array of extracted IOCs
      */
     public function extractIocsWithLLM(string $text, array $types = []): array
     {
         if (empty($text)) {
             $this->logger->warning('Cannot extract IOCs from empty text');
+
             return [];
         }
 
@@ -112,6 +114,7 @@ final class IocExtractor
                     'error' => $e->getMessage(),
                     'response' => substr($response, 0, 500),
                 ]);
+
                 return [];
             }
 
@@ -119,11 +122,13 @@ final class IocExtractor
                 $this->logger->error('LLM IOC extraction returned non-array data', [
                     'data_type' => gettype($data),
                 ]);
+
                 return [];
             }
 
             // Validate extracted IOCs structure
             $validatedIocs = [];
+
             foreach ($data as $ioc) {
                 if (!is_array($ioc)) {
                     continue;
@@ -131,6 +136,7 @@ final class IocExtractor
 
                 if (!isset($ioc['type']) || !isset($ioc['value'])) {
                     $this->logger->warning('Invalid IOC structure (missing type or value)', ['ioc' => $ioc]);
+
                     continue;
                 }
 
@@ -140,6 +146,7 @@ final class IocExtractor
                         'type' => $ioc['type'],
                         'allowed' => $allowedTypes,
                     ]);
+
                     continue;
                 }
 
@@ -159,6 +166,7 @@ final class IocExtractor
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return [];
         }
     }
@@ -166,8 +174,9 @@ final class IocExtractor
     /**
      * Build prompts for IOC extraction
      *
-     * @param string $text Text to extract IOCs from
+     * @param string        $text         Text to extract IOCs from
      * @param array<string> $allowedTypes IOC types to extract
+     *
      * @return array{system: string, user: string}
      */
     private function buildIocExtractionPrompt(string $text, array $allowedTypes): array

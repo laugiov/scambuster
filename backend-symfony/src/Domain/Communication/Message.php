@@ -40,12 +40,15 @@ class Message
     #[ORM\Column(name: 'body_html', type: 'text', nullable: true)]
     private ?string $bodyHtml = null;
 
+    /** @var array<string, mixed> */
     #[ORM\Column(type: 'json')]
     private array $headers;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(name: 'url_analysis', type: 'json', nullable: true)]
     private ?array $urlAnalysis = null;
 
+    /** @var array<string, mixed>|null */
     #[ORM\Column(name: 'injection_analysis', type: 'json', nullable: true)]
     private ?array $injectionAnalysis = null;
 
@@ -74,9 +77,13 @@ class Message
     #[ORM\Column(name: 'external_message_id', type: 'string', length: 255, nullable: true)]
     private ?string $externalMessageId = null;
 
+    /** @var Collection<int, Attachment> */
     #[ORM\OneToMany(targetEntity: Attachment::class, mappedBy: 'message', cascade: ['persist', 'remove'])]
     private Collection $attachments;
 
+    /**
+     * @param array<string, mixed> $headers
+     */
     public function __construct(
         string $msgId,
         Conversation $conversation,
@@ -152,11 +159,13 @@ class Message
         return $this->bodyHtml;
     }
 
+    /** @return array<string, mixed> */
     public function getHeaders(): array
     {
         return $this->headers;
     }
 
+    /** @return array<string, mixed>|null */
     public function getUrlAnalysis(): ?array
     {
         return $this->urlAnalysis;
@@ -227,21 +236,25 @@ class Message
         $this->bodyHtml = $bodyHtml;
     }
 
+    /** @param array<string, mixed> $headers */
     public function setHeaders(array $headers): void
     {
         $this->headers = $headers;
     }
 
+    /** @param array<string, mixed>|null $urlAnalysis */
     public function setUrlAnalysis(?array $urlAnalysis): void
     {
         $this->urlAnalysis = $urlAnalysis;
     }
 
+    /** @return array<string, mixed>|null */
     public function getInjectionAnalysis(): ?array
     {
         return $this->injectionAnalysis;
     }
 
+    /** @param array<string, mixed>|null $injectionAnalysis */
     public function setInjectionAnalysis(?array $injectionAnalysis): void
     {
         $this->injectionAnalysis = $injectionAnalysis;
@@ -257,9 +270,7 @@ class Message
         $this->direction = $direction;
     }
 
-    /**
-     * @return Collection<Attachment>
-     */
+    /** @return Collection<int, Attachment> */
     public function getAttachments(): Collection
     {
         return $this->attachments;

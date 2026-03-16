@@ -52,7 +52,7 @@ class Conversation
     private \DateTimeImmutable $updatedAt;
 
     #[ORM\Column(name: 'deleted_at', type: 'datetime_immutable', nullable: true)]
-    private ?\DateTimeImmutable $deletedAt = null;
+    private ?\DateTimeImmutable $deletedAt = null; // @phpstan-ignore-line
 
     #[ORM\Column(name: 'delivery', type: 'string', length: 32)]
     private string $delivery = 'DELIVERY_UNKNOWN';
@@ -204,7 +204,7 @@ class Conversation
      */
     public function markAsAbandoned(): void
     {
-        $this->status = ConversationStatus::Abandoned;
+        $this->status = ConversationStatus::ABANDONED;
     }
 
     /**
@@ -212,7 +212,7 @@ class Conversation
      */
     public function close(): void
     {
-        $this->status = ConversationStatus::Closed;
+        $this->status = ConversationStatus::CLOSED;
     }
 
     /**
@@ -220,7 +220,7 @@ class Conversation
      */
     public function reopen(): void
     {
-        $this->status = ConversationStatus::Open;
+        $this->status = ConversationStatus::OPEN;
     }
 
     /**
@@ -228,7 +228,7 @@ class Conversation
      */
     public function isActive(): bool
     {
-        return $this->status === ConversationStatus::Open;
+        return $this->status === ConversationStatus::OPEN;
     }
 
     /**
@@ -236,7 +236,7 @@ class Conversation
      */
     public function isClosed(): bool
     {
-        return $this->status === ConversationStatus::Closed;
+        return $this->status === ConversationStatus::CLOSED;
     }
 
     /**
@@ -271,6 +271,7 @@ class Conversation
     public function setDelivery(string $delivery): void
     {
         $validDeliveryStatuses = ['DELIVERY_UNKNOWN', 'SENT', 'BOUNCED', 'DELIVERED', 'READ', 'REPLIED'];
+
         if (!in_array($delivery, $validDeliveryStatuses, true)) {
             throw new \InvalidArgumentException(
                 sprintf('Invalid delivery status: %s. Must be one of: %s', $delivery, implode(', ', $validDeliveryStatuses))
@@ -298,6 +299,7 @@ class Conversation
     public function setTlp(string $tlp): void
     {
         $validTlpLevels = ['TLP_WHITE', 'TLP_GREEN', 'TLP_AMBER', 'TLP_RED'];
+
         if (!in_array($tlp, $validTlpLevels, true)) {
             throw new \InvalidArgumentException(
                 sprintf('Invalid TLP level: %s. Must be one of: %s', $tlp, implode(', ', $validTlpLevels))

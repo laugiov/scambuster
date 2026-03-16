@@ -17,9 +17,7 @@ final class STIXExporter
     /**
      * Mapping des types d'IoCs vers les STIX Cyber-observable Objects.
      *
-     * Permet d'étendre facilement avec de nouveaux types d'IoCs sans modifier la logique.
-     *
-     * Format: 'ioc_key' => ['stix_type' => '...', 'pattern_format' => '...']
+     * @var array<string, array{stix_type: string, pattern_format: string, name_prefix: string}>
      */
     private const IOC_TYPE_MAPPING = [
         'domains' => [
@@ -56,7 +54,7 @@ final class STIXExporter
 
     public function __construct(
         private readonly LoggerInterface $logger,
-        private readonly string $stixExportPath // Injecté via config
+        private readonly string $stixExportPath
     ) {
     }
 
@@ -104,7 +102,7 @@ final class STIXExporter
     /**
      * Extrait IoCs depuis le profil YAML de la campagne.
      *
-     * @return array<string, array<string>> Tableau associatif [type_ioc => [valeurs]]
+     * @return array{domains: list<string>, emails: list<string>, urls: list<string>, phone_numbers: list<string>, ip_addresses: list<string>, file_hashes: list<string>}
      */
     private function extractIoCs(Campaign $campaign): array
     {
@@ -123,6 +121,10 @@ final class STIXExporter
                 'error' => $e->getMessage(),
             ]);
 
+            return $this->emptyIoCs();
+        }
+
+        if (!is_array($profile)) {
             return $this->emptyIoCs();
         }
 
@@ -185,15 +187,25 @@ final class STIXExporter
         $domains = [];
 
         // Chemin 1: infra.domains
-        if (isset($profile['infra']['domains']) && is_array($profile['infra']['domains'])) {
-            $domains = array_merge($domains, $profile['infra']['domains']);
+        if (isset($profile['infra']) && is_array($profile['infra'])) {
+            /** @var array<string, mixed> $infra */
+            $infra = $profile['infra'];
+
+            if (isset($infra['domains']) && is_array($infra['domains'])) {
+                $domains = array_merge($domains, $infra['domains']);
+            }
         }
 
         // Chemin 2: variants.url_shapes (parsing)
-        if (isset($profile['variants']['url_shapes']) && is_array($profile['variants']['url_shapes'])) {
-            foreach ($profile['variants']['url_shapes'] as $urlShape) {
-                if (is_string($urlShape) && preg_match('#https?://([^/\s{]+)#', $urlShape, $matches)) {
-                    $domains[] = $matches[1];
+        if (isset($profile['variants']) && is_array($profile['variants'])) {
+            /** @var array<string, mixed> $variants */
+            $variants = $profile['variants'];
+
+            if (isset($variants['url_shapes']) && is_array($variants['url_shapes'])) {
+                foreach ($variants['url_shapes'] as $urlShape) {
+                    if (is_string($urlShape) && preg_match('#https?://([^/\s{]+)#', $urlShape, $matches)) {
+                        $domains[] = $matches[1];
+                    }
                 }
             }
         }
@@ -222,13 +234,23 @@ final class STIXExporter
         $emails = [];
 
         // Chemin 1: infra.emails
-        if (isset($profile['infra']['emails']) && is_array($profile['infra']['emails'])) {
-            $emails = array_merge($emails, $profile['infra']['emails']);
+        if (isset($profile['infra']) && is_array($profile['infra'])) {
+            /** @var array<string, mixed> $infra */
+            $infra = $profile['infra'];
+
+            if (isset($infra['emails']) && is_array($infra['emails'])) {
+                $emails = array_merge($emails, $infra['emails']);
+            }
         }
 
         // Chemin 2: campaign sender_emails
-        if (isset($profile['campaign']['sender_emails']) && is_array($profile['campaign']['sender_emails'])) {
-            $emails = array_merge($emails, $profile['campaign']['sender_emails']);
+        if (isset($profile['campaign']) && is_array($profile['campaign'])) {
+            /** @var array<string, mixed> $campaign */
+            $campaign = $profile['campaign'];
+
+            if (isset($campaign['sender_emails']) && is_array($campaign['sender_emails'])) {
+                $emails = array_merge($emails, $campaign['sender_emails']);
+            }
         }
 
         // Filtrer les emails personnels (PII)
@@ -265,13 +287,23 @@ final class STIXExporter
         $urls = [];
 
         // Chemin 1: variants.url_shapes
-        if (isset($profile['variants']['url_shapes']) && is_array($profile['variants']['url_shapes'])) {
-            $urls = array_merge($urls, $profile['variants']['url_shapes']);
+        if (isset($profile['variants']) && is_array($profile['variants'])) {
+            /** @var array<string, mixed> $variants */
+            $variants = $profile['variants'];
+
+            if (isset($variants['url_shapes']) && is_array($variants['url_shapes'])) {
+                $urls = array_merge($urls, $variants['url_shapes']);
+            }
         }
 
         // Chemin 2: campaign.urls
-        if (isset($profile['campaign']['urls']) && is_array($profile['campaign']['urls'])) {
-            $urls = array_merge($urls, $profile['campaign']['urls']);
+        if (isset($profile['campaign']) && is_array($profile['campaign'])) {
+            /** @var array<string, mixed> $campaign */
+            $campaign = $profile['campaign'];
+
+            if (isset($campaign['urls']) && is_array($campaign['urls'])) {
+                $urls = array_merge($urls, $campaign['urls']);
+            }
         }
 
         // Filtrer les patterns (enlever placeholders)
@@ -292,13 +324,23 @@ final class STIXExporter
         $phones = [];
 
         // Chemin 1: infra.phone_numbers
-        if (isset($profile['infra']['phone_numbers']) && is_array($profile['infra']['phone_numbers'])) {
-            $phones = array_merge($phones, $profile['infra']['phone_numbers']);
+        if (isset($profile['infra']) && is_array($profile['infra'])) {
+            /** @var array<string, mixed> $infra */
+            $infra = $profile['infra'];
+
+            if (isset($infra['phone_numbers']) && is_array($infra['phone_numbers'])) {
+                $phones = array_merge($phones, $infra['phone_numbers']);
+            }
         }
 
         // Chemin 2: campaign.phone_numbers
-        if (isset($profile['campaign']['phone_numbers']) && is_array($profile['campaign']['phone_numbers'])) {
-            $phones = array_merge($phones, $profile['campaign']['phone_numbers']);
+        if (isset($profile['campaign']) && is_array($profile['campaign'])) {
+            /** @var array<string, mixed> $campaign */
+            $campaign = $profile['campaign'];
+
+            if (isset($campaign['phone_numbers']) && is_array($campaign['phone_numbers'])) {
+                $phones = array_merge($phones, $campaign['phone_numbers']);
+            }
         }
 
         return array_values(array_unique($phones));
@@ -316,13 +358,18 @@ final class STIXExporter
         $ips = [];
 
         // Chemin 1: infra.ip_addresses
-        if (isset($profile['infra']['ip_addresses']) && is_array($profile['infra']['ip_addresses'])) {
-            $ips = array_merge($ips, $profile['infra']['ip_addresses']);
-        }
+        if (isset($profile['infra']) && is_array($profile['infra'])) {
+            /** @var array<string, mixed> $infra */
+            $infra = $profile['infra'];
 
-        // Chemin 2: infra.c2_servers
-        if (isset($profile['infra']['c2_servers']) && is_array($profile['infra']['c2_servers'])) {
-            $ips = array_merge($ips, $profile['infra']['c2_servers']);
+            if (isset($infra['ip_addresses']) && is_array($infra['ip_addresses'])) {
+                $ips = array_merge($ips, $infra['ip_addresses']);
+            }
+
+            // Chemin 2: infra.c2_servers
+            if (isset($infra['c2_servers']) && is_array($infra['c2_servers'])) {
+                $ips = array_merge($ips, $infra['c2_servers']);
+            }
         }
 
         return array_values(array_unique($ips));
@@ -340,13 +387,23 @@ final class STIXExporter
         $hashes = [];
 
         // Chemin 1: infra.file_hashes
-        if (isset($profile['infra']['file_hashes']) && is_array($profile['infra']['file_hashes'])) {
-            $hashes = array_merge($hashes, $profile['infra']['file_hashes']);
+        if (isset($profile['infra']) && is_array($profile['infra'])) {
+            /** @var array<string, mixed> $infra */
+            $infra = $profile['infra'];
+
+            if (isset($infra['file_hashes']) && is_array($infra['file_hashes'])) {
+                $hashes = array_merge($hashes, $infra['file_hashes']);
+            }
         }
 
         // Chemin 2: malware.hashes
-        if (isset($profile['malware']['hashes']) && is_array($profile['malware']['hashes'])) {
-            $hashes = array_merge($hashes, $profile['malware']['hashes']);
+        if (isset($profile['malware']) && is_array($profile['malware'])) {
+            /** @var array<string, mixed> $malware */
+            $malware = $profile['malware'];
+
+            if (isset($malware['hashes']) && is_array($malware['hashes'])) {
+                $hashes = array_merge($hashes, $malware['hashes']);
+            }
         }
 
         return array_values(array_unique($hashes));
@@ -355,7 +412,7 @@ final class STIXExporter
     /**
      * Génère un bundle STIX 2.1 de manière générique.
      *
-     * @param array<string, array<string>> $iocs
+     * @param array{domains: list<string>, emails: list<string>, urls: list<string>, phone_numbers: list<string>, ip_addresses: list<string>, file_hashes: list<string>} $iocs
      *
      * @return array<string, mixed> Bundle STIX
      */
@@ -365,6 +422,7 @@ final class STIXExporter
         $identityId = 'identity--' . Uuid::v4()->toRfc4122();
         $reportId = 'report--' . Uuid::v4()->toRfc4122();
 
+        /** @var array<int, array<string, mixed>> $objects */
         $objects = [];
 
         // Identity object
@@ -406,9 +464,6 @@ final class STIXExporter
     /**
      * Génère les indicators STIX pour tous les types d'IoCs de manière générique.
      *
-     * Cette méthode permet d'ajouter facilement de nouveaux types d'IoCs
-     * en les ajoutant simplement à IOC_TYPE_MAPPING.
-     *
      * @param array{domains: list<string>, emails: list<string>, urls: list<string>, phone_numbers: list<string>, ip_addresses: list<string>, file_hashes: list<string>} $iocs
      * @param array<int, array<string, mixed>>                                                                                                                           &$objects
      */
@@ -421,7 +476,7 @@ final class STIXExporter
             }
 
             // Vérifier si ce type d'IoC a un mapping STIX défini
-            if (!isset(self::IOC_TYPE_MAPPING[$iocType])) {
+            if (!array_key_exists($iocType, self::IOC_TYPE_MAPPING)) {
                 $this->logger->warning('Unknown IoC type, skipping', [
                     'ioc_type' => $iocType,
                     'values_count' => count($iocValues),
@@ -450,7 +505,12 @@ final class STIXExporter
                 ];
 
                 // Ajouter la référence au report
-                $objects[1]['object_refs'][] = $indicatorId;
+                /** @var array<string, mixed> $reportObject */
+                $reportObject = &$objects[1];
+                /** @var array<int, string> $objectRefs */
+                $objectRefs = $reportObject['object_refs'];
+                $objectRefs[] = $indicatorId;
+                $reportObject['object_refs'] = $objectRefs;
             }
 
             $this->logger->debug('Generated STIX indicators', [
@@ -463,10 +523,6 @@ final class STIXExporter
     /**
      * Valide qu'aucune PII n'est présente dans le bundle.
      *
-     * IMPORTANT: Les numéros de téléphone ne sont PAS considérés comme PII ici,
-     * car ils représentent l'infrastructure malveillante (IoCs) à partager.
-     * Seuls les emails personnels (gmail, yahoo, etc.) sont considérés comme PII.
-     *
      * @param array<string, mixed> $bundle
      *
      * @throws \RuntimeException si PII détectée
@@ -475,8 +531,11 @@ final class STIXExporter
     {
         $bundleJson = json_encode($bundle);
 
+        if ($bundleJson === false) {
+            throw new \RuntimeException('Failed to encode STIX bundle to JSON');
+        }
+
         // Patterns PII: emails personnels uniquement
-        // Note: Les numéros de téléphone sont des IoCs légitimes, pas de la PII
         $patterns = [
             '/\b[A-Za-z0-9._%+-]+@gmail\.com\b/i',
             '/\b[A-Za-z0-9._%+-]+@yahoo\.com\b/i',
