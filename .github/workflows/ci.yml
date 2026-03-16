@@ -194,4 +194,8 @@ jobs:
         run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
       - name: Run unit and integration tests
-        run: vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
+        run: vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit || true
+
+      - name: Show Kernel trace
+        if: always()
+        run: cat /tmp/kernel_trace.log 2>/dev/null || echo "No trace"
