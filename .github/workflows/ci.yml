@@ -110,95 +110,84 @@ jobs:
     name: Tests (PHPUnit)
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_DB: scambuster_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    defaults:
+      run:
+        working-directory: backend-symfony
+
+    env:
+      APP_ENV: test
+      APP_SECRET: ci-test-app-secret
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/scambuster_test"
+      REDIS_URL: "redis://localhost:6379"
+      JWT_SECRET: ci-test-jwt-secret
+      VAULT_ADDR: "http://localhost:8200"
+      VAULT_TOKEN: ci-test-token
+      LOGIN_HASH_SALT: ci-test-salt
+      LLM_API_KEY: sk-test-not-a-real-key
+      LLM_PROVIDER: openai
+      LLM_MODEL: gpt-4o-mini
+      LLM_API_URL: "https://api.openai.com/v1"
+      SCAMBUSTER_KILL_SWITCH: "false"
+      PROMPT_INJECTION_ENABLED: "false"
+      STIX_EXPORT_PATH: /tmp/stix-test
+      SCORE_RISK_MIN: "30"
+      CAMPAIGN_PROMOTION_PPV_THRESHOLD: "0.85"
+      CAMPAIGN_PROMOTION_MIN_HITS: "5"
+      CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC: "10800"
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create environment files
-        run: |
-          cat > .env << 'EOF'
-          APP_ENV=test
-          APP_SECRET=ci-test-app-secret
-          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
-          REDIS_URL=redis://redis:6379
-          JWT_SECRET=ci-test-jwt-secret
-          VAULT_ADDR=http://vault:8200
-          VAULT_TOKEN=root
-          VAULT_IMAP_PATH=secret/scambuster/imap/
-          LOGIN_HASH_SALT=ci-test-salt
-          LLM_API_KEY=sk-test-not-a-real-key
-          LLM_PROVIDER=openai
-          LLM_MODEL=gpt-4o-mini
-          LLM_API_URL=https://api.openai.com/v1
-          SCAMBUSTER_KILL_SWITCH=false
-          PROMPT_INJECTION_ENABLED=false
-          STIX_EXPORT_PATH=/tmp/stix-test
-          SCORE_RISK_MIN=30
-          CAMPAIGN_PROMOTION_PPV_THRESHOLD=0.85
-          CAMPAIGN_PROMOTION_MIN_HITS=5
-          CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
-          EOF
-          cat > .env.test << 'EOF'
-          APP_ENV=test
-          APP_SECRET=ci-test-app-secret
-          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
-          REDIS_URL=redis://redis:6379
-          JWT_SECRET=ci-test-jwt-secret
-          VAULT_ADDR=http://vault:8200
-          VAULT_TOKEN=root
-          VAULT_IMAP_PATH=secret/scambuster/imap/
-          LOGIN_HASH_SALT=ci-test-salt
-          SCAMBUSTER_KILL_SWITCH=false
-          PROMPT_INJECTION_ENABLED=false
-          STIX_EXPORT_PATH=/tmp/stix-test
-          SCORE_RISK_MIN=30
-          CAMPAIGN_PROMOTION_PPV_THRESHOLD=0.85
-          CAMPAIGN_PROMOTION_MIN_HITS=5
-          CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
-          EOF
+      - name: Set up PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_pgsql, redis, intl, mailparse
+          tools: composer:v2
 
-      - name: Start containers
-        run: docker compose up -d --build postgres redis backend-test
+      - name: Create .env for Symfony
+        run: echo "APP_ENV=test" > .env
 
-      - name: Wait for services
-        run: make wait-healthy
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: backend-symfony/vendor
+          key: composer-${{ hashFiles('backend-symfony/composer.lock') }}
+          restore-keys: composer-
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress
 
-      - name: Fix permissions
-        run: docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var"
+      - name: Run database migrations
+        run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
-      - name: Create test database
-        run: docker compose exec postgres psql -U postgres -c "CREATE DATABASE scambuster_test;" || true
+      - name: Load test fixtures
+        run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
-      - name: Run migrations
-        run: docker compose exec backend-test php bin/console doctrine:migrations:migrate --env=test -n
-
-      - name: Load fixtures
-        run: docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
-
-      - name: Debug Kernel issue
-        if: always()
-        run: |
-          echo "=== Check Kernel.php ==="
-          docker compose exec backend-test ls -la /app/src/Kernel.php
-          echo "=== Check classmap for Kernel ==="
-          docker compose exec backend-test grep -c "Kernel" /app/vendor/composer/autoload_classmap.php || echo "not in classmap"
-          echo "=== Check autoload type ==="
-          docker compose exec backend-test head -5 /app/vendor/composer/autoload_classmap.php
-          echo "=== Test class loading ==="
-          docker compose run --rm backend-test php -r "
-            require 'vendor/autoload.php';
-            echo 'After autoload: class_exists=' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . PHP_EOL;
-            require 'config/bootstrap.php';
-            echo 'After bootstrap: class_exists=' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . PHP_EOL;
-            \$dotenv = new \Symfony\Component\Dotenv\Dotenv();
-            \$dotenv->usePutenv();
-            \$dotenv->bootEnv('../' . dirname('/app/tests') . '/.env');
-            echo 'After bootEnv: class_exists=' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . PHP_EOL;
-            echo 'APP_ENV=' . (\$_SERVER['APP_ENV'] ?? 'NOT SET') . PHP_EOL;
-            echo 'APP_DEBUG=' . (\$_SERVER['APP_DEBUG'] ?? 'NOT SET') . PHP_EOL;
-          "
-
-      - name: Run tests
-        run: docker compose run --rm backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
+      - name: Run unit and integration tests
+        run: vendor/bin/phpunit --testdox --testsuite integration,unit
