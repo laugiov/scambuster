@@ -168,7 +168,7 @@ jobs:
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3"
+          php-version: "8.3.27"
           extensions: pdo_pgsql, redis, intl, mailparse
           tools: composer:v2
 
