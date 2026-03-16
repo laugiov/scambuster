@@ -186,10 +186,14 @@ jobs:
       - name: Clear compiled cache before PHPUnit
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Run integration tests with strace
+      - name: Check class_alias and duplicates
         run: |
-          docker compose exec --user root backend-test sh -c "\
-            apt-get update -qq && apt-get install -yqq strace > /dev/null 2>&1 && \
-            strace -f -e trace=openat -o /tmp/strace.log php vendor/bin/phpunit --testsuite integration 2>&1 | tail -10; \
-            echo '=== Kernel.php opens ===' && \
-            grep 'Kernel.php' /tmp/strace.log | grep -v 'HttpKernel\|KernelEvent\|KernelBrowser\|KernelException\|KernelTestCase\|MicroKernelTrait\|KernelInterface' | head -20"
+          echo "=== class_alias in cache ==="
+          docker compose exec backend-test sh -c "grep -rn 'class_alias' /app/var/cache/test/ 2>/dev/null | head -10" || echo "none"
+          echo "=== Kernel.php files (not vendor) ==="
+          docker compose exec backend-test find /app -name 'Kernel.php' -not -path '*/vendor/*' 2>/dev/null
+          echo "=== class Kernel in src/tests ==="
+          docker compose exec backend-test sh -c "grep -rn 'class Kernel' /app/src /app/tests --include='*.php' 2>/dev/null" || echo "none"
+
+      - name: Run tests (stderr will show backtrace)
+        run: docker compose exec backend-test vendor/bin/phpunit --testsuite integration 2>&1 | head -30
