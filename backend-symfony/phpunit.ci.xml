@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CI variant: without SymfonyExtension (DebugClassLoader conflicts with Docker volume mounts) -->
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+    bootstrap="tests/bootstrap.php"
+    cacheDirectory="/tmp/.phpunit.cache"
+    colors="true"
+>
+    <extensions>
+        <bootstrap class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
+    </extensions>
+
+    <php>
+        <env name="APP_ENV" value="test"/>
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="999999"/>
+        <env name="KERNEL_CLASS" value="App\\Kernel"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="integration">
+            <directory suffix="Test.php">tests/Integration</directory>
+            <exclude>tests/Integration/Auth/AbstractAuthBase.php</exclude>
+        </testsuite>
+        <testsuite name="unit">
+            <directory suffix="Test.php">tests/Unit</directory>
+        </testsuite>
+        <testsuite name="endtoend">
+            <directory suffix="Test.php">tests/EndToEnd</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+    </source>
+
+</phpunit>
