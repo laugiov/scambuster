@@ -140,17 +140,25 @@ jobs:
           EOF
           cp .env .env.test
 
-      - name: Start services
-        run: docker compose up -d --build postgres redis
+      - name: Start stack
+        run: docker compose up -d --build postgres redis backend-test
 
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Run tests via Docker (like make test)
+      - name: Install dependencies
+        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress --no-scripts
+
+      - name: Fix permissions
+        run: docker compose exec --user root backend-test sh -c "mkdir -p /app/var && chown -R 10001:10001 /app/vendor /app/var"
+
+      - name: Create test database
+        run: docker compose exec postgres psql -U postgres -c "CREATE DATABASE scambuster_test;" || true
+
+      - name: Run migrations and fixtures
         run: |
-          docker compose run --rm --user root -e APP_ENV=test backend-test sh -c "\
-            composer install --no-interaction --no-progress && \
-            php bin/console doctrine:database:create --env=test --if-not-exists && \
-            php bin/console doctrine:migrations:migrate --env=test --no-interaction && \
-            php bin/console doctrine:fixtures:load --env=test --no-interaction && \
-            vendor/bin/phpunit --testdox --testsuite integration,unit"
+          docker compose exec backend-test php bin/console doctrine:migrations:migrate --env=test --no-interaction
+          docker compose exec backend-test php bin/console doctrine:fixtures:load --env=test --no-interaction
+
+      - name: Run tests (like make test)
+        run: docker compose exec backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
