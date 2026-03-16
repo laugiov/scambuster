@@ -197,6 +197,9 @@ jobs:
       - name: Run unit and integration tests
         run: php vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit || true
 
-      - name: Show Kernel trace on failure
+      - name: Show Kernel debug info
         if: always()
-        run: cat /tmp/kernel_autoload_trace.log 2>/dev/null || echo "No trace file"
+        run: |
+          cat /tmp/kernel_debug.log 2>/dev/null || echo "No debug file"
+          echo "=== PHP config ==="
+          php -i | grep -E "auto_prepend|auto_append|preload|opcache.enable" | head -10
