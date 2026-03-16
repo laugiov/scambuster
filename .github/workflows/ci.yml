@@ -168,22 +168,21 @@ jobs:
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          php-version: "8.3"
           extensions: pdo_pgsql, redis, intl, mailparse
           tools: composer:v2
-          # PHP 8.3.30 has a PHPUnit class loading issue with Symfony Kernel
-          # (raw Kernel boot works, but PHPUnit integration tests crash)
-          # Using 8.2 as workaround (composer.json requires >=8.2)
 
       - name: Create .env for Symfony
-        run: echo "APP_ENV=test" > .env
+        run: |
+          echo "APP_ENV=test" > .env
+          echo "APP_ENV=test" > ../.env
 
       - name: Cache Composer dependencies
         uses: actions/cache@v4
         with:
           path: backend-symfony/vendor
-          key: composer-${{ hashFiles('backend-symfony/composer.lock') }}
-          restore-keys: composer-
+          key: composer-v3-${{ hashFiles('backend-symfony/composer.lock') }}
+          restore-keys: composer-v3-
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
