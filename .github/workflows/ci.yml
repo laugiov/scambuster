@@ -154,6 +154,7 @@ jobs:
 
       - name: Setup test database
         run: |
+          make create-database-test
           make migration-test
           make fixtures
 
