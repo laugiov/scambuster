@@ -191,20 +191,8 @@ jobs:
       - name: Load test fixtures
         run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
-      - name: Debug class loading
-        run: |
-          php -r "
-            spl_autoload_register(function(\$class) {
-                if (\$class === 'App\Kernel') {
-                    echo 'AUTOLOAD App\Kernel triggered!' . PHP_EOL;
-                    echo 'Stack trace:' . PHP_EOL;
-                    debug_print_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10);
-                    echo PHP_EOL;
-                }
-            }, true, true);
-            require 'vendor/autoload.php';
-            echo 'After autoload: ' . (class_exists('App\Kernel', false) ? 'YES' : 'NO') . PHP_EOL;
-          "
+      - name: Clear Symfony cache
+        run: rm -rf var/cache/test/
 
       - name: Run unit and integration tests
-        run: php -d opcache.enable=0 vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
+        run: php vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
