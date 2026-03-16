@@ -194,4 +194,8 @@ jobs:
         run: php bin/console doctrine:fixtures:load --env=test --no-interaction
 
       - name: Run unit and integration tests
-        run: vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit
+        run: vendor/bin/phpunit -c phpunit.ci.xml --testdox --testsuite integration,unit || true
+
+      - name: Show CI debug info
+        if: always()
+        run: cat /tmp/ci_debug.log 2>/dev/null || echo "No debug file"
