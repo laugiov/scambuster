@@ -49,14 +49,11 @@ jobs:
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Fix volume permissions
-        run: docker compose exec --user root backend-dev chown -R 10001:10001 /app
-
       - name: Install dependencies
-        run: docker compose exec backend-dev composer install --no-interaction --no-progress
+        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
 
       - name: Run PHPStan
-        run: make stan
+        run: docker compose exec --user root backend-dev vendor/bin/phpstan analyse src
 
   code-style:
     name: Code Style (PHP-CS-Fixer)
@@ -97,14 +94,11 @@ jobs:
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Fix volume permissions
-        run: docker compose exec --user root backend-dev chown -R 10001:10001 /app
-
       - name: Install dependencies
-        run: docker compose exec backend-dev composer install --no-interaction --no-progress
+        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
 
       - name: Run PHP-CS-Fixer (dry-run)
-        run: docker compose exec backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no
+        run: docker compose exec --user root backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no
 
   tests:
     name: Tests (PHPUnit)
@@ -162,17 +156,17 @@ jobs:
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Fix volume permissions
-        run: docker compose exec --user root backend-test chown -R 10001:10001 /app
-
       - name: Install dependencies
-        run: docker compose exec backend-test composer install --no-interaction --no-progress
+        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress
 
       - name: Create test database
         run: docker compose exec postgres psql -U postgres -c "CREATE DATABASE scambuster_test;" || true
 
       - name: Run migrations
-        run: make migration-test
+        run: docker compose exec --user root backend-test php bin/console doctrine:migrations:migrate --env=test -n
+
+      - name: Load fixtures
+        run: docker compose exec --user root backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
 
       - name: Run tests
-        run: make test
+        run: docker compose exec --user root backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
