@@ -134,7 +134,7 @@ If you see a number (even `0`), the backend, database, auth, and API are all wor
 
 ## 4. Run the Tests
 
-ScamBuster has **1054 automated tests** organized in three suites.
+ScamBuster has **1310 automated tests** (1077 unit/integration + 233 E2E) organized in three suites.
 
 ### Unit + Integration Tests (recommended first run)
 

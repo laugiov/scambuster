@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207%20|%20PostgreSQL%20|%20LLM-green)
-![Tests](https://img.shields.io/badge/tests-1054%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1310%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > **Last updated**: 2026-03-11 | **Data period**: December 2025 - February 2026
@@ -212,7 +212,7 @@ make upd                 # Start Docker stack (background)
 make composer-install    # Install PHP dependencies
 make migration           # Create database schema
 make fixtures-dev        # Seed reference data + default users
-make test                # Run 1054 automated tests
+make test                # Run 1077 unit + integration tests
 ```
 
 **Minimum `.env` configuration** before starting:
@@ -279,11 +279,14 @@ scambuster/
 - `POST/GET/DELETE /api/v1/communication/attachment/{id}`
 - `GET /api/v1/communication/message/{id}/iocs`
 
+### Monitoring
+- `GET /api/v1/monitoring/autonomy` -- System health, convergence, kill switch, activity
+
 ---
 
 ## Testing
 
-1054 automated tests covering:
+1310 automated tests covering:
 - **E2E**: Full API flow with real JWT, database, and fixtures
 - **Integration**: Service/repository logic, business rules
 - **Unit**: Domain logic, value objects, algorithms

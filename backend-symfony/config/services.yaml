@@ -33,6 +33,12 @@ services:
         autowire: true
         autoconfigure: true
 
+    App\UI\Http\Monitoring\AutonomyMonitoringController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
     App\UI\Http\Internal\MailAccountSecretController:
         public: true
         tags: ['controller.service_arguments']
