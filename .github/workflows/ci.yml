@@ -136,27 +136,31 @@ jobs:
           CAMPAIGN_PROMOTION_PPV_THRESHOLD=0.85
           CAMPAIGN_PROMOTION_MIN_HITS=5
           CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
-          REPLY_MIN_WORDS=5
+          REPLY_MIN_WORDS=50
+          REPLY_MAX_WORDS=150
+          REPLY_MAX_LINKS=1
+          REPLY_HISTORY_LAST_N=5
+          APP_API_BASE_URL=http://localhost:8081
+          CONVERSATION_HISTORY_EXCLUDED_EMAILS=user@example.com
+          LLM_VALIDATION_ENABLED=true
+          LOCK_DSN=flock
           EOF
           cp .env .env.test
 
-      - name: Start full stack
-        run: docker compose up -d --build
+      - name: Fix host permissions
+        run: chmod -R 777 backend-symfony/
+
+      - name: Start services
+        run: docker compose up -d --build postgres redis
 
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Install dependencies
-        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress
-
-      - name: Fix permissions
-        run: docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var"
-
-      - name: Setup test database
+      - name: Run all tests in fresh container
         run: |
-          make create-database-test
-          make migration-test
-          make fixtures
-
-      - name: Run tests (make test)
-        run: make test
+          docker compose run --rm backend-test sh -c "\
+            composer install --no-interaction --no-progress && \
+            php bin/console doctrine:database:create --env=test --if-not-exists && \
+            php bin/console doctrine:migrations:migrate --env=test --no-interaction && \
+            php bin/console doctrine:fixtures:load --env=test --no-interaction && \
+            vendor/bin/phpunit --testdox --testsuite integration,unit"
