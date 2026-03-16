@@ -1,61 +1,62 @@
 <?php
 
 /**
- * CI bootstrap with maximum debugging for Kernel class loading issue.
+ * CI bootstrap with Composer autoloader re-entrance guard.
+ *
+ * Root cause: Composer's ClassLoader::loadClass uses plain `include` (not include_once)
+ * with no re-entrance protection. During compilation of src/Kernel.php, PHP resolves
+ * parent class (BaseKernel) via autoload. Something in that chain re-triggers autoloading
+ * of App\Kernel, causing Composer to include src/Kernel.php a second time → fatal error.
+ *
+ * This wrapper tracks files currently being compiled and skips re-entrance.
+ * See: local/tasks/KERNEL-ISSUE-FINAL-FINDINGS.md
  */
 
-$log = function (string $msg) {
-    fwrite(STDERR, "[BOOTSTRAP] $msg\n");
-};
-
-$checkKernel = function () use ($log) {
-    $exists = class_exists('App\\Kernel', false);
-    $autoloaders = array_map(function ($fn) {
-        if (is_array($fn)) return (is_object($fn[0]) ? get_class($fn[0]) : $fn[0]) . '::' . $fn[1];
-        return 'closure';
-    }, spl_autoload_functions() ?: []);
-    $log('App\\Kernel defined: ' . ($exists ? 'YES' : 'NO') . ' | Autoloaders: ' . implode(', ', $autoloaders));
-};
-
-$log('=== BOOTSTRAP START ===');
-$checkKernel();
-
-$log('Step 1: require vendor/autoload.php');
 require __DIR__ . '/../vendor/autoload.php';
-$checkKernel();
 
-// Disable PHPStan PharAutoloader to test if it causes the double-include
-$log('Step 1b: disabling PHPStan PharAutoloader');
-define('__PHPSTAN_RUNNING__', true);
-foreach (spl_autoload_functions() as $fn) {
-    if (is_array($fn) && isset($fn[0]) && is_string($fn[0]) && str_contains($fn[0], 'PHPStan')) {
-        spl_autoload_unregister($fn);
-        $log('Unregistered: ' . $fn[0] . '::' . $fn[1]);
+// Wrap Composer's ClassLoader with re-entrance protection
+$loading = [];
+foreach (spl_autoload_functions() as $loader) {
+    if (is_array($loader) && isset($loader[0]) && $loader[0] instanceof \Composer\Autoload\ClassLoader) {
+        $composerLoader = $loader[0];
+        spl_autoload_unregister($loader);
+        spl_autoload_register(
+            function (string $class) use ($composerLoader, &$loading): void {
+                $file = $composerLoader->findFile($class);
+                if ($file === false) {
+                    return;
+                }
+                $realFile = realpath($file) ?: $file;
+                if (isset($loading[$realFile])) {
+                    return; // Re-entrance: file already being compiled
+                }
+                $loading[$realFile] = true;
+                try {
+                    include $file;
+                } finally {
+                    unset($loading[$realFile]);
+                }
+            },
+            true,
+            true
+        );
+        break;
     }
 }
-$checkKernel();
 
-$log('Step 2: set env vars');
 $_SERVER['APP_ENV'] = $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] ?? 'test';
-$_SERVER['APP_DEBUG'] = $_ENV['APP_DEBUG'] = '0';
+$_SERVER['APP_DEBUG'] = $_ENV['APP_DEBUG'] = $_SERVER['APP_DEBUG'] ?? '0';
 
-$log('Step 3: require config/bootstrap.php');
 require __DIR__ . '/../config/bootstrap.php';
-$checkKernel();
 
-$log('Step 4: Dotenv bootEnv');
 $dotenv = new \Symfony\Component\Dotenv\Dotenv();
 $dotenv->usePutenv();
 try {
     $dotenv->bootEnv('../' . dirname(__DIR__) . '/.env');
 } catch (\Throwable $e) {
-    $log('bootEnv failed (expected in CI): ' . $e->getMessage());
+    // Expected in CI: the path doesn't resolve outside Docker
 }
-$checkKernel();
 
-$log('=== BOOTSTRAP COMPLETE ===');
-$log('Total included files: ' . count(get_included_files()));
-$kernelFiles = array_filter(get_included_files(), fn($f) => str_contains($f, 'Kernel'));
-if ($kernelFiles) {
-    $log('Kernel files included: ' . implode(', ', $kernelFiles));
+if ($_SERVER['APP_DEBUG'] ?? false) {
+    umask(0000);
 }
