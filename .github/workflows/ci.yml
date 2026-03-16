@@ -168,7 +168,7 @@ jobs:
       - name: Set up PHP 8.3
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.3.27"
+          php-version: "8.3"
           extensions: pdo_pgsql, redis, intl, mailparse
           tools: composer:v2
 
@@ -183,7 +183,7 @@ jobs:
           restore-keys: composer-
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist --no-progress
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
 
       - name: Run database migrations
         run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
