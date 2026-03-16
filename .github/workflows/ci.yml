@@ -201,10 +201,15 @@ jobs:
       - name: Clear compiled cache before tests
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Kill PHP server + reset opcache + run tests
+      - name: Strace without DebugClassLoader (decisive test)
         run: |
-          echo "=== Kill PHP built-in server ==="
-          docker compose exec --user root backend-test sh -c "pkill -f 'php -S' || true"
-          sleep 1
-          echo "=== Run PHPUnit with --no-extensions ==="
-          docker compose exec backend-test php -d opcache.enable=0 vendor/bin/phpunit -c phpunit.ci.xml --no-extensions --testdox --testsuite integration,unit 2>&1 | head -20
+          docker compose exec --user root backend-test sh -c "\
+            apt-get update -qq && apt-get install -yqq strace procps > /dev/null 2>&1 && \
+            kill \$(pgrep -f 'php -S') 2>/dev/null; sleep 1; \
+            strace -f -e trace=openat -o /tmp/strace.log \
+              php -d opcache.enable=0 vendor/bin/phpunit -c phpunit.ci.xml \
+              --no-extensions --testsuite integration 2>&1 | tail -10; \
+            echo '=== src/Kernel.php opens ===' && \
+            grep 'src/Kernel.php' /tmp/strace.log | head -10; \
+            echo '=== All Kernel files opened ===' && \
+            grep 'Kernel' /tmp/strace.log | grep -v ENOENT | grep -v HttpKernel | grep -v KernelEvent | head -20"
