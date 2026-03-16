@@ -43,6 +43,21 @@ jobs:
       run:
         working-directory: backend-symfony
 
+    env:
+      APP_ENV: test
+      APP_SECRET: ci-test-app-secret
+      DATABASE_URL: "postgresql://postgres:ci_password@localhost:5432/scambuster_test"
+      REDIS_URL: "redis://localhost:6379"
+      JWT_SECRET: ci-test-jwt-secret
+      VAULT_ADDR: "http://localhost:8200"
+      VAULT_TOKEN: ci-test-token
+      LOGIN_HASH_SALT: ci-test-salt
+      LLM_API_KEY: sk-test-not-a-real-key
+      LLM_PROVIDER: openai
+      LLM_MODEL: gpt-4o-mini
+      LLM_API_URL: "https://api.openai.com/v1"
+      SCAMBUSTER_KILL_SWITCH: "false"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +74,9 @@ jobs:
           path: backend-symfony/vendor
           key: composer-${{ hashFiles('backend-symfony/composer.lock') }}
           restore-keys: composer-
+
+      - name: Create .env for Symfony
+        run: echo "APP_ENV=test" > .env
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
@@ -89,6 +107,9 @@ jobs:
           path: backend-symfony/vendor
           key: composer-${{ hashFiles('backend-symfony/composer.lock') }}
           restore-keys: composer-
+
+      - name: Create .env for Symfony
+        run: echo "APP_ENV=test" > .env
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
@@ -160,6 +181,9 @@ jobs:
           path: backend-symfony/vendor
           key: composer-${{ hashFiles('backend-symfony/composer.lock') }}
           restore-keys: composer-
+
+      - name: Create .env for Symfony
+        run: echo "APP_ENV=test" > .env
 
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist --no-progress
