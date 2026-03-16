@@ -1,16 +1,11 @@
 <?php
 use Symfony\Component\Dotenv\Dotenv;
-
-// Guard: prevent DebugClassLoader from re-including Kernel.php when
-// the inline_class_loader has already loaded it via include_once.
-// See: local/tasks/KERNEL-ISSUE-FINAL-FINDINGS.md
-spl_autoload_register(function (string $class): void {
-    if ($class === 'App\\Kernel' && \class_exists($class, false)) {
-        return;
-    }
-}, false, true);
-
 require __DIR__ . '/../vendor/autoload.php';
+
+// Fix: preload Kernel so class_exists() returns TRUE before any autoloader fires.
+// Prevents double-include caused by inline_class_loader (require_once) + Composer (include).
+// See: local/tasks/KERNEL-ISSUE-FINAL-FINDINGS.md
+require_once __DIR__ . '/../src/Kernel.php';
 
 require __DIR__ . '/../config/bootstrap.php';
 
