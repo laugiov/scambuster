@@ -186,14 +186,8 @@ jobs:
       - name: Clear compiled cache before PHPUnit
         run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Check class_alias and duplicates
-        run: |
-          echo "=== class_alias in cache ==="
-          docker compose exec backend-test sh -c "grep -rn 'class_alias' /app/var/cache/test/ 2>/dev/null | head -10" || echo "none"
-          echo "=== Kernel.php files (not vendor) ==="
-          docker compose exec backend-test find /app -name 'Kernel.php' -not -path '*/vendor/*' 2>/dev/null
-          echo "=== class Kernel in src/tests ==="
-          docker compose exec backend-test sh -c "grep -rn 'class Kernel' /app/src /app/tests --include='*.php' 2>/dev/null" || echo "none"
+      - name: Clear compiled cache before tests
+        run: docker compose exec backend-test rm -rf /app/var/cache/test/
 
-      - name: Run tests (stderr will show backtrace)
-        run: docker compose exec backend-test vendor/bin/phpunit --testsuite integration 2>&1 | head -30
+      - name: Run integration and unit tests
+        run: docker compose exec backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
