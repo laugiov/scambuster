@@ -41,6 +41,7 @@ jobs:
           CAMPAIGN_PROMOTION_MIN_HITS=5
           CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
           EOF
+          sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
 
       - name: Start containers
@@ -89,6 +90,7 @@ jobs:
           CAMPAIGN_PROMOTION_MIN_HITS=5
           CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
           EOF
+          sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
 
       - name: Start containers
@@ -115,7 +117,7 @@ jobs:
 
       - name: Create environment files
         run: |
-          cat > .env <<'EOF'
+          cat > .env << 'EOF'
           APP_ENV=test
           APP_SECRET=ci-test-app-secret
           DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
@@ -145,7 +147,6 @@ jobs:
           LLM_VALIDATION_ENABLED=true
           LOCK_DSN=flock
           EOF
-          # Remove leading spaces from heredoc indentation
           sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
 
@@ -153,28 +154,37 @@ jobs:
         run: chmod -R 777 backend-symfony/
 
       - name: Start services
-        run: docker compose up -d --build postgres redis
+        run: docker compose up -d --build postgres redis backend-test
 
       - name: Wait for services
         run: make wait-healthy
 
-      - name: Run tests in minimal container
+      - name: Install fresh dependencies (NO cache)
+        run: docker compose exec --user root backend-test composer install --no-interaction --no-progress
+
+      - name: Fix permissions
+        run: docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var"
+
+      - name: Create test database
+        run: docker compose exec backend-test php bin/console doctrine:database:create --env=test --if-not-exists
+
+      - name: Run migrations
+        run: docker compose exec backend-test php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+      - name: Load fixtures
+        run: docker compose exec backend-test php bin/console doctrine:fixtures:load --env=test --no-interaction
+
+      - name: Debug - check compiled cache for Kernel
         run: |
-          docker run --rm \
-            --network scambuster_scambuster \
-            -v "$(pwd)/backend-symfony:/app" \
-            -v "$(pwd)/.env:/app/.env:ro" \
-            -v "$(pwd)/.env.test:/app/.env.test:ro" \
-            -w /app \
-            -e APP_ENV=test \
-            php:8.3.27-cli sh -c "\
-              apt-get update -qq && apt-get install -yqq strace libpq-dev libzip-dev git unzip > /dev/null 2>&1 && \
-              docker-php-ext-install pdo pdo_pgsql zip > /dev/null 2>&1 && \
-              pecl install mailparse redis > /dev/null 2>&1 && docker-php-ext-enable mailparse redis > /dev/null 2>&1 && \
-              curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer > /dev/null 2>&1 && \
-              composer install --no-interaction --no-progress && \
-              php bin/console doctrine:database:create --env=test --if-not-exists && \
-              php bin/console doctrine:migrations:migrate --env=test --no-interaction && \
-              php bin/console doctrine:fixtures:load --env=test --no-interaction && \
-              echo '=== STRACE: tracking Kernel.php opens ===' && \
-              strace -f -e trace=openat php vendor/bin/phpunit --testsuite integration 2>&1 | grep 'Kernel.php' | head -30"
+          echo "=== App\Kernel in compiled cache ==="
+          docker compose exec backend-test sh -c "grep -rn 'App.Kernel' /app/var/cache/test/Container*/*.php 2>/dev/null | grep -v 'HttpKernel\|KernelEvent\|KernelBrowser\|KernelException' | head -10" || echo "No matches"
+          echo "=== App\Kernel in classmap ==="
+          docker compose exec backend-test sh -c "grep 'Kernel' /app/vendor/composer/autoload_classmap.php 2>/dev/null" || echo "Not in classmap"
+          echo "=== include_once in container ==="
+          docker compose exec backend-test sh -c "grep -c 'include_once' /app/var/cache/test/Container*/*.php 2>/dev/null" || echo "No container"
+
+      - name: Clear compiled cache before PHPUnit
+        run: docker compose exec backend-test rm -rf /app/var/cache/test/
+
+      - name: Run integration and unit tests
+        run: docker compose exec backend-test vendor/bin/phpunit --testdox --testsuite integration,unit
