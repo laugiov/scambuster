@@ -1,13 +1,9 @@
-export interface ApiMeta {
-  generated_at: string;
-  fixture?: boolean;
-}
+// Domain union types
+export type ConversationStatus = 'open' | 'closed' | 'abandoned' | 'mistake';
+export type MessageDirection = 'in' | 'out';
+export type IocType = 'email' | 'ipv4' | 'ipv6' | 'domain' | 'url' | 'sha256' | 'md5' | 'phone' | 'bitcoin_address' | 'subject' | 'message_id' | 'spf_result' | 'dkim_result' | 'dmarc_result';
 
-export interface ApiResponse<T> {
-  data: T;
-  meta: ApiMeta;
-}
-
+// Auth
 export interface LoginRequest {
   email: string;
   password: string;
@@ -23,6 +19,7 @@ export interface RefreshRequest {
   refresh_token: string;
 }
 
+// Monitoring
 export interface AutonomyStats {
   status: string;
   conversations: {
@@ -50,9 +47,10 @@ export interface AutonomyStats {
   checked_at: string;
 }
 
+// Conversations
 export interface Conversation {
   conv_id: string;
-  status: string;
+  status: ConversationStatus;
   score_risk: number;
   persona?: string | null;
   scam_type?: string | null;
@@ -61,14 +59,15 @@ export interface Conversation {
   ts_first?: string;
   ts_last?: string;
   stix_id?: string;
-  channels?: unknown[];
+  channels?: string[];
   created_at?: string;
   updated_at?: string;
 }
 
+// Messages
 export interface Message {
   message_id: string;
-  direction: string;
+  direction: MessageDirection;
   subject: string | null;
   body_text: string;
   body_html?: string | null;
@@ -77,23 +76,27 @@ export interface Message {
   external_message_id?: string | null;
 }
 
+// IOCs
+export interface IocScore {
+  vt: number;
+  urlscan: number;
+  agg: number;
+  explain: string;
+}
+
 export interface Ioc {
   obs_id: string;
   ioc_id: string;
-  type: string;
+  type: IocType | string;
   value: string;
   value_norm: string;
-  score: {
-    vt: number;
-    urlscan: number;
-    agg: number;
-    explain: string;
-  };
+  score?: IocScore;
   category: string;
   ts_observed: string;
   context_observation?: Record<string, unknown>;
 }
 
+// Persona / Bandit
 export interface PersonaPerformance {
   persona_code: string;
   persona_label: string;

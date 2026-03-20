@@ -22,7 +22,6 @@ export const ENDPOINTS = {
     personaPerformance: (code: string) => `/scambaiting/persona/${code}/performance`,
     selectPersona: '/scambaiting/select-persona',
     closeConversation: (id: string) => `/scambaiting/conversation/${id}/close`,
-    allStats: '/scambaiting/stats',
   },
   campaign: {
     hunt: '/campaign/hunt',

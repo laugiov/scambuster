@@ -1,8 +1,9 @@
 import axios from 'axios';
 import type { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { ENDPOINTS } from '@/api/endpoints';
 import type { LoginRequest, LoginResponse, RefreshRequest } from '@/types/api';
 
-const API_BASE = '/api/v1';
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api/v1';
 
 const client = axios.create({
   baseURL: API_BASE,
@@ -58,14 +59,13 @@ client.interceptors.response.use(
     const originalRequest = error.config;
     if (!originalRequest) return Promise.reject(error);
 
-    const isLoginRoute = originalRequest.url?.includes('/auth/login');
-    const isRefreshRoute = originalRequest.url?.includes('/auth/refresh');
+    const isLoginRoute = originalRequest.url?.includes(ENDPOINTS.auth.login);
+    const isRefreshRoute = originalRequest.url?.includes(ENDPOINTS.auth.refresh);
 
     if (error.response?.status !== 401 || isLoginRoute || isRefreshRoute) {
       return Promise.reject(error);
     }
 
-    // No tokens at all: redirect to login immediately, don't retry
     if (!refreshToken) {
       clearTokens();
       if (window.location.pathname !== '/login') {
@@ -88,12 +88,8 @@ client.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      if (!refreshToken) {
-        throw new Error('No refresh token available');
-      }
-
       const { data } = await axios.post<LoginResponse>(
-        `${API_BASE}/auth/refresh`,
+        `${API_BASE}${ENDPOINTS.auth.refresh}`,
         { refresh_token: refreshToken } satisfies RefreshRequest,
       );
 
@@ -116,14 +112,14 @@ client.interceptors.response.use(
 );
 
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
-  const { data } = await client.post<LoginResponse>('/auth/login', credentials);
+  const { data } = await client.post<LoginResponse>(ENDPOINTS.auth.login, credentials);
   setTokens(data.access_token, data.refresh_token);
   return data;
 }
 
 export async function logout(): Promise<void> {
   try {
-    await client.post('/auth/logout');
+    await client.post(ENDPOINTS.auth.logout);
   } finally {
     clearTokens();
   }

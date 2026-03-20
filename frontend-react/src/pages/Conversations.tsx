@@ -96,3 +96,4 @@ function RiskIndicator({ score }: { score: number }) {
   const color = score >= 70 ? 'text-error' : score >= 40 ? 'text-warning' : 'text-success';
   return <span className={`font-mono text-xs font-medium ${color}`}>{score}</span>;
 }
+export default Conversations;

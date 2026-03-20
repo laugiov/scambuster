@@ -6,7 +6,7 @@ interface ErrorMessageProps {
 
 export function ErrorMessage({ title = 'Error', message, onRetry }: ErrorMessageProps) {
   return (
-    <div className="bg-error/10 rounded-lg p-6 text-center">
+    <div className="bg-error/10 rounded-lg p-6 text-center" role="alert">
       <p className="text-error font-medium mb-1">{title}</p>
       <p className="text-sm text-on-surface-variant mb-4">{message}</p>
       {onRetry && (

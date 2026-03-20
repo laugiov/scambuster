@@ -8,3 +8,4 @@ export function StixExport() {
     </div>
   );
 }
+export default StixExport;
