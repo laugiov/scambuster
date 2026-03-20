@@ -14,13 +14,23 @@ export function useConversations() {
   });
 }
 
+export function useConversationDetail(conversationId: string) {
+  return useQuery<Conversation>({
+    queryKey: ['conversation', conversationId],
+    queryFn: async () => {
+      const { data } = await client.get<Conversation>(ENDPOINTS.conversations.detail(conversationId));
+      return data;
+    },
+    enabled: !!conversationId,
+    staleTime: 10_000,
+  });
+}
+
 export function useConversationMessages(conversationId: string) {
   return useQuery<Message[]>({
     queryKey: ['conversation-messages', conversationId],
     queryFn: async () => {
-      const { data } = await client.get<Message[]>(ENDPOINTS.conversations.messages, {
-        params: { conversation_id: conversationId },
-      });
+      const { data } = await client.get<Message[]>(ENDPOINTS.conversations.messages(conversationId));
       return data;
     },
     enabled: !!conversationId,
@@ -32,9 +42,7 @@ export function useConversationIocs(conversationId: string) {
   return useQuery<Ioc[]>({
     queryKey: ['conversation-iocs', conversationId],
     queryFn: async () => {
-      const { data } = await client.get<Ioc[]>(ENDPOINTS.iocs.list, {
-        params: { conversation_id: conversationId },
-      });
+      const { data } = await client.get<Ioc[]>(ENDPOINTS.conversations.iocs(conversationId));
       return data;
     },
     enabled: !!conversationId,

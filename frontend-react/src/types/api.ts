@@ -14,8 +14,9 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  token: string;
+  access_token: string;
   refresh_token: string;
+  expires_in: number;
 }
 
 export interface RefreshRequest {
@@ -53,12 +54,16 @@ export interface Conversation {
   conv_id: string;
   status: string;
   score_risk: number;
-  persona: string | null;
-  scam_type: string | null;
-  message_count: number;
-  ioc_count: number;
-  created_at: string;
-  updated_at: string;
+  persona?: string | null;
+  scam_type?: string | null;
+  message_count?: number;
+  ioc_count?: number;
+  ts_first?: string;
+  ts_last?: string;
+  stix_id?: string;
+  channels?: unknown[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Message {
