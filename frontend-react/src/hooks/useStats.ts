@@ -19,7 +19,7 @@ export function useScambaitingStats() {
   return useQuery<ScambaitingStats[]>({
     queryKey: ['scambaiting-stats'],
     queryFn: async () => {
-      const { data } = await client.get<ScambaitingStats[]>(ENDPOINTS.scambaiting.allStats);
+      const { data } = await client.get<ScambaitingStats[]>(ENDPOINTS.scambaiting.stats);
       return data;
     },
     staleTime: 30_000,

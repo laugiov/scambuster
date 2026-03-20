@@ -39,8 +39,8 @@ export function ConversationDetail() {
       {/* Top header bar */}
       <header className="bg-surface-low px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link to="/conversations" className="text-accent hover:text-accent-hover transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <Link to="/conversations" className="text-accent hover:text-accent-hover transition-colors" aria-label="Back to conversations">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
           </Link>
@@ -64,7 +64,7 @@ export function ConversationDetail() {
       </header>
 
       {/* 3-column grid */}
-      <div className="grid grid-cols-12 gap-6 p-6 h-[calc(100vh-120px)]">
+      <div className="grid grid-cols-12 gap-6 p-6 flex-1 overflow-hidden">
         {/* Left: metadata + IOCs */}
         <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-1">
           <SessionMetadata conv={c} messageCount={messages.data?.length ?? 0} iocCount={iocs.data?.length ?? 0} />
@@ -170,10 +170,8 @@ function ExtractedIocs({ iocs, isLoading }: { iocs: Ioc[]; isLoading: boolean })
           const sev = iocSeverity(ioc.score?.agg ?? 0);
           return (
             <div key={ioc.obs_id} className={`flex items-center justify-between p-2 bg-surface-base rounded border-l-2 ${sev.border}`}>
-              <div className="flex flex-col min-w-0 mr-2">
-                <span className="text-xs font-mono truncate text-on-surface-variant">
-                  {ioc.value.length > 24 ? ioc.value.slice(0, 24) + '...' : ioc.value}
-                </span>
+              <div className="flex flex-col min-w-0 mr-2 overflow-hidden">
+                <span className="text-xs font-mono truncate text-on-surface-variant">{ioc.value}</span>
                 <span className="text-[0.5rem] text-on-surface-dim uppercase">{ioc.type}</span>
               </div>
               <span className={`text-[0.5rem] px-1.5 py-0.5 font-bold rounded shrink-0 ${sev.color}`}>
@@ -231,8 +229,8 @@ function AgentDecisionLog() {
     <section className="bg-surface-low rounded-lg p-5">
       <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-5">Agent Decision Log</h3>
       <div className="relative space-y-4 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-surface-highest">
-        {events.map((evt, i) => (
-          <div key={i} className="relative pl-6">
+        {events.map((evt) => (
+          <div key={evt.label} className="relative pl-6">
             <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full ${evt.color} border-2 border-surface-low`} />
             <div className="flex flex-col">
               <span className="text-[0.625rem] text-on-surface-dim font-mono">{evt.time}</span>
@@ -256,8 +254,8 @@ function DoubleValidationPipeline() {
     <section className="bg-surface-low rounded-lg p-5">
       <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">Double Validation Pipeline</h3>
       <div className="space-y-3">
-        {steps.map((step, i) => (
-          <div key={i} className="flex items-center gap-3 p-3 bg-surface-base rounded-lg">
+        {steps.map((step) => (
+          <div key={step.label} className="flex items-center gap-3 p-3 bg-surface-base rounded-lg">
             <div className="w-5 h-5 rounded-full bg-accent-muted/20 flex items-center justify-center shrink-0">
               {step.done && (
                 <svg className="w-3 h-3 text-accent" fill="currentColor" viewBox="0 0 20 20">
@@ -272,3 +270,4 @@ function DoubleValidationPipeline() {
     </section>
   );
 }
+export default ConversationDetail;

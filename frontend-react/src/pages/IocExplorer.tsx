@@ -8,3 +8,4 @@ export function IocExplorer() {
     </div>
   );
 }
+export default IocExplorer;

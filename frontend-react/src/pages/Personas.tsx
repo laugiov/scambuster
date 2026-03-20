@@ -8,3 +8,4 @@ export function Personas() {
     </div>
   );
 }
+export default Personas;

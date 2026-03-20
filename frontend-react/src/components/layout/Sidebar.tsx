@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
 
 interface NavItem {
@@ -19,44 +19,40 @@ const NAV_ITEMS: NavItem[] = [
 
 function NavIcon({ path }: { path: string }) {
   return (
-    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
       <path strokeLinecap="round" strokeLinejoin="round" d={path} />
     </svg>
   );
 }
 
 export function Sidebar() {
-  const location = useLocation();
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-[var(--spacing-sidebar)] bg-sidebar flex flex-col z-50">
+    <aside className="fixed top-0 left-0 h-screen w-[var(--spacing-sidebar)] bg-sidebar flex flex-col z-50" role="navigation" aria-label="Main navigation">
       <div className="px-5 py-6">
         <h1 className="text-lg font-semibold text-on-surface tracking-wide">ScamBuster</h1>
         <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-0.5">Threat Intelligence</p>
       </div>
 
-      <nav className="flex-1 px-3 space-y-0.5">
-        {NAV_ITEMS.map((item) => {
-          const isActive = item.path === '/'
-            ? location.pathname === '/'
-            : location.pathname.startsWith(item.path);
-
-          return (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
+      <nav className="flex-1 px-3 space-y-0.5" aria-label="Pages">
+        {NAV_ITEMS.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            end={item.path === '/'}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
                 isActive
                   ? 'bg-sidebar-active text-accent font-medium'
                   : 'text-on-surface-variant hover:bg-sidebar-hover hover:text-on-surface'
-              }`}
-            >
-              <NavIcon path={item.icon} />
-              {item.label}
-            </NavLink>
-          );
-        })}
+              }`
+            }
+          >
+            <NavIcon path={item.icon} />
+            {item.label}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="px-3 pb-4 space-y-0.5">

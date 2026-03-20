@@ -32,7 +32,7 @@ export function Dashboard() {
         </div>
       </header>
 
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Active Campaigns"
           value={data?.conversations.active ?? 0}
@@ -134,3 +134,4 @@ function BanditBar({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+export default Dashboard;

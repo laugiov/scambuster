@@ -8,3 +8,4 @@ export function Campaigns() {
     </div>
   );
 }
+export default Campaigns;
