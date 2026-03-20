@@ -109,6 +109,21 @@ services:
     networks:
       - scambuster
 
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend/Dockerfile
+    container_name: scambuster-frontend
+    volumes:
+      - ./frontend-react:/app
+      - frontend-node-modules:/app/node_modules
+    ports:
+      - "3002:5173"
+    environment:
+      - VITE_API_BASE_URL=http://backend-dev:8080
+    networks:
+      - scambuster
+
   vault:
     image: hashicorp/vault:1.19.4
     container_name: vault
@@ -144,6 +159,7 @@ services:
 volumes:
   postgres-data:
   postgres-preprod-data:
+  frontend-node-modules:
 
 networks:
   scambuster:
