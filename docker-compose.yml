@@ -120,7 +120,9 @@ services:
     ports:
       - "3002:5173"
     environment:
-      - VITE_API_BASE_URL=http://backend-dev:8080
+      # VITE_API_BASE_URL not set: client uses /api/v1 (relative),
+      # Vite dev server proxies /api to backend-dev:8080
+      - NODE_ENV=development
     networks:
       - scambuster
 
