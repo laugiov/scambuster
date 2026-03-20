@@ -97,14 +97,35 @@ export interface Ioc {
 }
 
 // Persona / Bandit
-export interface PersonaPerformance {
-  persona_code: string;
-  persona_label: string;
-  total_conversations: number;
+export const PERSONA_CODES = [
+  'generic_user', 'bank_customer', 'elderly_person',
+  'lonely_person', 'confused_user', 'small_business_owner',
+] as const;
+
+export type PersonaCode = typeof PERSONA_CODES[number];
+
+export const PERSONA_DISPLAY_NAMES: Record<PersonaCode, string> = {
+  generic_user: 'Generic User',
+  bank_customer: 'Bank Customer',
+  elderly_person: 'Retiree',
+  lonely_person: 'Lonely Person',
+  confused_user: 'Confused User',
+  small_business_owner: 'Small Business',
+};
+
+export interface PersonaScamTypePerf {
+  scam_type_code: string;
+  total_pulls: number;
   avg_reward: number;
   best_reward: number;
-  total_pulls: number;
-  trend: 'up' | 'down' | 'stable';
+}
+
+export interface PersonaSummary {
+  persona_code: string;
+  persona_label: string;
+  total_sessions: number;
+  global_avg_reward: number;
+  performance_by_scam_type: PersonaScamTypePerf[];
 }
 
 export interface ScambaitingStats {
@@ -113,5 +134,4 @@ export interface ScambaitingStats {
   avg_iocs_per_conversation: number;
   avg_engagement_turns: number;
   response_rate: number;
-  personas: PersonaPerformance[];
 }
