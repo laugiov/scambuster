@@ -65,6 +65,15 @@ client.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // No tokens at all: redirect to login immediately, don't retry
+    if (!refreshToken) {
+      clearTokens();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+      return Promise.reject(error);
+    }
+
     if (isRefreshing) {
       return new Promise<string>((resolve, reject) => {
         failedQueue.push({ resolve, reject });
@@ -88,11 +97,11 @@ client.interceptors.response.use(
         { refresh_token: refreshToken } satisfies RefreshRequest,
       );
 
-      setTokens(data.token, data.refresh_token);
-      processQueue(null, data.token);
+      setTokens(data.access_token, data.refresh_token);
+      processQueue(null, data.access_token);
 
       if (originalRequest.headers) {
-        originalRequest.headers.Authorization = `Bearer ${data.token}`;
+        originalRequest.headers.Authorization = `Bearer ${data.access_token}`;
       }
       return client(originalRequest);
     } catch (refreshError) {
@@ -108,7 +117,7 @@ client.interceptors.response.use(
 
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   const { data } = await client.post<LoginResponse>('/auth/login', credentials);
-  setTokens(data.token, data.refresh_token);
+  setTokens(data.access_token, data.refresh_token);
   return data;
 }
 
