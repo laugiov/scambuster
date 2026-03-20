@@ -1,18 +1,15 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useAllPersonaPerformances } from '@/hooks/usePersonas';
 import { useAutonomyStats } from '@/hooks/useStats';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { PERSONA_DISPLAY_NAMES } from '@/types/api';
+import type { PersonaSummary } from '@/types/api';
 
-const PERSONA_LABELS: Record<string, string> = {
-  generic_user: 'Generic User',
-  bank_customer: 'Bank Customer',
-  elderly_person: 'Retiree',
-  lonely_person: 'Lonely Person',
-  confused_user: 'Confused User',
-  small_business_owner: 'Small Business',
-};
+function displayName(code: string): string {
+  return PERSONA_DISPLAY_NAMES[code as keyof typeof PERSONA_DISPLAY_NAMES] ?? code;
+}
 
 export function Personas() {
   const { data: personas, isLoading, error, refetch } = useAllPersonaPerformances();
@@ -22,13 +19,15 @@ export function Personas() {
   if (isLoading) return <Loading message="Loading personas..." />;
   if (error) return <ErrorMessage message="Failed to load persona data" onRetry={() => void refetch()} />;
 
-  const activeCount = personas?.length ?? 0;
+  const safePersonas = personas ?? [];
+  const activeCount = safePersonas.length;
   const epsilon = stats?.convergence.exploration_rate ?? 0.15;
-  const totalReward = personas?.reduce((sum, p) => sum + p.total_sessions, 0) ?? 0;
-  const bestPersona = personas?.reduce((best, p) =>
-    p.global_avg_reward > (best?.global_avg_reward ?? 0) ? p : best, personas[0] ?? null);
+  const totalSessions = safePersonas.reduce((sum, p) => sum + p.total_sessions, 0);
+  const bestPersona = safePersonas.length > 0
+    ? safePersonas.reduce((best, p) => p.global_avg_reward > best.global_avg_reward ? p : best)
+    : null;
 
-  const selectedPersona = personas?.find((p) => p.persona_code === selectedCode) ?? null;
+  const selectedPersona = safePersonas.find((p) => p.persona_code === selectedCode) ?? null;
 
   return (
     <div className="space-y-6">
@@ -40,11 +39,11 @@ export function Personas() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Active Personas" value={activeCount} />
         <StatCard label="Exploration Rate" value={epsilon.toFixed(2)} subtitle="epsilon" />
-        <StatCard label="Total Sessions" value={totalReward} />
+        <StatCard label="Total Sessions" value={totalSessions} />
         <StatCard
           label="Convergence Rate"
           value={bestPersona?.global_avg_reward.toFixed(2) ?? '--'}
-          subtitle={bestPersona ? PERSONA_LABELS[bestPersona.persona_code] ?? bestPersona.persona_code : '--'}
+          subtitle={bestPersona ? displayName(bestPersona.persona_code) : '--'}
           subtitleColor="text-accent"
         />
       </div>
@@ -52,7 +51,7 @@ export function Personas() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
           <PerformanceMatrix
-            personas={personas ?? []}
+            personas={safePersonas}
             selectedCode={selectedCode}
             onSelect={setSelectedCode}
           />
@@ -65,24 +64,18 @@ export function Personas() {
   );
 }
 
-interface PersonaSummary {
-  persona_code: string;
-  persona_label: string;
-  total_sessions: number;
-  global_avg_reward: number;
-  performance_by_scam_type: Array<{
-    scam_type_code: string;
-    total_pulls: number;
-    avg_reward: number;
-    best_reward: number;
-  }>;
-}
-
 function PerformanceMatrix({ personas, selectedCode, onSelect }: {
   personas: PersonaSummary[];
   selectedCode: string | null;
   onSelect: (code: string) => void;
 }) {
+  const handleKeyDown = useCallback((code: string, e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onSelect(code);
+    }
+  }, [onSelect]);
+
   return (
     <div className="bg-surface-low rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
@@ -103,16 +96,19 @@ function PerformanceMatrix({ personas, selectedCode, onSelect }: {
         <tbody className="text-sm">
           {personas.map((p) => {
             const isSelected = p.persona_code === selectedCode;
-            const displayName = PERSONA_LABELS[p.persona_code] ?? p.persona_code;
             return (
               <tr
                 key={p.persona_code}
                 onClick={() => onSelect(p.persona_code)}
-                className={`transition-colors cursor-pointer ${
+                onKeyDown={(e) => handleKeyDown(p.persona_code, e)}
+                tabIndex={0}
+                role="button"
+                aria-pressed={isSelected}
+                className={`transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   isSelected ? 'bg-surface-high' : 'hover:bg-surface-high/50'
                 }`}
               >
-                <td className="py-3 font-medium text-on-surface">{displayName}</td>
+                <td className="py-3 font-medium text-on-surface">{displayName(p.persona_code)}</td>
                 <td className="py-3 text-on-surface-variant font-mono text-xs">{p.total_sessions}</td>
                 <td className="py-3">
                   <span className={`font-mono text-xs font-bold ${
@@ -151,23 +147,21 @@ function PerformanceMatrix({ personas, selectedCode, onSelect }: {
 }
 
 function PersonaDetail({ persona }: { persona: PersonaSummary }) {
-  const displayName = PERSONA_LABELS[persona.persona_code] ?? persona.persona_code;
-
   return (
     <div className="bg-surface-low rounded-lg p-6">
       <h2 className="text-base font-medium text-accent mb-4">
-        Persona Detail — {displayName}
+        Persona Detail — {displayName(persona.persona_code)}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <DetailField label="Code" value={persona.persona_code} />
-        <DetailField label="Total Sessions" value={String(persona.total_sessions)} />
-        <DetailField label="Avg Reward" value={persona.global_avg_reward.toFixed(4)} />
+        <InfoField label="Code" value={persona.persona_code} />
+        <InfoField label="Total Sessions" value={String(persona.total_sessions)} />
+        <InfoField label="Avg Reward" value={persona.global_avg_reward.toFixed(4)} />
       </div>
-      {persona.performance_by_scam_type.length > 0 && (
+      {persona.performance_by_scam_type.length > 0 ? (
         <div className="mt-4">
-          <h3 className="text-xs text-on-surface-dim uppercase tracking-widest font-medium mb-2">
+          <span className="text-xs text-on-surface-dim uppercase tracking-widest font-medium block mb-2">
             Performance by Scam Type
-          </h3>
+          </span>
           <div className="space-y-2">
             {persona.performance_by_scam_type.map((st) => (
               <div key={st.scam_type_code} className="flex items-center justify-between bg-surface-base rounded p-2">
@@ -180,8 +174,7 @@ function PersonaDetail({ persona }: { persona: PersonaSummary }) {
             ))}
           </div>
         </div>
-      )}
-      {persona.performance_by_scam_type.length === 0 && (
+      ) : (
         <p className="mt-4 text-sm text-on-surface-dim bg-surface-base rounded p-3">
           No performance data yet. This persona needs more sessions to generate statistics.
         </p>
@@ -196,15 +189,10 @@ function BanditSettings({ epsilon }: { epsilon: number }) {
       <h2 className="text-base font-medium text-on-surface">Bandit Strategy Settings</h2>
 
       <div className="space-y-4">
-        <div>
-          <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Strategy</label>
-          <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface">
-            epsilon-greedy
-          </div>
-        </div>
+        <InfoField label="Strategy" value="epsilon-greedy" />
 
         <div>
-          <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Epsilon</label>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Epsilon</span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface font-mono">
             {epsilon.toFixed(2)}
           </div>
@@ -214,24 +202,19 @@ function BanditSettings({ epsilon }: { epsilon: number }) {
         </div>
 
         <div>
-          <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Decay Schedule</label>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Decay Schedule</span>
           <div className="flex items-center justify-between bg-surface-base rounded px-3 py-2.5">
             <span className="text-sm text-on-surface">Enabled</span>
-            <span className="w-8 h-4 bg-accent-muted rounded-full relative">
+            <span className="w-8 h-4 bg-accent-muted rounded-full relative" role="img" aria-label="Decay schedule enabled">
               <span className="absolute right-0.5 top-0.5 w-3 h-3 bg-on-surface rounded-full" />
             </span>
           </div>
         </div>
 
-        <div>
-          <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Min Pulls Before Exploit</label>
-          <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface font-mono">
-            50
-          </div>
-        </div>
+        <InfoField label="Min Pulls Before Exploit" value="50" />
 
         <div>
-          <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Reset on New Campaign</label>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Reset on New Campaign</span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface-dim italic">
             Cold restart when &lt;3 sessions
           </div>
@@ -239,7 +222,7 @@ function BanditSettings({ epsilon }: { epsilon: number }) {
       </div>
 
       <div className="space-y-3 pt-2">
-        <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">Reward Function</h3>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">Reward Function</span>
         <div className="grid grid-cols-2 gap-2">
           <RewardWeight label="Engagement Depth" value="0.6" />
           <RewardWeight label="Conversation Length" value="0.05" />
@@ -260,11 +243,11 @@ function RewardWeight({ label, value }: { label: string; value: string }) {
   );
 }
 
-function DetailField({ label, value }: { label: string; value: string }) {
+function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{label}</span>
-      <p className="text-sm font-medium text-on-surface mt-0.5">{value}</p>
+      <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface mt-1">{value}</div>
     </div>
   );
 }

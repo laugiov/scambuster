@@ -23,7 +23,9 @@ function scoreSeverity(score: number): { label: string; color: string; barColor:
 }
 
 function timeSince(iso: string): string {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  const ms = Date.now() - new Date(iso).getTime();
+  if (isNaN(ms)) return 'Unknown';
+  const seconds = Math.floor(ms / 1000);
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
@@ -146,7 +148,11 @@ function IocTable({ iocs, selectedId, onSelect }: {
               <tr
                 key={ioc.obs_id}
                 onClick={() => onSelect(ioc)}
-                className={`transition-colors cursor-pointer ${
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(ioc); } }}
+                tabIndex={0}
+                role="button"
+                aria-pressed={isSelected}
+                className={`transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   isSelected
                     ? 'bg-surface-high border-l-2 border-accent'
                     : 'hover:bg-surface-high/50'
@@ -167,7 +173,7 @@ function IocTable({ iocs, selectedId, onSelect }: {
                     <div className="w-16 h-1.5 bg-surface-highest rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${sev.barColor}`}
-                        style={{ width: `${Math.min((ioc.score?.agg ?? 0) * 10, 100)}%` }}
+                        style={{ width: `${Math.min(Math.max((ioc.score?.agg ?? 0) * 10, 0), 100)}%` }}
                       />
                     </div>
                     <span className={`text-xs font-bold ${sev.color}`}>
@@ -260,7 +266,7 @@ function DetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
 {JSON.stringify({
   type: 'indicator',
   id: `indicator--${ioc.ioc_id.slice(0, 8)}`,
-  pattern: `[${ioc.type}:value = '${ioc.value_norm}']`,
+  pattern: `[${ioc.type}:value = '${ioc.value_norm.replace(/'/g, "\\'")}']`,
   confidence: ioc.score?.agg ?? 0,
   labels: [ioc.category.toLowerCase().replace(/\s+/g, '-')],
 }, null, 2)}
