@@ -406,7 +406,13 @@ final class ConversationController
                     type: 'array',
                     items: new OA\Items(type: 'object', properties: [
                         new OA\Property(property: 'message_id', type: 'string', format: 'uuid'),
-                        new OA\Property(property: 'subject', type: 'string', nullable: true)
+                        new OA\Property(property: 'direction', type: 'string', enum: ['in', 'out']),
+                        new OA\Property(property: 'subject', type: 'string', nullable: true),
+                        new OA\Property(property: 'body_text', type: 'string'),
+                        new OA\Property(property: 'body_html', type: 'string', nullable: true),
+                        new OA\Property(property: 'ts_msg', type: 'string', format: 'date-time'),
+                        new OA\Property(property: 'lang_detect', type: 'string'),
+                        new OA\Property(property: 'external_message_id', type: 'string', nullable: true),
                     ])
                 )
             ),
@@ -438,7 +444,13 @@ final class ConversationController
         $items = array_map(function ($msg) {
             return [
                 'message_id' => $msg->getMsgId(),
+                'direction' => $msg->getDirection()->getCode(),
                 'subject' => $msg->getSubject(),
+                'body_text' => $msg->getBodyText(),
+                'body_html' => $msg->getBodyHtml(),
+                'ts_msg' => $msg->getTsMsg()->format(\DateTimeInterface::ATOM),
+                'lang_detect' => $msg->getLangDetect(),
+                'external_message_id' => $msg->getExternalMessageId(),
             ];
         }, $result['messages']);
 

@@ -67,24 +67,31 @@ export interface Conversation {
 }
 
 export interface Message {
-  msg_id: string;
-  conversation_id: string;
+  message_id: string;
   direction: string;
+  subject: string | null;
   body_text: string;
-  body_html: string | null;
-  headers: Record<string, string>;
-  created_at: string;
+  body_html?: string | null;
+  ts_msg: string;
+  lang_detect?: string;
+  external_message_id?: string | null;
 }
 
 export interface Ioc {
   obs_id: string;
-  indicator_id: string;
-  indicator_type: string;
-  indicator_value: string;
-  confidence: number;
-  context_observation: Record<string, unknown>;
-  message_id: string;
-  created_at: string;
+  ioc_id: string;
+  type: string;
+  value: string;
+  value_norm: string;
+  score: {
+    vt: number;
+    urlscan: number;
+    agg: number;
+    explain: string;
+  };
+  category: string;
+  ts_observed: string;
+  context_observation?: Record<string, unknown>;
 }
 
 export interface PersonaPerformance {

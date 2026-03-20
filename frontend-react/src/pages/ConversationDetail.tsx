@@ -16,9 +16,9 @@ function formatDate(iso: string): string {
   });
 }
 
-function iocSeverity(confidence: number): { label: string; color: string; border: string } {
-  if (confidence >= 80) return { label: 'HIGH', color: 'bg-error/20 text-error', border: 'border-error' };
-  if (confidence >= 50) return { label: 'MEDIUM', color: 'bg-warning/20 text-warning', border: 'border-warning' };
+function iocSeverity(score: number): { label: string; color: string; border: string } {
+  if (score >= 5) return { label: 'HIGH', color: 'bg-error/20 text-error', border: 'border-error' };
+  if (score >= 1) return { label: 'MEDIUM', color: 'bg-warning/20 text-warning', border: 'border-warning' };
   return { label: 'LOW', color: 'bg-status-waiting/20 text-status-waiting', border: 'border-status-waiting' };
 }
 
@@ -86,7 +86,7 @@ export function ConversationDetail() {
               <Loading message="Loading messages..." />
             ) : (
               (messages.data ?? []).map((msg) => (
-                <MessageBubble key={msg.msg_id} message={msg} />
+                <MessageBubble key={msg.message_id} message={msg} />
               ))
             )}
             {!messages.isLoading && (messages.data ?? []).length === 0 && (
@@ -167,13 +167,16 @@ function ExtractedIocs({ iocs, isLoading }: { iocs: Ioc[]; isLoading: boolean })
       </h3>
       <div className="space-y-2">
         {iocs.map((ioc) => {
-          const sev = iocSeverity(ioc.confidence);
+          const sev = iocSeverity(ioc.score?.agg ?? 0);
           return (
             <div key={ioc.obs_id} className={`flex items-center justify-between p-2 bg-surface-base rounded border-l-2 ${sev.border}`}>
-              <span className="text-xs font-mono truncate mr-2 text-on-surface-variant">
-                {ioc.indicator_value.length > 24 ? ioc.indicator_value.slice(0, 24) + '...' : ioc.indicator_value}
-              </span>
-              <span className={`text-[0.5rem] px-1.5 py-0.5 font-bold rounded ${sev.color}`}>
+              <div className="flex flex-col min-w-0 mr-2">
+                <span className="text-xs font-mono truncate text-on-surface-variant">
+                  {ioc.value.length > 24 ? ioc.value.slice(0, 24) + '...' : ioc.value}
+                </span>
+                <span className="text-[0.5rem] text-on-surface-dim uppercase">{ioc.type}</span>
+              </div>
+              <span className={`text-[0.5rem] px-1.5 py-0.5 font-bold rounded shrink-0 ${sev.color}`}>
                 {sev.label}
               </span>
             </div>
@@ -189,6 +192,9 @@ function ExtractedIocs({ iocs, isLoading }: { iocs: Ioc[]; isLoading: boolean })
 
 function MessageBubble({ message }: { message: Message }) {
   const isOutbound = message.direction === 'out';
+  const bodyPreview = message.body_text.length > 500
+    ? message.body_text.slice(0, 500) + '...'
+    : message.body_text;
 
   return (
     <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
@@ -197,9 +203,12 @@ function MessageBubble({ message }: { message: Message }) {
           ? 'bg-accent-muted/10 rounded-tr-none border border-accent-muted/20'
           : 'bg-surface-highest rounded-tl-none border border-surface-highest'
       }`}>
-        <p className="text-sm leading-relaxed text-on-surface">{message.body_text}</p>
+        {message.subject && (
+          <p className="text-xs text-on-surface-dim font-medium mb-1">{message.subject}</p>
+        )}
+        <p className="text-sm leading-relaxed text-on-surface whitespace-pre-line">{bodyPreview}</p>
         <span className={`text-[0.625rem] mt-2 block opacity-60 ${isOutbound ? 'text-right' : ''}`}>
-          {formatTime(message.created_at)} · {isOutbound ? 'Sentinel' : 'Remote Agent'}
+          {message.ts_msg ? formatTime(message.ts_msg) : '--:--'} · {isOutbound ? 'Sentinel' : 'Remote Agent'}
         </span>
       </div>
     </div>
