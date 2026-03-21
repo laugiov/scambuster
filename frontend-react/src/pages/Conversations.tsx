@@ -1,16 +1,19 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useConversations } from '@/hooks/useConversations';
+import { useConversations, PAGE_SIZE } from '@/hooks/useConversations';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import { useAutonomyStats } from '@/hooks/useStats';
+import { Pagination } from '@/components/ui/Pagination';
 import { timeSince } from '@/lib/time';
 
 export function Conversations() {
   const { t } = useTranslation();
-  const { data: conversations, isLoading, error, refetch } = useConversations();
+  const [page, setPage] = useState(1);
+  const { data: conversations, isLoading, error, refetch } = useConversations(page);
   const { data: config } = useMetaConfig();
   const { data: stats } = useAutonomyStats();
 
@@ -88,6 +91,7 @@ export function Conversations() {
             )}
           </tbody>
         </table>
+        <Pagination page={page} pageSize={PAGE_SIZE} totalItems={totalCount} onPageChange={setPage} />
       </div>
     </div>
   );

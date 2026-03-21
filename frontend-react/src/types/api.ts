@@ -22,9 +22,12 @@ export interface RefreshRequest {
 // Monitoring
 export interface AutonomyStats {
   status: string;
+  kill_switch_active?: boolean;
+  kill_switch?: boolean;
   conversations: {
     total: number;
-    active: number;
+    open?: number;
+    active?: number;
     closed: number;
     abandoned: number;
   };
@@ -35,7 +38,9 @@ export interface AutonomyStats {
   };
   iocs: {
     total: number;
-    unique_types: number;
+    unique_types?: number;
+    unique_indicators?: number;
+    last_24h?: number;
   };
   convergence: {
     status?: string;
@@ -46,7 +51,11 @@ export interface AutonomyStats {
     total_types?: number;
     details?: Record<string, boolean>;
   };
-  kill_switch: boolean;
+  last_activity?: {
+    last_inbound?: string;
+    last_outbound?: string;
+    last_ioc?: string;
+  };
   checked_at: string;
 }
 

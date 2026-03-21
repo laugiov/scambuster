@@ -6,6 +6,8 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
+import { useCampaignCandidates } from '@/hooks/useStix';
+import { useAllPersonaPerformances } from '@/hooks/usePersonas';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
 export function Dashboard() {
@@ -14,12 +16,19 @@ export function Dashboard() {
   const stats = useAutonomyStats();
   const conversations = useConversations();
   const { data: config } = useMetaConfig();
+  const { data: campaigns } = useCampaignCandidates();
+  const personaCodes = config?.personas.map((p) => p.code) ?? [];
+  const { data: personas } = useAllPersonaPerformances(personaCodes);
 
   if (stats.isLoading) return <Loading message={t('dashboard.loadingDashboard')} />;
   if (stats.error) return <ErrorMessage message={t('dashboard.failedLoad')} onRetry={() => void stats.refetch()} />;
 
   const data = stats.data;
+  const isKillSwitch = data?.kill_switch_active ?? data?.kill_switch ?? false;
   const activeConversations = conversations.data?.filter((c) => c.status === 'open') ?? [];
+  const bestPersona = personas && personas.length > 0
+    ? personas.reduce((best, p) => p.global_avg_reward > best.global_avg_reward ? p : best)
+    : null;
 
   return (
     <div className="space-y-8">
@@ -27,10 +36,10 @@ export function Dashboard() {
         <h1 className="text-xl font-semibold text-on-surface">{t('dashboard.title')}</h1>
         <div className="flex items-center gap-3">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium ${
-            data?.kill_switch ? 'bg-error/20 text-error' : 'bg-success/20 text-success'
+            isKillSwitch ? 'bg-error/20 text-error' : 'bg-success/20 text-success'
           }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${data?.kill_switch ? 'bg-error' : 'bg-success'}`} />
-            {data?.kill_switch ? t('dashboard.killSwitchActive') : t('dashboard.pipelineActive')}
+            <span className={`w-1.5 h-1.5 rounded-full ${isKillSwitch ? 'bg-error' : 'bg-success'}`} />
+            {isKillSwitch ? t('dashboard.killSwitchActive') : t('dashboard.pipelineActive')}
           </span>
           <span className="text-xs text-on-surface-dim">
             {t('common.lastSync', { time: data?.checked_at ? new Date(data.checked_at).toLocaleTimeString() : '--' })}
@@ -41,12 +50,12 @@ export function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label={t('dashboard.activeCampaigns')}
-          value={data?.conversations.active ?? 0}
+          value={campaigns?.length ?? 0}
         />
         <StatCard
           label={t('dashboard.iocsExtracted')}
           value={data?.iocs.total ?? 0}
-          subtitle={t('dashboard.uniqueTypes', { count: data?.iocs.unique_types ?? 0 })}
+          subtitle={t('dashboard.uniqueTypes', { count: data?.iocs.unique_indicators ?? data?.iocs.unique_types ?? 0 })}
         />
         <StatCard
           label={t('dashboard.avgEngagement')}
@@ -55,8 +64,8 @@ export function Dashboard() {
         />
         <StatCard
           label={t('dashboard.bestPersonaScore')}
-          value={data?.convergence.best_score?.toFixed(2) ?? '--'}
-          subtitle={data?.convergence.best_persona ?? '--'}
+          value={bestPersona?.global_avg_reward.toFixed(2) ?? data?.convergence.best_score?.toFixed(2) ?? '--'}
+          subtitle={bestPersona ? personaDisplayName(config, bestPersona.persona_code) : data?.convergence.best_persona ?? '--'}
           subtitleColor="text-accent"
         />
       </div>

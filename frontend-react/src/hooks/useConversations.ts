@@ -3,11 +3,15 @@ import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
 import type { Conversation, Message, Ioc } from '@/types/api';
 
-export function useConversations() {
+const PAGE_SIZE = 20;
+
+export function useConversations(page = 1) {
   return useQuery<Conversation[]>({
-    queryKey: ['conversations'],
+    queryKey: ['conversations', page],
     queryFn: async () => {
-      const { data } = await client.get<Conversation[]>(ENDPOINTS.conversations.list);
+      const { data } = await client.get<Conversation[]>(ENDPOINTS.conversations.list, {
+        params: { page, limit: PAGE_SIZE },
+      });
       return data;
     },
     staleTime: 30_000,
@@ -49,3 +53,5 @@ export function useConversationIocs(conversationId: string) {
     staleTime: 30_000,
   });
 }
+
+export { PAGE_SIZE };

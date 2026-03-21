@@ -22,10 +22,10 @@ export function Settings() {
         <Section title={t('settings.systemStatus')}>
           {isLoading ? <Loading message={t('settings.loadingStatus')} /> : (
             <div className="space-y-3">
-              <StatusRow label={t('settings.pipeline')} value={stats?.kill_switch ? t('dashboard.killSwitchActive') : t('settings.operational')} ok={!stats?.kill_switch} />
+              <StatusRow label={t('settings.pipeline')} value={(stats?.kill_switch_active ?? stats?.kill_switch) ? t('dashboard.killSwitchActive') : t('settings.operational')} ok={!(stats?.kill_switch_active ?? stats?.kill_switch)} />
               <StatusRow label={t('settings.lastCheck')} value={stats?.checked_at ? new Date(stats.checked_at).toLocaleString('en-GB') : '--'} ok />
-              <StatusRow label={t('settings.convergence')} value={stats?.convergence.status ?? '--'} ok={stats?.convergence.status === 'converging'} />
-              <StatusRow label={t('settings.bestPersona')} value={stats?.convergence.best_persona ?? '--'} ok />
+              <StatusRow label={t('settings.convergence')} value={stats?.convergence.status ?? `${stats?.convergence.converged_types ?? 0}/${stats?.convergence.total_types ?? 0} types`} ok={(stats?.convergence.converged_types ?? 0) > 0} />
+              <StatusRow label={t('settings.bestPersona')} value={stats?.convergence.best_persona ?? '--'} ok={!!stats?.convergence.best_persona} />
               <StatusRow label={t('personas.explorationRate')} value={`${((stats?.convergence.exploration_rate ?? 0) * 100).toFixed(0)}%`} ok />
             </div>
           )}
@@ -35,7 +35,7 @@ export function Settings() {
           {isLoading ? <Loading message={t('settings.loadingCounters')} /> : (
             <div className="space-y-3">
               <CounterRow label={t('settings.totalConversations')} value={stats?.conversations.total ?? 0} />
-              <CounterRow label={t('common.active')} value={stats?.conversations.active ?? 0} />
+              <CounterRow label={t('common.active')} value={stats?.conversations.open ?? stats?.conversations.active ?? 0} />
               <CounterRow label={t('common.status.closed')} value={stats?.conversations.closed ?? 0} />
               <CounterRow label={t('common.status.abandoned')} value={stats?.conversations.abandoned ?? 0} />
               <CounterRow label={t('settings.totalMessages')} value={stats?.messages.total ?? 0} />
