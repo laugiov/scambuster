@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useCampaignCandidates } from '@/hooks/useStix';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
@@ -11,30 +12,31 @@ function formatDate(iso: string): string {
 }
 
 export function Campaigns() {
+  const { t } = useTranslation();
   const { data: candidates, isLoading, error, refetch } = useCampaignCandidates();
 
-  if (isLoading) return <Loading message="Loading campaigns..." />;
-  if (error) return <ErrorMessage message="Failed to load campaign data" onRetry={() => void refetch()} />;
+  if (isLoading) return <Loading message={t('campaigns.loading')} />;
+  if (error) return <ErrorMessage message={t('campaigns.failedLoad')} onRetry={() => void refetch()} />;
 
   const safeCandidates = candidates ?? [];
 
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-on-surface">Campaign Radar</h1>
-        <p className="text-xs text-on-surface-dim mt-1">Automated campaign detection and promotion pipeline</p>
+        <h1 className="text-xl font-semibold text-on-surface">{t('campaigns.title')}</h1>
+        <p className="text-xs text-on-surface-dim mt-1">{t('campaigns.subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard label="Detected Campaigns" value={safeCandidates.length} />
+        <StatCard label={t('campaigns.detectedCampaigns')} value={safeCandidates.length} />
         <StatCard
-          label="Avg PPV"
+          label={t('campaigns.avgPpv')}
           value={safeCandidates.length > 0
             ? (safeCandidates.reduce((s, c) => s + c.ppv, 0) / safeCandidates.length * 100).toFixed(1) + '%'
             : '--'}
         />
         <StatCard
-          label="Total Hits"
+          label={t('campaigns.totalHits')}
           value={safeCandidates.reduce((s, c) => s + c.hits_total, 0)}
         />
       </div>
@@ -43,13 +45,13 @@ export function Campaigns() {
         <table className="w-full">
           <thead>
             <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
-              <th className="text-left px-5 py-3 font-medium">Campaign ID</th>
-              <th className="text-left px-5 py-3 font-medium">Rule ID</th>
-              <th className="text-left px-5 py-3 font-medium">PPV</th>
-              <th className="text-left px-5 py-3 font-medium">Hits</th>
-              <th className="text-left px-5 py-3 font-medium">Lead Time</th>
-              <th className="text-left px-5 py-3 font-medium">Created</th>
-              <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="text-left px-5 py-3 font-medium">{t('campaigns.campaignId')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('campaigns.ruleId')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('campaigns.ppv')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('campaigns.hits')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('campaigns.leadTime')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('campaigns.created')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('common.status.open')}</th>
             </tr>
           </thead>
           <tbody className="text-sm">
@@ -68,7 +70,7 @@ export function Campaigns() {
                   <td className="px-5 py-3 text-on-surface-dim text-xs">{formatDate(c.created_at)}</td>
                   <td className="px-5 py-3">
                     <span className="text-xs px-2 py-0.5 rounded font-medium bg-success/20 text-success">
-                      Promotable
+                      {t('common.status.promotable')}
                     </span>
                   </td>
                 </tr>
@@ -77,7 +79,7 @@ export function Campaigns() {
             {safeCandidates.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-on-surface-dim">
-                  No campaigns detected yet. The hunting pipeline needs more data.
+                  {t('campaigns.noCampaigns')}
                 </td>
               </tr>
             )}
