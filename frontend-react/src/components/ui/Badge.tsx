@@ -1,4 +1,4 @@
-type BadgeVariant = 'engaging' | 'waiting' | 'done' | 'closed' | 'default';
+import type { BadgeVariant } from './badgeUtils';
 
 const VARIANT_STYLES: Record<BadgeVariant, string> = {
   engaging: 'bg-status-engaging/20 text-status-engaging',
@@ -19,21 +19,4 @@ export function Badge({ label, variant = 'default' }: BadgeProps) {
       {label}
     </span>
   );
-}
-
-export function statusToBadgeVariant(status: string): BadgeVariant {
-  switch (status.toLowerCase()) {
-    case 'open':
-    case 'engaging':
-      return 'engaging';
-    case 'waiting':
-      return 'waiting';
-    case 'closed':
-      return 'closed';
-    case 'done':
-    case 'abandoned':
-      return 'done';
-    default:
-      return 'default';
-  }
 }

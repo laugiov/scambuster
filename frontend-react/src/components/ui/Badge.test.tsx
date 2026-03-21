@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Badge, statusToBadgeVariant } from './Badge';
+import { Badge } from './Badge';
+import { statusToBadgeVariant } from './badgeUtils';
 
 describe('Badge', () => {
   it('renders label text', () => {
