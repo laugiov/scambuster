@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useConversationDetail, useConversationMessages, useConversationIocs } from '@/hooks/useConversations';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
@@ -25,6 +26,7 @@ function iocSeverity(score: number): { label: string; color: string; border: str
 }
 
 export function ConversationDetail() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const { data: config } = useMetaConfig();
   const conv = useConversationDetail(id ?? '');
@@ -32,9 +34,9 @@ export function ConversationDetail() {
   const iocs = useConversationIocs(id ?? '');
   const [selectedIoc, setSelectedIoc] = useState<Ioc | null>(null);
 
-  if (conv.isLoading) return <Loading message="Loading conversation..." />;
-  if (conv.error) return <ErrorMessage message="Failed to load conversation" onRetry={() => void conv.refetch()} />;
-  if (!conv.data) return <ErrorMessage message="Conversation not found" />;
+  if (conv.isLoading) return <Loading message={t('conversationDetail.loadingConversation')} />;
+  if (conv.error) return <ErrorMessage message={t('conversationDetail.failedLoad')} onRetry={() => void conv.refetch()} />;
+  if (!conv.data) return <ErrorMessage message={t('conversationDetail.notFound')} />;
 
   const c = conv.data;
 
@@ -43,7 +45,7 @@ export function ConversationDetail() {
       {/* Top header bar */}
       <header className="bg-surface-low px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
-          <Link to="/conversations" className="text-accent hover:text-accent-hover transition-colors" aria-label="Back to conversations">
+          <Link to="/conversations" className="text-accent hover:text-accent-hover transition-colors" aria-label={t('conversationDetail.backToConversations')}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
@@ -81,27 +83,27 @@ export function ConversationDetail() {
             <svg className="w-4 h-4 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
             </svg>
-            <span className="text-sm font-semibold text-on-surface">Email Thread — Automated</span>
-            <span className="text-xs text-on-surface-dim ml-1">via IMAP honeypot</span>
+            <span className="text-sm font-semibold text-on-surface">{t('conversationDetail.emailThread')}</span>
+            <span className="text-xs text-on-surface-dim ml-1">{t('conversationDetail.viaImap')}</span>
           </div>
 
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             {messages.isLoading ? (
-              <Loading message="Loading messages..." />
+              <Loading message={t('conversationDetail.loadingMessages')} />
             ) : (
               (messages.data ?? []).map((msg) => (
                 <MessageBubble key={msg.message_id} message={msg} />
               ))
             )}
             {!messages.isLoading && (messages.data ?? []).length === 0 && (
-              <p className="text-center text-on-surface-dim text-sm py-8">No messages yet</p>
+              <p className="text-center text-on-surface-dim text-sm py-8">{t('conversationDetail.noMessages')}</p>
             )}
           </div>
 
           <div className="p-4 bg-surface-low">
             <div className="flex items-center bg-surface-base rounded-lg px-4 py-3 opacity-50">
               <span className="text-sm text-on-surface-variant italic flex-1">
-                Automated — agent controls this conversation
+                {t('conversationDetail.automatedAgent')}
               </span>
               <svg className="w-4 h-4 text-on-surface-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
@@ -133,6 +135,7 @@ function SessionMetadata({ conv, messageCount, iocCount }: {
   messageCount: number;
   iocCount: number;
 }) {
+  const { t } = useTranslation();
   const startDate = conv.ts_first ?? conv.created_at ?? '';
   const endDate = conv.ts_last ?? '';
   let duration = '--';
@@ -144,16 +147,16 @@ function SessionMetadata({ conv, messageCount, iocCount }: {
 
   return (
     <section className="bg-surface-low rounded-lg p-5">
-      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">Session Metadata</h3>
+      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">{t('conversationDetail.sessionMetadata')}</h3>
       <div className="space-y-3">
-        <MetaRow label="Started" value={startDate ? formatDate(startDate) : '--'} />
+        <MetaRow label={t('conversationDetail.started')} value={startDate ? formatDate(startDate) : '--'} />
         <div className="grid grid-cols-2 gap-3">
-          <MetaRow label="Duration" value={duration} />
-          <MetaRow label="Turns" value={String(messageCount)} />
+          <MetaRow label={t('conversationDetail.duration')} value={duration} />
+          <MetaRow label={t('conversations.messages')} value={String(messageCount)} />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <MetaRow label="IOCs found" value={String(iocCount)} />
-          <MetaRow label="Risk Score" value={String(conv.score_risk)} highlight />
+          <MetaRow label={t('conversationDetail.iocFound')} value={String(iocCount)} />
+          <MetaRow label={t('conversationDetail.riskScore')} value={String(conv.score_risk)} highlight />
         </div>
       </div>
     </section>
@@ -175,12 +178,14 @@ function ExtractedIocs({ iocs, isLoading, selectedId, onSelect }: {
   selectedId: string | null;
   onSelect: (ioc: Ioc | null) => void;
 }) {
-  if (isLoading) return <Loading message="Loading IOCs..." />;
+  const { t } = useTranslation();
+
+  if (isLoading) return <Loading message={t('conversationDetail.loadingIocs')} />;
 
   return (
     <section className="bg-surface-low rounded-lg p-5 flex-1">
       <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">
-        Extracted IOCs <span className="text-on-surface-variant">({iocs.length})</span>
+        {t('conversationDetail.extractedIocs')} <span className="text-on-surface-variant">({iocs.length})</span>
       </h3>
       <div className="space-y-2">
         {iocs.map((ioc) => {
@@ -205,7 +210,7 @@ function ExtractedIocs({ iocs, isLoading, selectedId, onSelect }: {
           );
         })}
         {iocs.length === 0 && (
-          <p className="text-xs text-on-surface-dim text-center py-4">No IOCs extracted</p>
+          <p className="text-xs text-on-surface-dim text-center py-4">{t('conversationDetail.noIocs')}</p>
         )}
       </div>
     </section>
@@ -213,6 +218,7 @@ function ExtractedIocs({ iocs, isLoading, selectedId, onSelect }: {
 }
 
 function MessageBubble({ message }: { message: Message }) {
+  const { t } = useTranslation();
   const isOutbound = message.direction === 'out';
   const bodyPreview = message.body_text.length > 500
     ? message.body_text.slice(0, 500) + '...'
@@ -230,7 +236,7 @@ function MessageBubble({ message }: { message: Message }) {
         )}
         <p className="text-sm leading-relaxed text-on-surface whitespace-pre-line">{bodyPreview}</p>
         <span className={`text-[0.625rem] mt-2 block opacity-60 ${isOutbound ? 'text-right' : ''}`}>
-          {message.ts_msg ? formatTime(message.ts_msg) : '--:--'} · {isOutbound ? 'Sentinel' : 'Remote Agent'}
+          {message.ts_msg ? formatTime(message.ts_msg) : '--:--'} · {isOutbound ? t('conversationDetail.sentinel') : t('conversationDetail.remoteAgent')}
         </span>
       </div>
     </div>
@@ -238,20 +244,19 @@ function MessageBubble({ message }: { message: Message }) {
 }
 
 function AgentDecisionLog() {
-  // Agent logs are not yet available from the API
-  // This renders a static placeholder matching the maquette
+  const { t } = useTranslation();
   const events = [
-    { time: '--:--', label: 'Orchestrator: thread initialized', color: 'bg-accent-muted' },
-    { time: '--:--', label: 'ScamClassifier: type detected', color: 'bg-accent-muted' },
-    { time: '--:--', label: 'IocExtractor: indicators flagged', color: 'bg-warning' },
-    { time: '--:--', label: 'Generator: response drafted', color: 'bg-accent-muted' },
-    { time: '--:--', label: 'PolicyGuard: hard rules passed', color: 'bg-success' },
-    { time: '--:--', label: 'LLM Validator: approved', color: 'bg-success' },
+    { time: '--:--', label: t('conversationDetail.orchestratorInit'), color: 'bg-accent-muted' },
+    { time: '--:--', label: t('conversationDetail.scamClassifierDetect'), color: 'bg-accent-muted' },
+    { time: '--:--', label: t('conversationDetail.iocExtractorFlag'), color: 'bg-warning' },
+    { time: '--:--', label: t('conversationDetail.generatorDraft'), color: 'bg-accent-muted' },
+    { time: '--:--', label: t('conversationDetail.policyGuardPass'), color: 'bg-success' },
+    { time: '--:--', label: t('conversationDetail.llmValidatorApprove'), color: 'bg-success' },
   ];
 
   return (
     <section className="bg-surface-low rounded-lg p-5">
-      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-5">Agent Decision Log</h3>
+      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-5">{t('conversationDetail.agentDecisionLog')}</h3>
       <div className="relative space-y-4 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-surface-highest">
         {events.map((evt) => (
           <div key={evt.label} className="relative pl-6">
@@ -268,15 +273,16 @@ function AgentDecisionLog() {
 }
 
 function DoubleValidationPipeline() {
+  const { t } = useTranslation();
   const steps = [
-    { label: 'Generator: response drafted', done: true },
-    { label: 'PolicyGuard: hard rules passed', done: true },
-    { label: 'LLM Validator: approved — sent', done: true },
+    { label: t('conversationDetail.generatorStep'), done: true },
+    { label: t('conversationDetail.policyGuardStep'), done: true },
+    { label: t('conversationDetail.llmValidatorStep'), done: true },
   ];
 
   return (
     <section className="bg-surface-low rounded-lg p-5">
-      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">Double Validation Pipeline</h3>
+      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">{t('conversationDetail.doubleValidationPipeline')}</h3>
       <div className="space-y-3">
         {steps.map((step) => (
           <div key={step.label} className="flex items-center gap-3 p-3 bg-surface-base rounded-lg">
@@ -296,12 +302,13 @@ function DoubleValidationPipeline() {
 }
 
 function IocDetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
+  const { t } = useTranslation();
   const sev = iocSeverity(ioc.score?.agg ?? 0);
 
   return (
     <section className="bg-surface-low rounded-lg p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-on-surface">IOC Detail</h3>
+        <h3 className="text-sm font-bold text-on-surface">{t('conversationDetail.iocDetail')}</h3>
         <button
           onClick={onClose}
           className="p-1 hover:bg-surface-highest rounded text-on-surface-dim cursor-pointer"
@@ -314,7 +321,7 @@ function IocDetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
       </div>
 
       <div className="p-3 bg-surface-base rounded-lg">
-        <span className="text-[0.625rem] font-bold text-accent-muted uppercase tracking-widest block mb-1">Value</span>
+        <span className="text-[0.625rem] font-bold text-accent-muted uppercase tracking-widest block mb-1">{t('conversationDetail.iocValue')}</span>
         <p className="font-mono text-sm font-bold break-all text-on-surface">{ioc.value}</p>
         <div className="mt-2 flex items-center gap-2">
           <span className={`text-xs px-2 py-0.5 rounded font-medium ${sev.color} bg-surface-high`}>{sev.label}</span>
@@ -323,23 +330,23 @@ function IocDetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <IocField label="Category" value={ioc.category} />
-        <IocField label="First Seen" value={new Date(ioc.ts_observed).toLocaleDateString('en-GB')} />
-        <IocField label="VT Score" value={String(ioc.score?.vt ?? 0)} />
-        <IocField label="URLScan" value={String(ioc.score?.urlscan ?? 0)} />
-        <IocField label="Aggregate" value={String(ioc.score?.agg ?? 0)} />
-        <IocField label="Normalized" value={ioc.value_norm} />
+        <IocField label={t('conversationDetail.category')} value={ioc.category} />
+        <IocField label={t('conversationDetail.firstSeen')} value={new Date(ioc.ts_observed).toLocaleDateString('en-GB')} />
+        <IocField label={t('conversationDetail.vtScore')} value={String(ioc.score?.vt ?? 0)} />
+        <IocField label={t('conversationDetail.urlScan')} value={String(ioc.score?.urlscan ?? 0)} />
+        <IocField label={t('conversationDetail.aggregate')} value={String(ioc.score?.agg ?? 0)} />
+        <IocField label={t('conversationDetail.normalized')} value={ioc.value_norm} />
       </div>
 
       <div>
-        <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest block mb-1">Analysis</span>
+        <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest block mb-1">{t('conversationDetail.analysis')}</span>
         <p className="text-xs text-on-surface-variant bg-surface-base rounded p-2">
-          {ioc.score?.explain ?? 'No analysis available'}
+          {ioc.score?.explain ?? t('conversationDetail.noAnalysis')}
         </p>
       </div>
 
       <div className="flex-1">
-        <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest block mb-1">STIX Pattern</span>
+        <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest block mb-1">{t('conversationDetail.stixPattern')}</span>
         <pre className="p-2 bg-surface-base rounded font-mono text-[0.625rem] text-accent/70 overflow-auto">
 {`[${ioc.type}:value = '${ioc.value_norm.replace(/'/g, "\\'")}']`}
         </pre>

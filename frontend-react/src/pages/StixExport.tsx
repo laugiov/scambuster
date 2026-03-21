@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCampaignCandidates, useStixExport } from '@/hooks/useStix';
 import { useAutonomyStats } from '@/hooks/useStats';
 import { StatCard } from '@/components/ui/StatCard';
@@ -14,6 +15,7 @@ const IOC_TYPE_OPTIONS = [
 ] as const;
 
 export function StixExport() {
+  const { t } = useTranslation();
   const { data: candidates, isLoading, error, refetch } = useCampaignCandidates();
   const { data: stats } = useAutonomyStats();
   const exportMutation = useStixExport();
@@ -24,8 +26,8 @@ export function StixExport() {
   const [minConfidence, setMinConfidence] = useState(75);
   const [includeRelationships, setIncludeRelationships] = useState(true);
 
-  if (isLoading) return <Loading message="Loading export configuration..." />;
-  if (error) return <ErrorMessage message="Failed to load campaign data" onRetry={() => void refetch()} />;
+  if (isLoading) return <Loading message={t('stixExport.loading')} />;
+  if (error) return <ErrorMessage message={t('stixExport.failedLoad')} onRetry={() => void refetch()} />;
 
   const safeCandidates = candidates ?? [];
 
@@ -50,31 +52,31 @@ export function StixExport() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-on-surface">STIX 2.1 Export Center</h1>
-        <p className="text-xs text-on-surface-dim mt-1">Generate and download Threat Intelligence bundles</p>
+        <h1 className="text-xl font-semibold text-on-surface">{t('stixExport.title')}</h1>
+        <p className="text-xs text-on-surface-dim mt-1">{t('stixExport.subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
-          label="Exportable IOCs"
+          label={t('stixExport.exportableIocs')}
           value={stats?.iocs.total ?? 0}
         />
         <StatCard
-          label="Campaigns Available"
+          label={t('stixExport.campaignsAvailable')}
           value={safeCandidates.length}
         />
         <StatCard
-          label="Last Export"
-          value={exportMutation.data ? 'Just now' : 'Never'}
+          label={t('stixExport.lastExport')}
+          value={exportMutation.data ? t('stixExport.justNow') : t('stixExport.never')}
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Export Configuration */}
         <div className="bg-surface-low rounded-lg p-6 space-y-5">
-          <h2 className="text-base font-medium text-on-surface">Export Configuration</h2>
+          <h2 className="text-base font-medium text-on-surface">{t('stixExport.exportConfiguration')}</h2>
 
-          <FormField label="Bundle Name">
+          <FormField label={t('stixExport.bundleName')}>
             <input
               type="text"
               value={bundleName}
@@ -83,13 +85,13 @@ export function StixExport() {
             />
           </FormField>
 
-          <FormField label="Campaign Filter">
+          <FormField label={t('stixExport.campaignFilter')}>
             <select
               value={selectedCampaign}
               onChange={(e) => setSelectedCampaign(e.target.value)}
               className="w-full bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-accent"
             >
-              <option value="all">All Campaigns</option>
+              <option value="all">{t('stixExport.allCampaigns')}</option>
               {safeCandidates.map((c) => (
                 <option key={c.campaign_id} value={c.campaign_id}>
                   {c.campaign_id.slice(0, 8)} (PPV: {(c.ppv * 100).toFixed(0)}%, {c.hits_total} hits)
@@ -98,7 +100,7 @@ export function StixExport() {
             </select>
           </FormField>
 
-          <FormField label="IOC Types">
+          <FormField label={t('stixExport.iocTypes')}>
             <div className="flex flex-wrap gap-2">
               {IOC_TYPE_OPTIONS.map((opt) => (
                 <button
@@ -116,7 +118,7 @@ export function StixExport() {
             </div>
           </FormField>
 
-          <FormField label="Minimum Confidence">
+          <FormField label={t('stixExport.minimumConfidence')}>
             <div className="flex items-center gap-3">
               <input
                 type="range"
@@ -131,7 +133,7 @@ export function StixExport() {
             </div>
           </FormField>
 
-          <FormField label="Include Relationships">
+          <FormField label={t('stixExport.includeRelationships')}>
             <button
               onClick={() => setIncludeRelationships(!includeRelationships)}
               className="flex items-center gap-2 cursor-pointer"
@@ -146,7 +148,7 @@ export function StixExport() {
                 }`} />
               </span>
               <span className="text-sm text-on-surface-variant">
-                {includeRelationships ? 'Enabled' : 'Disabled'}
+                {includeRelationships ? t('common.enabled') : t('common.disabled')}
               </span>
             </button>
           </FormField>
@@ -157,14 +159,14 @@ export function StixExport() {
               disabled={exportMutation.isPending || safeCandidates.length === 0}
               className="w-full bg-accent-muted hover:bg-accent-hover text-on-surface font-medium rounded-lg py-3 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {exportMutation.isPending ? 'Generating...' : 'Generate STIX Bundle'}
+              {exportMutation.isPending ? t('stixExport.generating') : t('stixExport.generateBundle')}
             </button>
 
             <button
               disabled
               className="w-full bg-surface-base text-on-surface-variant font-medium rounded-lg py-3 text-sm border border-surface-highest opacity-60 cursor-not-allowed"
             >
-              Push to MISP
+              {t('stixExport.pushToMisp')}
             </button>
           </div>
         </div>
@@ -176,10 +178,10 @@ export function StixExport() {
               <span className="w-2.5 h-2.5 rounded-full bg-error" />
               <span className="w-2.5 h-2.5 rounded-full bg-warning" />
               <span className="w-2.5 h-2.5 rounded-full bg-success" />
-              <span className="text-sm font-medium text-on-surface ml-2">STIX Bundle Preview</span>
+              <span className="text-sm font-medium text-on-surface ml-2">{t('stixExport.bundlePreview')}</span>
             </div>
             {exportMutation.data && (
-              <span className="text-xs text-success font-medium">Generated</span>
+              <span className="text-xs text-success font-medium">{t('stixExport.generated')}</span>
             )}
           </div>
 
@@ -219,13 +221,13 @@ export function StixExport() {
 
           {exportMutation.error && (
             <p className="mt-3 text-sm text-error bg-error/10 rounded px-3 py-2" role="alert">
-              Export failed: {exportMutation.error.message}
+              {t('stixExport.exportFailed', { error: exportMutation.error.message })}
             </p>
           )}
 
           {exportMutation.data && (
             <p className="mt-3 text-xs text-success bg-success/10 rounded px-3 py-2">
-              Bundle saved: {exportMutation.data.file_path}
+              {t('stixExport.bundleSaved', { path: exportMutation.data.file_path })}
             </p>
           )}
         </div>

@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAllPersonaPerformances } from '@/hooks/usePersonas';
 import { useAutonomyStats } from '@/hooks/useStats';
 import { StatCard } from '@/components/ui/StatCard';
@@ -8,14 +9,15 @@ import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import type { PersonaSummary, MetaConfig } from '@/types/api';
 
 export function Personas() {
+  const { t } = useTranslation();
   const { data: config } = useMetaConfig();
   const personaCodes = config?.personas.map((p) => p.code) ?? [];
   const { data: personas, isLoading, error, refetch } = useAllPersonaPerformances(personaCodes);
   const { data: stats } = useAutonomyStats();
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
 
-  if (isLoading) return <Loading message="Loading personas..." />;
-  if (error) return <ErrorMessage message="Failed to load persona data" onRetry={() => void refetch()} />;
+  if (isLoading) return <Loading message={t('personas.loading')} />;
+  if (error) return <ErrorMessage message={t('personas.failedLoad')} onRetry={() => void refetch()} />;
 
   const safePersonas = personas ?? [];
   const activeCount = safePersonas.length;
@@ -30,16 +32,16 @@ export function Personas() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="text-xl font-semibold text-on-surface">Persona & Bandit Configuration</h1>
-        <p className="text-xs text-on-surface-dim mt-1">epsilon-greedy multi-armed bandit optimization</p>
+        <h1 className="text-xl font-semibold text-on-surface">{t('personas.title')}</h1>
+        <p className="text-xs text-on-surface-dim mt-1">{t('personas.subtitle')}</p>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Active Personas" value={activeCount} />
-        <StatCard label="Exploration Rate" value={epsilon.toFixed(2)} subtitle="epsilon" />
-        <StatCard label="Total Sessions" value={totalSessions} />
+        <StatCard label={t('personas.activePersonas')} value={activeCount} />
+        <StatCard label={t('personas.explorationRate')} value={epsilon.toFixed(2)} subtitle={t('personas.epsilon')} />
+        <StatCard label={t('personas.totalSessions')} value={totalSessions} />
         <StatCard
-          label="Convergence Rate"
+          label={t('personas.convergenceRate')}
           value={bestPersona?.global_avg_reward.toFixed(2) ?? '--'}
           subtitle={bestPersona ? personaDisplayName(config, bestPersona.persona_code) : '--'}
           subtitleColor="text-accent"
@@ -69,6 +71,7 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
   onSelect: (code: string) => void;
   config: MetaConfig | undefined;
 }) {
+  const { t } = useTranslation();
   const handleKeyDown = useCallback((code: string, e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -79,18 +82,18 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
   return (
     <div className="bg-surface-low rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-base font-medium text-on-surface">Persona Performance Matrix</h2>
-        <span className="text-xs text-on-surface-dim">Live Feed</span>
+        <h2 className="text-base font-medium text-on-surface">{t('personas.performanceMatrix')}</h2>
+        <span className="text-xs text-on-surface-dim">{t('personas.liveFeed')}</span>
       </div>
 
       <table className="w-full">
         <thead>
           <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
-            <th className="text-left pb-3 font-medium">Persona</th>
-            <th className="text-left pb-3 font-medium">Pulls</th>
-            <th className="text-left pb-3 font-medium">Avg Reward</th>
-            <th className="text-left pb-3 font-medium">Best</th>
-            <th className="text-left pb-3 font-medium">Status</th>
+            <th className="text-left pb-3 font-medium">{t('conversations.persona')}</th>
+            <th className="text-left pb-3 font-medium">{t('personas.pulls')}</th>
+            <th className="text-left pb-3 font-medium">{t('personas.avgReward')}</th>
+            <th className="text-left pb-3 font-medium">{t('personas.best')}</th>
+            <th className="text-left pb-3 font-medium">{t('common.status.open')}</th>
           </tr>
         </thead>
         <tbody className="text-sm">
@@ -127,7 +130,7 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
                   <span className={`text-xs px-2 py-0.5 rounded font-medium ${
                     p.total_sessions > 0 ? 'bg-success/20 text-success' : 'bg-surface-highest text-on-surface-dim'
                   }`}>
-                    {p.total_sessions > 0 ? 'Active' : 'Cold Start'}
+                    {p.total_sessions > 0 ? t('common.active') : t('common.status.coldStart')}
                   </span>
                 </td>
               </tr>
@@ -136,7 +139,7 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
           {personas.length === 0 && (
             <tr>
               <td colSpan={5} className="py-8 text-center text-on-surface-dim">
-                No persona data available
+                {t('personas.noPersonaData')}
               </td>
             </tr>
           )}
@@ -147,27 +150,29 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
 }
 
 function PersonaDetail({ persona, config }: { persona: PersonaSummary; config: MetaConfig | undefined }) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-surface-low rounded-lg p-6">
       <h2 className="text-base font-medium text-accent mb-4">
-        Persona Detail — {personaDisplayName(config, persona.persona_code)}
+        {t('personas.personaDetail', { name: personaDisplayName(config, persona.persona_code) })}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <InfoField label="Code" value={persona.persona_code} />
-        <InfoField label="Total Sessions" value={String(persona.total_sessions)} />
-        <InfoField label="Avg Reward" value={persona.global_avg_reward.toFixed(4)} />
+        <InfoField label={t('personas.code')} value={persona.persona_code} />
+        <InfoField label={t('personas.totalSessions')} value={String(persona.total_sessions)} />
+        <InfoField label={t('personas.avgReward')} value={persona.global_avg_reward.toFixed(4)} />
       </div>
       {persona.performance_by_scam_type.length > 0 ? (
         <div className="mt-4">
           <span className="text-xs text-on-surface-dim uppercase tracking-widest font-medium block mb-2">
-            Performance by Scam Type
+            {t('personas.performanceByScamType')}
           </span>
           <div className="space-y-2">
             {persona.performance_by_scam_type.map((st) => (
               <div key={st.scam_type_code} className="flex items-center justify-between bg-surface-base rounded p-2">
                 <span className="text-xs text-on-surface-variant">{st.scam_type_code}</span>
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-on-surface-dim">{st.total_pulls} pulls</span>
+                  <span className="text-xs text-on-surface-dim">{t('personas.pullsCount', { count: st.total_pulls })}</span>
                   <span className="text-xs font-mono font-bold text-accent">{st.avg_reward.toFixed(2)}</span>
                 </div>
               </div>
@@ -176,7 +181,7 @@ function PersonaDetail({ persona, config }: { persona: PersonaSummary; config: M
         </div>
       ) : (
         <p className="mt-4 text-sm text-on-surface-dim bg-surface-base rounded p-3">
-          No performance data yet. This persona needs more sessions to generate statistics.
+          {t('personas.noPerformanceData')}
         </p>
       )}
     </div>
@@ -184,6 +189,7 @@ function PersonaDetail({ persona, config }: { persona: PersonaSummary; config: M
 }
 
 function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConfig | undefined }) {
+  const { t } = useTranslation();
   const bandit = config?.bandit;
   const strategy = bandit?.strategy ?? 'epsilon-greedy';
   const effectiveEpsilon = bandit?.epsilon ?? epsilon;
@@ -191,50 +197,50 @@ function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConf
 
   return (
     <div className="bg-surface-low rounded-lg p-6 space-y-6">
-      <h2 className="text-base font-medium text-on-surface">Bandit Strategy Settings</h2>
+      <h2 className="text-base font-medium text-on-surface">{t('personas.banditStrategySettings')}</h2>
 
       <div className="space-y-4">
-        <InfoField label="Strategy" value={strategy} />
+        <InfoField label={t('dashboard.strategy', { name: '' }).replace(': ', '')} value={strategy} />
 
         <div>
-          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Epsilon</span>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">{t('personas.epsilon')}</span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface font-mono">
             {effectiveEpsilon.toFixed(2)}
           </div>
           <p className="text-xs text-on-surface-dim mt-1">
-            {((1 - effectiveEpsilon) * 100).toFixed(0)}% exploit / {(effectiveEpsilon * 100).toFixed(0)}% explore
+            {t('personas.exploit', { pct: ((1 - effectiveEpsilon) * 100).toFixed(0) })} / {t('personas.explore', { pct: (effectiveEpsilon * 100).toFixed(0) })}
           </p>
         </div>
 
         <div>
-          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Decay Schedule</span>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">{t('personas.decaySchedule')}</span>
           <div className="flex items-center justify-between bg-surface-base rounded px-3 py-2.5">
-            <span className="text-sm text-on-surface">Enabled</span>
+            <span className="text-sm text-on-surface">{t('common.enabled')}</span>
             <span className="w-8 h-4 bg-accent-muted rounded-full relative" role="img" aria-label="Decay schedule enabled">
               <span className="absolute right-0.5 top-0.5 w-3 h-3 bg-on-surface rounded-full" />
             </span>
           </div>
         </div>
 
-        <InfoField label="Min Pulls Before Exploit" value={String(bandit?.min_sessions_for_convergence ?? 50)} />
+        <InfoField label={t('personas.minPullsBeforeExploit')} value={String(bandit?.min_sessions_for_convergence ?? 50)} />
 
         <div>
-          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Reset on New Campaign</span>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">{t('personas.resetOnNewCampaign')}</span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface-dim italic">
-            Cold restart when &lt;{coldStart} sessions
+            {t('personas.coldRestart', { threshold: coldStart })}
           </div>
         </div>
       </div>
 
       <div className="space-y-3 pt-2">
-        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">Reward Function</span>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">{t('personas.rewardFunction')}</span>
         <div className="grid grid-cols-2 gap-2">
           {bandit?.reward_weights ? (
             Object.entries(bandit.reward_weights).map(([key, val]) => (
               <RewardWeight key={key} label={key.replace(/_/g, ' ')} value={val.toFixed(2)} />
             ))
           ) : (
-            <p className="text-xs text-on-surface-dim col-span-2">Loading weights...</p>
+            <p className="text-xs text-on-surface-dim col-span-2">{t('personas.loadingWeights')}</p>
           )}
         </div>
       </div>

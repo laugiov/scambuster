@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '@/store/authStore';
 
 export function Login() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
@@ -27,13 +29,13 @@ export function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <h1 className="text-2xl font-semibold text-on-surface tracking-wide">ScamBuster</h1>
-          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-1">Threat Intelligence Platform</p>
+          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-1">{t('auth.title')}</p>
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="bg-surface-low rounded-lg p-6 space-y-5">
           <div>
             <label htmlFor="email" className="block text-xs text-on-surface-dim uppercase tracking-widest mb-2">
-              Email
+              {t('auth.email')}
             </label>
             <input
               id="email"
@@ -43,13 +45,13 @@ export function Login() {
               value={email}
               onChange={(e) => { clearError(); setEmail(e.target.value); }}
               className="w-full bg-surface-base text-on-surface rounded px-3 py-2.5 text-sm placeholder-on-surface-dim focus:outline-none focus:ring-2 focus:ring-accent"
-              placeholder="analyst@scambuster.io"
+              placeholder={t('auth.emailPlaceholder')}
             />
           </div>
 
           <div>
             <label htmlFor="password" className="block text-xs text-on-surface-dim uppercase tracking-widest mb-2">
-              Password
+              {t('auth.password')}
             </label>
             <input
               id="password"
@@ -59,7 +61,7 @@ export function Login() {
               value={password}
               onChange={(e) => { clearError(); setPassword(e.target.value); }}
               className="w-full bg-surface-base text-on-surface rounded px-3 py-2.5 text-sm placeholder-on-surface-dim focus:outline-none focus:ring-2 focus:ring-accent"
-              placeholder="Enter password"
+              placeholder={t('auth.passwordPlaceholder')}
             />
           </div>
 
@@ -74,12 +76,12 @@ export function Login() {
             disabled={isLoading}
             className="w-full bg-accent-muted hover:bg-accent-hover text-on-surface font-medium rounded py-2.5 text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {isLoading ? 'Authenticating...' : 'Sign In'}
+            {isLoading ? t('auth.authenticating') : t('auth.signIn')}
           </button>
         </form>
 
         <p className="text-center text-xs text-on-surface-dim mt-6">
-          Authorized personnel only. All access is monitored.
+          {t('common.authorizedOnly')}
         </p>
       </div>
     </div>

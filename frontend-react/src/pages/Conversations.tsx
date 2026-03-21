@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useConversations } from '@/hooks/useConversations';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
@@ -16,11 +17,12 @@ function timeSince(iso: string): string {
 }
 
 export function Conversations() {
+  const { t } = useTranslation();
   const { data: conversations, isLoading, error, refetch } = useConversations();
   const { data: config } = useMetaConfig();
 
-  if (isLoading) return <Loading message="Loading conversations..." />;
-  if (error) return <ErrorMessage message="Failed to load conversations" onRetry={() => void refetch()} />;
+  if (isLoading) return <Loading message={t('conversations.loading')} />;
+  if (error) return <ErrorMessage message={t('conversations.failedLoad')} onRetry={() => void refetch()} />;
 
   const sorted = [...(conversations ?? [])].sort(
     (a, b) => new Date(b.ts_last ?? b.updated_at ?? 0).getTime() - new Date(a.ts_last ?? a.updated_at ?? 0).getTime()
@@ -32,11 +34,11 @@ export function Conversations() {
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-on-surface">Conversations</h1>
+        <h1 className="text-xl font-semibold text-on-surface">{t('conversations.title')}</h1>
         <div className="flex items-center gap-4 text-xs text-on-surface-dim">
-          <span>{sorted.length} total</span>
-          <span className="text-success">{activeCount} active</span>
-          <span>{closedCount} closed</span>
+          <span>{t('conversations.total', { count: sorted.length })}</span>
+          <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
+          <span>{t('conversations.closed', { count: closedCount })}</span>
         </div>
       </header>
 
@@ -44,13 +46,13 @@ export function Conversations() {
         <table className="w-full">
           <thead>
             <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
-              <th className="text-left px-5 py-3 font-medium">Source ID</th>
-              <th className="text-left px-5 py-3 font-medium">Scam Type</th>
-              <th className="text-left px-5 py-3 font-medium">Persona</th>
-              <th className="text-left px-5 py-3 font-medium">Risk</th>
-              <th className="text-left px-5 py-3 font-medium">Messages</th>
-              <th className="text-left px-5 py-3 font-medium">Last Activity</th>
-              <th className="text-left px-5 py-3 font-medium">Status</th>
+              <th className="text-left px-5 py-3 font-medium">{t('conversations.sourceId')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('conversations.scamType')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('conversations.persona')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('conversations.risk')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('conversations.messages')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('conversations.lastActivity')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('common.status.open')}</th>
             </tr>
           </thead>
           <tbody className="text-sm">
@@ -85,7 +87,7 @@ export function Conversations() {
             {sorted.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-on-surface-dim">
-                  No conversations found
+                  {t('conversations.noConversations')}
                 </td>
               </tr>
             )}

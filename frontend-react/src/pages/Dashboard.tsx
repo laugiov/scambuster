@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAutonomyStats } from '@/hooks/useStats';
 import { useConversations } from '@/hooks/useConversations';
 import { StatCard } from '@/components/ui/StatCard';
@@ -8,13 +9,14 @@ import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
 export function Dashboard() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const stats = useAutonomyStats();
   const conversations = useConversations();
   const { data: config } = useMetaConfig();
 
-  if (stats.isLoading) return <Loading message="Loading dashboard..." />;
-  if (stats.error) return <ErrorMessage message="Failed to load dashboard data" onRetry={() => void stats.refetch()} />;
+  if (stats.isLoading) return <Loading message={t('dashboard.loadingDashboard')} />;
+  if (stats.error) return <ErrorMessage message={t('dashboard.failedLoad')} onRetry={() => void stats.refetch()} />;
 
   const data = stats.data;
   const activeConversations = conversations.data?.filter((c) => c.status === 'open') ?? [];
@@ -22,37 +24,37 @@ export function Dashboard() {
   return (
     <div className="space-y-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-on-surface">ScamBuster — Operations Dashboard</h1>
+        <h1 className="text-xl font-semibold text-on-surface">{t('dashboard.title')}</h1>
         <div className="flex items-center gap-3">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium ${
             data?.kill_switch ? 'bg-error/20 text-error' : 'bg-success/20 text-success'
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${data?.kill_switch ? 'bg-error' : 'bg-success'}`} />
-            {data?.kill_switch ? 'Kill Switch Active' : 'Pipeline Active'}
+            {data?.kill_switch ? t('dashboard.killSwitchActive') : t('dashboard.pipelineActive')}
           </span>
           <span className="text-xs text-on-surface-dim">
-            Last sync: {data?.checked_at ? new Date(data.checked_at).toLocaleTimeString() : '--'}
+            {t('common.lastSync', { time: data?.checked_at ? new Date(data.checked_at).toLocaleTimeString() : '--' })}
           </span>
         </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Active Campaigns"
+          label={t('dashboard.activeCampaigns')}
           value={data?.conversations.active ?? 0}
         />
         <StatCard
-          label="IOCs Extracted"
+          label={t('dashboard.iocsExtracted')}
           value={data?.iocs.total ?? 0}
-          subtitle={`${data?.iocs.unique_types ?? 0} unique types`}
+          subtitle={t('dashboard.uniqueTypes', { count: data?.iocs.unique_types ?? 0 })}
         />
         <StatCard
-          label="Avg. Engagement"
+          label={t('dashboard.avgEngagement')}
           value={`${((data?.messages.outbound ?? 0) / Math.max(data?.conversations.total ?? 1, 1)).toFixed(1)}`}
-          subtitle="turns"
+          subtitle={t('dashboard.turns')}
         />
         <StatCard
-          label="Best Persona Score"
+          label={t('dashboard.bestPersonaScore')}
           value={data?.convergence.best_score?.toFixed(2) ?? '--'}
           subtitle={data?.convergence.best_persona ?? '--'}
           subtitleColor="text-accent"
@@ -62,20 +64,20 @@ export function Dashboard() {
       <div className="grid grid-cols-3 gap-6">
         <div className="col-span-2 bg-surface-low rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-medium text-on-surface">Active Conversations</h2>
-            <span className="text-xs text-on-surface-dim">{activeConversations.length} active</span>
+            <h2 className="text-base font-medium text-on-surface">{t('dashboard.activeConversations')}</h2>
+            <span className="text-xs text-on-surface-dim">{t('dashboard.activeCount', { count: activeConversations.length })}</span>
           </div>
 
           {conversations.isLoading ? (
-            <Loading message="Loading conversations..." />
+            <Loading message={t('dashboard.loadingConversations')} />
           ) : (
             <table className="w-full">
               <thead>
                 <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
-                  <th className="text-left pb-3 font-medium">Source ID</th>
-                  <th className="text-left pb-3 font-medium">Scam Type</th>
-                  <th className="text-left pb-3 font-medium">Persona</th>
-                  <th className="text-left pb-3 font-medium">Status</th>
+                  <th className="text-left pb-3 font-medium">{t('conversations.sourceId')}</th>
+                  <th className="text-left pb-3 font-medium">{t('conversations.scamType')}</th>
+                  <th className="text-left pb-3 font-medium">{t('conversations.persona')}</th>
+                  <th className="text-left pb-3 font-medium">{t('common.status.open')}</th>
                 </tr>
               </thead>
               <tbody className="text-sm">
@@ -103,7 +105,7 @@ export function Dashboard() {
                 {activeConversations.length === 0 && (
                   <tr>
                     <td colSpan={4} className="py-8 text-center text-on-surface-dim text-sm">
-                      No active conversations
+                      {t('dashboard.noActiveConversations')}
                     </td>
                   </tr>
                 )}
@@ -114,16 +116,16 @@ export function Dashboard() {
 
         <div className="bg-surface-low rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-medium text-on-surface">Bandit Performance</h2>
-            <span className="text-xs text-on-surface-dim">Reward Weighting</span>
+            <h2 className="text-base font-medium text-on-surface">{t('dashboard.banditPerformance')}</h2>
+            <span className="text-xs text-on-surface-dim">{t('dashboard.rewardWeighting')}</span>
           </div>
           <div className="space-y-3">
             <BanditBar label={data?.convergence.best_persona ?? 'Best'} value={data?.convergence.best_score ?? 0} />
             <p className="text-xs text-on-surface-dim mt-4">
-              Exploration rate: {((data?.convergence.exploration_rate ?? 0.15) * 100).toFixed(0)}%
+              {t('dashboard.explorationRate', { rate: ((data?.convergence.exploration_rate ?? 0.15) * 100).toFixed(0) })}
             </p>
             <p className="text-xs text-on-surface-dim">
-              Strategy: epsilon-greedy
+              {t('dashboard.strategy', { name: 'epsilon-greedy' })}
             </p>
           </div>
         </div>

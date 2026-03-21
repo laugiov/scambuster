@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAllIocs } from '@/hooks/useIocs';
 import { useMetaConfig } from '@/hooks/useMetaConfig';
 import { Loading } from '@/components/feedback/Loading';
@@ -55,6 +56,7 @@ function timeSince(iso: string): string {
 }
 
 export function IocExplorer() {
+  const { t } = useTranslation();
   const { data: iocs, isLoading, error, refetch } = useAllIocs();
   const { data: config } = useMetaConfig();
   const typeFilters = useMemo(() => buildTypeFilters(config?.ioc_types ?? []), [config?.ioc_types]);
@@ -71,18 +73,18 @@ export function IocExplorer() {
     });
   }, [iocs, typeFilter, search]);
 
-  if (isLoading) return <Loading message="Loading IOCs..." />;
-  if (error) return <ErrorMessage message="Failed to load IOCs" onRetry={() => void refetch()} />;
+  if (isLoading) return <Loading message={t('iocExplorer.loading')} />;
+  if (error) return <ErrorMessage message={t('iocExplorer.failedLoad')} onRetry={() => void refetch()} />;
 
   return (
     <div className="space-y-6">
       <header className="space-y-1">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-          <span className="text-xs uppercase tracking-widest text-accent/80 font-bold">Real-time Analysis</span>
+          <span className="text-xs uppercase tracking-widest text-accent/80 font-bold">{t('iocExplorer.realTimeAnalysis')}</span>
         </div>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-light text-on-surface tracking-tight">IOC Explorer</h1>
+          <h1 className="text-2xl font-light text-on-surface tracking-tight">{t('iocExplorer.title')}</h1>
           <div className="relative max-w-md flex-1 ml-8">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -91,7 +93,7 @@ export function IocExplorer() {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by IP, Domain, Hash, or Email..."
+              placeholder={t('iocExplorer.searchPlaceholder')}
               className="w-full bg-surface-low pl-10 pr-4 py-2.5 rounded-lg text-sm text-on-surface placeholder-on-surface-dim focus:outline-none focus:ring-2 focus:ring-accent"
               aria-label="Search IOCs"
             />
@@ -121,27 +123,29 @@ function FilterBar({ typeFilter, onTypeChange, total, typeFilters }: {
   total: number;
   typeFilters: string[];
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="flex items-center gap-6">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">Type:</span>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.typeFilter')}</span>
         <div className="flex gap-1.5">
-          {typeFilters.map((t) => (
+          {typeFilters.map((tf) => (
             <button
-              key={t}
-              onClick={() => onTypeChange(t)}
+              key={tf}
+              onClick={() => onTypeChange(tf)}
               className={`px-3 py-1 text-xs rounded-full transition-colors cursor-pointer ${
-                typeFilter === t
+                typeFilter === tf
                   ? 'bg-accent-muted text-on-surface font-medium'
                   : 'bg-surface-high hover:bg-surface-highest text-on-surface-variant'
               }`}
             >
-              {t}
+              {tf}
             </button>
           ))}
         </div>
       </div>
-      <span className="ml-auto text-xs text-on-surface-dim">{total} indicators</span>
+      <span className="ml-auto text-xs text-on-surface-dim">{t('iocExplorer.indicators', { count: total })}</span>
     </div>
   );
 }
@@ -151,18 +155,20 @@ function IocTable({ iocs, selectedId, onSelect }: {
   selectedId: string | null;
   onSelect: (ioc: Ioc) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <div className="bg-surface-low rounded-lg overflow-hidden">
       <table className="w-full text-left">
         <thead>
           <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
-            <th className="px-5 py-3 font-medium">ID</th>
-            <th className="px-5 py-3 font-medium">Type</th>
-            <th className="px-5 py-3 font-medium">Value</th>
-            <th className="px-5 py-3 font-medium">Category</th>
-            <th className="px-5 py-3 font-medium">Score</th>
-            <th className="px-5 py-3 font-medium">Last Seen</th>
-            <th className="px-5 py-3 font-medium text-center">Inspect</th>
+            <th className="px-5 py-3 font-medium">{t('iocExplorer.id')}</th>
+            <th className="px-5 py-3 font-medium">{t('iocExplorer.type')}</th>
+            <th className="px-5 py-3 font-medium">{t('iocExplorer.value')}</th>
+            <th className="px-5 py-3 font-medium">{t('conversationDetail.category')}</th>
+            <th className="px-5 py-3 font-medium">{t('iocExplorer.score')}</th>
+            <th className="px-5 py-3 font-medium">{t('iocExplorer.lastSeen')}</th>
+            <th className="px-5 py-3 font-medium text-center">{t('iocExplorer.inspect')}</th>
           </tr>
         </thead>
         <tbody className="text-sm">
@@ -230,7 +236,7 @@ function IocTable({ iocs, selectedId, onSelect }: {
           {iocs.length === 0 && (
             <tr>
               <td colSpan={7} className="px-5 py-12 text-center text-on-surface-dim">
-                No IOCs match the current filters
+                {t('iocExplorer.noMatch')}
               </td>
             </tr>
           )}
@@ -241,12 +247,13 @@ function IocTable({ iocs, selectedId, onSelect }: {
 }
 
 function DetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
+  const { t } = useTranslation();
   const sev = scoreSeverity(ioc.score?.agg ?? 0);
 
   return (
     <aside className="w-96 shrink-0 bg-surface-low rounded-lg p-6 flex flex-col gap-5 overflow-y-auto">
       <div className="flex items-center justify-between">
-        <h3 className="font-bold text-on-surface text-base tracking-tight">Intelligence Profile</h3>
+        <h3 className="font-bold text-on-surface text-base tracking-tight">{t('iocExplorer.intelligenceProfile')}</h3>
         <button
           onClick={onClose}
           className="p-1 hover:bg-surface-highest rounded text-on-surface-dim"
@@ -259,7 +266,7 @@ function DetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
       </div>
 
       <div className="p-4 bg-surface-base rounded-lg">
-        <label className="text-xs font-bold text-accent-muted uppercase tracking-widest block mb-1">Target Identity</label>
+        <label className="text-xs font-bold text-accent-muted uppercase tracking-widest block mb-1">{t('iocExplorer.targetIdentity')}</label>
         <p className="font-mono text-sm font-bold break-all text-on-surface">{ioc.value}</p>
         <div className="mt-2 flex items-center gap-2">
           <span className={`text-xs px-2 py-0.5 rounded font-medium ${sev.color} bg-surface-high`}>
@@ -272,21 +279,21 @@ function DetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        <DetailField label="First Seen" value={new Date(ioc.ts_observed).toLocaleDateString('en-GB')} />
-        <DetailField label="Category" value={ioc.category} />
-        <DetailField label="VT Score" value={String(ioc.score?.vt ?? 0)} />
-        <DetailField label="URLScan" value={String(ioc.score?.urlscan ?? 0)} />
+        <DetailField label={t('conversationDetail.firstSeen')} value={new Date(ioc.ts_observed).toLocaleDateString('en-GB')} />
+        <DetailField label={t('conversationDetail.category')} value={ioc.category} />
+        <DetailField label={t('conversationDetail.vtScore')} value={String(ioc.score?.vt ?? 0)} />
+        <DetailField label={t('conversationDetail.urlScan')} value={String(ioc.score?.urlscan ?? 0)} />
       </div>
 
       <div className="space-y-2">
-        <h4 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">Score Explanation</h4>
+        <h4 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.scoreExplanation')}</h4>
         <p className="text-sm text-on-surface-variant bg-surface-base rounded-lg p-3">
-          {ioc.score?.explain ?? 'No analysis available'}
+          {ioc.score?.explain ?? t('conversationDetail.noAnalysis')}
         </p>
       </div>
 
       <div className="space-y-2 flex-1">
-        <h4 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">STIX v2.1 Context</h4>
+        <h4 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.stixContext')}</h4>
         <pre className="flex-1 min-h-[120px] p-3 bg-surface-base rounded-lg font-mono text-xs text-accent/70 overflow-auto">
 {JSON.stringify({
   type: 'indicator',
