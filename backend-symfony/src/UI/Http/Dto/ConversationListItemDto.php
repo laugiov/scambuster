@@ -12,10 +12,17 @@ final class ConversationListItemDto
         public int $score_risk,
         public string $ts_first,
         public string $ts_last,
-        public string $stix_id
+        public string $stix_id,
+        public ?string $persona = null,
+        public ?string $scam_type = null,
+        public int $turns = 0,
+        public ?float $reward = null,
     ) {
     }
 
+    /**
+     * @return array<string, string|int|float|null>
+     */
     public function toArray(): array
     {
         return [
@@ -25,6 +32,10 @@ final class ConversationListItemDto
             'ts_first' => $this->ts_first,
             'ts_last' => $this->ts_last,
             'stix_id' => $this->stix_id,
+            'persona' => $this->persona,
+            'scam_type' => $this->scam_type,
+            'turns' => $this->turns,
+            'reward' => $this->reward,
         ];
     }
 }

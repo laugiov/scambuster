@@ -3,6 +3,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { PERSONA_DISPLAY_NAMES } from '@/types/api';
 
 function timeSince(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -63,12 +64,14 @@ export function Conversations() {
                   </Link>
                 </td>
                 <td className="px-5 py-3 text-on-surface-variant">{conv.scam_type ?? '--'}</td>
-                <td className="px-5 py-3 text-on-surface-variant">{conv.persona ?? '--'}</td>
+                <td className="px-5 py-3 text-on-surface-variant">
+                  {conv.persona ? (PERSONA_DISPLAY_NAMES[conv.persona as keyof typeof PERSONA_DISPLAY_NAMES] ?? conv.persona) : '--'}
+                </td>
                 <td className="px-5 py-3">
                   <RiskIndicator score={conv.score_risk} />
                 </td>
                 <td className="px-5 py-3 text-on-surface-variant font-mono text-xs">
-                  {conv.message_count ?? '--'}
+                  {conv.turns ?? conv.message_count ?? '--'}
                 </td>
                 <td className="px-5 py-3 text-on-surface-dim text-xs">
                   {conv.ts_last ? timeSince(conv.ts_last) : conv.updated_at ? timeSince(conv.updated_at) : '--'}
