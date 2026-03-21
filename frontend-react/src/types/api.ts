@@ -38,10 +38,13 @@ export interface AutonomyStats {
     unique_types: number;
   };
   convergence: {
-    status: string;
-    best_persona: string;
-    best_score: number;
-    exploration_rate: number;
+    status?: string;
+    best_persona?: string;
+    best_score?: number;
+    exploration_rate?: number;
+    converged_types?: number;
+    total_types?: number;
+    details?: Record<string, boolean>;
   };
   kill_switch: boolean;
   checked_at: string;
@@ -133,9 +136,12 @@ export interface MetaConfig {
 // Persona / Bandit
 export interface PersonaScamTypePerf {
   scam_type_code: string;
-  total_pulls: number;
-  avg_reward: number;
-  best_reward: number;
+  sessions_count?: number;
+  total_pulls?: number;
+  avg_reward?: number;
+  reward_avg?: number;
+  best_reward?: number;
+  is_cold_start?: boolean;
 }
 
 export interface PersonaSummary {

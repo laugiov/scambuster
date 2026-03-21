@@ -5,6 +5,7 @@ import { useMetaConfig } from '@/hooks/useMetaConfig';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import type { Ioc } from '@/types/api';
+import { timeSince } from '@/lib/time';
 
 const CATEGORY_MAP: Record<string, string> = {
   ipv4: 'IP', ipv6: 'IP',
@@ -41,18 +42,6 @@ function scoreSeverity(score: number): { label: string; color: string; barColor:
   if (score >= 5) return { label: 'High', color: 'text-error', barColor: 'bg-error' };
   if (score >= 1) return { label: 'Medium', color: 'text-warning', barColor: 'bg-warning' };
   return { label: 'Low', color: 'text-on-surface-dim', barColor: 'bg-on-surface-dim' };
-}
-
-function timeSince(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime();
-  if (isNaN(ms)) return 'Unknown';
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
 }
 
 export function IocExplorer() {
