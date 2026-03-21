@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useConversationDetail, useConversationMessages, useConversationIocs } from '@/hooks/useConversations';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { PERSONA_DISPLAY_NAMES } from '@/types/api';
 import type { Message, Ioc } from '@/types/api';
 
 function formatTime(iso: string): string {
@@ -27,6 +29,7 @@ export function ConversationDetail() {
   const conv = useConversationDetail(id ?? '');
   const messages = useConversationMessages(id ?? '');
   const iocs = useConversationIocs(id ?? '');
+  const [selectedIoc, setSelectedIoc] = useState<Ioc | null>(null);
 
   if (conv.isLoading) return <Loading message="Loading conversation..." />;
   if (conv.error) return <ErrorMessage message="Failed to load conversation" onRetry={() => void conv.refetch()} />;
@@ -51,7 +54,7 @@ export function ConversationDetail() {
         <div className="flex items-center gap-2">
           {c.persona && (
             <span className="px-3 py-1 bg-accent-muted/20 text-accent text-xs uppercase tracking-wider font-bold rounded-lg">
-              Persona: {c.persona}
+              Persona: {PERSONA_DISPLAY_NAMES[c.persona as keyof typeof PERSONA_DISPLAY_NAMES] ?? c.persona}
             </span>
           )}
           {c.scam_type && (
@@ -68,7 +71,7 @@ export function ConversationDetail() {
         {/* Left: metadata + IOCs */}
         <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-1">
           <SessionMetadata conv={c} messageCount={messages.data?.length ?? 0} iocCount={iocs.data?.length ?? 0} />
-          <ExtractedIocs iocs={iocs.data ?? []} isLoading={iocs.isLoading} />
+          <ExtractedIocs iocs={iocs.data ?? []} isLoading={iocs.isLoading} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
         </div>
 
         {/* Center: email thread */}
@@ -106,10 +109,16 @@ export function ConversationDetail() {
           </div>
         </div>
 
-        {/* Right: agent log + pipeline */}
+        {/* Right: agent log + pipeline OR IOC detail */}
         <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pl-1">
-          <AgentDecisionLog />
-          <DoubleValidationPipeline />
+          {selectedIoc ? (
+            <IocDetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
+          ) : (
+            <>
+              <AgentDecisionLog />
+              <DoubleValidationPipeline />
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -157,7 +166,12 @@ function MetaRow({ label, value, highlight }: { label: string; value: string; hi
   );
 }
 
-function ExtractedIocs({ iocs, isLoading }: { iocs: Ioc[]; isLoading: boolean }) {
+function ExtractedIocs({ iocs, isLoading, selectedId, onSelect }: {
+  iocs: Ioc[];
+  isLoading: boolean;
+  selectedId: string | null;
+  onSelect: (ioc: Ioc | null) => void;
+}) {
   if (isLoading) return <Loading message="Loading IOCs..." />;
 
   return (
@@ -168,8 +182,15 @@ function ExtractedIocs({ iocs, isLoading }: { iocs: Ioc[]; isLoading: boolean })
       <div className="space-y-2">
         {iocs.map((ioc) => {
           const sev = iocSeverity(ioc.score?.agg ?? 0);
+          const isSelected = ioc.obs_id === selectedId;
           return (
-            <div key={ioc.obs_id} className={`flex items-center justify-between p-2 bg-surface-base rounded border-l-2 ${sev.border}`}>
+            <button
+              key={ioc.obs_id}
+              onClick={() => onSelect(isSelected ? null : ioc)}
+              className={`w-full flex items-center justify-between p-2 rounded border-l-2 text-left cursor-pointer transition-colors ${sev.border} ${
+                isSelected ? 'bg-accent-muted/10 ring-1 ring-accent/30' : 'bg-surface-base hover:bg-surface-high/50'
+              }`}
+            >
               <div className="flex flex-col min-w-0 mr-2 overflow-hidden">
                 <span className="text-xs font-mono truncate text-on-surface-variant">{ioc.value}</span>
                 <span className="text-[0.5rem] text-on-surface-dim uppercase">{ioc.type}</span>
@@ -177,7 +198,7 @@ function ExtractedIocs({ iocs, isLoading }: { iocs: Ioc[]; isLoading: boolean })
               <span className={`text-[0.5rem] px-1.5 py-0.5 font-bold rounded shrink-0 ${sev.color}`}>
                 {sev.label}
               </span>
-            </div>
+            </button>
           );
         })}
         {iocs.length === 0 && (
@@ -270,4 +291,67 @@ function DoubleValidationPipeline() {
     </section>
   );
 }
+
+function IocDetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
+  const sev = iocSeverity(ioc.score?.agg ?? 0);
+
+  return (
+    <section className="bg-surface-low rounded-lg p-5 flex flex-col gap-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-on-surface">IOC Detail</h3>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-surface-highest rounded text-on-surface-dim cursor-pointer"
+          aria-label="Close IOC detail"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="p-3 bg-surface-base rounded-lg">
+        <span className="text-[0.625rem] font-bold text-accent-muted uppercase tracking-widest block mb-1">Value</span>
+        <p className="font-mono text-sm font-bold break-all text-on-surface">{ioc.value}</p>
+        <div className="mt-2 flex items-center gap-2">
+          <span className={`text-xs px-2 py-0.5 rounded font-medium ${sev.color} bg-surface-high`}>{sev.label}</span>
+          <span className="text-xs px-2 py-0.5 bg-surface-high text-on-surface-variant rounded">{ioc.type.toUpperCase()}</span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <IocField label="Category" value={ioc.category} />
+        <IocField label="First Seen" value={new Date(ioc.ts_observed).toLocaleDateString('en-GB')} />
+        <IocField label="VT Score" value={String(ioc.score?.vt ?? 0)} />
+        <IocField label="URLScan" value={String(ioc.score?.urlscan ?? 0)} />
+        <IocField label="Aggregate" value={String(ioc.score?.agg ?? 0)} />
+        <IocField label="Normalized" value={ioc.value_norm} />
+      </div>
+
+      <div>
+        <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest block mb-1">Analysis</span>
+        <p className="text-xs text-on-surface-variant bg-surface-base rounded p-2">
+          {ioc.score?.explain ?? 'No analysis available'}
+        </p>
+      </div>
+
+      <div className="flex-1">
+        <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest block mb-1">STIX Pattern</span>
+        <pre className="p-2 bg-surface-base rounded font-mono text-[0.625rem] text-accent/70 overflow-auto">
+{`[${ioc.type}:value = '${ioc.value_norm.replace(/'/g, "\\'")}']`}
+        </pre>
+      </div>
+    </section>
+  );
+}
+
+function IocField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest">{label}</span>
+      <p className="text-xs font-medium text-on-surface mt-0.5 truncate">{value}</p>
+    </div>
+  );
+}
+
 export default ConversationDetail;

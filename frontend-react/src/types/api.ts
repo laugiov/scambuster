@@ -59,6 +59,8 @@ export interface Conversation {
   ts_first?: string;
   ts_last?: string;
   stix_id?: string;
+  turns?: number;
+  reward?: number | null;
   channels?: string[];
   created_at?: string;
   updated_at?: string;
