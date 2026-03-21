@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { AuthGuard } from '@/components/layout/AuthGuard';
 import { Loading } from '@/components/feedback/Loading';
+import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
 import { Login } from '@/pages/Login';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -27,9 +28,10 @@ const queryClient = new QueryClient({
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Suspense fallback={<Loading message="Loading page..." />}>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Suspense fallback={<Loading message="Loading page..." />}>
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route
@@ -49,8 +51,9 @@ export default function App() {
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
-        </Suspense>
-      </BrowserRouter>
-    </QueryClientProvider>
+          </Suspense>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
