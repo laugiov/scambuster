@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Install dependencies first (layer caching)
 COPY frontend-react/package*.json ./
-RUN npm ci --ignore-scripts 2>/dev/null || true
+RUN npm ci
 
 EXPOSE 5173
 
