@@ -4,7 +4,7 @@ import { useConversationDetail, useConversationMessages, useConversationIocs } f
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
-import { PERSONA_DISPLAY_NAMES } from '@/types/api';
+import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import type { Message, Ioc } from '@/types/api';
 
 function formatTime(iso: string): string {
@@ -26,6 +26,7 @@ function iocSeverity(score: number): { label: string; color: string; border: str
 
 export function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
+  const { data: config } = useMetaConfig();
   const conv = useConversationDetail(id ?? '');
   const messages = useConversationMessages(id ?? '');
   const iocs = useConversationIocs(id ?? '');
@@ -54,7 +55,7 @@ export function ConversationDetail() {
         <div className="flex items-center gap-2">
           {c.persona && (
             <span className="px-3 py-1 bg-accent-muted/20 text-accent text-xs uppercase tracking-wider font-bold rounded-lg">
-              Persona: {PERSONA_DISPLAY_NAMES[c.persona as keyof typeof PERSONA_DISPLAY_NAMES] ?? c.persona}
+              Persona: {personaDisplayName(config, c.persona)}
             </span>
           )}
           {c.scam_type && (

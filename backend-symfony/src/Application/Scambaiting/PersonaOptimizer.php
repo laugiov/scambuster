@@ -37,6 +37,27 @@ final class PersonaOptimizer
     }
 
     /**
+     * @return array{strategy: string, epsilon: float, cold_start_threshold: int, convergence_threshold: float, min_sessions_for_convergence: int, converged_epsilon: float, reward_weights: array<string, float>}
+     */
+    public function getBanditConfig(): array
+    {
+        return [
+            'strategy' => 'epsilon-greedy',
+            'epsilon' => self::EPSILON,
+            'cold_start_threshold' => self::COLD_START_THRESHOLD,
+            'convergence_threshold' => self::CONVERGENCE_THRESHOLD,
+            'min_sessions_for_convergence' => self::MIN_SESSIONS_FOR_CONVERGENCE,
+            'converged_epsilon' => self::CONVERGED_EPSILON,
+            'reward_weights' => [
+                'duration' => 0.40,
+                'iocs_total' => 0.25,
+                'iocs_sensibles' => 0.25,
+                'completion' => 0.10,
+            ],
+        ];
+    }
+
+    /**
      * Sélectionne le persona optimal pour un scam_type donné.
      * Retourne le persona_code du persona sélectionné.
      *

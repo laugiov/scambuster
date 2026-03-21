@@ -4,15 +4,13 @@ import { useAutonomyStats } from '@/hooks/useStats';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
-import { PERSONA_DISPLAY_NAMES } from '@/types/api';
-import type { PersonaSummary } from '@/types/api';
-
-function displayName(code: string): string {
-  return PERSONA_DISPLAY_NAMES[code as keyof typeof PERSONA_DISPLAY_NAMES] ?? code;
-}
+import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
+import type { PersonaSummary, MetaConfig } from '@/types/api';
 
 export function Personas() {
-  const { data: personas, isLoading, error, refetch } = useAllPersonaPerformances();
+  const { data: config } = useMetaConfig();
+  const personaCodes = config?.personas.map((p) => p.code) ?? [];
+  const { data: personas, isLoading, error, refetch } = useAllPersonaPerformances(personaCodes);
   const { data: stats } = useAutonomyStats();
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
 
@@ -43,7 +41,7 @@ export function Personas() {
         <StatCard
           label="Convergence Rate"
           value={bestPersona?.global_avg_reward.toFixed(2) ?? '--'}
-          subtitle={bestPersona ? displayName(bestPersona.persona_code) : '--'}
+          subtitle={bestPersona ? personaDisplayName(config, bestPersona.persona_code) : '--'}
           subtitleColor="text-accent"
         />
       </div>
@@ -54,20 +52,22 @@ export function Personas() {
             personas={safePersonas}
             selectedCode={selectedCode}
             onSelect={setSelectedCode}
+            config={config}
           />
-          {selectedPersona && <PersonaDetail persona={selectedPersona} />}
+          {selectedPersona && <PersonaDetail persona={selectedPersona} config={config} />}
         </div>
 
-        <BanditSettings epsilon={epsilon} />
+        <BanditSettings epsilon={epsilon} config={config} />
       </div>
     </div>
   );
 }
 
-function PerformanceMatrix({ personas, selectedCode, onSelect }: {
+function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
   personas: PersonaSummary[];
   selectedCode: string | null;
   onSelect: (code: string) => void;
+  config: MetaConfig | undefined;
 }) {
   const handleKeyDown = useCallback((code: string, e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -108,7 +108,7 @@ function PerformanceMatrix({ personas, selectedCode, onSelect }: {
                   isSelected ? 'bg-surface-high' : 'hover:bg-surface-high/50'
                 }`}
               >
-                <td className="py-3 font-medium text-on-surface">{displayName(p.persona_code)}</td>
+                <td className="py-3 font-medium text-on-surface">{personaDisplayName(config, p.persona_code)}</td>
                 <td className="py-3 text-on-surface-variant font-mono text-xs">{p.total_sessions}</td>
                 <td className="py-3">
                   <span className={`font-mono text-xs font-bold ${
@@ -146,11 +146,11 @@ function PerformanceMatrix({ personas, selectedCode, onSelect }: {
   );
 }
 
-function PersonaDetail({ persona }: { persona: PersonaSummary }) {
+function PersonaDetail({ persona, config }: { persona: PersonaSummary; config: MetaConfig | undefined }) {
   return (
     <div className="bg-surface-low rounded-lg p-6">
       <h2 className="text-base font-medium text-accent mb-4">
-        Persona Detail — {displayName(persona.persona_code)}
+        Persona Detail — {personaDisplayName(config, persona.persona_code)}
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <InfoField label="Code" value={persona.persona_code} />
@@ -183,21 +183,26 @@ function PersonaDetail({ persona }: { persona: PersonaSummary }) {
   );
 }
 
-function BanditSettings({ epsilon }: { epsilon: number }) {
+function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConfig | undefined }) {
+  const bandit = config?.bandit;
+  const strategy = bandit?.strategy ?? 'epsilon-greedy';
+  const effectiveEpsilon = bandit?.epsilon ?? epsilon;
+  const coldStart = bandit?.cold_start_threshold ?? 3;
+
   return (
     <div className="bg-surface-low rounded-lg p-6 space-y-6">
       <h2 className="text-base font-medium text-on-surface">Bandit Strategy Settings</h2>
 
       <div className="space-y-4">
-        <InfoField label="Strategy" value="epsilon-greedy" />
+        <InfoField label="Strategy" value={strategy} />
 
         <div>
           <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Epsilon</span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface font-mono">
-            {epsilon.toFixed(2)}
+            {effectiveEpsilon.toFixed(2)}
           </div>
           <p className="text-xs text-on-surface-dim mt-1">
-            {((1 - epsilon) * 100).toFixed(0)}% exploit / {(epsilon * 100).toFixed(0)}% explore
+            {((1 - effectiveEpsilon) * 100).toFixed(0)}% exploit / {(effectiveEpsilon * 100).toFixed(0)}% explore
           </p>
         </div>
 
@@ -211,12 +216,12 @@ function BanditSettings({ epsilon }: { epsilon: number }) {
           </div>
         </div>
 
-        <InfoField label="Min Pulls Before Exploit" value="50" />
+        <InfoField label="Min Pulls Before Exploit" value={String(bandit?.min_sessions_for_convergence ?? 50)} />
 
         <div>
           <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">Reset on New Campaign</span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface-dim italic">
-            Cold restart when &lt;3 sessions
+            Cold restart when &lt;{coldStart} sessions
           </div>
         </div>
       </div>
@@ -224,10 +229,13 @@ function BanditSettings({ epsilon }: { epsilon: number }) {
       <div className="space-y-3 pt-2">
         <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">Reward Function</span>
         <div className="grid grid-cols-2 gap-2">
-          <RewardWeight label="Engagement Depth" value="0.6" />
-          <RewardWeight label="Conversation Length" value="0.05" />
-          <RewardWeight label="IOC Yield" value="0.25" />
-          <RewardWeight label="Response Rate" value="0.1" />
+          {bandit?.reward_weights ? (
+            Object.entries(bandit.reward_weights).map(([key, val]) => (
+              <RewardWeight key={key} label={key.replace(/_/g, ' ')} value={val.toFixed(2)} />
+            ))
+          ) : (
+            <p className="text-xs text-on-surface-dim col-span-2">Loading weights...</p>
+          )}
         </div>
       </div>
     </div>

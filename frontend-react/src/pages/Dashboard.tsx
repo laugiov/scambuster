@@ -4,13 +4,14 @@ import { useConversations } from '@/hooks/useConversations';
 import { StatCard } from '@/components/ui/StatCard';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
-import { PERSONA_DISPLAY_NAMES } from '@/types/api';
+import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
 export function Dashboard() {
   const navigate = useNavigate();
   const stats = useAutonomyStats();
   const conversations = useConversations();
+  const { data: config } = useMetaConfig();
 
   if (stats.isLoading) return <Loading message="Loading dashboard..." />;
   if (stats.error) return <ErrorMessage message="Failed to load dashboard data" onRetry={() => void stats.refetch()} />;
@@ -92,7 +93,7 @@ export function Dashboard() {
                     </td>
                     <td className="py-2.5 text-on-surface-variant">{conv.scam_type ?? '--'}</td>
                     <td className="py-2.5 text-on-surface-variant">
-                      {conv.persona ? (PERSONA_DISPLAY_NAMES[conv.persona as keyof typeof PERSONA_DISPLAY_NAMES] ?? conv.persona) : '--'}
+                      {conv.persona ? personaDisplayName(config, conv.persona) : '--'}
                     </td>
                     <td className="py-2.5">
                       <Badge label={conv.status} variant={statusToBadgeVariant(conv.status)} />

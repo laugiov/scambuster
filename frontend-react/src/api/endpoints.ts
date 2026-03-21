@@ -31,4 +31,7 @@ export const ENDPOINTS = {
     exportStix: (id: string) => `/campaign/${id}/export/stix`,
   },
   scamTypes: '/communication/scam-types',
+  meta: {
+    config: '/meta/config',
+  },
 } as const;
