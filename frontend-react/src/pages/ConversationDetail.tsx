@@ -109,16 +109,18 @@ export function ConversationDetail() {
           </div>
         </div>
 
-        {/* Right: agent log + pipeline OR IOC detail */}
-        <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pl-1">
-          {selectedIoc ? (
-            <IocDetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
-          ) : (
-            <>
-              <AgentDecisionLog />
-              <DoubleValidationPipeline />
-            </>
-          )}
+        {/* Right: agent log + pipeline OR IOC detail (sticky) */}
+        <div className="col-span-3 pl-1">
+          <div className="sticky top-8 flex flex-col gap-6 max-h-[calc(100vh-140px)] overflow-y-auto">
+            {selectedIoc ? (
+              <IocDetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
+            ) : (
+              <>
+                <AgentDecisionLog />
+                <DoubleValidationPipeline />
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>
