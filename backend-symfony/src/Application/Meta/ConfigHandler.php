@@ -19,12 +19,7 @@ final class ConfigHandler
     }
 
     /**
-     * @return array{
-     *     personas: list<array{code: string, label: string, tone: string, active: bool}>,
-     *     scam_types: list<array{code: string, label: string, description: string|null, active: bool}>,
-     *     ioc_types: list<string>,
-     *     bandit: array{strategy: string, epsilon: float, cold_start_threshold: int, convergence_threshold: float, min_sessions_for_convergence: int, converged_epsilon: float}
-     * }
+     * @return array<string, mixed>
      */
     public function getConfig(): array
     {
@@ -32,24 +27,24 @@ final class ConfigHandler
         $scamTypes = $this->em->getRepository(ScamType::class)->findAll();
 
         return [
-            'personas' => array_values(array_map(
-                static fn(Persona $p): array => [
+            'personas' => array_map(
+                static fn (Persona $p): array => [
                     'code' => $p->getPersonaCode(),
                     'label' => $p->getPersonaLabel(),
                     'tone' => $p->getPersonaTone(),
                     'active' => $p->isActive(),
                 ],
                 $personas,
-            )),
-            'scam_types' => array_values(array_map(
-                static fn(ScamType $st): array => [
+            ),
+            'scam_types' => array_map(
+                static fn (ScamType $st): array => [
                     'code' => $st->getCode(),
                     'label' => $st->getLabel(),
                     'description' => $st->getDescription(),
                     'active' => $st->isActive(),
                 ],
                 $scamTypes,
-            )),
+            ),
             'ioc_types' => IocExtractor::getSupportedTypes(),
             'bandit' => $this->personaOptimizer->getBanditConfig(),
         ];
