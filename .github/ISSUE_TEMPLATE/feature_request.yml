@@ -1,0 +1,35 @@
+name: Feature Request
+description: Suggest a new feature or improvement
+title: "[Feature]: "
+labels: ["feature"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Backend (Symfony)
+        - Frontend (React)
+        - LLM Pipeline
+        - Adaptive Bandit
+        - IOC Extraction
+        - STIX / MISP Export
+        - n8n Workflows
+        - Documentation
