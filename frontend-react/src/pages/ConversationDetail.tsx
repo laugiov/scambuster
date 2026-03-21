@@ -38,9 +38,9 @@ export function ConversationDetail() {
   const c = conv.data;
 
   return (
-    <div className="space-y-0 -m-8">
+    <div className="flex flex-col -m-8 h-[calc(100vh-0px)]">
       {/* Top header bar */}
-      <header className="bg-surface-low px-6 py-3 flex items-center justify-between">
+      <header className="bg-surface-low px-6 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-4">
           <Link to="/conversations" className="text-accent hover:text-accent-hover transition-colors" aria-label="Back to conversations">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
@@ -66,8 +66,8 @@ export function ConversationDetail() {
         </div>
       </header>
 
-      {/* 3-column grid */}
-      <div className="grid grid-cols-12 gap-6 p-6 flex-1 overflow-hidden">
+      {/* 3-column grid — each column scrolls independently */}
+      <div className="grid grid-cols-12 gap-6 p-6 flex-1 min-h-0">
         {/* Left: metadata + IOCs */}
         <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-1">
           <SessionMetadata conv={c} messageCount={messages.data?.length ?? 0} iocCount={iocs.data?.length ?? 0} />
@@ -109,9 +109,9 @@ export function ConversationDetail() {
           </div>
         </div>
 
-        {/* Right: agent log + pipeline OR IOC detail (sticky) */}
-        <div className="col-span-3 pl-1">
-          <div className="sticky top-8 flex flex-col gap-6 max-h-[calc(100vh-140px)] overflow-y-auto">
+        {/* Right: agent log + pipeline OR IOC detail */}
+        <div className="col-span-3 overflow-y-auto pl-1">
+          <div className="flex flex-col gap-6">
             {selectedIoc ? (
               <IocDetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
             ) : (
