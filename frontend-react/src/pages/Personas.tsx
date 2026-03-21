@@ -123,7 +123,7 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
                 </td>
                 <td className="py-3 text-on-surface-variant font-mono text-xs">
                   {p.performance_by_scam_type.length > 0
-                    ? Math.max(...p.performance_by_scam_type.map((s) => s.best_reward)).toFixed(2)
+                    ? Math.max(...p.performance_by_scam_type.map((s) => s.best_reward ?? s.reward_avg ?? 0)).toFixed(2)
                     : '--'}
                 </td>
                 <td className="py-3">
@@ -172,8 +172,8 @@ function PersonaDetail({ persona, config }: { persona: PersonaSummary; config: M
               <div key={st.scam_type_code} className="flex items-center justify-between bg-surface-base rounded p-2">
                 <span className="text-xs text-on-surface-variant">{st.scam_type_code}</span>
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-on-surface-dim">{t('personas.pullsCount', { count: st.total_pulls })}</span>
-                  <span className="text-xs font-mono font-bold text-accent">{st.avg_reward.toFixed(2)}</span>
+                  <span className="text-xs text-on-surface-dim">{t('personas.pullsCount', { count: st.sessions_count ?? st.total_pulls ?? 0 })}</span>
+                  <span className="text-xs font-mono font-bold text-accent">{(st.reward_avg ?? st.avg_reward ?? 0).toFixed(2)}</span>
                 </div>
               </div>
             ))}

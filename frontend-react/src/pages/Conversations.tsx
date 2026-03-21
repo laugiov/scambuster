@@ -5,21 +5,14 @@ import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
-
-function timeSince(iso: string): string {
-  const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
-}
+import { useAutonomyStats } from '@/hooks/useStats';
+import { timeSince } from '@/lib/time';
 
 export function Conversations() {
   const { t } = useTranslation();
   const { data: conversations, isLoading, error, refetch } = useConversations();
   const { data: config } = useMetaConfig();
+  const { data: stats } = useAutonomyStats();
 
   if (isLoading) return <Loading message={t('conversations.loading')} />;
   if (error) return <ErrorMessage message={t('conversations.failedLoad')} onRetry={() => void refetch()} />;
@@ -28,15 +21,17 @@ export function Conversations() {
     (a, b) => new Date(b.ts_last ?? b.updated_at ?? 0).getTime() - new Date(a.ts_last ?? a.updated_at ?? 0).getTime()
   );
 
-  const activeCount = sorted.filter((c) => c.status === 'open').length;
-  const closedCount = sorted.filter((c) => c.status === 'closed').length;
+  // Use autonomy stats for accurate totals (API paginates at 20)
+  const totalCount = stats?.conversations.total ?? sorted.length;
+  const activeCount = stats?.conversations.active ?? sorted.filter((c) => c.status === 'open').length;
+  const closedCount = stats?.conversations.closed ?? sorted.filter((c) => c.status === 'closed').length;
 
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-on-surface">{t('conversations.title')}</h1>
         <div className="flex items-center gap-4 text-xs text-on-surface-dim">
-          <span>{t('conversations.total', { count: sorted.length })}</span>
+          <span>{t('conversations.total', { count: totalCount })}</span>
           <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
           <span>{t('conversations.closed', { count: closedCount })}</span>
         </div>
