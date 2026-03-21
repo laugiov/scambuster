@@ -245,6 +245,9 @@ deactivate-workflows: ##@n8n Deactivate all n8n workflows via API
 # ======================================================================
 #  DEPLOYMENT
 # ======================================================================
+validate: ##@docker Validate installation (check all services)
+	bash scripts/validate-install.sh
+
 wait-healthy: ##@docker Wait for PostgreSQL and Redis to be healthy
 	@echo "Waiting for PostgreSQL..."
 	@until $(DC) exec postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
