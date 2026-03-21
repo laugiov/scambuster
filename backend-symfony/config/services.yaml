@@ -39,6 +39,12 @@ services:
         autowire: true
         autoconfigure: true
 
+    App\UI\Http\Meta\ConfigController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
     App\UI\Http\Internal\MailAccountSecretController:
         public: true
         tags: ['controller.service_arguments']

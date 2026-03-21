@@ -3,7 +3,7 @@ import { useConversations } from '@/hooks/useConversations';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
-import { PERSONA_DISPLAY_NAMES } from '@/types/api';
+import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 
 function timeSince(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
@@ -17,6 +17,7 @@ function timeSince(iso: string): string {
 
 export function Conversations() {
   const { data: conversations, isLoading, error, refetch } = useConversations();
+  const { data: config } = useMetaConfig();
 
   if (isLoading) return <Loading message="Loading conversations..." />;
   if (error) return <ErrorMessage message="Failed to load conversations" onRetry={() => void refetch()} />;
@@ -65,7 +66,7 @@ export function Conversations() {
                 </td>
                 <td className="px-5 py-3 text-on-surface-variant">{conv.scam_type ?? '--'}</td>
                 <td className="px-5 py-3 text-on-surface-variant">
-                  {conv.persona ? (PERSONA_DISPLAY_NAMES[conv.persona as keyof typeof PERSONA_DISPLAY_NAMES] ?? conv.persona) : '--'}
+                  {conv.persona ? personaDisplayName(config, conv.persona) : '--'}
                 </td>
                 <td className="px-5 py-3">
                   <RiskIndicator score={conv.score_risk} />

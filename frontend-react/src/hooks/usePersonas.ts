@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
-import { PERSONA_CODES } from '@/types/api';
 import type { PersonaSummary } from '@/types/api';
 
 export function usePersonaPerformance(code: string) {
@@ -17,12 +16,12 @@ export function usePersonaPerformance(code: string) {
   });
 }
 
-export function useAllPersonaPerformances() {
+export function useAllPersonaPerformances(personaCodes: string[]) {
   return useQuery<PersonaSummary[]>({
-    queryKey: ['all-persona-performances'],
+    queryKey: ['all-persona-performances', personaCodes],
     queryFn: async () => {
       const results = await Promise.all(
-        PERSONA_CODES.map(async (code) => {
+        personaCodes.map(async (code) => {
           try {
             const { data } = await client.get<{ success: boolean; data: PersonaSummary }>(
               ENDPOINTS.scambaiting.personaPerformance(code),
@@ -35,5 +34,6 @@ export function useAllPersonaPerformances() {
       );
       return results.filter((r): r is PersonaSummary => r !== null);
     },
+    enabled: personaCodes.length > 0,
   });
 }

@@ -1,19 +1,39 @@
 import { useState, useMemo } from 'react';
 import { useAllIocs } from '@/hooks/useIocs';
+import { useMetaConfig } from '@/hooks/useMetaConfig';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import type { Ioc } from '@/types/api';
 
-const IOC_TYPE_FILTERS = ['All', 'IP', 'Domain', 'Hash', 'Email', 'URL'] as const;
-type TypeFilter = typeof IOC_TYPE_FILTERS[number];
+const CATEGORY_MAP: Record<string, string> = {
+  ipv4: 'IP', ipv6: 'IP',
+  domain: 'Domain',
+  md5: 'Hash', sha1: 'Hash', sha256: 'Hash',
+  email: 'Email', whois_email: 'Email',
+  url: 'URL',
+};
 
-function matchesType(iocType: string, filter: TypeFilter): boolean {
+function buildTypeFilters(iocTypes: string[]): string[] {
+  const categories = new Set<string>();
+  let hasOther = false;
+  for (const t of iocTypes) {
+    const cat = CATEGORY_MAP[t.toLowerCase()];
+    if (cat) {
+      categories.add(cat);
+    } else {
+      hasOther = true;
+    }
+  }
+  const ordered = ['IP', 'Domain', 'Hash', 'Email', 'URL'].filter((c) => categories.has(c));
+  if (hasOther) ordered.push('Other');
+  return ['All', ...ordered];
+}
+
+function matchesType(iocType: string, filter: string): boolean {
   if (filter === 'All') return true;
-  const typeMap: Record<string, TypeFilter> = {
-    ipv4: 'IP', ipv6: 'IP', domain: 'Domain', url: 'URL',
-    email: 'Email', sha256: 'Hash', md5: 'Hash',
-  };
-  return typeMap[iocType.toLowerCase()] === filter;
+  const cat = CATEGORY_MAP[iocType.toLowerCase()];
+  if (filter === 'Other') return !cat;
+  return cat === filter;
 }
 
 function scoreSeverity(score: number): { label: string; color: string; barColor: string } {
@@ -36,7 +56,9 @@ function timeSince(iso: string): string {
 
 export function IocExplorer() {
   const { data: iocs, isLoading, error, refetch } = useAllIocs();
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('All');
+  const { data: config } = useMetaConfig();
+  const typeFilters = useMemo(() => buildTypeFilters(config?.ioc_types ?? []), [config?.ioc_types]);
+  const [typeFilter, setTypeFilter] = useState<string>('All');
   const [search, setSearch] = useState('');
   const [selectedIoc, setSelectedIoc] = useState<Ioc | null>(null);
 
@@ -77,7 +99,7 @@ export function IocExplorer() {
         </div>
       </header>
 
-      <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={filtered.length} />
+      <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={filtered.length} typeFilters={typeFilters} />
 
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
@@ -93,17 +115,18 @@ export function IocExplorer() {
   );
 }
 
-function FilterBar({ typeFilter, onTypeChange, total }: {
-  typeFilter: TypeFilter;
-  onTypeChange: (t: TypeFilter) => void;
+function FilterBar({ typeFilter, onTypeChange, total, typeFilters }: {
+  typeFilter: string;
+  onTypeChange: (t: string) => void;
   total: number;
+  typeFilters: string[];
 }) {
   return (
     <div className="flex items-center gap-6">
       <div className="flex items-center gap-2">
         <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">Type:</span>
         <div className="flex gap-1.5">
-          {IOC_TYPE_FILTERS.map((t) => (
+          {typeFilters.map((t) => (
             <button
               key={t}
               onClick={() => onTypeChange(t)}

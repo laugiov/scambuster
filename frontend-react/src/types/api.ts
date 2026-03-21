@@ -98,23 +98,39 @@ export interface Ioc {
   context_observation?: Record<string, unknown>;
 }
 
+// Meta config (from GET /meta/config)
+export interface MetaPersona {
+  code: string;
+  label: string;
+  tone: string;
+  active: boolean;
+}
+
+export interface MetaScamType {
+  code: string;
+  label: string;
+  description: string | null;
+  active: boolean;
+}
+
+export interface MetaBanditConfig {
+  strategy: string;
+  epsilon: number;
+  cold_start_threshold: number;
+  convergence_threshold: number;
+  min_sessions_for_convergence: number;
+  converged_epsilon: number;
+  reward_weights: Record<string, number>;
+}
+
+export interface MetaConfig {
+  personas: MetaPersona[];
+  scam_types: MetaScamType[];
+  ioc_types: string[];
+  bandit: MetaBanditConfig;
+}
+
 // Persona / Bandit
-export const PERSONA_CODES = [
-  'generic_user', 'bank_customer', 'elderly_person',
-  'lonely_person', 'confused_user', 'small_business_owner',
-] as const;
-
-export type PersonaCode = typeof PERSONA_CODES[number];
-
-export const PERSONA_DISPLAY_NAMES: Record<PersonaCode, string> = {
-  generic_user: 'Generic User',
-  bank_customer: 'Bank Customer',
-  elderly_person: 'Retiree',
-  lonely_person: 'Lonely Person',
-  confused_user: 'Confused User',
-  small_business_owner: 'Small Business',
-};
-
 export interface PersonaScamTypePerf {
   scam_type_code: string;
   total_pulls: number;
