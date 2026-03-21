@@ -79,12 +79,14 @@ export function IocExplorer() {
 
       <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={filtered.length} />
 
-      <div className="flex gap-6 overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
+      <div className="flex gap-6 items-start">
+        <div className="flex-1 min-w-0">
           <IocTable iocs={filtered} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
         </div>
         {selectedIoc && (
-          <DetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
+          <div className="sticky top-0 shrink-0">
+            <DetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
+          </div>
         )}
       </div>
     </div>
