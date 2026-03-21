@@ -1,11 +1,14 @@
+import { useNavigate } from 'react-router-dom';
 import { useAutonomyStats } from '@/hooks/useStats';
 import { useConversations } from '@/hooks/useConversations';
 import { StatCard } from '@/components/ui/StatCard';
 import { Badge, statusToBadgeVariant } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
+import { PERSONA_DISPLAY_NAMES } from '@/types/api';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const stats = useAutonomyStats();
   const conversations = useConversations();
 
@@ -76,12 +79,21 @@ export function Dashboard() {
               </thead>
               <tbody className="text-sm">
                 {activeConversations.slice(0, 6).map((conv) => (
-                  <tr key={conv.conv_id} className="hover:bg-surface-high/50 transition-colors">
-                    <td className="py-2.5 text-on-surface-variant font-mono text-xs">
+                  <tr
+                    key={conv.conv_id}
+                    onClick={() => navigate(`/conversations/${conv.conv_id}`)}
+                    className="hover:bg-surface-high/50 transition-colors cursor-pointer"
+                    role="link"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/conversations/${conv.conv_id}`); }}
+                  >
+                    <td className="py-2.5 text-accent font-mono text-xs">
                       {conv.conv_id.slice(0, 8)}
                     </td>
                     <td className="py-2.5 text-on-surface-variant">{conv.scam_type ?? '--'}</td>
-                    <td className="py-2.5 text-on-surface-variant">{conv.persona ?? '--'}</td>
+                    <td className="py-2.5 text-on-surface-variant">
+                      {conv.persona ? (PERSONA_DISPLAY_NAMES[conv.persona as keyof typeof PERSONA_DISPLAY_NAMES] ?? conv.persona) : '--'}
+                    </td>
                     <td className="py-2.5">
                       <Badge label={conv.status} variant={statusToBadgeVariant(conv.status)} />
                     </td>
