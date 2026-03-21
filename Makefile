@@ -11,6 +11,7 @@ DC               = docker compose
 PHP_CONTAINER_DEV   ?= backend-dev
 PHP_CONTAINER_TEST  ?= backend-test
 PHP_CONTAINER_E2E ?= backend-e2e
+FRONT_CONTAINER  ?= frontend
 
 # ----------------------------------------------------------------------
 #  Raccourcis commandes
@@ -292,6 +293,23 @@ testOne: ##@test Run a single integration/unit test (q=filter)
         endToEndTest endToEndTestOne testOne \
         respawn-all
 
+
+# ======================================================================
+#  FRONTEND
+# ======================================================================
+front-test: ##@test Run frontend unit tests (Vitest)
+	$(DC) exec $(FRONT_CONTAINER) npm run test
+
+front-typecheck: ##@test Run frontend TypeScript strict check
+	$(DC) exec $(FRONT_CONTAINER) npx tsc --noEmit
+
+front-build: ##@test Run frontend production build
+	$(DC) exec $(FRONT_CONTAINER) npm run build
+
+front-lint: ##@test Run frontend ESLint
+	$(DC) exec $(FRONT_CONTAINER) npm run lint
+
+front-check: front-typecheck front-test front-build ##@test Run all frontend checks (typecheck + tests + build)
 
 # ======================================================================
 #  RESET ALL
