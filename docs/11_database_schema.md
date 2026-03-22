@@ -376,6 +376,28 @@ Junction table linking messages to campaigns.
 
 ---
 
+## LLM Cost Tracking
+
+### llm_usage
+
+Records each LLM API call for cost monitoring and budget enforcement.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| id | integer (PK) | | auto-increment | |
+| conversation_id | varchar(36) | YES | | Conversation UUID (if applicable) |
+| provider | varchar(32) | NO | | openai, anthropic, ollama, mock |
+| model | varchar(64) | NO | | Model name (e.g., gpt-4o-mini) |
+| purpose | varchar(50) | NO | | reply_generation, validation, classification, etc. |
+| prompt_tokens | integer | NO | | Input token count (from API response) |
+| completion_tokens | integer | NO | | Output token count (from API response) |
+| estimated_cost_usd | numeric(10,6) | NO | | Estimated cost in USD |
+| created_at | timestamp | NO | | |
+
+**Indexes**: `idx_llm_usage_created_at`, `idx_llm_usage_provider`
+
+---
+
 ## Views
 
 ### v_campaign_shadow_hits

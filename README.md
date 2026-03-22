@@ -195,10 +195,12 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 |-------|------------|
 | **Backend** | PHP 8.3, Symfony 7.2, DDD architecture |
 | **Database** | PostgreSQL 15, Redis 7 |
-| **LLM** | OpenAI API (GPT-4o-mini, pinned version) |
+| **Frontend** | React 19, TypeScript, TailwindCSS, i18n (EN/FR) |
+| **LLM** | OpenAI, Anthropic, Ollama (local), or Mock (demo) |
 | **Orchestration** | n8n (self-hosted workflow automation) |
 | **Secrets** | HashiCorp Vault |
-| **Infrastructure** | Docker, Docker Compose |
+| **Monitoring** | `/api/health`, `/api/metrics` (Prometheus), LLM cost tracking |
+| **Infrastructure** | Docker Compose, GitHub Actions CI |
 
 ---
 
@@ -213,7 +215,8 @@ make upd                 # Start Docker stack (background)
 make composer-install    # Install PHP dependencies
 make migration           # Create database schema
 make fixtures-dev        # Seed reference data + default users
-make test                # Run 1077 unit + integration tests
+make test                # Run unit + integration tests
+make validate            # Verify all services are healthy
 ```
 
 **Minimum `.env` configuration** before starting:
@@ -224,7 +227,16 @@ make test                # Run 1077 unit + integration tests
 | `JWT_SECRET` | `openssl rand -base64 64` |
 | `LLM_API_KEY` | Your OpenAI API key (from [platform.openai.com](https://platform.openai.com)) |
 
-All other `change-me` values have safe defaults for local development. See `.env.dist` for the full list.
+All other `change-me` values have safe defaults for local development. Run `bash scripts/check-env.sh` to validate.
+
+**Demo mode** (no API key required):
+
+```bash
+# In .env, set LLM_PROVIDER=mock instead of openai
+make demo-load           # Load 123 synthetic conversations with IOCs
+```
+
+**LLM providers**: ScamBuster supports OpenAI, Anthropic Claude, Ollama (local), and Mock. Set `LLM_PROVIDER` in `.env`. See [Getting Started](docs/08_getting_started.md) for details.
 
 **Default credentials** (created by fixtures):
 
@@ -281,6 +293,9 @@ scambuster/
 
 ### Monitoring
 - `GET /api/v1/monitoring/autonomy` -- System health, convergence, kill switch, activity
+- `GET /api/v1/monitoring/llm-cost` -- LLM cost tracking (monthly, per-purpose, daily trend)
+- `GET /api/health` -- Dependency health checks (database, Redis) with latency
+- `GET /api/metrics` -- Prometheus-compatible metrics
 
 ---
 
@@ -344,8 +359,8 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 | [Getting Started](docs/08_getting_started.md) | Setup, run, test -- full tutorial |
 | [DPIA Template](docs/09_dpia_template.md) | Data Protection Impact Assessment template |
 | [Threat Model](docs/10_threat_model.md) | T1-T9 threat categories and mitigations |
-| [Database Schema](docs/11_database_schema.md) | 21 tables, relationships, column reference |
-| [API Quick Reference](docs/12_api_quick_reference.md) | 62 endpoints with curl examples |
+| [Database Schema](docs/11_database_schema.md) | Tables, relationships, column reference |
+| [API Quick Reference](docs/12_api_quick_reference.md) | All endpoints with curl examples |
 | [MISP Integration](docs/13_misp_integration.md) | Connect to MISP, export IOCs, troubleshooting |
 
 ---

@@ -1,6 +1,6 @@
 # API Quick Reference
 
-> 62 endpoints grouped by domain. All paths are prefixed with `/api/v1` unless noted.
+> All endpoints grouped by domain. Paths are prefixed with `/api/v1` unless noted.
 > Full interactive documentation: Swagger UI at `GET /api/doc`
 
 ---
@@ -29,11 +29,13 @@ curl -H "Authorization: Bearer $TOKEN" http://localhost:8081/api/v1/communicatio
 
 ---
 
-## Health
+## Health & Monitoring
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/healthz` | No | Liveness probe (`{"status":"ok"}`) |
+| GET | `/api/health` | No | Dependency checks (database, Redis) with latency |
+| GET | `/api/metrics` | No | Prometheus text format (conversations, IOCs, health) |
 
 ---
 
@@ -172,11 +174,16 @@ curl http://localhost:8081/api/v1/scambaiting/stats/PHISH_CREDENTIALS | jq .
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/monitoring/autonomy` | Yes | System status, kill switch, convergence |
+| GET | `/monitoring/llm-cost` | Yes | Monthly LLM cost, per-purpose breakdown, daily trend |
 
 ```bash
 # Example: check system status
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8081/api/v1/monitoring/autonomy | jq '.kill_switch_active'
+
+# Example: check LLM costs
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8081/api/v1/monitoring/llm-cost | jq '.current_month'
 ```
 
 ---

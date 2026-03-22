@@ -7,6 +7,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.4.0] - March 2026
+
+### Added
+
+#### Multi-LLM Provider Support
+- **AnthropicClient**: Claude Haiku, Sonnet, Opus via Messages API (system message as separate parameter)
+- **OllamaClient**: Local inference with llama3, mistral, phi3 (zero cost, full privacy)
+- **MockLLMClient**: Static responses for demo mode (no API key required)
+- **LLMProviderCompilerPass**: Automatic provider selection via `LLM_PROVIDER` env var
+- 14 unit tests for Ollama + Anthropic clients (HTTP mock, payload, headers, errors)
+
+#### LLM Cost Tracking
+- **LlmCallCompletedEvent**: Dispatched by each provider with real token counts from API responses
+- **LlmUsageRecord**: Doctrine entity + `llm_usage` table for cost persistence
+- **CostEstimator**: Per-model pricing (OpenAI, Anthropic; Ollama/Mock = free)
+- **LlmUsageListener**: Event-driven, non-blocking cost recording
+- **GET /api/v1/monitoring/llm-cost**: Monthly totals, per-purpose breakdown, daily trend
+- 17 unit tests for CostEstimator + LlmUsageRecord
+
+#### Demo Mode
+- `LLM_PROVIDER=mock` bypasses all external API calls
+- `scambuster:demo:load` command loads 123 synthetic conversations (1,034 messages, 382 IOCs)
+- `make demo-load` Makefile target
+
+#### Monitoring & Observability
+- **GET /api/health**: Database + Redis connectivity checks with latency measurement
+- **GET /api/metrics**: Prometheus text format (conversations, messages, IOCs, kill switch, health)
+- `make validate` script checks all services, auth, and environment
+
+#### MISP Integration
+- `docs/13_misp_integration.md`: Export methods, attribute mapping, troubleshooting
+- `scambuster:misp:test` console command for connectivity testing
+- `make misp-test` Makefile target
+
+#### Documentation
+- `docs/11_database_schema.md`: Complete schema extracted from live database
+- `docs/12_api_quick_reference.md`: All endpoints with curl examples
+- `docs/13_misp_integration.md`: MISP integration guide
+
+#### Open Source Readiness
+- GitHub issue templates (bug report, feature request, question) with YAML forms
+- Pull request template with DDD architecture checklist
+- GitHub Actions CI: frontend job (TypeScript, ESLint, Vitest, Vite build)
+- `scripts/check-env.sh`: Environment variable validation
+- `scripts/validate-install.sh`: Full installation health check
+- `docker-compose.override.yml.example` for local customizations
+
+#### Infrastructure
+- Redis healthcheck in Docker Compose
+- `depends_on: condition: service_healthy` for reliable startup order
+- Vite proxy corrected to target backend-dev
+- `role_hierarchy: ROLE_ADMIN -> ROLE_USER` in security config
+
+### Fixed
+- 4 pre-existing test failures (auth headers, detached entity cleanup, unique constraint)
+- ESLint error: `statusToBadgeVariant` extracted to separate file for React Fast Refresh
+- Frontend Dockerfile: removed silent `npm ci` failure
+
+### Removed
+- `scripts/manage-workflows.sh` (n8n credentials must be configured manually in UI)
+
+---
+
 ## [1.3.0] - March 2026
 
 ### Added

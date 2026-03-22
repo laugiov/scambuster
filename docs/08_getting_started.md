@@ -122,6 +122,25 @@ To explore ScamBuster without an OpenAI API key:
 
 The dashboard will show 123 synthetic conversations with realistic IOCs. All LLM calls return mock responses.
 
+### LLM Provider Configuration
+
+ScamBuster supports multiple LLM providers. Set `LLM_PROVIDER` in `.env`:
+
+| Provider | `LLM_PROVIDER` | `LLM_MODEL` | Cost | Notes |
+|----------|----------------|-------------|------|-------|
+| OpenAI | `openai` | `gpt-4o-mini` | ~$0.0002/msg | Default. Requires `LLM_API_KEY` |
+| Anthropic | `anthropic` | `claude-haiku-4-5-20251001` | ~$0.0003/msg | Requires `ANTHROPIC_API_KEY` |
+| Ollama | `ollama` | `llama3` / `mistral` | Free | Local. Set `OLLAMA_BASE_URL` |
+| Mock | `mock` | -- | Free | Static responses, no API calls |
+
+### Verify Installation
+
+After setup, run the validation script to check all services:
+
+```bash
+make validate
+```
+
 ### Quick Smoke Test
 
 ```bash
