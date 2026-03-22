@@ -9,13 +9,6 @@ services:
         bind:
             $projectDir: '%kernel.project_dir%'
 
-    App\UI\Http\:
-        resource: '../src/UI/Http/'
-        exclude:
-            - '../src/UI/Http/Campaign/'
-        public: true
-        tags: ['controller.service_arguments']
-
     App\:
         resource: '../src/'
         exclude:
@@ -24,6 +17,15 @@ services:
             - '../src/Kernel.php'
             - '../src/Application/LLM/'
             - '../src/Infrastructure/LLM/'
+            - '../src/UI/Http/'
+
+    App\UI\Http\:
+        resource: '../src/UI/Http/'
+        exclude:
+            - '../src/UI/Http/Campaign/'
+            - '../src/UI/Http/Dto/'
+        public: true
+        tags: ['controller.service_arguments']
 
     App\Security\:
         resource: '../src/Security'
