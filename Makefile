@@ -230,6 +230,9 @@ fixtures-dev: ##@fixtures Load Doctrine fixtures in DEV env
 close-stale: ##@scambaiting Close stale conversations (default: 7 days, use d= to override)
 	$(CONSOLE_DEV) app:close-stale-conversations $(if $(d),--days=$(d),)
 
+misp-test: ##@misp Test MISP connection
+	$(CONSOLE_DEV) scambuster:misp:test
+
 close-stale-dry: ##@scambaiting Preview stale conversations without closing
 	$(CONSOLE_DEV) app:close-stale-conversations --dry-run $(if $(d),--days=$(d),)
 
