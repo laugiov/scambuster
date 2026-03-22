@@ -111,6 +111,17 @@ The fixtures create the following accounts:
 | `user@example.com` | `Un1que$trongPassword2024` | `ROLE_USER` |
 | `admin@example.com` | `Un1que$trongPassword2024` | `ROLE_ADMIN` |
 
+### Demo Mode (No API Keys Required)
+
+To explore ScamBuster without an OpenAI API key:
+
+1. Set `LLM_PROVIDER=mock` in your `.env` (instead of `openai`)
+2. Start the stack: `make upd`
+3. Load demo data: `make demo-load`
+4. Open http://localhost:3002 and login with `admin@example.com` / `Un1que$trongPassword2024`
+
+The dashboard will show 123 synthetic conversations with realistic IOCs. All LLM calls return mock responses.
+
 ### Quick Smoke Test
 
 ```bash

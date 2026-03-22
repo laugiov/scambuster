@@ -6,6 +6,8 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+        bind:
+            $projectDir: '%kernel.project_dir%'
 
     App\UI\Http\:
         resource: '../src/UI/Http/'

@@ -230,6 +230,11 @@ fixtures-dev: ##@fixtures Load Doctrine fixtures in DEV env
 close-stale: ##@scambaiting Close stale conversations (default: 7 days, use d= to override)
 	$(CONSOLE_DEV) app:close-stale-conversations $(if $(d),--days=$(d),)
 
+demo-load: ##@demo Load demo dataset (123 conversations, no API key needed)
+	cp scambuster-dataset-sample.json backend-symfony/scambuster-dataset-sample.json
+	$(CONSOLE_DEV) scambuster:demo:load
+	rm -f backend-symfony/scambuster-dataset-sample.json
+
 misp-test: ##@misp Test MISP connection
 	$(CONSOLE_DEV) scambuster:misp:test
 
