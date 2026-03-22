@@ -33,7 +33,8 @@
     "personas": "Personas",
     "settings": "Parametres",
     "logout": "Deconnexion",
-    "subtitle": "Renseignement sur les menaces"
+    "subtitle": "Renseignement sur les menaces",
+    "llmCosts": "Couts LLM"
   },
   "auth": {
     "email": "Email",
@@ -251,5 +252,34 @@
     "llmValidatorDesc": "Verification du ton et de la securite",
     "loadingStatus": "Chargement de l'etat...",
     "loadingCounters": "Chargement des compteurs..."
+  },
+  "llmCosts": {
+    "title": "Suivi des Couts LLM",
+    "subtitle": "Suivi en temps reel des couts et gestion du budget",
+    "monthlyCost": "Cout Mensuel",
+    "ofLimit": "{{pct}}% de la limite de ${{limit}}",
+    "apiCalls": "Appels API",
+    "thisMonth": "Ce mois-ci",
+    "promptTokens": "Tokens Prompt",
+    "inputTokens": "Tokens d'entree",
+    "completionTokens": "Tokens Completion",
+    "outputTokens": "Tokens de sortie",
+    "budgetUsage": "Utilisation du Budget",
+    "used": "{{amount}} $ utilises",
+    "limit": "{{amount}} $ de limite",
+    "alertThreshold": "Seuil d'alerte (80%)",
+    "costByPurpose": "Couts par Fonction",
+    "purpose": "Fonction",
+    "cost": "Cout",
+    "calls": "Appels",
+    "avgPerCall": "Moy/Appel",
+    "share": "Part",
+    "dailyTrend": "Tendance Quotidienne (7 jours)",
+    "noCostData": "Aucune utilisation LLM enregistree ce mois-ci",
+    "budgetExceeded": "Budget Depasse",
+    "approachingLimit": "Proche de la Limite",
+    "withinBudget": "Dans le Budget",
+    "noLimit": "Aucune limite de budget configuree",
+    "refresh": "Rafraichir"
   }
 }

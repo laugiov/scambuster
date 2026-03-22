@@ -6,6 +6,7 @@ export const ENDPOINTS = {
   },
   monitoring: {
     autonomy: '/monitoring/autonomy',
+    llmCost: '/monitoring/llm-cost',
   },
   conversations: {
     list: '/communication/conversation',

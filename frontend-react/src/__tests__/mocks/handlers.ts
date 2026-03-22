@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import type { MetaConfig, AutonomyStats, Conversation } from '@/types/api';
+import type { MetaConfig, AutonomyStats, Conversation, LlmCostReport } from '@/types/api';
 
 const BASE = '/api/v1';
 
@@ -57,10 +57,36 @@ export const mockConversations: Conversation[] = [
   },
 ];
 
+export const mockLlmCostReport: LlmCostReport = {
+  current_month: {
+    total_usd: 12.345678,
+    limit_usd: 50.0,
+    pct_used: 24.7,
+    calls_count: 1842,
+    total_prompt_tokens: 2450000,
+    total_completion_tokens: 890000,
+  },
+  per_purpose: {
+    generation: { cost_usd: 5.123456, calls: 620 },
+    classification: { cost_usd: 2.345678, calls: 410 },
+    validation: { cost_usd: 1.890123, calls: 380 },
+    ioc_extraction: { cost_usd: 1.567890, calls: 290 },
+    conversation_analysis: { cost_usd: 0.987654, calls: 98 },
+    injection_detection: { cost_usd: 0.430877, calls: 44 },
+  },
+  daily_trend: [
+    { date: '2026-03-22', cost_usd: 1.234567, calls: 312 },
+    { date: '2026-03-21', cost_usd: 2.100000, calls: 287 },
+    { date: '2026-03-20', cost_usd: 1.890000, calls: 301 },
+  ],
+  limit_exceeded: false,
+};
+
 export const handlers = [
   http.get(`${BASE}/meta/config`, () => HttpResponse.json(mockMetaConfig)),
   http.get(`${BASE}/monitoring/autonomy`, () => HttpResponse.json(mockAutonomyStats)),
   http.get(`${BASE}/communication/conversation`, () => HttpResponse.json(mockConversations)),
+  http.get(`${BASE}/monitoring/llm-cost`, () => HttpResponse.json(mockLlmCostReport)),
   http.post(`${BASE}/auth/login`, () => HttpResponse.json({
     access_token: 'mock-jwt-token',
     refresh_token: 'mock-refresh-token',

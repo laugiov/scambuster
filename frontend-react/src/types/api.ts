@@ -168,3 +168,31 @@ export interface ScambaitingStats {
   avg_engagement_turns: number;
   response_rate: number;
 }
+
+// LLM Cost Monitoring
+export interface LlmCostMonth {
+  total_usd: number;
+  limit_usd: number;
+  pct_used: number;
+  calls_count: number;
+  total_prompt_tokens: number;
+  total_completion_tokens: number;
+}
+
+export interface LlmPurposeCost {
+  cost_usd: number;
+  calls: number;
+}
+
+export interface LlmDailyTrend {
+  date: string;
+  cost_usd: number;
+  calls: number;
+}
+
+export interface LlmCostReport {
+  current_month: LlmCostMonth;
+  per_purpose: Record<string, LlmPurposeCost>;
+  daily_trend: LlmDailyTrend[];
+  limit_exceeded: boolean;
+}
