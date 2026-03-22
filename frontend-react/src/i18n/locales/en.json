@@ -64,7 +64,9 @@
     "strategy": "Strategy: {{name}}",
     "loadingDashboard": "Loading dashboard...",
     "loadingConversations": "Loading conversations...",
-    "failedLoad": "Failed to load dashboard data"
+    "failedLoad": "Failed to load dashboard data",
+    "llmCost": "LLM Cost",
+    "ofBudget": "{{pct}}% of ${{limit}} budget"
   },
   "conversations": {
     "title": "Conversations",

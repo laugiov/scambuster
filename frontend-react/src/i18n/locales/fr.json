@@ -64,7 +64,9 @@
     "strategy": "Strategie : {{name}}",
     "loadingDashboard": "Chargement du tableau de bord...",
     "loadingConversations": "Chargement des conversations...",
-    "failedLoad": "Echec du chargement du tableau de bord"
+    "failedLoad": "Echec du chargement du tableau de bord",
+    "llmCost": "Cout LLM",
+    "ofBudget": "{{pct}}% du budget de ${{limit}}"
   },
   "conversations": {
     "title": "Conversations",
