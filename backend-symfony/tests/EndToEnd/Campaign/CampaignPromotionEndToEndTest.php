@@ -19,7 +19,7 @@ class CampaignPromotionEndToEndTest extends WebTestCase
     private function getValidJwt($client): string
     {
         $client->request('POST', '/api/v1/auth/login', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode([
-            'email' => 'user@example.com',
+            'email' => 'admin@example.com',
             'password' => 'Un1que$trongPassword2024',
         ]));
         

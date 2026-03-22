@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\EndToEnd\Communication;
 
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use App\Domain\Communication\MailAccount;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class MailAccountSecretEndToEndTest extends WebTestCase
 {
@@ -28,7 +28,11 @@ class MailAccountSecretEndToEndTest extends WebTestCase
         $em->persist($mailAccount);
         $em->flush();
 
-        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/' . $loginHash);
+        $jwt = $this->getAdminJwt($client);
+
+        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/' . $loginHash, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ]);
         $this->assertResponseIsSuccessful();
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertSame('user@example.com', $data['login']);
@@ -37,17 +41,35 @@ class MailAccountSecretEndToEndTest extends WebTestCase
         $this->assertSame('imap.example.com', $data['endpoint']);
         $this->assertSame(['mail.read', 'mail.send'], $data['oauth_scopes']);
 
-        // Nettoyage
-        $em->remove($mailAccount);
-        $em->flush();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $managed = $em->find(MailAccount::class, $accountId);
+        if ($managed !== null) {
+            $em->remove($managed);
+            $em->flush();
+        }
     }
 
     public function test_resolve_secret_e2e_404(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/unknownhash');
+        $jwt = $this->getAdminJwt($client);
+
+        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/unknownhash', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ]);
         $this->assertResponseStatusCodeSame(404);
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('error', $data);
     }
-} 
+
+    private function getAdminJwt($client): string
+    {
+        $client->request('POST', '/api/v1/auth/login', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'email' => 'admin@example.com',
+            'password' => 'Un1que$trongPassword2024',
+        ]));
+        $data = json_decode($client->getResponse()->getContent(), true);
+
+        return $data['access_token'] ?? '';
+    }
+}

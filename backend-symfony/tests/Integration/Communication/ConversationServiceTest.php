@@ -315,6 +315,7 @@ class ConversationServiceTest extends KernelTestCase
 
         // ObservedIoc - First create the indicator in the indicator table
         $indicatorId = uuid_create(UUID_TYPE_RANDOM);
+        $uniqueSuffix = substr($indicatorId, 0, 8);
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
         $conn = $this->em->getConnection();
         $conn->executeStatement(
@@ -323,8 +324,8 @@ class ConversationServiceTest extends KernelTestCase
             [
                 'indicator_id' => $indicatorId,
                 'type' => 'test',
-                'value' => 'test_value',
-                'value_norm' => 'test_value',
+                'value' => 'test_value_' . $uniqueSuffix,
+                'value_norm' => 'test_value_' . $uniqueSuffix,
                 'first_seen' => $now,
                 'last_seen' => $now,
                 'created_at' => $now,
