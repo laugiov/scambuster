@@ -8,6 +8,7 @@ use App\Application\Communication\IocHandler;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Export conversation IOCs to MISP Event format.
@@ -42,6 +43,7 @@ final class ExportMispController
      * @return JsonResponse MISP Event JSON
      */
     #[Route('/api/v1/conversations/{id}/export/misp', methods: ['GET'])]
+    #[IsGranted('ROLE_USER')]
     public function __invoke(string $id): JsonResponse
     {
         // Retrieve all IOCs for conversation (deduplicated)

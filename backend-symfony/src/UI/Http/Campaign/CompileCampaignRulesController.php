@@ -10,9 +10,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/{campaign_id}/rules/compile', name: 'api_campaign_compile_rules', methods: ['POST'])]
+#[IsGranted('ROLE_ADMIN')]
 final class CompileCampaignRulesController
 {
     public function __construct(

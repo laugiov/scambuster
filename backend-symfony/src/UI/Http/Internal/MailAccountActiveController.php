@@ -7,8 +7,10 @@ namespace App\UI\Http\Internal;
 use App\Application\Communication\ListActiveMailAccountsHandler;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-#[Route('/internal/mail-account/active', name: 'internal_mail_account_active', methods: ['GET'])]
+#[Route('/api/v1/internal/mail-account/active', name: 'internal_mail_account_active', methods: ['GET'])]
+#[IsGranted('ROLE_ADMIN')]
 final class MailAccountActiveController
 {
     public function __construct(private readonly ListActiveMailAccountsHandler $handler)

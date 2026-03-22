@@ -9,9 +9,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/rule/{ruleId}/promote', name: 'api_campaign_promote', methods: ['POST'])]
+#[IsGranted('ROLE_ADMIN')]
 final class PromoteCampaignController
 {
     public function __construct(

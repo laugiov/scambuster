@@ -10,12 +10,14 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Ferme une conversation et déclenche le calcul de reward + mise à jour des stats.
  * Ce endpoint est appelé par le workflow n8n WF-SCAMBAITING-END-CONVERSATION.
  */
 #[Route('/api/v1/scambaiting/conversation/{convId}/close', name: 'api_scambaiting_close_conversation', methods: ['POST'])]
+#[IsGranted('ROLE_USER')]
 final class CloseConversationController extends AbstractController
 {
     public function __construct(

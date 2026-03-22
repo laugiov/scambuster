@@ -41,9 +41,11 @@ security:
             provider: app_user_provider
 
     access_control:
-        - { path: ^/api/v1/some-protected-endpoint, roles: ROLE_USER }
-        - { path: ^/api/v1, roles: IS_AUTHENTICATED_FULLY }
         - { path: ^/api/v1/auth, roles: PUBLIC_ACCESS }
         - { path: ^/logout, roles: PUBLIC_ACCESS }
         - { path: ^/api/v1/admin, roles: ROLE_ADMIN }
-        - { path: ^/api/v1/admin/endpoint, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/internal, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/campaign/hunt, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/campaign/rule/.+/promote, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/campaign/.+/rules/compile, roles: ROLE_ADMIN }
+        - { path: ^/api/v1, roles: IS_AUTHENTICATED_FULLY }
