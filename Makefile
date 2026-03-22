@@ -234,15 +234,6 @@ close-stale-dry: ##@scambaiting Preview stale conversations without closing
 	$(CONSOLE_DEV) app:close-stale-conversations --dry-run $(if $(d),--days=$(d),)
 
 # ======================================================================
-#  N8N WORKFLOWS
-# ======================================================================
-activate-workflows: ##@n8n Activate all n8n workflows via API
-	./scripts/manage-workflows.sh activate
-
-deactivate-workflows: ##@n8n Deactivate all n8n workflows via API
-	./scripts/manage-workflows.sh deactivate
-
-# ======================================================================
 #  DEPLOYMENT
 # ======================================================================
 validate: ##@docker Validate installation (check all services)
@@ -255,14 +246,13 @@ wait-healthy: ##@docker Wait for PostgreSQL and Redis to be healthy
 	@until $(DC) exec redis redis-cli ping > /dev/null 2>&1; do sleep 1; done
 	@echo "All services healthy."
 
-deploy: ##@docker Full deployment: build, start, migrate, activate workflows
+deploy: ##@docker Full deployment: build, start, migrate
 	$(DC) up -d --build
 	$(MAKE) wait-healthy
 	$(MAKE) migration
 	@echo ""
 	@echo "ScamBuster deployed and ready."
-	@echo "To activate n8n workflows: make activate-workflows"
-	@echo "Ensure N8N_API_KEY and credentials are configured first."
+	@echo "To configure n8n workflows, open http://localhost:5678"
 
 # ======================================================================
 #  TESTS – E2E
