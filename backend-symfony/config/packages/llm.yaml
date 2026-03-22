@@ -6,6 +6,7 @@ parameters:
     llm.api_key: '%env(LLM_API_KEY)%'
     ollama.default_url: 'http://localhost:11434'
     anthropic.default_key: ''
+    llm.max_cost_usd_month: 50.0
 
     # Validation settings
     llm.validation_enabled: '%env(bool:LLM_VALIDATION_ENABLED)%'
@@ -23,6 +24,7 @@ services:
         arguments:
             $httpClient: '@http_client'
             $logger: '@monolog.logger.llm'
+            $eventDispatcher: '@event_dispatcher'
             $apiUrl: '%llm.api_url%'
             $apiKey: '%llm.api_key%'
             $model: '%llm.model%'
@@ -32,6 +34,7 @@ services:
         arguments:
             $httpClient: '@http_client'
             $logger: '@monolog.logger.llm'
+            $eventDispatcher: '@event_dispatcher'
             $apiKey: '%env(default:anthropic.default_key:ANTHROPIC_API_KEY)%'
             $model: '%llm.model%'
 
@@ -40,11 +43,24 @@ services:
         arguments:
             $httpClient: '@http_client'
             $logger: '@monolog.logger.llm'
+            $eventDispatcher: '@event_dispatcher'
             $baseUrl: '%env(default:ollama.default_url:OLLAMA_BASE_URL)%'
             $model: '%llm.model%'
 
     # Infrastructure - Mock provider (demo mode, no external API)
     App\Infrastructure\LLM\Provider\MockLLMClient: ~
+
+    # Application - LLM Cost monitoring
+    App\Application\LLM\CostEstimator: ~
+
+    App\Application\Monitoring\LlmCostHandler:
+        arguments:
+            $connection: '@doctrine.dbal.default_connection'
+            $monthlyLimitUsd: '%llm.max_cost_usd_month%'
+
+    App\Infrastructure\EventListener\LlmUsageListener:
+        arguments:
+            $logger: '@monolog.logger.llm'
 
     # Default binding: OpenAI
     # LLMProviderCompilerPass swaps this alias at container build time

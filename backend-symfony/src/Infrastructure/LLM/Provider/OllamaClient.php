@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Infrastructure\LLM\Provider;
 
 use App\Application\LLM\Port\LLMClientInterface;
+use App\Domain\LLM\Event\LlmCallCompletedEvent;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -24,6 +26,7 @@ final class OllamaClient implements LLMClientInterface
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
+        private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $baseUrl,
         private readonly string $model
     ) {
@@ -64,15 +67,27 @@ final class OllamaClient implements LLMClientInterface
             $assistantText = $data['message']['content'];
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
 
+            $promptTokens = (int) ($data['prompt_eval_count'] ?? 0);
+            $completionTokens = (int) ($data['eval_count'] ?? 0);
+
             $this->logger->info('LLM chat completion', [
                 'provider' => 'ollama',
                 'model' => $model,
                 'latency_ms' => $latencyMs,
                 'input_messages' => count($messages),
                 'output_length' => strlen($assistantText),
-                'eval_count' => $data['eval_count'] ?? null,
-                'prompt_eval_count' => $data['prompt_eval_count'] ?? null,
+                'eval_count' => $completionTokens,
+                'prompt_eval_count' => $promptTokens,
             ]);
+
+            $this->eventDispatcher->dispatch(new LlmCallCompletedEvent(
+                provider: 'ollama',
+                model: $model,
+                purpose: $options['purpose'] ?? 'unknown',
+                promptTokens: $promptTokens,
+                completionTokens: $completionTokens,
+                conversationId: $options['conversation_id'] ?? null
+            ));
 
             return $assistantText;
         } catch (\Throwable $e) {

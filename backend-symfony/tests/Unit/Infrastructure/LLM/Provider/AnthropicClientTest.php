@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Infrastructure\LLM\Provider;
 use App\Infrastructure\LLM\Provider\AnthropicClient;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -172,6 +173,7 @@ class AnthropicClientTest extends TestCase
         return new AnthropicClient(
             new MockHttpClient($mockResponse),
             new NullLogger(),
+            new EventDispatcher(),
             self::API_KEY,
             self::MODEL
         );

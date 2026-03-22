@@ -8,6 +8,7 @@ services:
         autoconfigure: true
         bind:
             $projectDir: '%kernel.project_dir%'
+            $monthlyLimitUsd: '%llm.max_cost_usd_month%'
 
     App\:
         resource: '../src/'
