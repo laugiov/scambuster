@@ -33,7 +33,8 @@
     "personas": "Personas",
     "settings": "Settings",
     "logout": "Logout",
-    "subtitle": "Threat Intelligence"
+    "subtitle": "Threat Intelligence",
+    "llmCosts": "LLM Costs"
   },
   "auth": {
     "email": "Email",
@@ -251,5 +252,34 @@
     "llmValidatorDesc": "Tone + safety check",
     "loadingStatus": "Loading status...",
     "loadingCounters": "Loading counters..."
+  },
+  "llmCosts": {
+    "title": "LLM Cost Monitor",
+    "subtitle": "Real-time cost tracking and budget management",
+    "monthlyCost": "Monthly Cost",
+    "ofLimit": "{{pct}}% of ${{limit}} limit",
+    "apiCalls": "API Calls",
+    "thisMonth": "This month",
+    "promptTokens": "Prompt Tokens",
+    "inputTokens": "Input tokens",
+    "completionTokens": "Completion Tokens",
+    "outputTokens": "Output tokens",
+    "budgetUsage": "Budget Usage",
+    "used": "${{amount}} used",
+    "limit": "${{amount}} limit",
+    "alertThreshold": "Alert threshold (80%)",
+    "costByPurpose": "Cost by Purpose",
+    "purpose": "Purpose",
+    "cost": "Cost",
+    "calls": "Calls",
+    "avgPerCall": "Avg/Call",
+    "share": "Share",
+    "dailyTrend": "Daily Trend (7 days)",
+    "noCostData": "No LLM usage recorded yet this month",
+    "budgetExceeded": "Budget Exceeded",
+    "approachingLimit": "Approaching Limit",
+    "withinBudget": "Within Budget",
+    "noLimit": "No budget limit configured",
+    "refresh": "Refresh"
   }
 }

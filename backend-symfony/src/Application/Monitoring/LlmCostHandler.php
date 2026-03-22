@@ -97,7 +97,7 @@ final class LlmCostHandler
                 'total_prompt_tokens' => $this->toInt($monthData['total_prompt_tokens'] ?? 0),
                 'total_completion_tokens' => $this->toInt($monthData['total_completion_tokens'] ?? 0),
             ],
-            'per_purpose' => $perPurpose,
+            'per_purpose' => (object) $perPurpose,
             'daily_trend' => $dailyTrend,
             'limit_exceeded' => $this->monthlyLimitUsd > 0 && $totalUsd >= $this->monthlyLimitUsd,
         ];
