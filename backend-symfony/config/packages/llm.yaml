@@ -4,6 +4,8 @@ parameters:
     llm.model: '%env(LLM_MODEL)%'
     llm.api_url: '%env(LLM_API_URL)%'
     llm.api_key: '%env(LLM_API_KEY)%'
+    ollama.default_url: 'http://localhost:11434'
+    anthropic.default_key: ''
 
     # Validation settings
     llm.validation_enabled: '%env(bool:LLM_VALIDATION_ENABLED)%'
@@ -25,11 +27,28 @@ services:
             $apiKey: '%llm.api_key%'
             $model: '%llm.model%'
 
-    # Mock LLM client for demo mode (no external API calls)
-    # Activate with: LLM_PROVIDER=mock in .env
+    # Infrastructure - Anthropic provider
+    App\Infrastructure\LLM\Provider\AnthropicClient:
+        arguments:
+            $httpClient: '@http_client'
+            $logger: '@monolog.logger.llm'
+            $apiKey: '%env(default:anthropic.default_key:ANTHROPIC_API_KEY)%'
+            $model: '%llm.model%'
+
+    # Infrastructure - Ollama provider (local)
+    App\Infrastructure\LLM\Provider\OllamaClient:
+        arguments:
+            $httpClient: '@http_client'
+            $logger: '@monolog.logger.llm'
+            $baseUrl: '%env(default:ollama.default_url:OLLAMA_BASE_URL)%'
+            $model: '%llm.model%'
+
+    # Infrastructure - Mock provider (demo mode, no external API)
     App\Infrastructure\LLM\Provider\MockLLMClient: ~
 
-    # Bind interface to concrete implementation (default: OpenAI)
+    # Default binding: OpenAI
+    # LLMProviderCompilerPass swaps this alias at container build time
+    # based on LLM_PROVIDER env var (openai|anthropic|ollama|mock)
     App\Application\LLM\Port\LLMClientInterface: '@App\Infrastructure\LLM\Provider\OpenAIClient'
 
     # Application - ContextAnalyzer (analyses conversation state slots)
