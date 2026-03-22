@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Infrastructure\LLM\Provider;
 
 use App\Application\LLM\Port\LLMClientInterface;
+use App\Domain\LLM\Event\LlmCallCompletedEvent;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
@@ -29,6 +31,7 @@ final class AnthropicClient implements LLMClientInterface
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LoggerInterface $logger,
+        private readonly EventDispatcherInterface $eventDispatcher,
         private readonly string $apiKey,
         private readonly string $model
     ) {
@@ -96,6 +99,7 @@ final class AnthropicClient implements LLMClientInterface
 
             $assistantText = $data['content'][0]['text'];
             $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
+            $usage = $data['usage'] ?? [];
 
             $this->logger->info('LLM chat completion', [
                 'provider' => 'anthropic',
@@ -103,9 +107,18 @@ final class AnthropicClient implements LLMClientInterface
                 'latency_ms' => $latencyMs,
                 'input_messages' => count($messages),
                 'output_length' => strlen($assistantText),
-                'input_tokens' => $data['usage']['input_tokens'] ?? null,
-                'output_tokens' => $data['usage']['output_tokens'] ?? null,
+                'input_tokens' => $usage['input_tokens'] ?? null,
+                'output_tokens' => $usage['output_tokens'] ?? null,
             ]);
+
+            $this->eventDispatcher->dispatch(new LlmCallCompletedEvent(
+                provider: 'anthropic',
+                model: $model,
+                purpose: $options['purpose'] ?? 'unknown',
+                promptTokens: (int) ($usage['input_tokens'] ?? 0),
+                completionTokens: (int) ($usage['output_tokens'] ?? 0),
+                conversationId: $options['conversation_id'] ?? null
+            ));
 
             return $assistantText;
         } catch (\Throwable $e) {

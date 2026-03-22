@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Infrastructure\LLM\Provider;
 use App\Infrastructure\LLM\Provider\OllamaClient;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
@@ -126,6 +127,7 @@ class OllamaClientTest extends TestCase
         return new OllamaClient(
             new MockHttpClient($mockResponse),
             new NullLogger(),
+            new EventDispatcher(),
             self::BASE_URL,
             self::MODEL
         );
