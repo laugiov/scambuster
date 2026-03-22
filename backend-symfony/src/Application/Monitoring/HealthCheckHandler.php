@@ -32,9 +32,11 @@ final class HealthCheckHandler
         $checks['redis'] = $this->checkRedis();
 
         $hasError = false;
+
         foreach ($checks as $check) {
             if ($check['status'] === 'error') {
                 $hasError = true;
+
                 break;
             }
         }
@@ -70,6 +72,7 @@ final class HealthCheckHandler
     private function checkRedis(): array
     {
         $redisUrl = $_ENV['REDIS_URL'] ?? '';
+
         if (empty($redisUrl)) {
             return ['status' => 'error', 'error' => 'REDIS_URL not configured'];
         }

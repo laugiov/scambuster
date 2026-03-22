@@ -36,6 +36,7 @@ class LoadDemoDataCommand extends Command
         $io->title('ScamBuster Demo Data Loader');
 
         $file = $this->projectDir . '/scambuster-dataset-sample.json';
+
         if (!file_exists($file)) {
             $io->error("Dataset not found: {$file}");
 
@@ -43,6 +44,7 @@ class LoadDemoDataCommand extends Command
         }
 
         $raw = file_get_contents($file);
+
         if ($raw === false) {
             $io->error('Could not read dataset file.');
 
@@ -99,6 +101,7 @@ class LoadDemoDataCommand extends Command
                     'SELECT 1 FROM conversation WHERE conv_id = ?',
                     [$convId]
                 );
+
                 if ($exists) {
                     continue;
                 }
@@ -219,6 +222,7 @@ class LoadDemoDataCommand extends Command
         );
 
         $lookup = [];
+
         foreach ($rows as $row) {
             $lookup[(string) $row[$codeCol]] = (int) $row[$idCol];
         }

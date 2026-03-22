@@ -42,6 +42,7 @@ final class MetricsController
         $lines[] = '# HELP scambuster_conversations_total Conversations by status';
         $lines[] = '# TYPE scambuster_conversations_total gauge';
         $convs = $autonomy['conversations'] ?? [];
+
         foreach (['open', 'closed', 'abandoned'] as $status) {
             $val = $convs[$status] ?? 0;
             $lines[] = "scambuster_conversations_total{status=\"{$status}\"} {$val}";
@@ -78,6 +79,7 @@ final class MetricsController
         $lines[] = '# HELP scambuster_health_check Dependency health (1=ok, 0=error)';
         $lines[] = '# TYPE scambuster_health_check gauge';
         $checks = $health['checks'] ?? [];
+
         foreach ($checks as $service => $check) {
             $val = ($check['status'] ?? 'error') === 'ok' ? 1 : 0;
             $lines[] = "scambuster_health_check{service=\"{$service}\"} {$val}";
