@@ -10,12 +10,14 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Endpoint de test pour sélectionner un persona via l'algorithme ε-greedy.
  * Utile pour debugging et validation du comportement de l'algorithme.
  */
 #[Route('/api/v1/scambaiting/select-persona', name: 'api_scambaiting_select_persona', methods: ['POST'])]
+#[IsGranted('ROLE_USER')]
 final class SelectPersonaController extends AbstractController
 {
     public function __construct(

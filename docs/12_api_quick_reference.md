@@ -129,7 +129,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/conversations/{id}/export/misp` | No | Export as MISP Event JSON |
+| GET | `/conversations/{id}/export/misp` | ROLE_USER | Export as MISP Event JSON |
 
 ---
 
@@ -137,11 +137,11 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/scambaiting/select-persona` | No | Select persona (epsilon-greedy) |
+| POST | `/scambaiting/select-persona` | ROLE_USER | Select persona (epsilon-greedy) |
 | GET | `/scambaiting/stats` | No | Aggregated stats (all types) |
 | GET | `/scambaiting/stats/{scamTypeCode}` | No | Stats for specific scam type |
 | GET | `/scambaiting/persona/{personaCode}/performance` | No | Persona performance breakdown |
-| POST | `/scambaiting/conversation/{convId}/close` | No | Close and calculate reward |
+| POST | `/scambaiting/conversation/{convId}/close` | ROLE_USER | Close and calculate reward |
 
 ```bash
 # Example: get stats for phishing
@@ -154,16 +154,16 @@ curl http://localhost:8081/api/v1/scambaiting/stats/PHISH_CREDENTIALS | jq .
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/campaign/hunt` | No | Execute shadow rules, compute PPV |
+| POST | `/campaign/hunt` | ROLE_ADMIN | Execute shadow rules, compute PPV |
 | GET | `/campaign/candidates` | No | List promotion candidates |
 | GET | `/campaign/{id}/messages` | No | Campaign messages (max 100) |
 | POST | `/campaign/{id}/profile` | No | LLM campaign profiling |
 | POST | `/campaign/transpile` | No | Transpile DSL to SQL |
-| POST | `/campaign/{id}/rules/compile` | No | Compile rules from profile |
+| POST | `/campaign/{id}/rules/compile` | ROLE_ADMIN | Compile rules from profile |
 | POST | `/campaign/rule` | No | Store compiled rule |
-| POST | `/campaign/rule/{ruleId}/promote` | No | Promote to active detection |
+| POST | `/campaign/rule/{ruleId}/promote` | ROLE_ADMIN | Promote to active detection |
 | POST | `/campaign/cluster/assign` | No | Assign message to cluster |
-| POST | `/campaign/{id}/export/stix` | No | Export STIX 2.1 bundle |
+| POST | `/campaign/{id}/export/stix` | ROLE_USER | Export STIX 2.1 bundle |
 
 ---
 
@@ -195,8 +195,8 @@ Not intended for external use. Used by n8n and internal services.
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/internal/mail-account/active` | No | List active mail accounts |
-| GET | `/internal/mail-account/resolve-secret/{hash}` | Yes | Resolve IMAP credentials via Vault |
+| GET | `/api/v1/internal/mail-account/active` | ROLE_ADMIN | List active mail accounts |
+| GET | `/api/v1/internal/mail-account/resolve-secret/{hash}` | ROLE_ADMIN | Resolve IMAP credentials via Vault |
 
 ---
 
