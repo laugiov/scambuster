@@ -346,6 +346,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 | [Threat Model](docs/10_threat_model.md) | T1-T9 threat categories and mitigations |
 | [Database Schema](docs/11_database_schema.md) | 21 tables, relationships, column reference |
 | [API Quick Reference](docs/12_api_quick_reference.md) | 62 endpoints with curl examples |
+| [MISP Integration](docs/13_misp_integration.md) | Connect to MISP, export IOCs, troubleshooting |
 
 ---
 
