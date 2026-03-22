@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAutonomyStats } from '@/hooks/useStats';
 import { useConversations } from '@/hooks/useConversations';
+import { useLlmCosts } from '@/hooks/useLlmCosts';
 import { StatCard } from '@/components/ui/StatCard';
 import { Badge } from '@/components/ui/Badge';
 import { statusToBadgeVariant } from '@/components/ui/badgeUtils';
@@ -18,6 +19,7 @@ export function Dashboard() {
   const conversations = useConversations();
   const { data: config } = useMetaConfig();
   const { data: campaigns } = useCampaignCandidates();
+  const { data: llmCosts } = useLlmCosts();
   const personaCodes = config?.personas.map((p) => p.code) ?? [];
   const { data: personas } = useAllPersonaPerformances(personaCodes);
 
@@ -48,7 +50,7 @@ export function Dashboard() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard
           label={t('dashboard.activeCampaigns')}
           value={campaigns?.length ?? 0}
@@ -69,6 +71,20 @@ export function Dashboard() {
           subtitle={bestPersona ? personaDisplayName(config, bestPersona.persona_code) : data?.convergence.best_persona ?? '--'}
           subtitleColor="text-accent"
         />
+        <div className="cursor-pointer" onClick={() => navigate('/llm-costs')}>
+          <StatCard
+            label={t('dashboard.llmCost')}
+            value={`$${(llmCosts?.current_month.total_usd ?? 0).toFixed(2)}`}
+            subtitle={llmCosts && llmCosts.current_month.limit_usd > 0
+              ? t('dashboard.ofBudget', { pct: llmCosts.current_month.pct_used.toFixed(0), limit: llmCosts.current_month.limit_usd.toFixed(0) })
+              : t('llmCosts.thisMonth')}
+            subtitleColor={
+              (llmCosts?.current_month.pct_used ?? 0) >= 80 ? 'text-error'
+              : (llmCosts?.current_month.pct_used ?? 0) >= 50 ? 'text-warning'
+              : 'text-success'
+            }
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-6">
