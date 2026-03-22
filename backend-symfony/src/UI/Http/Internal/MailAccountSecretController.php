@@ -11,13 +11,15 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Endpoint to resolve IMAP/SMTP credentials for a mail account (internal use).
  */
-#[Route('/internal/mail-account/resolve-secret/{login_hash}', name: 'internal_mail_account_resolve_secret', methods: ['GET'])]
+#[Route('/api/v1/internal/mail-account/resolve-secret/{login_hash}', name: 'internal_mail_account_resolve_secret', methods: ['GET'])]
+#[IsGranted('ROLE_ADMIN')]
 #[OA\Get(
-    path: '/internal/mail-account/resolve-secret/{login_hash}',
+    path: '/api/v1/internal/mail-account/resolve-secret/{login_hash}',
     summary: 'Résoudre les credentials IMAP/SMTP pour un compte mail (usage interne)',
     tags: ['Internal'],
     parameters: [
