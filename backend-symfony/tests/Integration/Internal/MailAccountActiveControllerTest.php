@@ -32,7 +32,9 @@ class MailAccountActiveControllerTest extends WebTestCase
         $em->persist($mailAccount);
         $em->flush();
 
-        $client->request('GET', '/api/v1/internal/mail-account/active');
+        $client->request('GET', '/api/v1/internal/mail-account/active', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
         $this->assertResponseIsSuccessful();
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertIsArray($data);

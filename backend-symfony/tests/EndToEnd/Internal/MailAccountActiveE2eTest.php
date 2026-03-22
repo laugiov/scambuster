@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\EndToEnd\Internal;
 
-use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use App\Domain\Communication\MailAccount;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class MailAccountActiveE2eTest extends WebTestCase
 {
@@ -32,7 +32,11 @@ class MailAccountActiveE2eTest extends WebTestCase
         $em->persist($mailAccount);
         $em->flush();
 
-        $client->request('GET', '/api/v1/internal/mail-account/active');
+        $jwt = $this->getAdminJwt($client);
+
+        $client->request('GET', '/api/v1/internal/mail-account/active', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ]);
         $this->assertResponseIsSuccessful();
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertIsArray($data);
@@ -49,8 +53,22 @@ class MailAccountActiveE2eTest extends WebTestCase
         }
         $this->assertTrue($found, 'Inserted account should be present in the response');
 
-        // Nettoyage
-        $em->remove($mailAccount);
-        $em->flush();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $managed = $em->find(MailAccount::class, $accountId);
+        if ($managed !== null) {
+            $em->remove($managed);
+            $em->flush();
+        }
     }
-} 
+
+    private function getAdminJwt($client): string
+    {
+        $client->request('POST', '/api/v1/auth/login', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode([
+            'email' => 'admin@example.com',
+            'password' => 'Un1que$trongPassword2024',
+        ]));
+        $data = json_decode($client->getResponse()->getContent(), true);
+
+        return $data['access_token'] ?? '';
+    }
+}

@@ -1,4 +1,7 @@
 security:
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_USER]
+
     password_hashers:
         App\Domain\User\User:
             algorithm: auto

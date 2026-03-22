@@ -36,7 +36,9 @@ class MailAccountSecretControllerTest extends WebTestCase
             'json' => ['data' => ['login' => 'user@example.com', 'secret' => 'motdepasse123']]
         ]);
 
-        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/' . $loginHash);
+        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/' . $loginHash, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
         $this->assertResponseIsSuccessful();
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertSame('user@example.com', $data['login']);
@@ -53,7 +55,9 @@ class MailAccountSecretControllerTest extends WebTestCase
     public function test_resolve_secret_returns_404_for_unknown_hash(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/unknownhash');
+        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/unknownhash', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
         $this->assertResponseStatusCodeSame(404);
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('error', $data);
