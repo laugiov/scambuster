@@ -28,7 +28,7 @@ class MailAccountSecretEndToEndTest extends WebTestCase
         $em->persist($mailAccount);
         $em->flush();
 
-        $client->request('GET', '/internal/mail-account/resolve-secret/' . $loginHash);
+        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/' . $loginHash);
         $this->assertResponseIsSuccessful();
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertSame('user@example.com', $data['login']);
@@ -45,7 +45,7 @@ class MailAccountSecretEndToEndTest extends WebTestCase
     public function test_resolve_secret_e2e_404(): void
     {
         $client = static::createClient();
-        $client->request('GET', '/internal/mail-account/resolve-secret/unknownhash');
+        $client->request('GET', '/api/v1/internal/mail-account/resolve-secret/unknownhash');
         $this->assertResponseStatusCodeSame(404);
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('error', $data);
