@@ -3,6 +3,11 @@ monolog:
         - deprecation # Deprecations are logged in the dedicated "deprecation" channel when it exists
         - scambaiting # Scambaiting Adaptatif logs
 
+services:
+    App\EventListener\Security\TraceIdProcessor:
+        tags:
+            - { name: monolog.processor }
+
 when@dev:
     monolog:
         handlers:

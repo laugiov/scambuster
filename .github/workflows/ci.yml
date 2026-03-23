@@ -124,9 +124,8 @@ jobs:
           fetch-depth: 0
 
       # 1. PHP dependency vulnerability scanning
-      - name: Composer audit (PHP SCA)
+      - name: Create environment files
         run: |
-          docker compose up -d --build backend-dev
           cat > .env << 'ENVEOF'
           APP_ENV=test
           DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
@@ -148,6 +147,11 @@ jobs:
           CAMPAIGN_PROMOTION_MIN_HITS=5
           CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
           ENVEOF
+          sed -i 's/^[[:space:]]*//' .env
+
+      - name: Composer audit (PHP SCA)
+        run: |
+          docker compose up -d --build backend-dev
           docker compose exec --user root backend-dev composer install --no-interaction --no-progress 2>/dev/null
           docker compose exec backend-dev composer audit --format=plain || echo "::warning::Composer audit found vulnerabilities (non-blocking)"
 

@@ -6,20 +6,23 @@ namespace App\Application\Audit;
 
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Audit\AuditLog;
+use App\EventListener\Security\TraceIdListener;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Persists structured audit events to the audit_log table.
  *
+ * Automatically captures trace_id and IP from current request.
  * Non-blocking: errors are logged to Monolog but never thrown.
- * This ensures audit failures do not interrupt business operations.
  */
 final class AuditLogger
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly RequestStack $requestStack
     ) {
     }
 
@@ -39,6 +42,16 @@ final class AuditLogger
         string $actorType = 'user'
     ): void {
         try {
+            $request = $this->requestStack->getCurrentRequest();
+
+            if ($ipAddress === null && $request !== null) {
+                $ipAddress = $request->getClientIp();
+            }
+
+            if ($traceId === null && $request !== null) {
+                $traceId = TraceIdListener::getTraceId($request);
+            }
+
             $entry = new AuditLog(
                 eventType: $eventType,
                 actorType: $actorType,
