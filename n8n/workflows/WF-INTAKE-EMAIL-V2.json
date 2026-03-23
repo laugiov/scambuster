@@ -10,25 +10,28 @@
             }
           ]
         },
-        "filters": {}
+        "filters": {
+          "readStatus": "unread"
+        }
       },
       "id": "a40abcac-34bb-49f6-a3d5-d3cb9314842d",
       "name": "Gmail Trigger",
       "type": "n8n-nodes-base.gmailTrigger",
       "typeVersion": 1.1,
       "position": [
-        64,
-        400
+        -96,
+        360
       ],
       "credentials": {
         "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account honeypot"
+          "id": "credential-placeholder-1",
+          "name": "Gmail account Operator"
         }
       }
     },
     {
       "parameters": {
+        "mode": "runOnceForEachItem",
         "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Extract Email Data - V2 (WITH ATTACHMENTS)\n// Purpose: Extract all text content, metadata AND attachments\n// ═══════════════════════════════════════════════════════════════\n\nfunction b64urlToB64(u) {\n  if (!u) return '';\n  let s = String(u).replace(/-/g, '+').replace(/_/g, '/');\n  while (s.length % 4) s += '=';\n  return s;\n}\n\nfunction decodeQP(s) {\n  if (!s) return '';\n  s = s.replace(/=\\r?\\n/g, '');\n  return s.replace(/=([A-Fa-f0-9]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));\n}\n\nfunction decodeEncodedWords(s) {\n  if (!s) return s;\n  return s.replace(/=\\?([\\w\\-]+)\\?(Q|B)\\?([\\s\\S]*?)\\?=/gi, (_, cs, enc, txt) => {\n    try {\n      if (enc.toUpperCase() === 'B') {\n        return Buffer.from(txt.replace(/\\s+/g, ''), 'base64').toString('utf8');\n      }\n      return decodeQP(txt.replace(/_/g, ' '));\n    } catch { return txt; }\n  });\n}\n\nfunction splitHeaderBody(rfc822) {\n  const m = String(rfc822).replace(/\\r/g, '').split('\\n\\n');\n  return { headerBlock: m[0] || '', bodyBlock: m.slice(1).join('\\n\\n') || '' };\n}\n\nfunction unfoldHeaders(hdr) {\n  const lines = String(hdr || '').replace(/\\r/g, '').split('\\n');\n  const merged = [];\n  for (const l of lines) {\n    if (/^\\s/.test(l) && merged.length) merged[merged.length - 1] += ' ' + l.trim();\n    else if (l.trim() !== '') merged.push(l);\n  }\n  const map = {};\n  for (const l of merged) {\n    const i = l.indexOf(':');\n    if (i > -1) {\n      const k = l.slice(0, i).trim().toLowerCase();\n      const v = decodeEncodedWords(l.slice(i + 1).trim());\n      map[k] = v;\n    }\n  }\n  return map;\n}\n\nfunction getBoundary(ct) {\n  const m = /boundary=\"?([^\";]+)\"?/i.exec(ct || '');\n  return m ? m[1] : null;\n}\n\nfunction splitMultipart(body, boundary) {\n  const lines = String(body || '').replace(/\\r/g, '').split('\\n');\n  const start = '--' + boundary, end = '--' + boundary + '--';\n  const parts = [];\n  let cur = [], inside = false;\n  for (const line of lines) {\n    if (line === start) {\n      if (inside && cur.length) { parts.push(cur.join('\\n')); cur = []; }\n      inside = true;\n      continue;\n    }\n    if (line === end) {\n      if (inside && cur.length) parts.push(cur.join('\\n'));\n      inside = false;\n      break;\n    }\n    if (inside) cur.push(line);\n  }\n  if (inside && cur.length) parts.push(cur.join('\\n'));\n  return parts;\n}\n\nfunction parseLeafBody(headers, rawBody) {\n  let body = rawBody || '';\n  const cte = String(headers['content-transfer-encoding'] || '').toLowerCase();\n  if (cte.includes('base64')) {\n    try {\n      const clean = body.replace(/\\s+/g, '');\n      body = Buffer.from(clean, 'base64').toString('utf8');\n    } catch { }\n  } else if (cte.includes('quoted-printable')) {\n    body = decodeQP(body);\n  }\n  return body;\n}\n\nfunction stripHtml(html) {\n  return String(html || '').replace(/<style[\\s\\S]*?<\\/style>|<script[\\s\\S]*?<\\/script>/gi, '').replace(/<\\/?[^>]+>/g, ' ');\n}\n\n// ═══ ATTACHMENT UTILITIES (from v1) ═══\n\nfunction parseParams(v) {\n  const out = { value: v, params: {} };\n  if (!v) return out;\n  const [val, ...rest] = v.split(';');\n  out.value = val.trim();\n  for (const seg of rest) {\n    const m = /([^=]+)=(.*)/.exec(seg.trim());\n    if (!m) continue;\n    let key = m[1].toLowerCase().trim(), val2 = m[2].trim().replace(/^\"(.*)\"$/, '$1');\n    // RFC5987 filename*: utf-8''encoded\n    if (/^\\w+\\*\\s*$/.test(key)) {\n      key = key.replace('*', '');\n      const mm = /^([^']*)''(.*)$/.exec(val2);\n      if (mm) {\n        try { val2 = decodeURIComponent(mm[2]); } catch { }\n      }\n    }\n    out.params[key] = val2;\n  }\n  out.filename = out.params.filename || out.params.name || null;\n  return out;\n}\n\nfunction calcSizeBytes(b64) {\n  if (!b64) return 0;\n  const eq = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;\n  return Math.max(0, Math.floor(b64.length * 3 / 4) - eq);\n}\n\n// Simplified SHA-256 (pure JS)\nfunction rotr(x, n) { return (x >>> n) | (x << (32 - n)); }\nfunction sha256Hex(buf) {\n  const K = new Uint32Array([0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5, 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174, 0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da, 0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967, 0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85, 0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070, 0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3, 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2]);\n  const H = new Uint32Array([0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19]);\n  const bytes = (buf instanceof Uint8Array) ? buf : new Uint8Array(buf);\n  const len = bytes.length, bitLen = len * 8, total = (((len + 9) + 63) >> 6) << 6, pad = new Uint8Array(total);\n  pad.set(bytes); pad[len] = 0x80;\n  const dv = new DataView(pad.buffer); dv.setUint32(total - 8, Math.floor(bitLen / 0x100000000), false); dv.setUint32(total - 4, bitLen >>> 0, false);\n  const w = new Uint32Array(64);\n  for (let i = 0; i < total; i += 64) {\n    for (let j = 0; j < 16; j++) w[j] = dv.getUint32(i + j * 4, false);\n    for (let j = 16; j < 64; j++) {\n      const s0 = rotr(w[j - 15], 7) ^ rotr(w[j - 15], 18) ^ (w[j - 15] >>> 3);\n      const s1 = rotr(w[j - 2], 17) ^ rotr(w[j - 2], 19) ^ (w[j - 2] >>> 10);\n      w[j] = (w[j - 16] + s0 + w[j - 7] + s1) >>> 0;\n    }\n    let [a, b, c, d, e, f, g, h] = H;\n    for (let j = 0; j < 64; j++) {\n      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);\n      const ch = (e & f) ^ (~e & g);\n      const t1 = (h + S1 + ch + K[j] + w[j]) >>> 0;\n      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);\n      const maj = (a & b) ^ (a & c) ^ (b & c);\n      const t2 = (S0 + maj) >>> 0;\n      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;\n    }\n    H[0] = (H[0] + a) >>> 0; H[1] = (H[1] + b) >>> 0; H[2] = (H[2] + c) >>> 0; H[3] = (H[3] + d) >>> 0;\n    H[4] = (H[4] + e) >>> 0; H[5] = (H[5] + f) >>> 0; H[6] = (H[6] + g) >>> 0; H[7] = (H[7] + h) >>> 0;\n  }\n  let hex = ''; for (let i = 0; i < 8; i++) hex += ('00000000' + H[i].toString(16)).slice(-8);\n  return hex;\n}\n\n// ═══ MODIFIED walkEntity to extract attachments ═══\n\nfunction walkEntity(entityText, out, inheritedCT) {\n  const { headerBlock, bodyBlock } = splitHeaderBody(entityText);\n  const H = unfoldHeaders(headerBlock);\n  const ct = (H['content-type'] || inheritedCT || '').toLowerCase();\n  const disp = (H['content-disposition'] || '').toLowerCase();\n\n  if (/^multipart\\//.test(ct)) {\n    const boundary = getBoundary(ct);\n    if (boundary) {\n      for (const part of splitMultipart(bodyBlock, boundary)) {\n        walkEntity(part, out, ct);\n      }\n    }\n    return;\n  }\n\n  // Leaf node\n  const bodyDecoded = parseLeafBody(H, bodyBlock);\n  const pCT = parseParams(ct);\n  const isTextPlain = pCT.value.includes('text/plain');\n  const isTextHtml = pCT.value.includes('text/html');\n\n  // Extract filename from Content-Disposition or Content-Type\n  const params = parseParams(disp);\n  let filename = params.filename || parseParams(ct).filename || null;\n  if (!filename && /attachment/.test(disp)) filename = 'attachment.bin';\n\n  // Detect attachment\n  const isAttachment = /attachment/.test(disp) || (!!filename && !isTextPlain && !isTextHtml);\n  const cte = String(H['content-transfer-encoding'] || '').toLowerCase();\n  const cid = (H['content-id'] || '').replace(/[<>]/g, '');\n\n  if (isAttachment) {\n    // Calculate size and hash\n    let size_bytes = 0, sha256 = null;\n    if (cte.includes('base64')) {\n      const clean = bodyBlock.replace(/\\s+/g, '');\n      size_bytes = calcSizeBytes(clean);\n      try { sha256 = sha256Hex(Buffer.from(clean, 'base64')); } catch { }\n    } else {\n      size_bytes = Buffer.from(bodyDecoded, 'utf8').length;\n      try { sha256 = sha256Hex(Buffer.from(bodyDecoded, 'utf8')); } catch { }\n    }\n\n    out.attachments.push({\n      filename: filename || null,\n      mime_type: pCT.value || 'application/octet-stream',\n      size_bytes,\n      sha256,\n      cid: cid || null,\n      content_id: cid || null,\n    });\n  } else {\n    if (isTextPlain) out.texts.push(bodyDecoded);\n    if (isTextHtml) out.htmls.push(bodyDecoded);\n    if (!isTextPlain && !isTextHtml && !disp) {\n      out.texts.push(bodyDecoded);\n    }\n  }\n}\n\n// ═══ MAIN ═══\nconst item = $input.item.json;\n\nlet rawB64 = '';\nif (item.raw) {\n  rawB64 = b64urlToB64(item.raw);\n} else if (item.payload && item.payload.raw) {\n  rawB64 = b64urlToB64(item.payload.raw);\n} else {\n  return {\n    json: {\n      error: 'No raw RFC822 data found',\n      email_id: item.id || null,\n      thread_id: item.threadId || null,\n      from: null,\n      to: null,\n      subject: '',\n      date: new Date().toISOString(),\n      body_text: '',\n      body_html: '',\n      headers: {},\n      full_text: '',\n      attachments: []\n    }\n  };\n}\n\nconst rawDecoded = Buffer.from(rawB64, 'base64').toString('utf-8');\nconst { headerBlock, bodyBlock } = splitHeaderBody(rawDecoded);\nconst topH = unfoldHeaders(headerBlock);\n\nconst acc = { texts: [], htmls: [], attachments: [] }; // ← Added attachments\nwalkEntity(rawDecoded, acc, topH['content-type'] || '');\n\nconst textContent = (acc.texts.find(s => s && s.trim()) || '').trim();\nconst htmlContent = (acc.htmls.find(s => s && s.trim()) || '').trim();\nconst fullText = textContent + '\\n' + stripHtml(htmlContent);\n\nconst emailId = item.id || item.messageId;\nconst threadId = item.threadId;\nconst subject = topH['subject'] || '';\nconst from = topH['from'] || null;\nconst to = topH['to'] || null;\nconst date = topH['date'] || new Date().toISOString();\n\nconst headers = {};\nfor (const [k, v] of Object.entries(topH)) {\n  headers[k] = v;\n}\n\nreturn {\n  json: {\n    email_id: emailId,\n    thread_id: threadId,\n    from: from,\n    to: to,\n    subject: subject,\n    date: date,\n    body_text: textContent,\n    body_html: htmlContent,\n    headers: headers,\n    full_text: (subject || '') + '\\n\\n' + fullText,\n    attachments: acc.attachments, // ← Return attachments\n    has_attachments: acc.attachments.length > 0,\n    attachment_count: acc.attachments.length\n  }\n};\n"
       },
       "id": "405ee839-6e04-45f7-8ab7-6d5b414bc6f4",
@@ -36,8 +39,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        432,
-        400
+        352,
+        360
       ]
     },
     {
@@ -55,7 +58,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"email\": $env.INGEST_LOGIN, \"password\": $env.INGEST_PASSWORD } }}",
+        "jsonBody": "={{ { \"email\": \"user@example.com\", \"password\": \"Un1que$trongPassword2024\" } }}",
         "options": {
           "response": {
             "response": {
@@ -69,21 +72,21 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        816,
-        400
+        1024,
+        288
       ]
     },
     {
       "parameters": {
-        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare Payload for /ingest/raw endpoint - V4 WITH THREADING HEADERS\n// Purpose: Prepare data for POST /api/v1/communication/ingest/raw\n// FIXED: Convert base64url (Gmail) to base64 standard (backend)\n// FIXED: Add thread_id and provider_msg_id for threading support\n// FIXED: Attachments at ROOT level (not in parsed)\n// NEW: Extract In-Reply-To and References headers to ROOT level for threading\n// ═══════════════════════════════════════════════════════════════\n\nconst emailData = $('Extract Email Data').item.json;\nconst gmailRaw = $('Gmail Get Raw Message').item.json;\nconst gmailTrigger = $('Gmail Trigger').item.json;\nconst tokenData = $input.item.json;\nconst token = tokenData.access_token;\n\n// Convert base64url to base64 (Gmail API returns base64url, backend expects base64)\nfunction b64urlToB64(u) {\n  if (!u) return '';\n  let s = String(u).replace(/-/g, '+').replace(/_/g, '/');\n  while (s.length % 4) s += '=';\n  return s;\n}\n\n// Gmail account ID from fixtures (active n8n Gmail account)\nconst accountId = 'your-honeypot-account-uuid';\n\n// Get raw RFC822 from Gmail API and convert base64url to base64\nconst rawSourceB64 = b64urlToB64(gmailRaw.raw || '');\n\n// Get Gmail threading metadata\nconst gmailMessageId = gmailTrigger.id || null;        // Gmail Message ID\nconst gmailThreadId = gmailTrigger.threadId || null;    // Gmail Thread ID\n\n// Get attachments from Extract Email Data\nconst attachments = emailData.attachments || [];\nconst hasAttachments = emailData.has_attachments || false;\nconst attachmentCount = emailData.attachment_count || 0;\n\n// Extract threading headers from email headers\nconst headers = emailData.headers || {};\nconst inReplyTo = headers['in-reply-to'] || null;\nconst references = headers['references'] || null;\nconst messageId = headers['message-id'] || null;\n\nconsole.log('🧵 Threading info:');\nconsole.log('  Message-ID:', messageId);\nconsole.log('  In-Reply-To:', inReplyTo);\nconsole.log('  References:', references);\nconsole.log('  Gmail Thread ID:', gmailThreadId);\n\nconsole.log('📎 Attachments detected:', attachmentCount);\nif (attachments.length > 0) {\n  attachments.forEach((att, idx) => {\n    console.log(`  ${idx + 1}. ${att.filename} (${att.mime_type}, ${att.size_bytes} bytes, SHA256: ${att.sha256?.substring(0,16)}...)`);\n  });\n}\n\n// Prepare payload for /ingest/raw endpoint\n// IMPORTANT: In-Reply-To and References MUST be at root level for backend threading\nconst payload = {\n  account_id: accountId,\n  raw_source_rfc822_b64: rawSourceB64,\n  ts_received: emailData.date || new Date().toISOString(),\n  channel: 'email',\n  rspamd: { score: 0, symbols: ['N8N'] },\n  score_risk: 50,\n  thread_id: gmailThreadId,           // Gmail Thread ID for threading\n  provider_msg_id: gmailMessageId,    // Gmail Message ID for reply operations\n  in_reply_to: inReplyTo,             // ← In-Reply-To header for threading\n  references: references,              // ← References header for threading\n  message_id: messageId,               // ← Message-ID header\n  attachments: attachments,            // ← AT ROOT LEVEL (backend expects this)\n  parsed: {                            // Optional parsed structure\n    headers: emailData.headers || {},\n    body: {\n      text: emailData.body_text || '',\n      html: emailData.body_html || '',\n      has_attachments: hasAttachments,\n      attachment_count: attachmentCount,\n      text_length: (emailData.body_text || '').length,\n      html_length: (emailData.body_html || '').length,\n    }\n  }\n};\n\nconsole.log('✓ Payload prepared with threading headers at root level');\nconsole.log('✓ Attachments:', attachmentCount);\n\nreturn {\n  json: {\n    token: token,\n    payload: payload,\n    email_id: emailData.email_id,\n    full_text: emailData.full_text\n  }\n};\n"
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare Payload for /ingest/raw endpoint - V4 WITH THREADING HEADERS\n// Purpose: Prepare data for POST /api/v1/communication/ingest/raw\n// FIXED: Convert base64url (Gmail) to base64 standard (backend)\n// FIXED: Add thread_id and provider_msg_id for threading support\n// FIXED: Attachments at ROOT level (not in parsed)\n// NEW: Extract In-Reply-To and References headers to ROOT level for threading\n// ═══════════════════════════════════════════════════════════════\n\n// const emailData = $('Extract Email Data').first().json;\n// const gmailRaw = $('Gmail Get Raw Message').first().json;\n// const gmailTrigger = $('Gmail Trigger').first().json;\n\nconst mergedItem = $('Loop Over Items').first().json;\nconst emailData = mergedItem;\nconst gmailRaw = mergedItem._gmail_raw;\nconst gmailTrigger = mergedItem._gmail_trigger;\n\nconst tokenData = $input.first().json;\nconst token = tokenData.access_token;\n\n// Convert base64url to base64 (Gmail API returns base64url, backend expects base64)\nfunction b64urlToB64(u) {\n  if (!u) return '';\n  let s = String(u).replace(/-/g, '+').replace(/_/g, '/');\n  while (s.length % 4) s += '=';\n  return s;\n}\n\n// Gmail account ID from fixtures (active n8n Gmail account)\nconst accountId = '12b3f7b4-8fb1-4830-82d5-58d7fd874d2a';\n\n// Get raw RFC822 from Gmail API and convert base64url to base64\nconst rawSourceB64 = b64urlToB64(gmailRaw.raw || '');\n\n// Get Gmail threading metadata\nconst gmailMessageId = gmailTrigger.id || null;        // Gmail Message ID\nconst gmailThreadId = gmailTrigger.threadId || null;    // Gmail Thread ID\n\n// Get attachments from Extract Email Data\nconst attachments = emailData.attachments || [];\nconst hasAttachments = emailData.has_attachments || false;\nconst attachmentCount = emailData.attachment_count || 0;\n\n// Extract threading headers from email headers\nconst headers = emailData.headers || {};\nconst inReplyTo = headers['in-reply-to'] || null;\nconst references = headers['references'] || null;\nconst messageId = headers['message-id'] || null;\n\nconsole.log('🧵 Threading info:');\nconsole.log('  Message-ID:', messageId);\nconsole.log('  In-Reply-To:', inReplyTo);\nconsole.log('  References:', references);\nconsole.log('  Gmail Thread ID:', gmailThreadId);\n\nconsole.log('📎 Attachments detected:', attachmentCount);\nif (attachments.length > 0) {\n  attachments.forEach((att, idx) => {\n    console.log(`  ${idx + 1}. ${att.filename} (${att.mime_type}, ${att.size_bytes} bytes, SHA256: ${att.sha256?.substring(0,16)}...)`);\n  });\n}\n\n// Prepare payload for /ingest/raw endpoint\n// IMPORTANT: In-Reply-To and References MUST be at root level for backend threading\nconst payload = {\n  account_id: accountId,\n  raw_source_rfc822_b64: rawSourceB64,\n  ts_received: emailData.date || new Date().toISOString(),\n  channel: 'email',\n  rspamd: { score: 0, symbols: ['N8N'] },\n  score_risk: 50,\n  thread_id: gmailThreadId,           // Gmail Thread ID for threading\n  provider_msg_id: gmailMessageId,    // Gmail Message ID for reply operations\n  in_reply_to: inReplyTo,             // ← In-Reply-To header for threading\n  references: references,              // ← References header for threading\n  message_id: messageId,               // ← Message-ID header\n  attachments: attachments,            // ← AT ROOT LEVEL (backend expects this)\n  parsed: {                            // Optional parsed structure\n    headers: emailData.headers || {},\n    body: {\n      text: emailData.body_text || '',\n      html: emailData.body_html || '',\n      has_attachments: hasAttachments,\n      attachment_count: attachmentCount,\n      text_length: (emailData.body_text || '').length,\n      html_length: (emailData.body_html || '').length,\n    }\n  }\n};\n\nconsole.log('✓ Payload prepared with threading headers at root level');\nconsole.log('✓ Attachments:', attachmentCount);\n\nreturn {\n  json: {\n    token: token,\n    payload: payload,\n    email_id: emailData.email_id,\n    full_text: emailData.full_text\n  }\n};\n"
       },
       "id": "cc4ff59e-504b-4435-a592-beca0320c078",
       "name": "Prepare Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1008,
-        400
+        1248,
+        288
       ]
     },
     {
@@ -119,8 +122,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1232,
-        400
+        1472,
+        288
       ]
     },
     {
@@ -148,8 +151,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1632,
-        400
+        1696,
+        384
       ]
     },
     {
@@ -169,30 +172,30 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1792,
-        400
+        1920,
+        384
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Extract conv_id and msg_id from Ingest Email response\nconst ingestData = $('Ingest Email').item.json;\nconst riskData = $input.item.json;\n\nreturn {\n  json: {\n    conv_id: ingestData.conv_id,\n    last_msg_id: ingestData.msg_id,\n    scam_category: riskData.category || 'Credential_phish',\n    reason: 'auto_draft_on_inbound'\n  }\n};"
+        "jsCode": "// Extract conv_id and msg_id from Ingest Email response\nconst ingestData = $('Ingest Email').first().json;\nconst riskData = $input.first().json;\n\nreturn {\n  json: {\n    conv_id: ingestData.conv_id,\n    last_msg_id: ingestData.msg_id,\n    scam_category: riskData.category || 'Credential_phish',\n    reason: 'auto_draft_on_inbound'\n  }\n};"
       },
       "id": "48d831e8-9af0-4d2a-a735-d4e615ac01d7",
       "name": "Prepare Reply Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1936,
-        304
+        2144,
+        288
       ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "your-wf-reply-generate-id",
+          "value": "Jx9lpFM49jf9cBTP",
           "mode": "list",
-          "cachedResultUrl": "/workflow/your-wf-reply-generate-id",
+          "cachedResultUrl": "/workflow/Jx9lpFM49jf9cBTP",
           "cachedResultName": "WF-REPLY-GENERATE-V2"
         },
         "workflowInputs": {
@@ -206,8 +209,8 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        2128,
-        304
+        2368,
+        288
       ]
     },
     {
@@ -217,21 +220,21 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        2000,
-        512
+        2144,
+        480
       ]
     },
     {
       "parameters": {
-        "jsCode": "const ingestData = $('Ingest Email').item.json;\nconst riskData = $('Get Risk Assessment').item.json;\nreturn {\n  json: {\n    status: 'processed_no_reply',\n    msg_id: ingestData.msg_id,\n    conv_id: ingestData.conv_id,\n    risk_level: riskData.risk_level,\n    should_reply: riskData.should_reply,\n    reply_generated: false,\n    reason: 'Low risk, no exploitable artefacts',\n    timestamp: new Date().toISOString()\n  }\n};"
+        "jsCode": "const ingestData = $('Ingest Email').first().json;\nconst riskData = $('Get Risk Assessment').first().json;\nreturn {\n  json: {\n    status: 'processed_no_reply',\n    msg_id: ingestData.msg_id,\n    conv_id: ingestData.conv_id,\n    risk_level: riskData.risk_level,\n    should_reply: riskData.should_reply,\n    reply_generated: false,\n    reason: 'Low risk, no exploitable artefacts',\n    timestamp: new Date().toISOString()\n  }\n};"
       },
       "id": "4e5bdb8f-dd69-4802-ba87-6067115811ad",
       "name": "Success No Reply",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2224,
-        512
+        2368,
+        480
       ]
     },
     {
@@ -248,37 +251,37 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 1,
       "position": [
-        256,
-        400
+        128,
+        360
       ],
-      "webhookId": "00000000-0000-0000-0000-000000000001",
+      "webhookId": "7af1b893-b66e-4e96-b640-392035804238",
       "credentials": {
         "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account honeypot"
+          "id": "credential-placeholder-1",
+          "name": "Gmail account Operator"
         }
       }
     },
     {
       "parameters": {
-        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare for WF-ANALYZE-IOC - CORRECTED\n// Purpose: Extract msg_id from backend response (NOT Gmail email_id)\n// and prepare data for IOC extraction workflow\n// ═══════════════════════════════════════════════════════════════\n\nconst ingestResponse = $('Ingest Email').item.json;\nconst emailData = $('Extract Email Data').item.json;\nconst prepareData = $('Prepare Payload').item.json;\n\n// IMPORTANT: Use backend msg_id (UUID), not Gmail email_id\n// The backend message MUST exist before WF-ANALYZE-IOC runs\nreturn {\n  json: {\n    msg_id: ingestResponse.msg_id,  // ← Backend UUID (REQUIRED by POST /iocs/enriched)\n    body_text: emailData.body_text,\n    subject: emailData.subject,\n    headers: emailData.headers,\n    full_text: prepareData.full_text\n  }\n};"
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare for WF-ANALYZE-IOC - CORRECTED\n// Purpose: Extract msg_id from backend response (NOT Gmail email_id)\n// and prepare data for IOC extraction workflow\n// ═══════════════════════════════════════════════════════════════\n\nconst ingestResponse = $('Ingest Email').first().json;\n// const emailData = $('Extract Email Data').first().json;\nconst emailData = $('Loop Over Items').first().json;\nconst prepareData = $('Prepare Payload').first().json;\n\n// IMPORTANT: Use backend msg_id (UUID), not Gmail email_id\n// The backend message MUST exist before WF-ANALYZE-IOC runs\nreturn {\n  json: {\n    msg_id: ingestResponse.msg_id,  // ← Backend UUID (REQUIRED by POST /iocs/enriched)\n    body_text: emailData.body_text,\n    subject: emailData.subject,\n    headers: emailData.headers,\n    full_text: prepareData.full_text\n  }\n};"
       },
       "id": "addd2153-dc30-4682-ba59-bf676b186da2",
       "name": "Prepare for WF-ANALYZE-IOC",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1440,
-        400
+        1696,
+        192
       ]
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "your-wf-extract-enrich-ioc-id",
+          "value": "csaNdBEuJLViUqcz",
           "mode": "list",
-          "cachedResultUrl": "/workflow/your-wf-extract-enrich-ioc-id",
+          "cachedResultUrl": "/workflow/csaNdBEuJLViUqcz",
           "cachedResultName": "WF-EXTRACT-AND-ENRICH-IOC"
         },
         "options": {}
@@ -288,9 +291,48 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.1,
       "position": [
-        624,
-        400
+        1920,
+        192
       ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        800,
+        360
+      ],
+      "id": "001a60eb-96fb-4bf7-a6ed-6c293d657b24",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { continue: true } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2592,
+        456
+      ],
+      "id": "4a81e6e4-0042-4d00-b1d5-7e9622386c54",
+      "name": "Continue Loop"
+    },
+    {
+      "parameters": {
+        "jsCode": "const triggerItems = $('Gmail Trigger').all();\nconst rawItems = $('Gmail Get Raw Message').all();\nconst extractedItems = $('Extract Email Data').all();\n\nconst merged = [];\nfor (let i = 0; i < extractedItems.length; i++) {\n  merged.push({\n    json: {\n      ...extractedItems[i].json,\n      _gmail_raw: rawItems[i]?.json || {},\n      _gmail_trigger: triggerItems[i]?.json || {},\n    }\n  });\n}\nreturn merged;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        576,
+        360
+      ],
+      "id": "d2dfd221-ae0b-4c3f-a9a7-bd8084b3c3e2",
+      "name": "Merge Email Data"
     }
   ],
   "pinData": {},
@@ -359,7 +401,13 @@
     },
     "Trigger Reply Generation": {
       "main": [
-        []
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Skip Reply": {
@@ -399,7 +447,7 @@
       "main": [
         [
           {
-            "node": "Retrieve Token",
+            "node": "Merge Email Data",
             "type": "main",
             "index": 0
           }
@@ -432,6 +480,51 @@
           }
         ]
       ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Retrieve Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success No Reply": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Email Data": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "active": true,
@@ -442,11 +535,11 @@
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1"
   },
-  "versionId": "00000000-0000-0000-0000-000000000000",
+  "versionId": "c3f5cdaa-0de1-42c2-aef9-f2d255359319",
   "meta": {
     "templateCredsSetupCompleted": true,
-    "instanceId": "your-n8n-instance-id"
+    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
   },
-  "id": "your-wf-intake-email-id",
+  "id": "Cibqm3bYOOAQz3HL",
   "tags": []
 }
