@@ -156,3 +156,4 @@ local/
 
 .specify/
 specs/
+backend-symfony/config/jwt/

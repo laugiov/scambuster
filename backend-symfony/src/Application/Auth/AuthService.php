@@ -50,7 +50,7 @@ class AuthService implements AuthServiceInterface
         $this->em->persist($refreshToken);
         $this->em->flush();
 
-        $expiresIn = 3600;
+        $expiresIn = 900;
 
         return new LoginResponseDto($accessToken, $refreshTokenString, $expiresIn);
     }
@@ -78,7 +78,7 @@ class AuthService implements AuthServiceInterface
         $this->em->persist($newRefreshToken);
         $this->em->flush();
 
-        $expiresIn = 3600;
+        $expiresIn = 900;
 
         return new LoginResponseDto($accessToken, $newRefreshTokenString, $expiresIn);
     }
