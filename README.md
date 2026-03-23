@@ -362,6 +362,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 | [Database Schema](docs/11_database_schema.md) | Tables, relationships, column reference |
 | [API Quick Reference](docs/12_api_quick_reference.md) | All endpoints with curl examples |
 | [MISP Integration](docs/13_misp_integration.md) | Connect to MISP, export IOCs, troubleshooting |
+| [Key Management](docs/14_key_management.md) | JWT RS256 keys, rotation, emergency response |
 
 ---
 

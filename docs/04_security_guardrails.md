@@ -332,4 +332,42 @@ For security concerns or responsible disclosure:
 
 ---
 
+## Security by Design Implementation (v1.5.0)
+
+The following controls were implemented based on the [security-by-design](https://github.com/laugiov/security-by-design) reference framework:
+
+### OWASP Security Headers
+
+All API responses include: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cross-Origin-Opener-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`. Implemented via `SecurityHeadersListener` on `kernel.response`.
+
+### Structured Audit Trail
+
+`audit_log` table with 16 event types (AUTH_SUCCESS, AUTH_FAILURE, MESSAGE_INGESTED, REPLY_GENERATED, IOC_EXTRACTED, INJECTION_DETECTED, etc.). Queryable via `GET /api/v1/monitoring/audit`. Each entry includes event_type, actor, resource, action, outcome, details JSON, IP address, and trace_id.
+
+### PII Minimization in Logs
+
+Zero `error_log()` calls in production code. LLM prompt content and generated text are never logged (only lengths and metadata). Monolog JSON formatter in prod with structured fields.
+
+### Request Correlation (Trace ID)
+
+Every request gets a unique `X-Trace-Id` header (UUID). Propagated to all log entries via Monolog processor and to audit events. Supports incoming trace_id for cross-service correlation.
+
+### JWT RS256 (Asymmetric)
+
+JWT signing migrated from HS256 (shared secret) to RS256 (private/public key pair). Token TTL reduced from 1 hour to 15 minutes. Key rotation scripts with zero-downtime procedure. See [Key Management](14_key_management.md).
+
+### RBAC Permissions
+
+12 fine-grained permissions (conversation:read/write/close, ioc:read/export, reply:generate, campaign:read/hunt/promote, monitoring:read, audit:read, config:write). PermissionVoter grants all permissions to ROLE_ADMIN implicitly. Regular users need explicit permissions in their user profile.
+
+### Payload Size Limit
+
+Requests exceeding 1 MB are rejected with `413 Payload Too Large` via `PayloadSizeLimitListener`.
+
+### CI Security Scanning
+
+GitHub Actions CI includes `composer audit` (PHP dependency vulnerabilities) and Gitleaks (secret detection).
+
+---
+
 [← Back to Main](../README.md)

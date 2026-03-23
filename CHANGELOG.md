@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.5.0] - March 2026
+
+### Added — Security by Design
+
+Based on the [security-by-design](https://github.com/laugiov/security-by-design) reference framework:
+
+- **OWASP Security Headers**: 6 headers on all responses (X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy, COOP, X-Permitted-Cross-Domain-Policies)
+- **Structured Audit Trail**: `audit_log` table with 16 event types, `AuditLogger` service, `GET /api/v1/monitoring/audit` endpoint (paginated, filterable)
+- **Request Trace ID**: `X-Trace-Id` header on every request/response, Monolog processor injects trace_id in all logs, audit events auto-capture trace_id
+- **JWT RS256**: Migrated from HS256 (symmetric) to RS256 (asymmetric), TTL reduced from 1h to 15min
+- **Key Management**: `generate-jwt-keys.sh` + `rotate-jwt-keys.sh` with zero-downtime rotation, `docs/14_key_management.md`
+- **RBAC Permissions**: 12 fine-grained permissions via `PermissionVoter`, `Permission` enum, permissions JSON on User entity
+- **Payload Size Limit**: Reject requests > 1MB (413 Payload Too Large)
+- **CI Security**: `composer audit` (PHP SCA) + Gitleaks (secret detection) in GitHub Actions
+
+### Fixed — PII Removal
+- Removed all `error_log()` calls from production code (7 occurrences)
+- Truncated debug logs: no more full LLM prompts or generated text in logs
+- LLM providers log metadata only (lengths, token counts), never content
+
+---
+
 ## [1.4.0] - March 2026
 
 ### Added
