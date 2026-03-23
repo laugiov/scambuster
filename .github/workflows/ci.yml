@@ -111,8 +111,51 @@ jobs:
         run: docker compose exec backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no
 
   # Backend tests disabled in CI - Kernel class double-include issue on GitHub Actions.
-  # Tests pass locally via: make test (1310 tests, unit + integration)
+  # Tests pass locally via: make test (1118 tests, unit + integration)
   # PHPStan (level=max) and CS-Fixer enforce code quality above.
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 1. PHP dependency vulnerability scanning
+      - name: Composer audit (PHP SCA)
+        run: |
+          docker compose up -d --build backend-dev
+          cat > .env << 'ENVEOF'
+          APP_ENV=test
+          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
+          REDIS_URL=redis://redis:6379
+          JWT_SECRET=ci-test
+          LLM_API_KEY=sk-test
+          LLM_PROVIDER=mock
+          LLM_MODEL=mock
+          LLM_API_URL=https://api.openai.com/v1
+          VAULT_ADDR=http://vault:8200
+          VAULT_TOKEN=root
+          VAULT_IMAP_PATH=secret/scambuster/imap/
+          LOGIN_HASH_SALT=ci-test
+          SCAMBUSTER_KILL_SWITCH=false
+          PROMPT_INJECTION_ENABLED=false
+          STIX_EXPORT_PATH=/tmp/stix-test
+          SCORE_RISK_MIN=30
+          CAMPAIGN_PROMOTION_PPV_THRESHOLD=0.85
+          CAMPAIGN_PROMOTION_MIN_HITS=5
+          CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
+          ENVEOF
+          docker compose exec --user root backend-dev composer install --no-interaction --no-progress 2>/dev/null
+          docker compose exec backend-dev composer audit --format=plain || echo "::warning::Composer audit found vulnerabilities (non-blocking)"
+
+      # 2. Secret detection in committed code
+      - name: Gitleaks (secret detection)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   frontend:
     name: Frontend (TypeScript, Lint, Tests, Build)
