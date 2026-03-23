@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Auth;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\Auth\AuthServiceInterface;
 use App\Application\Auth\Dto\LoginRequestDto;
+use App\Domain\Audit\AuditEventType;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -62,6 +64,7 @@ final class LoginController
 {
     public function __construct(
         private readonly AuthServiceInterface $handler,
+        private readonly AuditLogger $auditLogger,
         private ValidatorInterface $validator,
         private SerializerInterface $serializer
     ) {
@@ -88,6 +91,15 @@ final class LoginController
         } catch (AuthenticationException $e) {
             $attempts[$key]++;
 
+            $this->auditLogger->log(
+                eventType: AuditEventType::AUTH_FAILURE,
+                actorId: $dto->email,
+                action: 'login',
+                outcome: 'failure',
+                details: ['reason' => $e->getMessage()],
+                ipAddress: $request->getClientIp()
+            );
+
             if ($attempts[$key] > 5) {
                 return new JsonResponse(['retry_after' => 60], Response::HTTP_TOO_MANY_REQUESTS);
             }
@@ -95,6 +107,14 @@ final class LoginController
             return new JsonResponse(['message' => strtolower($e->getMessage())], Response::HTTP_UNAUTHORIZED);
         }
         unset($attempts[$key]);
+
+        $this->auditLogger->log(
+            eventType: AuditEventType::AUTH_SUCCESS,
+            actorId: $dto->email,
+            action: 'login',
+            outcome: 'success',
+            ipAddress: $request->getClientIp()
+        );
 
         return new JsonResponse([
             'access_token'  => $response->accessToken,

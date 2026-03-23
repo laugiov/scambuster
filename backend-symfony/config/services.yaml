@@ -82,6 +82,12 @@ services:
         tags:
             - { name: kernel.event_listener, event: kernel.exception, method: onKernelException }
 
+    App\Infrastructure\EventListener\AuditAuthListener:
+        tags:
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_authentication_success, method: onAuthenticationSuccess }
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_invalid, method: onJwtInvalid }
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_expired, method: onJwtExpired }
+
     Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface:
         public: true
         alias: 'security.user_password_hasher'
