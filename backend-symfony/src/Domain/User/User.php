@@ -33,6 +33,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'json')]
     private array $roles = [];
 
+    /** @var array<string> */
+    #[ORM\Column(type: 'json', options: ['default' => '[]'])]
+    private array $permissions = [];
+
     public function __construct()
     {
         $this->id       = Uuid::v4();
@@ -80,6 +84,33 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->roles = $r;
 
         return $this;
+    }
+
+    /** @return array<string> */
+    public function getPermissions(): array
+    {
+        return $this->permissions;
+    }
+
+    /** @param array<string> $permissions */
+    public function setPermissions(array $permissions): self
+    {
+        $this->permissions = $permissions;
+
+        return $this;
+    }
+
+    /**
+     * Check if user has a specific permission.
+     * Admins have all permissions implicitly.
+     */
+    public function hasPermission(Permission $permission): bool
+    {
+        if (in_array('ROLE_ADMIN', $this->getRoles(), true)) {
+            return true;
+        }
+
+        return in_array($permission->value, $this->permissions, true);
     }
 
     // --- UserInterface ---
