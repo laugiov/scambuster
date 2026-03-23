@@ -508,8 +508,10 @@ class ReplyHandler
 
         // If conv_id is provided, verify it matches (security check)
         if ($convId !== null && $conversation->getConvId() !== $convId) {
-            error_log("[WARNING] conv_id mismatch: expected {$conversation->getConvId()}, got {$convId}");
-            // Continue anyway, but log the mismatch
+            $this->logger->warning('[ReplyHandler] conv_id mismatch during markAsSent', [
+                'expected' => $conversation->getConvId(),
+                'received' => $convId,
+            ]);
         }
 
         // Build proper threading headers from conversation context
@@ -553,12 +555,14 @@ class ReplyHandler
                 $referencesArray[] = $parentMessageId;
                 $currentHeaders['references'] = implode(' ', array_unique($referencesArray));
 
-                error_log("[INFO] Rebuilt threading headers: in_reply_to={$parentMessageId}");
+                $this->logger->debug('[ReplyHandler] Threading headers rebuilt', [
+                    'in_reply_to' => $parentMessageId,
+                ]);
             } else {
-                error_log('[WARNING] No message_id found in parent message headers');
+                $this->logger->warning('[ReplyHandler] No message_id in parent message headers');
             }
         } else {
-            error_log('[WARNING] No INCOMING messages found in conversation');
+            $this->logger->warning('[ReplyHandler] No incoming messages found in conversation');
         }
 
         // Store additional headers from n8n
@@ -575,7 +579,7 @@ class ReplyHandler
                 $rfc822MessageId = trim($rfc822MessageId, '<>');
 
                 $currentHeaders['message-id'] = $rfc822MessageId;
-                error_log("[INFO] RFC822 Message-ID stored: {$rfc822MessageId}");
+                $this->logger->debug('[ReplyHandler] RFC822 Message-ID stored');
             }
         }
 

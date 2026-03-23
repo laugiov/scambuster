@@ -185,12 +185,10 @@ final class PromptBuilder
                     'obligations_count' => count($analysis['instructions_for_llm']['obligations'] ?? []),
                 ]);
 
-                // LOG DÉTAILLÉ: Instructions complètes générées
-                $this->logger->debug('[PromptBuilder] ConversationAnalyzer FULL INSTRUCTIONS', [
+                $this->logger->debug('[PromptBuilder] ConversationAnalyzer instructions applied', [
                     'conv_id' => $context['conv_id'] ?? 'unknown',
-                    'full_instructions' => $analysis['instructions_for_llm'],
-                    'analysis' => $analysis['analysis'],
-                    'strategic_suggestions' => $analysis['strategic_suggestions'],
+                    'has_instructions' => !empty($analysis['instructions_for_llm']),
+                    'suggestions_count' => count($analysis['strategic_suggestions']),
                 ]);
             } catch (\Throwable $e) {
                 // Fallback to VariationProvider if ConversationAnalyzer fails
@@ -232,14 +230,11 @@ final class PromptBuilder
         $userPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
         $userPrompt .= 'Maintenant, rédige ta réponse dans la bonne langue.';
 
-        // LOG COMPLET DU PROMPT FINAL
-        $this->logger->debug('[PromptBuilder] FULL PROMPT SENT TO LLM GENERATOR', [
+        $this->logger->debug('[PromptBuilder] Prompt built for LLM generator', [
             'conv_id' => $context['conv_id'] ?? 'unknown',
             'persona' => $personaCode,
             'system_prompt_length' => strlen($systemPrompt),
             'user_prompt_length' => strlen($userPrompt),
-            'system_prompt' => $systemPrompt,
-            'user_prompt' => $userPrompt,
         ]);
 
         return [
