@@ -95,11 +95,9 @@ final class ConversationAnalyzer
                 'iocs_extracted' => count($context['extracted_iocs'] ?? []),
             ]);
 
-            // LOG DÉT AILLÉ: Prompt d'analyse complet
-            $this->logger->debug('[ConversationAnalyzer] FULL ANALYSIS PROMPT', [
+            $this->logger->debug('[ConversationAnalyzer] Analysis prompt built', [
                 'conv_id' => $context['conversation_id'],
                 'prompt_length' => strlen($prompt),
-                'full_prompt' => $prompt,
             ]);
 
             // Call LLM
@@ -129,13 +127,11 @@ final class ConversationAnalyzer
                 'duration_ms' => round($duration * 1000, 2),
             ]);
 
-            // LOG DÉTAILLÉ: Réponse LLM brute + analyse complète
-            $this->logger->debug('[ConversationAnalyzer] FULL LLM RESPONSE AND ANALYSIS', [
+            $this->logger->debug('[ConversationAnalyzer] Analysis complete', [
                 'conv_id' => $context['conversation_id'],
-                'raw_llm_response' => $llmResponse,
-                'parsed_analysis' => $analysis['analysis'],
-                'strategic_suggestions' => $analysis['strategic_suggestions'],
-                'generated_instructions' => $analysis['instructions_for_llm'],
+                'response_length' => strlen($llmResponse),
+                'has_suggestions' => !empty($analysis['strategic_suggestions']),
+                'has_instructions' => !empty($analysis['instructions_for_llm']),
             ]);
 
             // Cache result

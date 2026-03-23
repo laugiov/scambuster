@@ -100,10 +100,10 @@ final class ReplyOrchestrator
                     'preview_first_100_chars' => substr($generatedText, 0, 100) . '...',
                 ]);
 
-                $this->logger->debug("[ReplyOrchestrator] [ATTEMPT {$attempt}] FULL GENERATED TEXT", [
+                $this->logger->debug("[ReplyOrchestrator] [ATTEMPT {$attempt}] Generated text stats", [
                     'conversation_id' => $context['conv_id'],
                     'attempt' => $attempt,
-                    'full_text' => $generatedText,
+                    'text_length' => strlen($generatedText),
                 ]);
 
                 // === ÉTAPE 2: Validation PolicyGuard (règles dures) ===

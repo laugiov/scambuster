@@ -341,10 +341,6 @@ final class ReplyController
     {
         $data = json_decode($request->getContent(), true);
 
-        // DEBUG: Log the received data
-        error_log('[DEBUG] markSent received for msgId: ' . $msgId);
-        error_log('[DEBUG] Request body: ' . $request->getContent());
-
         if (!is_array($data)) {
             return new JsonResponse(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
@@ -357,10 +353,6 @@ final class ReplyController
             $tsSent = new \DateTimeImmutable($data['ts_sent']);
             $sentHeaders = $data['sent_headers'] ?? null;
             $convId = $data['conv_id'] ?? null;
-
-            // DEBUG: Log received data
-            error_log('[DEBUG] sent_headers received: ' . json_encode($sentHeaders));
-            error_log('[DEBUG] conv_id received: ' . ($convId ?? 'null'));
 
             $success = $this->handler->markAsSent(
                 $msgId,
