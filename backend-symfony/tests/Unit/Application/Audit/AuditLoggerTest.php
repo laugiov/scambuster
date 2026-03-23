@@ -10,6 +10,7 @@ use App\Domain\Audit\AuditLog;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class AuditLoggerTest extends TestCase
 {
@@ -26,7 +27,7 @@ class AuditLoggerTest extends TestCase
 
         $em->expects($this->once())->method('flush');
 
-        $logger = new AuditLogger($em, new NullLogger());
+        $logger = new AuditLogger($em, new NullLogger(), new RequestStack());
 
         $logger->log(
             eventType: AuditEventType::AUTH_SUCCESS,
@@ -41,7 +42,7 @@ class AuditLoggerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('persist')->willThrowException(new \RuntimeException('DB down'));
 
-        $logger = new AuditLogger($em, new NullLogger());
+        $logger = new AuditLogger($em, new NullLogger(), new RequestStack());
 
         // Should not throw — non-blocking
         $logger->log(
@@ -68,7 +69,7 @@ class AuditLoggerTest extends TestCase
 
         $em->expects($this->once())->method('flush');
 
-        $logger = new AuditLogger($em, new NullLogger());
+        $logger = new AuditLogger($em, new NullLogger(), new RequestStack());
 
         $logger->log(
             eventType: AuditEventType::REPLY_GENERATED,
