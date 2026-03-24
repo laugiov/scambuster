@@ -1,5 +1,7 @@
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useCampaignCandidates } from '@/hooks/useStix';
+import { useHunt } from '@/hooks/useCampaigns';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -14,6 +16,7 @@ function formatDate(iso: string): string {
 export function Campaigns() {
   const { t } = useTranslation();
   const { data: candidates, isLoading, error, refetch } = useCampaignCandidates();
+  const hunt = useHunt();
 
   if (isLoading) return <Loading message={t('campaigns.loading')} />;
   if (error) return <ErrorMessage message={t('campaigns.failedLoad')} onRetry={() => void refetch()} />;
@@ -22,10 +25,31 @@ export function Campaigns() {
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-xl font-semibold text-on-surface">{t('campaigns.title')}</h1>
-        <p className="text-xs text-on-surface-dim mt-1">{t('campaigns.subtitle')}</p>
+      <header className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-on-surface">{t('campaigns.title')}</h1>
+          <p className="text-xs text-on-surface-dim mt-1">{t('campaigns.subtitle')}</p>
+        </div>
+        <button
+          onClick={() => hunt.mutate()}
+          disabled={hunt.isPending}
+          className="px-4 py-2 rounded-md text-sm font-medium bg-accent text-on-accent hover:bg-accent/90 disabled:opacity-50 transition-colors cursor-pointer"
+        >
+          {hunt.isPending ? t('campaigns.huntRunning') : t('campaigns.runHunt')}
+        </button>
       </header>
+
+      {hunt.isSuccess && (
+        <div className="bg-success/10 border border-success/30 rounded-md px-4 py-3 text-sm text-success">
+          {t('campaigns.huntComplete', { rules: hunt.data.total_rules, hits: hunt.data.total_hits })}
+        </div>
+      )}
+
+      {hunt.isError && (
+        <div className="bg-error/10 border border-error/30 rounded-md px-4 py-3 text-sm text-error">
+          {t('campaigns.huntFailed')}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label={t('campaigns.detectedCampaigns')} value={safeCandidates.length} />
@@ -60,7 +84,11 @@ export function Campaigns() {
               const ppvColor = c.ppv >= 0.85 ? 'text-success' : c.ppv >= 0.5 ? 'text-warning' : 'text-error';
               return (
                 <tr key={c.campaign_id} className="hover:bg-surface-high/50 transition-colors">
-                  <td className="px-5 py-3 font-mono text-xs text-accent">{c.campaign_id.slice(0, 8)}</td>
+                  <td className="px-5 py-3 font-mono text-xs">
+                    <Link to={`/campaigns/${c.campaign_id}`} className="text-accent hover:underline">
+                      {c.campaign_id.slice(0, 8)}
+                    </Link>
+                  </td>
                   <td className="px-5 py-3 font-mono text-xs text-on-surface-variant">{c.rule_id.slice(0, 8)}</td>
                   <td className="px-5 py-3">
                     <span className={`font-mono text-xs font-bold ${ppvColor}`}>{ppvPct}%</span>
