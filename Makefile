@@ -241,6 +241,15 @@ misp-test: ##@misp Test MISP connection
 close-stale-dry: ##@scambaiting Preview stale conversations without closing
 	$(CONSOLE_DEV) app:close-stale-conversations --dry-run $(if $(d),--days=$(d),)
 
+bandit-report: ##@scambaiting Run bandit daily convergence report
+	$(CONSOLE_DEV) app:bandit:daily-report
+
+cleanup-weekly: ##@scambaiting Run weekly cleanup (soft-delete old conversations, purge LLM usage)
+	$(CONSOLE_DEV) app:cleanup:weekly
+
+cleanup-weekly-dry: ##@scambaiting Preview weekly cleanup without changes
+	$(CONSOLE_DEV) app:cleanup:weekly --dry-run
+
 # ======================================================================
 #  DEPLOYMENT
 # ======================================================================
