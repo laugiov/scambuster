@@ -2,6 +2,39 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
 
+export interface CampaignDetail {
+  campaign_id: string;
+  status: string;
+  severity: number;
+  tlp: string;
+  first_seen: string;
+  profile_yaml: string | null;
+  notes: string | null;
+  created_at: string;
+  rule: {
+    rule_id: string;
+    ppv: number;
+    hits_total: number;
+    hits_true_pos: number;
+    hits_false_pos: number;
+    lead_time_sec: number | null;
+    lead_time_hours: number | null;
+    enabled: boolean;
+    promoted_at: string | null;
+  } | null;
+}
+
+export function useCampaignDetail(campaignId: string) {
+  return useQuery<CampaignDetail>({
+    queryKey: ['campaign-detail', campaignId],
+    queryFn: async () => {
+      const { data } = await client.get<CampaignDetail>(ENDPOINTS.campaign.detail(campaignId));
+      return data;
+    },
+    enabled: !!campaignId,
+  });
+}
+
 export interface CampaignMessage {
   msg_id: string;
   subject: string | null;
