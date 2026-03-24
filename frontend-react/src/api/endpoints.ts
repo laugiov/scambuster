@@ -7,6 +7,9 @@ export const ENDPOINTS = {
   monitoring: {
     autonomy: '/monitoring/autonomy',
     llmCost: '/monitoring/llm-cost',
+    lifecycle: '/monitoring/conversation-lifecycle',
+    rateLimits: '/monitoring/rate-limits',
+    convergenceHistory: '/monitoring/convergence-history',
   },
   conversations: {
     list: '/communication/conversation',

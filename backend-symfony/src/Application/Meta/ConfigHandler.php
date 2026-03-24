@@ -15,6 +15,8 @@ final class ConfigHandler
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly PersonaOptimizer $personaOptimizer,
+        private readonly string $llmProvider = 'openai',
+        private readonly string $llmModel = 'gpt-4o-mini',
     ) {
     }
 
@@ -47,6 +49,8 @@ final class ConfigHandler
             ),
             'ioc_types' => IocExtractor::getSupportedTypes(),
             'bandit' => $this->personaOptimizer->getBanditConfig(),
+            'llm_provider' => $this->llmProvider,
+            'llm_model' => $this->llmModel,
         ];
     }
 }

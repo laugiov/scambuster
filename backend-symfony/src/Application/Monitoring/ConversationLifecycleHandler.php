@@ -75,18 +75,76 @@ final class ConversationLifecycleHandler
             $byScamType[$scamType] = [
                 'active' => $count,
                 'about_to_timeout' => $aboutToTimeoutForType,
-                'timeout_hours' => $timeoutHours,
+                'policy_timeout_hours' => $timeoutHours,
                 'max_turns' => ConversationLifecycleConfig::getMaxTurns($scamType),
             ];
         }
+
+        // Reopened today: conversations that went from closed/abandoned back to open today
+        $reopenedToday = $this->toInt($this->connection->fetchOne(
+            "SELECT COUNT(*) FROM conversation
+             WHERE status = 'open' AND deleted_at IS NULL
+               AND updated_at >= :today AND ts_first < :today",
+            ['today' => (new \DateTimeImmutable('today'))->format('Y-m-d 00:00:00')]
+        ));
+
+        // About to timeout detail list (up to 20 rows)
+        $aboutToTimeoutList = $this->getAboutToTimeoutList($now);
 
         return [
             'active' => $active,
             'about_to_timeout' => $aboutToTimeout,
             'completed_today' => $completedToday,
-            'abandoned_today' => $abandonedToday,
-            'by_scam_type' => $byScamType,
+            'reopened_today' => $reopenedToday,
+            'by_scam_type' => (object) $byScamType,
+            'about_to_timeout_list' => $aboutToTimeoutList,
         ];
+    }
+
+    /**
+     * @return list<array{conv_id: string, scam_type: string, persona: string, last_activity: string, timeout_hours: int, hours_remaining: float}>
+     */
+    private function getAboutToTimeoutList(\DateTimeImmutable $now): array
+    {
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT c.conv_id, st.code as scam_type,
+                    p.persona_code as persona, c.ts_last
+             FROM conversation c
+             JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+             LEFT JOIN persona p ON c.persona_id = p.persona_id
+             WHERE c.status = 'open' AND c.deleted_at IS NULL
+             ORDER BY c.ts_last ASC
+             LIMIT 50"
+        );
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            /** @var array{conv_id: string, scam_type: string, persona: ?string, ts_last: string} $row */
+            $scamType = $row['scam_type'];
+            $timeoutHours = ConversationLifecycleConfig::getTimeoutHours($scamType);
+            $tsLast = new \DateTimeImmutable($row['ts_last']);
+            $deadline = $tsLast->modify("+{$timeoutHours} hours");
+            $hoursRemaining = ($deadline->getTimestamp() - $now->getTimestamp()) / 3600;
+
+            // Only include if within 24h of timeout
+            if ($hoursRemaining <= 24 && $hoursRemaining > 0) {
+                $result[] = [
+                    'conv_id' => $row['conv_id'],
+                    'scam_type' => $scamType,
+                    'persona' => $row['persona'] ?? '',
+                    'last_activity' => $tsLast->format(\DATE_ATOM),
+                    'timeout_hours' => $timeoutHours,
+                    'hours_remaining' => round($hoursRemaining, 1),
+                ];
+            }
+
+            if (\count($result) >= 20) {
+                break;
+            }
+        }
+
+        return $result;
     }
 
     private function toInt(mixed $value): int
