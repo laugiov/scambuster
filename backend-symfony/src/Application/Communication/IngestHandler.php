@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Application\Communication;
 
+use App\Application\Audit\AuditLogger;
+use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Attachment;
 use App\Domain\Communication\Channel;
 use App\Domain\Communication\Conversation;
@@ -15,6 +17,7 @@ use App\Domain\Communication\ScamType;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use ZBateson\MailMimeParser\MailMimeParser;
 
 class IngestHandler
@@ -24,6 +27,9 @@ class IngestHandler
         private readonly LoggerInterface $logger,
         private readonly IocHandler $iocHandler,
         private readonly ?PromptInjectionDetector $promptInjectionDetector = null,
+        private readonly ?RateLimiterFactory $emailsPerSenderPerDayLimiter = null,
+        private readonly ?SenderFloodDetector $senderFloodDetector = null,
+        private readonly ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -677,10 +683,82 @@ class IngestHandler
             }
         }
 
+        // Check sender rate limits (after ingest, before signaling reply-ok)
+        $senderRateLimited = $this->checkSenderRateLimits($fromHeader, $conversation->getConvId());
+
         return [
             'msg_id' => $msgId,
             'conv_id' => $conversation->getConvId(),
             'status' => 'ingested',
+            'rate_limited' => $senderRateLimited,
         ];
+    }
+
+    /**
+     * Check per-sender rate limits: daily cap + flood burst detection.
+     * Returns true if rate limited (reply should be skipped).
+     */
+    private function checkSenderRateLimits(?string $fromHeader, string $convId): bool
+    {
+        if ($fromHeader === null || $fromHeader === '') {
+            return false;
+        }
+
+        $senderEmail = preg_match('/<([^>]+)>/', $fromHeader, $m) ? $m[1] : $fromHeader;
+        $senderHash = hash('sha256', strtolower($senderEmail));
+
+        // 1. Flood detection (burst: 5 emails in 5 minutes)
+        if ($this->senderFloodDetector !== null) {
+            $flooded = $this->senderFloodDetector->recordAndCheck($senderHash);
+
+            if ($flooded) {
+                $this->logger->warning('[IngestHandler] Sender flood detected', [
+                    'sender_hash' => substr($senderHash, 0, 12),
+                    'conv_id' => $convId,
+                ]);
+
+                $this->dispatchRateLimitAudit($senderHash, 'sender_flood', $convId);
+
+                return true;
+            }
+        }
+
+        // 2. Daily sender limit (10 emails/24h via Symfony rate limiter)
+        if ($this->emailsPerSenderPerDayLimiter !== null) {
+            $limiter = $this->emailsPerSenderPerDayLimiter->create($senderHash);
+            $limit = $limiter->consume();
+
+            if (!$limit->isAccepted()) {
+                $this->logger->warning('[IngestHandler] Sender daily rate limit exceeded', [
+                    'sender_hash' => substr($senderHash, 0, 12),
+                    'conv_id' => $convId,
+                    'retry_after' => $limit->getRetryAfter()->format(\DATE_ATOM),
+                ]);
+
+                $this->dispatchRateLimitAudit($senderHash, 'sender_daily', $convId);
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function dispatchRateLimitAudit(string $senderHash, string $limitType, string $convId): void
+    {
+        if ($this->auditLogger === null) {
+            return;
+        }
+
+        $this->auditLogger->log(
+            eventType: AuditEventType::RATE_LIMIT_EXCEEDED,
+            actorId: substr($senderHash, 0, 12),
+            action: 'rate_limit',
+            outcome: 'blocked',
+            resourceType: 'conversation',
+            resourceId: $convId,
+            details: ['limit_type' => $limitType],
+            actorType: 'sender'
+        );
     }
 }

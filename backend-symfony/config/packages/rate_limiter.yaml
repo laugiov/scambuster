@@ -31,3 +31,11 @@ framework:
       policy: 'sliding_window'
       limit: 50
       interval: '24 hours'
+
+    # -----------------------------------------------------------
+    # Per-sender rate limits (applied at ingest)
+    # -----------------------------------------------------------
+    emails_per_sender_per_day:
+      policy: 'sliding_window'
+      limit: 10
+      interval: '24 hours'
