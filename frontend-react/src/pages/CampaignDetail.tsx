@@ -162,7 +162,7 @@ export function CampaignDetail() {
               {/* Promote */}
               {!showConfirm ? (
                 <button
-                  onClick={() => setShowConfirm(true)}
+                  onClick={() => { promoteMutation.reset(); setShowConfirm(true); }}
                   disabled={!isPromotable || promoteMutation.isSuccess}
                   className="w-full px-4 py-2.5 rounded-md text-sm font-medium bg-success/20 text-success hover:bg-success/30 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
                 >
