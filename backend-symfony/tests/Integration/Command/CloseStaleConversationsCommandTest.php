@@ -101,7 +101,7 @@ class CloseStaleConversationsCommandTest extends KernelTestCase
         // With --days=7, conversation at 3 days should NOT be stale
         $tester->execute(['--days' => '7']);
         $output = $tester->getDisplay();
-        $this->assertStringContainsString('No stale conversations', $output);
+        $this->assertStringContainsString('none need closing', $output);
 
         // With --days=2, conversation at 3 days IS stale
         $tester->execute(['--days' => '2']);
