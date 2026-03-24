@@ -34,7 +34,8 @@
     "settings": "Settings",
     "logout": "Logout",
     "subtitle": "Threat Intelligence",
-    "llmCosts": "LLM Costs"
+    "llmCosts": "LLM Costs",
+    "monitoring": "Monitoring"
   },
   "auth": {
     "email": "Email",
@@ -283,5 +284,25 @@
     "withinBudget": "Within Budget",
     "noLimit": "No budget limit configured",
     "refresh": "Refresh"
+  },
+  "monitoring": {
+    "title": "Conversation Monitoring",
+    "subtitle": "Lifecycle tracking and timeout alerts",
+    "active": "Active",
+    "aboutToTimeout": "About to Timeout",
+    "completedToday": "Completed Today",
+    "reopenedToday": "Reopened Today",
+    "timeoutTable": "Conversations Approaching Timeout",
+    "convId": "Conversation",
+    "scamType": "Scam Type",
+    "persona": "Persona",
+    "lastActivity": "Last Activity",
+    "timeoutIn": "Timeout In",
+    "policyTimeout": "Policy Timeout",
+    "noTimeouts": "No conversations approaching timeout",
+    "byScamType": "By Scam Type",
+    "hours": "hours",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
   }
 }

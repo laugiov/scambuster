@@ -140,6 +140,31 @@ export interface MetaConfig {
   scam_types: MetaScamType[];
   ioc_types: string[];
   bandit: MetaBanditConfig;
+  llm_provider: string;
+  llm_model: string;
+}
+
+// Conversation Lifecycle Monitoring
+export interface ConversationLifecycleStats {
+  active: number;
+  about_to_timeout: number;
+  completed_today: number;
+  reopened_today: number;
+  by_scam_type: Record<string, {
+    active: number;
+    about_to_timeout: number;
+    policy_timeout_hours: number;
+  }>;
+  about_to_timeout_list: ConversationTimeoutRow[];
+}
+
+export interface ConversationTimeoutRow {
+  conv_id: string;
+  scam_type: string;
+  persona: string;
+  last_activity: string;
+  timeout_hours: number;
+  hours_remaining: number;
 }
 
 // Persona / Bandit

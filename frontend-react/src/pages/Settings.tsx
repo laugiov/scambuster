@@ -1,11 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { useAutonomyStats } from '@/hooks/useStats';
+import { useMetaConfig } from '@/hooks/useMetaConfig';
 import { Loading } from '@/components/feedback/Loading';
 import { LanguageSwitcher } from '@/components/ui/LanguageSwitcher';
 
 export function Settings() {
   const { t } = useTranslation();
   const { data: stats, isLoading } = useAutonomyStats();
+  const { data: metaConfig } = useMetaConfig();
 
   return (
     <div className="space-y-6">
@@ -54,7 +56,7 @@ export function Settings() {
             <InfoRow label={t('settings.frontend')} value="React 18 / TypeScript" />
             <InfoRow label={t('settings.database')} value="PostgreSQL 15" />
             <InfoRow label={t('settings.cache')} value="Redis 7" />
-            <InfoRow label={t('settings.llmProvider')} value="OpenAI (gpt-4o-mini)" />
+            <InfoRow label={t('settings.llmProvider')} value={metaConfig ? `${metaConfig.llm_provider} (${metaConfig.llm_model})` : 'Loading...'} />
             <InfoRow label={t('settings.orchestration')} value="n8n" />
           </div>
         </Section>

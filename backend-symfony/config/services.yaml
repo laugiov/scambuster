@@ -302,6 +302,11 @@ services:
     ###< Scambaiting Adaptatif - Application Layer ###
 
     ###> Preprod Conversation Generator ###
+    App\Application\Meta\ConfigHandler:
+        arguments:
+            $llmProvider: '%llm.provider%'
+            $llmModel: '%llm.model%'
+
     App\Infrastructure\LLM\LLMServiceInterface:
         alias: App\Infrastructure\LLM\OpenAIService
 

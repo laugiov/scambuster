@@ -34,7 +34,8 @@
     "settings": "Parametres",
     "logout": "Deconnexion",
     "subtitle": "Renseignement sur les menaces",
-    "llmCosts": "Couts LLM"
+    "llmCosts": "Couts LLM",
+    "monitoring": "Monitoring"
   },
   "auth": {
     "email": "Email",
@@ -283,5 +284,25 @@
     "withinBudget": "Dans le Budget",
     "noLimit": "Aucune limite de budget configuree",
     "refresh": "Rafraichir"
+  },
+  "monitoring": {
+    "title": "Monitoring des Conversations",
+    "subtitle": "Suivi du cycle de vie et alertes de timeout",
+    "active": "Actives",
+    "aboutToTimeout": "Bientot en Timeout",
+    "completedToday": "Fermees Aujourd'hui",
+    "reopenedToday": "Rouvertes Aujourd'hui",
+    "timeoutTable": "Conversations Proches du Timeout",
+    "convId": "Conversation",
+    "scamType": "Type de Scam",
+    "persona": "Persona",
+    "lastActivity": "Derniere Activite",
+    "timeoutIn": "Timeout dans",
+    "policyTimeout": "Politique Timeout",
+    "noTimeouts": "Aucune conversation proche du timeout",
+    "byScamType": "Par Type de Scam",
+    "hours": "heures",
+    "hoursAgo": "il y a {{count}}h",
+    "daysAgo": "il y a {{count}}j"
   }
 }

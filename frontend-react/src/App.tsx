@@ -15,6 +15,7 @@ const StixExport = lazy(() => import('@/pages/StixExport'));
 const Personas = lazy(() => import('@/pages/Personas'));
 const Campaigns = lazy(() => import('@/pages/Campaigns'));
 const LlmCosts = lazy(() => import('@/pages/LlmCosts'));
+const ConversationMonitoring = lazy(() => import('@/pages/ConversationMonitoring'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 const queryClient = new QueryClient({
@@ -49,6 +50,7 @@ export default function App() {
               <Route path="stix-export" element={<StixExport />} />
               <Route path="personas" element={<Personas />} />
               <Route path="llm-costs" element={<LlmCosts />} />
+              <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="settings" element={<Settings />} />
             </Route>
