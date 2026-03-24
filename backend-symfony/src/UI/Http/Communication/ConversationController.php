@@ -193,7 +193,9 @@ final class ConversationController
         $from = $request->query->get('from');
         $to = $request->query->get('to');
         $convs = $this->handler->getFilteredConversations($page, $limit, $status, $from, $to);
-        $result = array_map(function ($conv) {
+        $convIds = array_map(static fn ($c) => $c->getConvId(), $convs);
+        $messageCounts = $this->handler->getMessageCountsForConversations($convIds);
+        $result = array_map(function ($conv) use ($messageCounts) {
             $persona = $conv->getPersona();
             $scamType = $conv->getScamType();
             $dto = new ConversationListItemDto(
@@ -206,6 +208,7 @@ final class ConversationController
                 $persona?->getPersonaCode(),
                 $scamType->getCode(),
                 $conv->getTurnsCount(),
+                $messageCounts[$conv->getConvId()] ?? 0,
                 $conv->getRewardValue(),
             );
 

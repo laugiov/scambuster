@@ -342,6 +342,8 @@ final class ReplyOrchestrator
             'model' => $this->getModelName(),
             'temperature' => 0.6,
             'max_tokens' => 400,
+            'purpose' => 'reply_generation',
+            'conversation_id' => $context['conv_id'] ?? null,
         ];
 
         $this->logger->debug('[ReplyOrchestrator] 📤 CALLING LLM GENERATOR', [

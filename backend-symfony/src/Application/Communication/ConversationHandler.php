@@ -197,6 +197,32 @@ class ConversationHandler
     }
 
     /**
+     * @param list<string> $convIds
+     * @return array<string, int> conv_id => message count
+     */
+    public function getMessageCountsForConversations(array $convIds): array
+    {
+        if (\count($convIds) === 0) {
+            return [];
+        }
+
+        /** @var list<array{conv_id: string, cnt: string}> $rows */
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            'SELECT conv_id, COUNT(*) as cnt FROM message WHERE conv_id IN (?) GROUP BY conv_id',
+            [$convIds],
+            [\Doctrine\DBAL\ArrayParameterType::STRING]
+        );
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(string) $row['conv_id']] = (int) $row['cnt'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * Get paginated messages for a conversation.
      *
      * @return array{total: int, messages: array<int, mixed>}

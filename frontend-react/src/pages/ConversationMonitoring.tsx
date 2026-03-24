@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { useConversationLifecycle } from '@/hooks/useConversationLifecycle';
+import { useRateLimits } from '@/hooks/useRateLimits';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -100,6 +101,40 @@ export function ConversationMonitoring() {
           </div>
         </div>
       )}
+      <RateLimitsSection />
+    </div>
+  );
+}
+
+function RateLimitsSection() {
+  const { t } = useTranslation();
+  const { data, isLoading } = useRateLimits();
+
+  if (isLoading || !data) return null;
+
+  const totalHits = data.rate_limited_today.reduce((sum, r) => sum + r.count, 0);
+
+  return (
+    <div className="bg-surface-low rounded-lg p-6">
+      <h2 className="text-base font-medium text-on-surface mb-4">{t('monitoring.rateLimits')}</h2>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-surface rounded-md p-3">
+          <p className="text-xs text-on-surface-dim">{t('monitoring.llmCallsLimit')}</p>
+          <p className="text-lg font-semibold text-on-surface">{data.llm_calls_limit}</p>
+        </div>
+        <div className="bg-surface rounded-md p-3">
+          <p className="text-xs text-on-surface-dim">{t('monitoring.activeConvLimit')}</p>
+          <p className="text-lg font-semibold text-on-surface">{data.active_conversations_limit}</p>
+        </div>
+        <div className="bg-surface rounded-md p-3">
+          <p className="text-xs text-on-surface-dim">{t('monitoring.rateLimitedToday')}</p>
+          <p className={`text-lg font-semibold ${totalHits > 0 ? 'text-warning' : 'text-on-surface'}`}>{totalHits}</p>
+        </div>
+        <div className="bg-surface rounded-md p-3">
+          <p className="text-xs text-on-surface-dim">{t('monitoring.quarantinedSenders')}</p>
+          <p className={`text-lg font-semibold ${data.quarantined_senders_today > 0 ? 'text-error' : 'text-on-surface'}`}>{data.quarantined_senders_today}</p>
+        </div>
+      </div>
     </div>
   );
 }

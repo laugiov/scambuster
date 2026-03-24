@@ -110,6 +110,7 @@ final class ConversationAnalyzer
                     'temperature' => self::ANALYZER_TEMPERATURE,
                     'max_tokens' => self::MAX_TOKENS,
                     'response_format' => ['type' => 'json_object'],
+                    'purpose' => 'conversation_analysis',
                 ]
             );
 

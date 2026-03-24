@@ -52,6 +52,7 @@ final class ReplyValidator
         $options = [
             'temperature' => 0.1, // Low temperature for consistent validation
             'max_tokens' => 300,
+            'purpose' => 'reply_validation',
         ];
 
         $this->logger->debug('[ReplyValidator] 📤 CALLING LLM VALIDATOR', [

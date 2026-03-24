@@ -56,6 +56,7 @@ class ScamClassifier
             $response = $this->llmClient->chat($llmMessages, [
                 'temperature' => 0.3,
                 'max_tokens' => 1000,
+                'purpose' => 'classification',
             ]);
 
             // Parse and validate JSON response

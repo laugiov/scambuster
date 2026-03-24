@@ -91,7 +91,7 @@ export function Dashboard() {
         <div className="col-span-2 bg-surface-low rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-medium text-on-surface">{t('dashboard.activeConversations')}</h2>
-            <span className="text-xs text-on-surface-dim">{t('dashboard.activeCount', { count: activeConversations.length })}</span>
+            <span className="text-xs text-on-surface-dim">{t('dashboard.activeCount', { count: data?.conversations.open ?? activeConversations.length })}</span>
           </div>
 
           {conversations.isLoading ? (
