@@ -369,20 +369,53 @@ class IngestHandler
             $this->logger->info('[IngestHandler] Using existing conversation', ['conv_id' => $conversation->getConvId()]);
 
             // Auto-reopen conversation if it was closed/abandoned and we receive a new inbound message
-            // This handles the case where a scammer responds after a long pause
+            // Respects per-scam-type lifecycle policy (allow_reopen + reopen_window_hours)
             if ($conversation->getStatus() !== ConversationStatus::OPEN) {
+                $scamCode = $conversation->getScamType()->getCode();
+                $policy = ConversationLifecycleConfig::getPolicy($scamCode);
                 $previousStatus = $conversation->getStatus()->value;
-                $previousReward = $conversation->getRewardValue();
 
-                $conversation->setStatus(ConversationStatus::OPEN);
-                $conversation->resetRewardValue();
+                if (!$policy['allow_reopen']) {
+                    $this->logger->info('[IngestHandler] Reopen not allowed for scam type, message added to closed conversation', [
+                        'conv_id' => $conversation->getConvId(),
+                        'scam_type' => $scamCode,
+                        'previous_status' => $previousStatus,
+                    ]);
+                } elseif ($policy['reopen_window_hours'] > 0) {
+                    $closedAt = $conversation->getUpdatedAt();
+                    $windowEnd = $closedAt->modify(sprintf('+%d hours', $policy['reopen_window_hours']));
 
-                $this->logger->info('[IngestHandler] Conversation reopened on new inbound message', [
-                    'conv_id' => $conversation->getConvId(),
-                    'previous_status' => $previousStatus,
-                    'previous_reward' => $previousReward,
-                    'new_status' => 'open',
-                ]);
+                    if (new \DateTimeImmutable() > $windowEnd) {
+                        $this->logger->info('[IngestHandler] Reopen window expired, message added to closed conversation', [
+                            'conv_id' => $conversation->getConvId(),
+                            'scam_type' => $scamCode,
+                            'closed_at' => $closedAt->format('Y-m-d H:i'),
+                            'window_hours' => $policy['reopen_window_hours'],
+                        ]);
+                    } else {
+                        $previousReward = $conversation->getRewardValue();
+                        $conversation->setStatus(ConversationStatus::OPEN);
+                        $conversation->resetRewardValue();
+
+                        $this->logger->info('[IngestHandler] Conversation reopened (within reopen window)', [
+                            'conv_id' => $conversation->getConvId(),
+                            'scam_type' => $scamCode,
+                            'previous_status' => $previousStatus,
+                            'previous_reward' => $previousReward,
+                        ]);
+                    }
+                } else {
+                    $previousReward = $conversation->getRewardValue();
+                    $conversation->setStatus(ConversationStatus::OPEN);
+                    $conversation->resetRewardValue();
+
+                    $this->logger->info('[IngestHandler] Conversation reopened on new inbound message', [
+                        'conv_id' => $conversation->getConvId(),
+                        'previous_status' => $previousStatus,
+                        'previous_reward' => $previousReward,
+                        'new_status' => 'open',
+                    ]);
+                }
             }
         }
 
