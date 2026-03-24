@@ -16,6 +16,7 @@ final class ConversationListItemDto
         public ?string $persona = null,
         public ?string $scam_type = null,
         public int $turns = 0,
+        public int $message_count = 0,
         public ?float $reward = null,
     ) {
     }
@@ -35,6 +36,7 @@ final class ConversationListItemDto
             'persona' => $this->persona,
             'scam_type' => $this->scam_type,
             'turns' => $this->turns,
+            'message_count' => $this->message_count,
             'reward' => $this->reward,
         ];
     }

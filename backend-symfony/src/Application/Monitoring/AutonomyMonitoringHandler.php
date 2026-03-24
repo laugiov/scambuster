@@ -96,12 +96,13 @@ final class AutonomyMonitoringHandler
     }
 
     /**
-     * @return array{total: int, unique_indicators: int, last_24h: int}
+     * @return array{total: int, unique_indicators: int, unique_types: int, last_24h: int}
      */
     private function getIocMetrics(): array
     {
         $total = $this->fetchInt('SELECT COUNT(*) FROM observed_ioc');
         $uniqueIndicators = $this->fetchInt('SELECT COUNT(*) FROM indicator');
+        $uniqueTypes = $this->fetchInt('SELECT COUNT(DISTINCT type) FROM indicator');
         $last24h = $this->fetchInt(
             'SELECT COUNT(*) FROM observed_ioc WHERE ts_observed > :threshold',
             ['threshold' => (new \DateTimeImmutable('-24 hours'))->format('Y-m-d H:i:s')]
@@ -110,6 +111,7 @@ final class AutonomyMonitoringHandler
         return [
             'total' => $total,
             'unique_indicators' => $uniqueIndicators,
+            'unique_types' => $uniqueTypes,
             'last_24h' => $last24h,
         ];
     }
@@ -122,7 +124,7 @@ final class AutonomyMonitoringHandler
     }
 
     /**
-     * @return array{converged_types: int, total_types: int, details: array<string, bool>}
+     * @return array{converged_types: int, total_types: int, details: array<string, bool>, exploration_rate: float, best_persona: ?string}
      */
     private function getConvergenceStatus(): array
     {
@@ -136,6 +138,7 @@ final class AutonomyMonitoringHandler
         $convergedCount = 0;
 
         foreach ($scamTypes as $row) {
+            /** @var string $code */
             $code = $row['code'];
             $scamTypeId = $row['scam_type_id'];
 
@@ -175,10 +178,28 @@ final class AutonomyMonitoringHandler
             }
         }
 
+        // BUG-2: Compute effective exploration rate (epsilon)
+        // If any type has converged, epsilon drops to 0.05; otherwise 0.20
+        $explorationRate = $convergedCount > 0 ? 0.05 : 0.20;
+
+        // BUG-3: Find best persona (highest avg reward across all scam types)
+        /** @var array{persona_code: string, avg_reward: string}|false $bestRow */
+        $bestRow = $conn->fetchAssociative(
+            'SELECT p.persona_code, AVG(pps.reward_avg) as avg_reward
+             FROM persona_performance_stats pps
+             JOIN persona p ON pps.persona_id = p.persona_id
+             WHERE pps.sessions_count > 0
+             GROUP BY p.persona_code
+             ORDER BY avg_reward DESC
+             LIMIT 1'
+        );
+
         return [
             'converged_types' => $convergedCount,
             'total_types' => count($scamTypes),
             'details' => $details,
+            'exploration_rate' => $explorationRate,
+            'best_persona' => \is_array($bestRow) ? $bestRow['persona_code'] : null,
         ];
     }
 

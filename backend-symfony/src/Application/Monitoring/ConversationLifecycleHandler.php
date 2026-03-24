@@ -80,6 +80,25 @@ final class ConversationLifecycleHandler
             ];
         }
 
+        // UX-1: Include all active scam types, even those with 0 open conversations
+        /** @var list<array{code: string}> $allScamTypes */
+        $allScamTypes = $this->connection->fetchAllAssociative(
+            "SELECT code FROM lkp_scam_type WHERE active = true AND code != 'UNKNOWN'"
+        );
+
+        foreach ($allScamTypes as $stRow) {
+            $code = (string) $stRow['code'];
+
+            if (!isset($byScamType[$code])) {
+                $byScamType[$code] = [
+                    'active' => 0,
+                    'about_to_timeout' => 0,
+                    'policy_timeout_hours' => ConversationLifecycleConfig::getTimeoutHours($code),
+                    'max_turns' => ConversationLifecycleConfig::getMaxTurns($code),
+                ];
+            }
+        }
+
         // Reopened today: conversations that went from closed/abandoned back to open today
         $reopenedToday = $this->toInt($this->connection->fetchOne(
             "SELECT COUNT(*) FROM conversation

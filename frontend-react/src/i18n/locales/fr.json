@@ -21,7 +21,8 @@
       "waiting": "En attente",
       "done": "Termine",
       "coldStart": "Demarrage a froid",
-      "promotable": "Promouvable"
+      "promotable": "Promouvable",
+      "converged": "Converge"
     }
   },
   "nav": {
@@ -179,7 +180,13 @@
     "loading": "Chargement des personas...",
     "failedLoad": "Echec du chargement des donnees persona",
     "exploit": "{{pct}}% exploitation",
-    "explore": "{{pct}}% exploration"
+    "explore": "{{pct}}% exploration",
+    "convergenceHistory": "Historique de Convergence",
+    "noConvergenceData": "Aucune donnee de convergence. Executez app:bandit:daily-report pour generer des snapshots.",
+    "date": "Date",
+    "dominantPersona": "Persona Dominante",
+    "dominance": "Dominance",
+    "sessions": "Sessions"
   },
   "stixExport": {
     "title": "Centre d'export STIX 2.1",
@@ -303,6 +310,11 @@
     "byScamType": "Par Type de Scam",
     "hours": "heures",
     "hoursAgo": "il y a {{count}}h",
-    "daysAgo": "il y a {{count}}j"
+    "daysAgo": "il y a {{count}}j",
+    "rateLimits": "Limites de Debit",
+    "llmCallsLimit": "Appels LLM / Heure",
+    "activeConvLimit": "Conv Actives / Jour",
+    "rateLimitedToday": "Limites Atteintes Aujourd'hui",
+    "quarantinedSenders": "Expediteurs en Quarantaine"
   }
 }

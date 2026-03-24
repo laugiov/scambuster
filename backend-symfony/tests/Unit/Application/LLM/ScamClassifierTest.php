@@ -145,7 +145,7 @@ final class ScamClassifierTest extends TestCase
 
         $this->scamTypeManager->expects($this->once())->method('getAllCodes')->willReturn(['phishing']);
 
-        $this->llmClient->expects($this->once())->method('chat')->with($this->anything(), $this->equalTo(['temperature' => 0.3, 'max_tokens' => 1000]))->willReturn('{"scam_type_code":"phishing","confidence":0.9,"is_new_type":false,"reasoning":"test"}');
+        $this->llmClient->expects($this->once())->method('chat')->with($this->anything(), $this->equalTo(['temperature' => 0.3, 'max_tokens' => 1000, 'purpose' => 'classification']))->willReturn('{"scam_type_code":"phishing","confidence":0.9,"is_new_type":false,"reasoning":"test"}');
 
         $this->jsonValidator->method('parseAndValidate')->willReturn(['success' => true, 'data' => ['scam_type_code' => 'phishing', 'confidence' => 0.9, 'is_new_type' => false, 'reasoning' => 'test'], 'errors' => []]);
 

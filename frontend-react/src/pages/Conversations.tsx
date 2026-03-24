@@ -27,7 +27,7 @@ export function Conversations() {
 
   // Use autonomy stats for accurate totals (API paginates at 20)
   const totalCount = stats?.conversations.total ?? sorted.length;
-  const activeCount = stats?.conversations.active ?? sorted.filter((c) => c.status === 'open').length;
+  const activeCount = stats?.conversations.open ?? stats?.conversations.active ?? sorted.filter((c) => c.status === 'open').length;
   const closedCount = stats?.conversations.closed ?? sorted.filter((c) => c.status === 'closed').length;
 
   return (
@@ -73,7 +73,7 @@ export function Conversations() {
                   <RiskIndicator score={conv.score_risk} />
                 </td>
                 <td className="px-5 py-3 text-on-surface-variant font-mono text-xs">
-                  {conv.turns ?? conv.message_count ?? '--'}
+                  {conv.message_count ?? conv.turns ?? '--'}
                 </td>
                 <td className="px-5 py-3 text-on-surface-dim text-xs">
                   {conv.ts_last ? timeSince(conv.ts_last) : conv.updated_at ? timeSince(conv.updated_at) : '--'}
