@@ -123,10 +123,10 @@ services:
     <<: *backend-dev
     container_name: scambuster-scheduler
     ports: []
-    command: ["sh", "/app/infra/scheduler.sh"]
+    command: ["sh", "/opt/scheduler.sh"]
     volumes:
       - ./backend-symfony:/app
-      - ./infra/docker/backend/scheduler.sh:/app/infra/scheduler.sh:ro
+      - ./infra/docker/backend/scheduler.sh:/opt/scheduler.sh:ro
       - ./.env:/app/.env:ro
     restart: unless-stopped
     profiles:
