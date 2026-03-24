@@ -33,6 +33,7 @@ export const ENDPOINTS = {
     profile: (id: string) => `/campaign/${id}/profile`,
     messages: (id: string) => `/campaign/${id}/messages`,
     exportStix: (id: string) => `/campaign/${id}/export/stix`,
+    promoteRule: (ruleId: string) => `/campaign/rule/${ruleId}/promote`,
   },
   scamTypes: '/communication/scam-types',
   meta: {

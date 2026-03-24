@@ -15,6 +15,7 @@ const StixExport = lazy(() => import('@/pages/StixExport'));
 const Personas = lazy(() => import('@/pages/Personas'));
 const Campaigns = lazy(() => import('@/pages/Campaigns'));
 const LlmCosts = lazy(() => import('@/pages/LlmCosts'));
+const CampaignDetail = lazy(() => import('@/pages/CampaignDetail'));
 const ConversationMonitoring = lazy(() => import('@/pages/ConversationMonitoring'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="llm-costs" element={<LlmCosts />} />
               <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
               <Route path="campaigns" element={<Campaigns />} />
+              <Route path="campaigns/:id" element={<CampaignDetail />} />
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>
