@@ -198,6 +198,7 @@ class ConversationHandler
 
     /**
      * @param list<string> $convIds
+     *
      * @return array<string, int> conv_id => message count
      */
     public function getMessageCountsForConversations(array $convIds): array
