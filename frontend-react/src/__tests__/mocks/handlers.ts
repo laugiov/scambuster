@@ -22,6 +22,8 @@ export const mockMetaConfig: MetaConfig = {
     converged_epsilon: 0.05,
     reward_weights: { duration: 0.40, iocs_total: 0.25, iocs_sensibles: 0.25, completion: 0.10 },
   },
+  llm_provider: 'openai',
+  llm_model: 'gpt-4o-mini',
 };
 
 export const mockAutonomyStats: AutonomyStats = {
