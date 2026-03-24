@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useCampaignCandidates } from '@/hooks/useStix';
-import { useCampaignMessages, useCampaignProfile, usePromoteRule } from '@/hooks/useCampaigns';
+import { useCampaignDetail, useCampaignMessages, useCampaignProfile, usePromoteRule } from '@/hooks/useCampaigns';
 import { useStixExport } from '@/hooks/useStix';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -51,19 +50,16 @@ export function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const campaignId = id ?? '';
 
-  const { data: candidates, isLoading: loadingCandidates } = useCampaignCandidates();
+  const { data: campaign, isLoading: loadingDetail, error: detailError } = useCampaignDetail(campaignId);
   const { data: messages, isLoading: loadingMessages } = useCampaignMessages(campaignId);
   const profileMutation = useCampaignProfile(campaignId);
   const promoteMutation = usePromoteRule();
   const stixMutation = useStixExport();
   const [showConfirm, setShowConfirm] = useState(false);
 
-  if (loadingCandidates) return <Loading message={t('campaigns.loading')} />;
+  if (loadingDetail) return <Loading message={t('campaigns.loading')} />;
 
-  // Find the campaign in candidates
-  const campaign = candidates?.find((c) => c.campaign_id === campaignId);
-
-  if (!campaign) {
+  if (detailError || !campaign) {
     return (
       <div className="space-y-4">
         <Link to="/campaigns" className="text-accent hover:underline text-sm">&larr; {t('campaignDetail.backToCampaigns')}</Link>
@@ -72,9 +68,11 @@ export function CampaignDetail() {
     );
   }
 
-  const ppvPct = (campaign.ppv * 100).toFixed(1);
-  const ppvColor = campaign.ppv >= 0.85 ? 'text-success' : campaign.ppv >= 0.5 ? 'text-warning' : 'text-error';
-  const isPromotable = campaign.ppv >= 0.85 && campaign.hits_total >= 5;
+  const rule = campaign.rule;
+  const ppv = rule?.ppv ?? 0;
+  const ppvPct = (ppv * 100).toFixed(1);
+  const ppvColor = ppv >= 0.85 ? 'text-success' : ppv >= 0.5 ? 'text-warning' : 'text-error';
+  const isPromotable = ppv >= 0.85 && (rule?.hits_total ?? 0) >= 5 && !rule?.promoted_at;
 
   return (
     <div className="space-y-6">
@@ -85,8 +83,10 @@ export function CampaignDetail() {
             {t('campaignDetail.title')} <span className="font-mono text-accent">#{campaignId.slice(0, 8)}</span>
           </h1>
         </div>
-        <span className="text-xs px-3 py-1 rounded-full font-medium bg-success/20 text-success uppercase">
-          {t('common.status.promotable')}
+        <span className={`text-xs px-3 py-1 rounded-full font-medium uppercase ${
+          campaign.status === 'promoted' ? 'bg-accent/20 text-accent' : 'bg-success/20 text-success'
+        }`}>
+          {campaign.status === 'promoted' ? 'PROMOTED' : t('common.status.promotable')}
         </span>
       </header>
 
@@ -99,8 +99,8 @@ export function CampaignDetail() {
             <h2 className="text-base font-medium text-on-surface mb-4">{t('campaignDetail.metadata')}</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <MetricCard label="PPV" value={`${ppvPct}%`} color={ppvColor} />
-              <MetricCard label={t('campaigns.hits')} value={String(campaign.hits_total)} />
-              <MetricCard label={t('campaigns.leadTime')} value={`${campaign.lead_time_hours}h`} />
+              <MetricCard label={t('campaigns.hits')} value={String(rule?.hits_total ?? 0)} />
+              <MetricCard label={t('campaigns.leadTime')} value={`${rule?.lead_time_hours ?? '--'}h`} />
               <MetricCard label={t('campaignDetail.created')} value={formatDate(campaign.created_at)} />
             </div>
           </div>
@@ -147,7 +147,13 @@ export function CampaignDetail() {
               </p>
             )}
 
-            {!profileMutation.isSuccess && !profileMutation.isPending && !profileMutation.isError && (
+            {!profileMutation.isSuccess && !profileMutation.isPending && !profileMutation.isError && campaign.profile_yaml && (
+              <pre className="bg-surface rounded-md p-4 text-xs text-on-surface font-mono overflow-x-auto whitespace-pre-wrap">
+                {campaign.profile_yaml}
+              </pre>
+            )}
+
+            {!profileMutation.isSuccess && !profileMutation.isPending && !profileMutation.isError && !campaign.profile_yaml && (
               <p className="text-on-surface-dim text-sm">{t('campaignDetail.noProfile')}</p>
             )}
           </div>
@@ -173,7 +179,7 @@ export function CampaignDetail() {
                   <p className="text-sm text-warning">{t('campaignDetail.confirmPromote')}</p>
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { promoteMutation.mutate(campaign.rule_id); setShowConfirm(false); }}
+                      onClick={() => { if (rule) promoteMutation.mutate(rule.rule_id); setShowConfirm(false); }}
                       className="px-3 py-1.5 rounded text-xs font-medium bg-success text-white cursor-pointer"
                     >
                       {t('campaignDetail.confirmYes')}
@@ -216,12 +222,17 @@ export function CampaignDetail() {
           {/* Rule Info */}
           <div className="bg-surface-low rounded-lg p-6">
             <h2 className="text-base font-medium text-on-surface mb-4">{t('campaignDetail.ruleInfo')}</h2>
-            <div className="space-y-2 text-sm">
-              <InfoRow label={t('campaignDetail.ruleId')} value={campaign.rule_id.slice(0, 12)} mono />
-              <InfoRow label="PPV" value={`${ppvPct}%`} />
-              <InfoRow label={t('campaigns.hits')} value={String(campaign.hits_total)} />
-              <InfoRow label={t('campaigns.leadTime')} value={`${campaign.lead_time_hours}h`} />
-            </div>
+            {rule ? (
+              <div className="space-y-2 text-sm">
+                <InfoRow label={t('campaignDetail.ruleId')} value={rule.rule_id.slice(0, 12)} mono />
+                <InfoRow label="PPV" value={`${ppvPct}%`} />
+                <InfoRow label={t('campaigns.hits')} value={String(rule.hits_total)} />
+                <InfoRow label={t('campaigns.leadTime')} value={`${rule.lead_time_hours ?? '--'}h`} />
+                {rule.promoted_at && <InfoRow label="Status" value="Promoted" />}
+              </div>
+            ) : (
+              <p className="text-on-surface-dim text-sm">No detection rule associated.</p>
+            )}
           </div>
         </div>
       </div>

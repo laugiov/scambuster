@@ -30,6 +30,7 @@ export const ENDPOINTS = {
   campaign: {
     hunt: '/campaign/hunt',
     candidates: '/campaign/candidates',
+    detail: (id: string) => `/campaign/${id}`,
     profile: (id: string) => `/campaign/${id}/profile`,
     messages: (id: string) => `/campaign/${id}/messages`,
     exportStix: (id: string) => `/campaign/${id}/export/stix`,
