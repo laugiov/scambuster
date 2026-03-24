@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Application\Communication;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\LLM\ReplyOrchestrator;
+use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Channel;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Direction;
@@ -32,6 +34,7 @@ class ReplyHandler
         private ?RateLimiterFactory $repliesPerConversationLimiter = null,
         private ?RateLimiterFactory $llmCallsPerHourLimiter = null,
         private ?RateLimiterFactory $activeConversationsPerDayLimiter = null,
+        private ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -642,6 +645,7 @@ class ReplyHandler
                     'conv_id' => $convId,
                     'retry_after' => $limit->getRetryAfter()->format(DATE_ATOM),
                 ]);
+                $this->dispatchRateLimitAudit('conv_replies', $convId);
 
                 return 'max replies per conversation per day';
             }
@@ -656,6 +660,7 @@ class ReplyHandler
                 $this->logger->warning('[ReplyHandler] Rate limit exceeded: LLM calls per hour', [
                     'retry_after' => $limit->getRetryAfter()->format(DATE_ATOM),
                 ]);
+                $this->dispatchRateLimitAudit('llm_calls_per_hour', $convId);
 
                 return 'max LLM API calls per hour';
             }
@@ -670,6 +675,7 @@ class ReplyHandler
                 $this->logger->warning('[ReplyHandler] Rate limit exceeded: active conversations per day', [
                     'retry_after' => $limit->getRetryAfter()->format(DATE_ATOM),
                 ]);
+                $this->dispatchRateLimitAudit('active_conversations_per_day', $convId);
 
                 return 'max active conversations per day';
             }
@@ -710,4 +716,21 @@ class ReplyHandler
         return $hoursDiff >= self::MIN_HOURS_BETWEEN_REPLIES;
     }
 
+    private function dispatchRateLimitAudit(string $limitType, string $convId): void
+    {
+        if ($this->auditLogger === null) {
+            return;
+        }
+
+        $this->auditLogger->log(
+            eventType: AuditEventType::RATE_LIMIT_EXCEEDED,
+            actorId: 'system',
+            action: 'rate_limit',
+            outcome: 'blocked',
+            resourceType: 'conversation',
+            resourceId: $convId,
+            details: ['limit_type' => $limitType],
+            actorType: 'system'
+        );
+    }
 }
