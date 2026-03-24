@@ -233,6 +233,11 @@ services:
         tags: ['controller.service_arguments']
         autowire: true
         autoconfigure: true
+    App\UI\Http\Campaign\GetCampaignDetailController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
     ###< Campaign Radar - Phase 5: Promotion & STIX Export ###
 
     ###> Scam Classification Services ###

@@ -10,8 +10,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Uid\Uuid;
 
-#[Route('/api/v1/campaign/{campaign_id}', name: 'api_campaign_detail', methods: ['GET'])]
+#[Route('/api/v1/campaign/{campaign_id}/detail', name: 'api_campaign_detail', methods: ['GET'])]
 final class GetCampaignDetailController
 {
     public function __construct(
@@ -21,14 +22,14 @@ final class GetCampaignDetailController
 
     public function __invoke(string $campaign_id): JsonResponse
     {
-        $campaign = $this->em->getRepository(Campaign::class)->find($campaign_id);
+        $campaign = $this->em->getRepository(Campaign::class)->find(Uuid::fromString($campaign_id));
 
         if (!$campaign) {
             return new JsonResponse(['error' => 'Campaign not found'], Response::HTTP_NOT_FOUND);
         }
 
         $rules = $this->em->getRepository(CampaignRule::class)->findBy(
-            ['campaign' => $campaign],
+            ['campaignId' => Uuid::fromString($campaign_id)],
             ['ppv' => 'DESC']
         );
 
