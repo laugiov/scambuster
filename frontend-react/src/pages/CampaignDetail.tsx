@@ -142,7 +142,9 @@ export function CampaignDetail() {
             )}
 
             {profileMutation.isError && (
-              <p className="text-error text-sm">{t('campaignDetail.profileError')}</p>
+              <p className="text-error text-sm">
+                {(profileMutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('campaignDetail.profileError')}
+              </p>
             )}
 
             {!profileMutation.isSuccess && !profileMutation.isPending && !profileMutation.isError && (
@@ -191,7 +193,9 @@ export function CampaignDetail() {
               )}
 
               {promoteMutation.isError && (
-                <p className="text-error text-xs">{t('campaignDetail.promoteError')}</p>
+                <p className="text-error text-xs">
+                  {(promoteMutation.error as { response?: { data?: { error?: string } } })?.response?.data?.error ?? t('campaignDetail.promoteError')}
+                </p>
               )}
 
               {/* STIX Export */}
