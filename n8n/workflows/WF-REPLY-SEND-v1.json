@@ -20,7 +20,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -512,
+        -16,
         0
       ]
     },
@@ -43,7 +43,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -304,
+        208,
         0
       ]
     },
@@ -62,14 +62,14 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        -16,
+        432,
         0
       ],
-      "webhookId": "00000000-0000-0000-0000-000000000001",
+      "webhookId": "e43cb258-89ec-4dc1-a3e8-a9bfd5257276",
       "credentials": {
         "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account honeypot"
+          "id": "bxq5Cj1I9zO37PlB",
+          "name": "Gmail account Valeris"
         }
       }
     },
@@ -85,14 +85,14 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        176,
+        656,
         0
       ],
-      "webhookId": "00000000-0000-0000-0000-000000000002",
+      "webhookId": "e77fc436-3f31-44e9-aa5b-132c1f5db58f",
       "credentials": {
         "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account honeypot"
+          "id": "bxq5Cj1I9zO37PlB",
+          "name": "Gmail account Valeris"
         }
       }
     },
@@ -105,7 +105,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        400,
+        880,
         0
       ]
     },
@@ -136,7 +136,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        608,
+        1104,
         0
       ]
     },
@@ -147,7 +147,7 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        800,
+        1328,
         0
       ]
     },
@@ -162,7 +162,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1,
       "position": [
-        1008,
+        1552,
         0
       ]
     },
@@ -181,7 +181,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"email\": $env.INGEST_LOGIN, \"password\": $env.INGEST_PASSWORD } }}",
+        "jsonBody": "={{ { \"email\": \"user@example.com\", \"password\": \"Un1que$trongPassword2024\" } }}",
         "options": {}
       },
       "id": "b7fa4522-6b5e-4958-aa46-f1ce979b0e3f",
@@ -189,7 +189,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        -720,
+        -240,
         0
       ]
     },
@@ -205,7 +205,35 @@
         -912,
         0
       ],
-      "webhookId": "00000000-0000-0000-0000-000000000003"
+      "webhookId": "e247f6e7-3293-4e07-88d6-041abcca56a4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Human Delay Calculator — Log-normal distribution per scam type\n// References: Kalman & Rafaeli 2005, Jiang et al. 2012\n// Input: scam_category from WF-INTAKE Prepare Reply Data\n\nconst input = $input.first().json;\n\n// Scam-type delay profiles: { mu, sigma, activeStart, activeEnd }\n// mu/sigma = parameters of ln(delay_minutes) for Box-Muller log-normal\nconst scamProfiles = {\n  // Slow: romance scams have long, drawn-out exchanges\n  ROMANCE:           { mu: 4.6, sigma: 0.7, activeStart: 8,  activeEnd: 21 },\n  ROMANCE_SCAM:      { mu: 4.6, sigma: 0.7, activeStart: 8,  activeEnd: 21 },\n  // Professional: business fraud targets respond during work hours\n  INVOICE_FRAUD:     { mu: 3.8, sigma: 0.6, activeStart: 9,  activeEnd: 18 },\n  PHISH_CREDENTIALS: { mu: 3.8, sigma: 0.6, activeStart: 9,  activeEnd: 18 },\n  // Casual: general scams, moderate timing\n  PHISHING:          { mu: 4.0, sigma: 0.8, activeStart: 10, activeEnd: 23 },\n  TECH_SUPPORT:      { mu: 4.0, sigma: 0.8, activeStart: 10, activeEnd: 23 },\n  UNKNOWN:           { mu: 4.0, sigma: 0.8, activeStart: 10, activeEnd: 23 },\n};\n\nconst defaultProfile = { mu: 4.0, sigma: 0.8, activeStart: 9, activeEnd: 22 };\nconst timezone = 'Europe/Paris';\nconst MIN_DELAY = 20;   // minutes (hard floor)\nconst MAX_DELAY = 480;  // minutes = 8 hours (hard ceiling)\n\n// Get scam category from input\nconst scamCategory = (input.scam_category || 'UNKNOWN').toUpperCase();\nconst profile = scamProfiles[scamCategory] || defaultProfile;\nconst profileName = profile.mu < 4 ? 'professional' : profile.mu > 4.3 ? 'slow' : 'casual';\n\n// Box-Muller transform for log-normal distribution\nconst u1 = Math.random();\nconst u2 = Math.random();\nconst z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);\nlet delayMinutes = Math.exp(profile.mu + profile.sigma * z);\n\n// Clamp to floor/ceiling\ndelayMinutes = Math.max(MIN_DELAY, Math.min(MAX_DELAY, delayMinutes));\n\n// Compute send time\nlet sendAt = new Date(Date.now() + delayMinutes * 60 * 1000);\n\n// Night avoidance — correct timezone via Intl (handles DST)\nconst localTimeStr = sendAt.toLocaleString('en-US', { timeZone: timezone, hour12: false });\nconst localHour = parseInt(localTimeStr.split(', ')[1].split(':')[0], 10);\n\nif (localHour >= profile.activeEnd || localHour < profile.activeStart) {\n  // Parse current local date to compute next morning correctly\n  const localDateStr = sendAt.toLocaleString('en-US', { timeZone: timezone });\n  const localDate = new Date(localDateStr);\n\n  // Move to next day if past activeEnd\n  if (localHour >= profile.activeEnd) {\n    localDate.setDate(localDate.getDate() + 1);\n  }\n\n  // Set to activeStart + jitter (0-30 min)\n  localDate.setHours(profile.activeStart, Math.floor(Math.random() * 30), 0, 0);\n\n  // Convert back to UTC by computing the offset\n  const utcRef = new Date(sendAt.toLocaleString('en-US', { timeZone: 'UTC' }));\n  const localRef = new Date(sendAt.toLocaleString('en-US', { timeZone: timezone }));\n  const tzOffsetMs = utcRef.getTime() - localRef.getTime();\n  sendAt = new Date(localDate.getTime() + tzOffsetMs);\n}\n\n// Safety: ensure sendAt is always in the future\nif (sendAt.getTime() <= Date.now()) {\n  sendAt = new Date(Date.now() + MIN_DELAY * 60 * 1000);\n}\n\nconsole.log(`Human delay: ${Math.round(delayMinutes)} min | Profile: ${profileName} | Scam: ${scamCategory} | Send at: ${sendAt.toISOString()}`);\n\nreturn [{\n  json: {\n    ...input,\n    _sendAt: sendAt.toISOString(),\n    _delayMinutes: Math.round(delayMinutes),\n    _scamCategory: scamCategory,\n    _profile: profileName,\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        0
+      ],
+      "id": "692f64c3-84d7-42f6-a05c-8136524a37e1",
+      "name": "Calculate Human Delay"
+    },
+    {
+      "parameters": {
+        "resume": "specificTime",
+        "dateTime": "={{ $json._sendAt }}"
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        -464,
+        0
+      ],
+      "id": "4f454112-e82d-496a-8b5a-2a47b7266a34",
+      "name": "Wait Until Send Time",
+      "webhookId": "e80d74bb-f7e3-435a-a939-5de779825e4d"
     }
   ],
   "pinData": {},
@@ -302,6 +330,28 @@
       "main": [
         [
           {
+            "node": "Calculate Human Delay",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Human Delay": {
+      "main": [
+        [
+          {
+            "node": "Wait Until Send Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Until Send Time": {
+      "main": [
+        [
+          {
             "node": "00_auth_login",
             "type": "main",
             "index": 0
@@ -310,12 +360,12 @@
       ]
     }
   },
-  "active": true,
+  "active": false,
   "settings": {},
-  "versionId": "00000000-0000-0000-0000-000000000000",
+  "versionId": "6b9a7218-eb76-4b8d-aa0f-6d99a980ba61",
   "meta": {
-    "instanceId": "your-n8n-instance-id"
+    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
   },
-  "id": "your-wf-reply-send-id",
+  "id": "5lY7vnyQp8JAv8Da",
   "tags": []
 }
