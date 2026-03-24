@@ -175,6 +175,10 @@ curl http://localhost:8081/api/v1/scambaiting/stats/PHISH_CREDENTIALS | jq .
 |--------|------|------|-------------|
 | GET | `/monitoring/autonomy` | Yes | System status, kill switch, convergence |
 | GET | `/monitoring/llm-cost` | Yes | Monthly LLM cost, per-purpose breakdown, daily trend |
+| GET | `/monitoring/conversation-lifecycle` | Yes | Active conversations, about-to-timeout list, by scam type |
+| GET | `/monitoring/rate-limits` | Yes | Rate limit stats, quarantined senders, daily limit hits |
+| GET | `/monitoring/convergence-history` | Yes | Last 30 days bandit convergence snapshots by scam type |
+| GET | `/monitoring/audit` | Yes | Structured audit trail (paginated) |
 
 ```bash
 # Example: check system status
@@ -184,6 +188,14 @@ curl -H "Authorization: Bearer $TOKEN" \
 # Example: check LLM costs
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8081/api/v1/monitoring/llm-cost | jq '.current_month'
+
+# Example: conversation lifecycle (timeout alerts)
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8081/api/v1/monitoring/conversation-lifecycle | jq '.about_to_timeout_list'
+
+# Example: rate limit status
+curl -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8081/api/v1/monitoring/rate-limits | jq '.rate_limited_today'
 ```
 
 ---
@@ -192,7 +204,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/meta/config` | Yes | Personas, scam types, IOC types, bandit config |
+| GET | `/meta/config` | Yes | Personas, scam types, IOC types, bandit config, LLM provider/model |
 
 ---
 
@@ -204,6 +216,30 @@ Not intended for external use. Used by n8n and internal services.
 |--------|------|------|-------------|
 | GET | `/api/v1/internal/mail-account/active` | ROLE_ADMIN | List active mail accounts |
 | GET | `/api/v1/internal/mail-account/resolve-secret/{hash}` | ROLE_ADMIN | Resolve IMAP credentials via Vault |
+
+---
+
+## CLI Commands
+
+| Command | Schedule | Description |
+|---------|----------|-------------|
+| `app:close-stale-conversations` | Daily | Close conversations exceeding per-scam-type lifecycle policies (timeout, max turns, max duration) |
+| `app:bandit:daily-report` | Daily 6h UTC | Log convergence snapshot per scam type to `bandit_convergence_log` |
+| `app:cleanup:weekly` | Weekly Sun 4h UTC | Soft-delete closed conversations >90 days, purge LLM usage >180 days |
+
+```bash
+# Run stale closure with per-type policies
+docker compose exec backend-dev php bin/console app:close-stale-conversations
+
+# Run with global override (7 days for all types)
+docker compose exec backend-dev php bin/console app:close-stale-conversations --days=7
+
+# Dry run bandit daily report
+docker compose exec backend-dev php bin/console app:bandit:daily-report
+
+# Weekly cleanup (dry run)
+docker compose exec backend-dev php bin/console app:cleanup:weekly --dry-run
+```
 
 ---
 

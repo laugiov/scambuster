@@ -376,6 +376,49 @@ Junction table linking messages to campaigns.
 
 ---
 
+## Bandit Convergence Tracking
+
+### bandit_convergence_log
+
+Daily snapshot of persona convergence per scam type. Populated by `app:bandit:daily-report`.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| id | integer (PK) | | serial | |
+| scam_type_code | varchar(32) | NO | | Scam type code |
+| dominant_persona_code | varchar(32) | NO | | Persona with highest session share |
+| dominant_pct | numeric(5,2) | NO | | Dominance percentage [0.00, 1.00] |
+| sessions_count | integer | NO | | Total sessions for this scam type |
+| converged | boolean | NO | false | True if dominant_pct >= 60% and sessions >= 10 |
+| logged_at | timestamp | NO | | Snapshot timestamp |
+
+**Indexes**: `idx_convergence_scam_type`, `idx_convergence_logged_at`
+
+---
+
+## Audit Trail
+
+### audit_log
+
+Structured audit trail for all security-relevant events.
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| id | integer (PK) | | serial | |
+| event_type | varchar(50) | NO | | Event type enum (AUTH_SUCCESS, RATE_LIMIT_EXCEEDED, etc.) |
+| actor_type | varchar(32) | NO | | user, system, sender |
+| actor_id | varchar(255) | NO | | Actor identifier |
+| action | varchar(100) | NO | | Action performed |
+| outcome | varchar(32) | NO | | success, failure, blocked |
+| resource_type | varchar(100) | YES | | Resource type affected |
+| resource_id | varchar(255) | YES | | Resource identifier |
+| details | json | YES | | Additional context |
+| ip_address | varchar(45) | YES | | Client IP |
+| trace_id | varchar(64) | YES | | W3C trace correlation ID |
+| created_at | timestamp | NO | | |
+
+---
+
 ## LLM Cost Tracking
 
 ### llm_usage
@@ -422,4 +465,4 @@ Campaigns eligible for promotion (PPV >= 0.85, hits >= 5, lead time >= 3h).
 | message | 1,224 |
 | observed_ioc | 442 |
 | persona | 6 |
-| lkp_scam_type | 7 |
+| lkp_scam_type | 13 |

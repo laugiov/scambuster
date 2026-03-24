@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated**: 2026-03-11
+> **Last updated**: 2026-03-24
 
 ## Project Timeline Overview
 
@@ -170,10 +170,26 @@ Thompson Sampling was originally planned for this phase but was deferred to v2. 
 
 ---
 
-## Phase 5: Publication & Open Source (February 2026) 🔄 IN PROGRESS
+## Phase 5: Publication & Open Source (February - March 2026) 🔄 IN PROGRESS
 
 ### Objectives
-Publish research findings and release anonymized dataset.
+Publish research findings, harden platform for production, and release anonymized dataset.
+
+### Production Hardening (March 2026) ✅
+
+| Deliverable | Status | Details |
+|-------------|--------|---------|
+| Security by Design (OWASP headers, audit trail, JWT RS256, RBAC) | ✅ | 9 security controls implemented |
+| Per-scam-type lifecycle policies (13 types) | ✅ | Timeout, max turns, max duration, reopen window |
+| Sender rate limiting + flood detection | ✅ | 10/day cap, 5/5min burst quarantine, audit events |
+| Bandit convergence logging + daily report | ✅ | `bandit_convergence_log` table, CLI command |
+| Weekly cleanup (soft-delete + LLM purge) | ✅ | 90-day conversations, 180-day LLM usage |
+| Conversation Monitoring frontend page | ✅ | Lifecycle KPIs, timeout alerts, by-scam-type |
+| LLM Cost Monitor page | ✅ | Monthly budget, per-purpose breakdown, daily trend |
+| Dynamic LLM provider in Settings | ✅ | Reads from backend config |
+| Human delay simulation in n8n | ✅ | Log-normal distribution, per-scam-type profiles |
+| Multi-email processing in n8n | ✅ | Loop Over Items + Merge Email Data pattern |
+| Full i18n EN/FR | ✅ | All pages and components |
 
 ### Paper Outline
 
