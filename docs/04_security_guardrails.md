@@ -106,6 +106,10 @@ DPIA documentation covers:
 | **Messages/conversation** | 20 max | Limit exposure |
 | **LLM calls/hour** | 200 max | Cost control |
 | **API requests/minute** | 100 max | DDoS protection |
+| **Emails/sender/day** | 10 max | Per-sender abuse prevention |
+| **Sender flood (burst)** | 5 in 5min | Quarantine sender for 1 hour |
+
+**Sender-level rate limiting** (v1.6.0): When a sender exceeds 10 emails/24h, messages are still ingested (for analysis) but no reply is generated. Burst flood detection quarantines senders who send 5+ emails within 5 minutes. All rate limit hits generate `RATE_LIMIT_EXCEEDED` audit events.
 
 ### 3. Content Filters
 

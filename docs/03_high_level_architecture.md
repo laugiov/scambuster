@@ -113,7 +113,7 @@ Five specialized agents form the core pipeline, supported by one forensic module
 
 | Agent | Role | Phase |
 |-------|------|-------|
-| **ScamClassifier** | Categorize inbound scam emails (12 types) | Ingestion |
+| **ScamClassifier** | Categorize inbound scam emails (13 types) | Ingestion |
 | **IocExtractor** | Extract IOCs from messages (34 types, hybrid regex+LLM) | Ingestion |
 | **Generator** | Generate contextual replies using persona system prompts | Reply |
 | **Validator** | Two-layer safety validation (PolicyGuard + LLM Validator) | Reply |
@@ -151,10 +151,11 @@ Domain-Driven Design (DDD) architecture:
 ```
 
 **Key domains**:
-- **Conversation**: Lifecycle, status, risk scoring
+- **Conversation**: Lifecycle management, per-scam-type policies, status, risk scoring
 - **Message**: Threading, direction, deduplication
 - **IOC**: Extraction, classification, enrichment
-- **Adaptive**: Epsilon-greedy bandit, persona performance tracking
+- **Adaptive**: Epsilon-greedy bandit, persona performance tracking, convergence logging
+- **Monitoring**: Lifecycle alerts, rate limit stats, LLM cost tracking, audit trail
 
 ### 5. Data Layer
 
@@ -242,6 +243,26 @@ Standard formats for integration:
 
 ---
 
+## Conversation Lifecycle Management
+
+Each scam type has a dedicated lifecycle policy controlling timeouts, turn limits, and reopen behavior:
+
+| Category | Scam Types | Timeout | Max Turns | Max Duration | Reopen |
+|----------|------------|---------|-----------|--------------|--------|
+| **Long engagement** | ROMANCE, INVESTMENT, ADVANCE_FEE_419 | 7-14 days | 40-50 | 30-60 days | Yes |
+| **Medium engagement** | INVOICE_FRAUD, CEO_FRAUD | 3-5 days | 25-30 | 14-21 days | No |
+| **Short engagement** | PHISHING, PHISH_CREDENTIALS, PHISH_MALWARE, TECH_SUPPORT | 1-2 days | 15-20 | 5-7 days | No |
+| **Casual** | LOTTERY, JOB_OFFER, CHARITY | 3 days | 25 | 14 days | No |
+
+**Closure criteria** (any triggers closure):
+1. **Inactivity timeout**: No messages for N hours (per scam type)
+2. **Max turns**: Conversation exchange limit reached
+3. **Max duration**: Calendar time limit exceeded
+
+**Reopen window**: Long-engagement scam types allow reopening within 48-72h if the scammer returns.
+
+---
+
 ## Prompt Injection Detection
 
 ### Two-Layer Forensic Architecture
@@ -321,6 +342,9 @@ ScamBuster is deployed as a **containerized application** with:
 | Unique IOCs per conversation | 5.34 (deduplicated) |
 | IOC Precision | 100% (N=107) |
 | System uptime | 60 days (0 incidents) |
+| Scam types supported | 13 (with per-type lifecycle policies) |
+| Frontend pages | 11 (Dashboard, Conversations, Detail, IOC Explorer, STIX Export, Personas, Campaigns, LLM Costs, Monitoring, Settings, Login) |
+| Automated tests | 1,147+ |
 | Infrastructure | Containerized, single host |
 
 ### Proven Quality
