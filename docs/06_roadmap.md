@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated**: 2026-03-24
+> **Last updated**: 2026-03-25
 
 ## Project Timeline Overview
 
@@ -170,7 +170,7 @@ Thompson Sampling was originally planned for this phase but was deferred to v2. 
 
 ---
 
-## Phase 5: Publication & Open Source (February - March 2026) 🔄 IN PROGRESS
+## Phase 5: Publication & Open Source (February - March 2026) ✅ COMPLETE
 
 ### Objectives
 Publish research findings, harden platform for production, and release anonymized dataset.
@@ -190,6 +190,21 @@ Publish research findings, harden platform for production, and release anonymize
 | Human delay simulation in n8n | ✅ | Log-normal distribution, per-scam-type profiles |
 | Multi-email processing in n8n | ✅ | Loop Over Items + Merge Email Data pattern |
 | Full i18n EN/FR | ✅ | All pages and components |
+
+### v1.7.0 — Quality & Enterprise Integration (March 2026) ✅
+
+| Deliverable | Status | Details |
+|-------------|--------|---------|
+| OpenAPI 3.0 annotations (MT-3) | ✅ | 100% API coverage, Swagger UI at /api/doc |
+| PHPStan 100% coverage (MT-6) | ✅ | Removed excludePaths, full codebase analyzed |
+| IOC Confidence Scoring (MT-10) | ✅ | Temporal decay, confidence 0.0-1.0, frontend updated |
+| SIEM Connector (MT-7) | ✅ | CEF/ECS/JSON, 3 adapters, 16 event types mapped |
+| CI Pipeline restored (CT-1) | ✅ | Unit + integration tests in GitHub Actions |
+| PII masking in logs (CT-9) | ✅ | Monolog processor, zero PII in log files |
+| DPIA v1.1 (CT-8) | ✅ | GDPR Article 35 compliance documentation |
+| PostgreSQL backup (CT-10) | ✅ | Automated daily backup via scheduler |
+| MISP/ATT&CK mapping (CT-4) | ✅ | 13/13 scam types mapped |
+| Community files (CT-5/6/7) | ✅ | CODE_OF_CONDUCT, Release v1.0.0, Discussions |
 
 ### Paper Outline
 
