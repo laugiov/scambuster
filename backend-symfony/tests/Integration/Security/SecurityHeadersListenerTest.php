@@ -22,6 +22,9 @@ class SecurityHeadersListenerTest extends WebTestCase
         $this->assertStringContainsString('geolocation=()', $response->headers->get('Permissions-Policy') ?? '');
         $this->assertSame('same-origin', $response->headers->get('Cross-Origin-Opener-Policy'));
         $this->assertSame('none', $response->headers->get('X-Permitted-Cross-Domain-Policies'));
+        $this->assertStringContainsString("default-src 'self'", $response->headers->get('Content-Security-Policy') ?? '');
+        $this->assertStringContainsString("frame-ancestors 'none'", $response->headers->get('Content-Security-Policy') ?? '');
+        $this->assertStringContainsString('max-age=31536000', $response->headers->get('Strict-Transport-Security') ?? '');
     }
 
     public function testApiEndpointContainsSecurityHeaders(): void

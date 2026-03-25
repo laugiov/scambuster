@@ -153,7 +153,25 @@ jobs:
         run: |
           docker compose up -d --build backend-dev
           docker compose exec --user root backend-dev composer install --no-interaction --no-progress 2>/dev/null
-          docker compose exec backend-dev composer audit --format=plain || echo "::warning::Composer audit found vulnerabilities (non-blocking)"
+          # Composer audit: blocking on NEW vulnerabilities, ignoring known/accepted CVEs
+          # Ignored: PKSA-z3gr-8qht-p93v (PHPUnit dev-only), PKSA-365x-2zjk-pt47 (Symfony 7.2→7.3 migration pending)
+          docker compose exec backend-dev composer audit --format=json 2>/dev/null | \
+            python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          ignored = {'PKSA-z3gr-8qht-p93v', 'PKSA-365x-2zjk-pt47'}
+          unignored = []
+          for pkg, advisories in data.get('advisories', {}).items():
+              for adv in advisories:
+                  if adv.get('advisoryId') not in ignored:
+                      unignored.append(f\"{pkg}: {adv.get('title', 'unknown')} ({adv.get('advisoryId')})\")
+          if unignored:
+              print('::error::New vulnerabilities found:')
+              for u in unignored: print(f'  - {u}')
+              sys.exit(1)
+          else:
+              print('Composer audit OK (2 known CVEs ignored, see composer.json config.audit.ignored)')
+          "
 
       # 2. Secret detection in committed code
       - name: Gitleaks (secret detection)
