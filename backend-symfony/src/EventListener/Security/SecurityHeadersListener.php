@@ -33,6 +33,8 @@ class SecurityHeadersListener
         $headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
         $headers->set('X-Permitted-Cross-Domain-Policies', 'none');
+        $headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+        $headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
 
         if (!$headers->has('Cache-Control')) {
             $headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
