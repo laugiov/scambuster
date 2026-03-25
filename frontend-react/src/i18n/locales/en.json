@@ -148,6 +148,9 @@
     "targetIdentity": "Target Identity",
     "scoreExplanation": "Score Explanation",
     "stixContext": "STIX v2.1 Context",
+    "confidence": "Confidence",
+    "effectiveScore": "Effective Score",
+    "decayFactor": "Decay",
     "loading": "Loading IOCs...",
     "failedLoad": "Failed to load IOCs"
   },

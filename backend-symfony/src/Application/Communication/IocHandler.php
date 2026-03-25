@@ -176,13 +176,19 @@ class IocHandler
             );
         }
 
-        // Now create the ObservedIoc with the indicator_id
+        // Compute confidence based on extraction method
+        /** @var string $extractionMethod */
+        $extractionMethod = $context['extraction_method'] ?? 'unknown';
+        $confidence = IocConfidenceCalculator::getBaseConfidence($extractionMethod);
+
+        // Now create the ObservedIoc with the indicator_id and confidence
         $observedIoc = new ObservedIoc(
             $obsId,
             $message,
             $indicatorId,
             $context,
-            new \DateTimeImmutable()
+            new \DateTimeImmutable(),
+            $confidence,
         );
 
         $this->em->persist($observedIoc);
@@ -514,6 +520,120 @@ class IocHandler
         $this->em->flush();
 
         return $observedIoc;
+    }
+
+    /**
+     * Get all IOCs with confidence scoring, optionally filtered by min_score.
+     *
+     * @param float|null $minScore Minimum effective_score to include (0.0-1.0)
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getAllIocsWithConfidence(?float $minScore = null): array
+    {
+        $conn = $this->em->getConnection();
+
+        $sql = '
+            SELECT
+                oi.obs_id,
+                oi.indicator_id AS ioc_id,
+                oi.context_observation,
+                oi.ts_observed,
+                oi.confidence_score,
+                i.type AS indicator_type,
+                i.last_seen AS indicator_last_seen
+            FROM observed_ioc oi
+            LEFT JOIN indicator i ON oi.indicator_id = i.indicator_id
+            ORDER BY oi.ts_observed DESC
+        ';
+
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $conn->executeQuery($sql)->fetchAllAssociative();
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $contextRaw = $row['context_observation'];
+            $context = is_string($contextRaw) ? json_decode($contextRaw, true) : [];
+
+            if (!is_array($context)) {
+                $context = [];
+            }
+
+            $confScoreRaw = $row['confidence_score'];
+            $confidenceRaw = is_numeric($confScoreRaw) ? (float) $confScoreRaw : 0.80;
+            $iocType = is_string($row['indicator_type']) ? $row['indicator_type'] : (is_string($context['type'] ?? null) ? $context['type'] : 'unknown');
+            $tsObservedRaw = $row['ts_observed'];
+            $lastSeenStr = is_string($row['indicator_last_seen']) ? $row['indicator_last_seen'] : (is_string($tsObservedRaw) ? $tsObservedRaw : '');
+
+            try {
+                $lastSeen = new \DateTimeImmutable($lastSeenStr);
+            } catch (\Exception) {
+                $lastSeen = new \DateTimeImmutable();
+            }
+
+            $decayFactor = IocConfidenceCalculator::computeDecayFactor($iocType, $lastSeen);
+            $effectiveScore = round($confidenceRaw * $decayFactor, 4);
+
+            if ($minScore !== null && $effectiveScore < $minScore) {
+                continue;
+            }
+
+            $result[] = [
+                'obs_id' => $row['obs_id'],
+                'ioc_id' => $row['ioc_id'],
+                'type' => $context['type'] ?? '',
+                'value' => $context['value'] ?? '',
+                'value_norm' => $context['value_norm'] ?? '',
+                'score' => $context['score'] ?? [],
+                'category' => $context['category'] ?? '',
+                'ts_observed' => $row['ts_observed'],
+                'confidence' => round($confidenceRaw, 4),
+                'decay_factor' => round($decayFactor, 4),
+                'effective_score' => $effectiveScore,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Compute confidence data for a single ObservedIoc.
+     *
+     * @return array{confidence: float, decay_factor: float, effective_score: float}
+     */
+    public function computeConfidenceData(string $indicatorId, ?float $confidenceScore, \DateTimeImmutable $tsObserved): array
+    {
+        $conn = $this->em->getConnection();
+        $confidence = $confidenceScore ?? 0.80;
+
+        $indicatorRow = $conn->executeQuery(
+            'SELECT type, last_seen FROM indicator WHERE indicator_id = :id',
+            ['id' => $indicatorId]
+        )->fetchAssociative();
+
+        if (is_array($indicatorRow) && is_string($indicatorRow['type'])) {
+            $iocType = $indicatorRow['type'];
+            $lastSeenStr = is_string($indicatorRow['last_seen']) ? $indicatorRow['last_seen'] : $tsObserved->format('Y-m-d H:i:s');
+        } else {
+            $iocType = 'unknown';
+            $lastSeenStr = $tsObserved->format('Y-m-d H:i:s');
+        }
+
+        try {
+            $lastSeen = new \DateTimeImmutable($lastSeenStr);
+        } catch (\Exception) {
+            $lastSeen = new \DateTimeImmutable();
+        }
+
+        $decayFactor = IocConfidenceCalculator::computeDecayFactor($iocType, $lastSeen);
+        $effectiveScore = round($confidence * $decayFactor, 4);
+
+        return [
+            'confidence' => round($confidence, 4),
+            'decay_factor' => round($decayFactor, 4),
+            'effective_score' => $effectiveScore,
+        ];
     }
 
     /**

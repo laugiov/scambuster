@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Campaign;
 
+use App\Application\Communication\IocConfidenceCalculator;
 use App\Domain\CampaignRadar\Campaign;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -491,6 +492,10 @@ final class STIXExporter
             foreach ($iocValues as $iocValue) {
                 $indicatorId = 'indicator--' . Uuid::v4()->toRfc4122();
 
+                // Compute confidence for STIX (0-100 integer per spec)
+                $baseConfidence = IocConfidenceCalculator::getBaseConfidence('regex');
+                $stixConfidence = (int) ($baseConfidence * 100);
+
                 $objects[] = [
                     'type' => 'indicator',
                     'spec_version' => self::STIX_VERSION,
@@ -501,6 +506,7 @@ final class STIXExporter
                     'pattern' => sprintf($mapping['pattern_format'], addslashes($iocValue)),
                     'pattern_type' => 'stix',
                     'valid_from' => $campaign->getFirstSeen()->format('Y-m-d\TH:i:s.000\Z'),
+                    'confidence' => $stixConfidence,
                     'labels' => ['malicious-activity'],
                 ];
 

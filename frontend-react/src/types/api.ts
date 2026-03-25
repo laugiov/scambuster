@@ -108,6 +108,9 @@ export interface Ioc {
   category: string;
   ts_observed: string;
   context_observation?: Record<string, unknown>;
+  confidence?: number;
+  decay_factor?: number;
+  effective_score?: number;
 }
 
 // Meta config (from GET /meta/config)

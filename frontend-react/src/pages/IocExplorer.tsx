@@ -44,6 +44,12 @@ function scoreSeverity(score: number): { label: string; color: string; barColor:
   return { label: 'Low', color: 'text-on-surface-dim', barColor: 'bg-on-surface-dim' };
 }
 
+function confidenceColor(score: number): { barColor: string; textColor: string } {
+  if (score > 0.7) return { barColor: 'bg-success', textColor: 'text-success' };
+  if (score > 0.4) return { barColor: 'bg-warning', textColor: 'text-warning' };
+  return { barColor: 'bg-error', textColor: 'text-error' };
+}
+
 export function IocExplorer() {
   const { t } = useTranslation();
   const { data: iocs, isLoading, error, refetch } = useAllIocs();
@@ -156,6 +162,7 @@ function IocTable({ iocs, selectedId, onSelect }: {
             <th className="px-5 py-3 font-medium">{t('iocExplorer.value')}</th>
             <th className="px-5 py-3 font-medium">{t('conversationDetail.category')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.score')}</th>
+            <th className="px-5 py-3 font-medium">{t('iocExplorer.confidence')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.lastSeen')}</th>
             <th className="px-5 py-3 font-medium text-center">{t('iocExplorer.inspect')}</th>
           </tr>
@@ -201,6 +208,25 @@ function IocTable({ iocs, selectedId, onSelect }: {
                     </span>
                   </div>
                 </td>
+                <td className="px-5 py-3">
+                  {(() => {
+                    const es = ioc.effective_score ?? ioc.confidence ?? 0;
+                    const cc = confidenceColor(es);
+                    return (
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-surface-highest rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${cc.barColor}`}
+                            style={{ width: `${Math.min(es * 100, 100)}%` }}
+                          />
+                        </div>
+                        <span className={`text-xs font-bold ${cc.textColor}`}>
+                          {es.toFixed(2)}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                </td>
                 <td className="px-5 py-3 text-on-surface-dim text-xs">
                   {timeSince(ioc.ts_observed)}
                 </td>
@@ -224,7 +250,7 @@ function IocTable({ iocs, selectedId, onSelect }: {
           })}
           {iocs.length === 0 && (
             <tr>
-              <td colSpan={7} className="px-5 py-12 text-center text-on-surface-dim">
+              <td colSpan={8} className="px-5 py-12 text-center text-on-surface-dim">
                 {t('iocExplorer.noMatch')}
               </td>
             </tr>
@@ -272,6 +298,9 @@ function DetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
         <DetailField label={t('conversationDetail.category')} value={ioc.category} />
         <DetailField label={t('conversationDetail.vtScore')} value={String(ioc.score?.vt ?? 0)} />
         <DetailField label={t('conversationDetail.urlScan')} value={String(ioc.score?.urlscan ?? 0)} />
+        <DetailField label={t('iocExplorer.confidence')} value={(ioc.confidence ?? 0).toFixed(3)} />
+        <DetailField label={t('iocExplorer.decayFactor')} value={(ioc.decay_factor ?? 1).toFixed(3)} />
+        <DetailField label={t('iocExplorer.effectiveScore')} value={(ioc.effective_score ?? 0).toFixed(3)} />
       </div>
 
       <div className="space-y-2">

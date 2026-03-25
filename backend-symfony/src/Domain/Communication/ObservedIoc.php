@@ -30,6 +30,9 @@ class ObservedIoc
     #[ORM\Column(name: 'ts_observed', type: 'datetime_immutable')]
     private \DateTimeImmutable $tsObserved;
 
+    #[ORM\Column(name: 'confidence_score', type: 'decimal', precision: 4, scale: 3, nullable: true)]
+    private ?string $confidenceScore = null;
+
     /**
      * @param array<string, mixed> $context
      */
@@ -38,13 +41,15 @@ class ObservedIoc
         Message $message,
         string $indicatorId,
         array $context,
-        ?\DateTimeImmutable $tsObserved = null
+        ?\DateTimeImmutable $tsObserved = null,
+        ?float $confidenceScore = null,
     ) {
         $this->obsId = $obsId;
         $this->message = $message;
         $this->indicatorId = $indicatorId;
         $this->context = $context;
         $this->tsObserved = $tsObserved ?? new \DateTimeImmutable();
+        $this->confidenceScore = $confidenceScore !== null ? (string) $confidenceScore : null;
     }
 
     public function getObsId(): string
@@ -86,5 +91,15 @@ class ObservedIoc
     public function updateContext(array $context): void
     {
         $this->context = $context;
+    }
+
+    public function getConfidenceScore(): ?float
+    {
+        return $this->confidenceScore !== null ? (float) $this->confidenceScore : null;
+    }
+
+    public function setConfidenceScore(float $score): void
+    {
+        $this->confidenceScore = (string) min($score, 1.0);
     }
 }
