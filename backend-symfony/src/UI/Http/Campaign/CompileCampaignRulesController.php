@@ -113,10 +113,13 @@ final class CompileCampaignRulesController
         }
 
         // 2. Paramètres optionnels (exemples pour affiner les règles)
+        /** @var array<string, mixed> $data */
         $data = json_decode($request->getContent(), true) ?? [];
+        /** @var array<string, mixed> $examplesData */
+        $examplesData = $data['examples'] ?? [];
         $examples = [
-            'pos' => $data['examples']['pos'] ?? [],
-            'neg' => $data['examples']['neg'] ?? [],
+            'pos' => $examplesData['pos'] ?? [],
+            'neg' => $examplesData['neg'] ?? [],
         ];
 
         // Valider structure exemples

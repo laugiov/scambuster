@@ -11,12 +11,14 @@ namespace App\UI\Http\Dto;
  */
 final class IocEnrichedResponseDto
 {
+    /** @param array<string, mixed> $risk */
     public function __construct(
         public string $obs_id,
         public array $risk
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

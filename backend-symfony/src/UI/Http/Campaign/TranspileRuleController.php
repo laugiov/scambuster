@@ -74,7 +74,7 @@ final class TranspileRuleController
     {
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['dsl'])) {
+        if (!is_array($data) || !isset($data['dsl'])) {
             return new JsonResponse(['error' => 'dsl is required'], Response::HTTP_BAD_REQUEST);
         }
 

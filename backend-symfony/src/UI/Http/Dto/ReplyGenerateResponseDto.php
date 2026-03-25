@@ -6,6 +6,10 @@ namespace App\UI\Http\Dto;
 
 final class ReplyGenerateResponseDto
 {
+    /**
+     * @param array<string, mixed> $draft
+     * @param array<string, mixed> $meta
+     */
     public function __construct(
         public string $msg_id,
         public string $conv_id,
@@ -16,6 +20,7 @@ final class ReplyGenerateResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

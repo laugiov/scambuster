@@ -37,6 +37,7 @@ class ConversationGenerator
         private readonly EntityManagerInterface $em,
         private readonly LLMServiceInterface $llm,
         private readonly IocGenerator $iocGenerator,
+        /** @phpstan-ignore-next-line Property used via Doctrine service wiring */
         private readonly IocHandler $iocHandler,
         private readonly LoggerInterface $logger,
         private readonly HttpClientInterface $httpClient
@@ -134,12 +135,15 @@ class ConversationGenerator
 
         for ($i = 0; $i < count($conversationMessages); $i++) {
             // Support des 2 formats: array avec role/content OU string simple
-            if (is_array($conversationMessages[$i])) {
-                $isScammerMessage = ($conversationMessages[$i]['role'] === 'scammer');
-                $messageContent = $conversationMessages[$i]['content'];
+            /** @var string|array{role: string, content: string} $msgItem */
+            $msgItem = $conversationMessages[$i];
+
+            if (is_array($msgItem)) {
+                $isScammerMessage = ($msgItem['role'] === 'scammer');
+                $messageContent = $msgItem['content'];
             } else {
                 $isScammerMessage = ($i % 2 === 0);
-                $messageContent = $conversationMessages[$i];
+                $messageContent = $msgItem;
             }
             $direction = $isScammerMessage ? $dirIn : $dirOut;
 
@@ -200,7 +204,7 @@ class ConversationGenerator
         // Extract IOCs from all messages using production-style extraction (hybrid regex+LLM)
         // ATTENTION: Mode 'hybrid' utilise le LLM pour chaque message, ceci peut être lent !
         $convId = $conversation->getConvId();
-        $convIdStr = is_object($convId) && method_exists($convId, 'toString') ? $convId->toString() : (string) $convId;
+        $convIdStr = (string) $convId;
 
         $this->logger->error('[IOC-DEBUG] ========== STARTING IOC EXTRACTION ==========', [
             'scam_type' => $scamType->getCode(),
@@ -221,8 +225,7 @@ class ConversationGenerator
             $msgId = $message->getMsgId();
             $bodyText = $message->getBodyText();
 
-            // getMsgId() peut retourner soit un UUID object soit une string
-            $msgIdStr = is_object($msgId) && method_exists($msgId, 'toString') ? $msgId->toString() : (string) $msgId;
+            $msgIdStr = (string) $msgId;
 
             $this->logger->info('[IOC-DEBUG] Processing message', [
                 'message_index' => $messageIndex,
@@ -277,6 +280,9 @@ class ConversationGenerator
      * Génère une conversation COMPLÈTE via 1 seul appel LLM (RAPIDE)
      * Plus simple et plus rapide que l'approche itérative
      *
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $iocs
+     *
      * @return array<int, string> Liste de messages alternés (scammer, victim, scammer, victim...)
      */
     private function generateFullConversationDirect(
@@ -287,18 +293,22 @@ class ConversationGenerator
         int $messageCount
     ): array {
         $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        /** @var string $ctxScenario */
+        $ctxScenario = $context['scenario'] ?? '';
+        /** @var string $ctxTriggers */
+        $ctxTriggers = $context['emotional_triggers'] ?? '';
 
         $prompt = <<<PROMPT
 You are a realistic scam conversation generator for training an anti-scam detection system.
 
 **SCAM TYPE**: {$scamType->getLabel()}
-**SCENARIO**: {$context['scenario']}
+**SCENARIO**: {$ctxScenario}
 
 **VICTIM PERSONA**: {$persona->getPersonaLabel()}
 
 **INSTRUCTIONS**:
 1. Generate EXACTLY $messageCount alternating messages (scammer starts, victim responds)
-2. The scammer uses these techniques: {$context['emotional_triggers']}
+2. The scammer uses these techniques: {$ctxTriggers}
 3. The victim responds according to their profile: {$persona->getPersonaTone()}
 4. REALISTIC conversation: scammer may have occasional grammar mistakes, victim shows hesitation
 5. **IMPORTANT IOCs**: In approximately 40-60% of the scammer's messages, naturally include COMPLETE IOCs appropriate to the scam context.
@@ -367,9 +377,12 @@ PROMPT;
      * Génère une conversation de manière ITÉRATIVE et RÉALISTE
      * Le scammer décide à chaque tour s'il continue ou abandonne
      *
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $iocs
+     *
      * @return array<int, array{role: string, content: string}> Messages alternés avec role et content
      */
-    private function generateConversationIterative(
+    private function generateConversationIterative(// @phpstan-ignore method.unused
         ScamType $scamType,
         Persona $persona,
         array $context,
@@ -455,6 +468,10 @@ PROMPT;
 
     /**
      * Génère un message du SCAMMER
+     *
+     * @param array<string, mixed>                             $context
+     * @param array<string, mixed>                             $iocs
+     * @param array<int, array{role: string, content: string}> $conversationHistory
      */
     private function generateScammerMessage(
         ScamType $scamType,
@@ -470,14 +487,25 @@ PROMPT;
         $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         $this->logger->info('[SCAMMER] IOCs encoded, building prompt...');
 
+        /** @var string $ctxScenario */
+        $ctxScenario = $context['scenario'] ?? '';
+        /** @var string $ctxHook */
+        $ctxHook = $context['hook'] ?? '';
+        /** @var string $ctxPersonality */
+        $ctxPersonality = $context['scammer_personality'] ?? '';
+        /** @var string $ctxUrgency */
+        $ctxUrgency = $context['urgency_level'] ?? '';
+        /** @var string $ctxTriggers */
+        $ctxTriggers = $context['emotional_triggers'] ?? '';
+
         $prompt = <<<PROMPT
 You are an experienced SCAMMER specializing in: {$scamType->getLabel()}.
 
 # CONTEXT
-Scenario: {$context['scenario']}
-Psychological hook: {$context['hook']}
-Scammer personality: {$context['scammer_personality']}
-Urgency level: {$context['urgency_level']}
+Scenario: {$ctxScenario}
+Psychological hook: {$ctxHook}
+Scammer personality: {$ctxPersonality}
+Urgency level: {$ctxUrgency}
 Current turn: {$turnNumber}
 
 # CONVERSATION HISTORY
@@ -494,7 +522,7 @@ You want to obtain: money, sensitive information, or access to the victim's acco
 2. Follow your personality and scenario
 3. Integrate IOCs naturally (not all at once!)
 4. Adapt your tactics based on the victim's responses
-5. Use emotional levers: {$context['emotional_triggers']}
+5. Use emotional levers: {$ctxTriggers}
 6. 100% natural, fluent, realistic English language
 7. NO metadata, ONLY the message content
 
@@ -513,6 +541,9 @@ PROMPT;
 
     /**
      * Génère un message de la VICTIM (Scambuster persona)
+     *
+     * @param array<string, mixed>                             $context
+     * @param array<int, array{role: string, content: string}> $conversationHistory
      */
     private function generateVictimMessage(
         Persona $persona,
@@ -559,6 +590,9 @@ PROMPT;
     /**
      * Le SCAMMER décide s'il continue la conversation
      * Combine analyse LLM + probabilité aléatoire réaliste
+     *
+     * @param array<string, mixed>                             $context
+     * @param array<int, array{role: string, content: string}> $conversationHistory
      */
     private function scammerDecidesToContinue(
         ScamType $scamType,
@@ -639,6 +673,8 @@ PROMPT;
 
     /**
      * Récupère les N derniers messages de la victime
+     *
+     * @param array<int, array{role: string, content: string}> $conversationHistory
      */
     private function getRecentVictimMessages(array $conversationHistory, int $count): string
     {
@@ -655,6 +691,8 @@ PROMPT;
     /**
      * Formate l'historique de conversation pour le prompt LLM
      * OPTIMISATION: Ne garde que les N derniers messages pour éviter de dépasser les rate limits OpenAI
+     *
+     * @param array<int, array{role: string, content: string}> $conversationHistory
      */
     private function formatConversationHistoryForPrompt(array $conversationHistory, int $maxMessages = 8): string
     {
@@ -682,6 +720,8 @@ PROMPT;
 
     /**
      * Génère un contexte de scam réaliste avec template détaillé
+     *
+     * @return array<string, mixed>
      */
     private function generateContext(ScamType $scamType, Persona $persona, Channel $channel): array
     {
@@ -697,7 +737,7 @@ PROMPT;
             'progression' => $template['progression'],
             'scammer_personality' => $template['scammer_personality'],
             'urgency_level' => $template['urgency_level'],
-            'emotional_triggers' => implode(', ', $template['emotional_triggers']),
+            'emotional_triggers' => implode(', ', (array) $template['emotional_triggers']),
             'variations' => $this->generateVariations(),
         ];
     }
@@ -705,9 +745,12 @@ PROMPT;
     /**
      * Génère TOUTE la conversation en un seul appel LLM (beaucoup plus rapide!)
      *
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $iocs
+     *
      * @return array<string> Tableau de messages alternés (scammer, victim, scammer, ...)
      */
-    private function generateFullConversation(
+    private function generateFullConversation(// @phpstan-ignore method.unused
         ScamType $scamType,
         Persona $persona,
         array $context,
@@ -753,8 +796,11 @@ PROMPT;
 
     /**
      * Génère le contenu d'un message via LLM (DEPRECATED - utiliser generateFullConversation)
+     *
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $iocs
      */
-    private function generateMessageContent(
+    private function generateMessageContent(// @phpstan-ignore method.unused
         ScamType $scamType,
         Persona $persona,
         array $context,
@@ -783,6 +829,9 @@ PROMPT;
 
     /**
      * Construit le prompt pour générer TOUTE la conversation en un seul appel
+     *
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $iocs
      */
     private function buildFullConversationPrompt(
         ScamType $scamType,
@@ -793,23 +842,35 @@ PROMPT;
     ): string {
         $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
         $progression = isset($context['progression']) ? json_encode($context['progression'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'N/A';
+        /** @var string $ctxScenario */
+        $ctxScenario = $context['scenario'] ?? '';
+        /** @var string $ctxHook */
+        $ctxHook = $context['hook'] ?? '';
+        /** @var string $ctxChannel */
+        $ctxChannel = $context['channel'] ?? '';
+        /** @var string $ctxPersonality */
+        $ctxPersonality = $context['scammer_personality'] ?? '';
+        /** @var string $ctxTriggers */
+        $ctxTriggers = $context['emotional_triggers'] ?? '';
+        /** @var string $ctxUrgency */
+        $ctxUrgency = $context['urgency_level'] ?? '';
 
         return <<<PROMPT
 Generate a COMPLETE and ULTRA-REALISTIC scam conversation in ENGLISH.
 
 # CONTEXT
 Scam type: {$scamType->getCode()} - {$scamType->getLabel()}
-Scenario: {$context['scenario']}
-Psychological hook: {$context['hook']}
+Scenario: {$ctxScenario}
+Psychological hook: {$ctxHook}
 Victim persona: {$persona->getPersonaLabel()}
 Persona tone: {$persona->getPersonaTone()}
-Channel: {$context['channel']}
+Channel: {$ctxChannel}
 Number of messages: {$messageCount}
 
 # PERSONALITIES
-**SCAMMER**: {$context['scammer_personality']}
-- Emotional levers: {$context['emotional_triggers']}
-- Urgency level: {$context['urgency_level']}
+**SCAMMER**: {$ctxPersonality}
+- Emotional levers: {$ctxTriggers}
+- Urgency level: {$ctxUrgency}
 
 **VICTIM (Persona)**:
 {$persona->getSystemPrompt()}
@@ -844,6 +905,9 @@ PROMPT;
 
     /**
      * Construit le prompt LLM pour générer un message ULTRA-RÉALISTE (DEPRECATED)
+     *
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $iocs
      */
     private function buildMessagePrompt(
         ScamType $scamType,
@@ -856,20 +920,32 @@ PROMPT;
     ): string {
         $role = $isScammerMessage ? 'SCAMMER' : 'VICTIM';
         $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+        /** @var string $ctxScenario */
+        $ctxScenario = $context['scenario'] ?? '';
+        /** @var string $ctxHook */
+        $ctxHook = $context['hook'] ?? '';
+        /** @var string $ctxChannel */
+        $ctxChannel = $context['channel'] ?? '';
+        /** @var string $ctxPersonality */
+        $ctxPersonality = $context['scammer_personality'] ?? '';
+        /** @var string $ctxTriggers */
+        $ctxTriggers = $context['emotional_triggers'] ?? '';
+        /** @var string $ctxUrgency */
+        $ctxUrgency = $context['urgency_level'] ?? '';
 
         // Déterminer l'étape de progression narrative
         $progressionStep = $this->getProgressionStep($context, $messageNumber, $isScammerMessage);
 
         $scammerInstructions = <<<SCAMMER
 # YOUR ROLE: SCAMMER
-Personality: {$context['scammer_personality']}
+Personality: {$ctxPersonality}
 
 ## Current narrative step:
 $progressionStep
 
 ## Psychological tactics to use:
-- Emotional levers: {$context['emotional_triggers']}
-- Urgency level: {$context['urgency_level']}
+- Emotional levers: {$ctxTriggers}
+- Urgency level: {$ctxUrgency}
 
 ## IOCs to integrate naturally:
 $iocsStr
@@ -910,9 +986,9 @@ Generate an ULTRA-REALISTIC message for an ongoing scam conversation.
 
 # FULL CONTEXT
 Scam type: {$scamType->getCode()} - {$scamType->getLabel()}
-Scenario: {$context['scenario']}
-Psychological hook: {$context['hook']}
-Communication channel: {$context['channel']}
+Scenario: {$ctxScenario}
+Psychological hook: {$ctxHook}
+Communication channel: {$ctxChannel}
 Message number: {$messageNumber}
 
 # CONVERSATION HISTORY
@@ -937,6 +1013,8 @@ PROMPT;
 
     /**
      * Détermine l'étape de progression narrative selon le numéro de message
+     *
+     * @param array<string, mixed> $context
      */
     private function getProgressionStep(array $context, int $messageNumber, bool $isScammer): string
     {
@@ -944,6 +1022,7 @@ PROMPT;
             return 'Continue the conversation naturally';
         }
 
+        /** @var array<string, string> $progression */
         $progression = $context['progression'];
         $stepIndex = (int) floor(($messageNumber - 1) / 2);
 
@@ -958,8 +1037,10 @@ PROMPT;
 
     /**
      * Construit l'historique de la conversation à partir du tableau local
+     *
+     * @param array<int, array<string, mixed>> $messages
      */
-    private function buildConversationHistory(array $messages): string
+    private function buildConversationHistory(array $messages): string // @phpstan-ignore method.unused
     {
         if (empty($messages)) {
             return '(Start of conversation)';
@@ -968,8 +1049,12 @@ PROMPT;
         $history = [];
 
         foreach ($messages as $idx => $msg) {
-            $role = $msg['direction']->getCode() === 'in' ? 'SCAMMER' : 'VICTIM';
-            $history[] = sprintf("[Message %d - %s]\n%s\n", $idx + 1, $role, $msg['content']);
+            /** @var \App\Domain\Communication\Direction $direction */
+            $direction = $msg['direction'];
+            $role = $direction->getCode() === 'in' ? 'SCAMMER' : 'VICTIM';
+            /** @var string $content */
+            $content = $msg['content'] ?? '';
+            $history[] = sprintf("[Message %d - %s]\n%s\n", $idx + 1, $role, $content);
         }
 
         return implode("\n---\n", $history);
@@ -977,6 +1062,8 @@ PROMPT;
 
     /**
      * Génère un sujet d'email réaliste
+     *
+     * @param array<string, mixed> $context
      */
     private function generateSubject(ScamType $scamType, array $context): string
     {
@@ -988,6 +1075,8 @@ PROMPT;
 
     /**
      * Génère des variations pour éviter les répétitions
+     *
+     * @return array<string, mixed>
      */
     private function generateVariations(): array
     {
@@ -1002,6 +1091,8 @@ PROMPT;
 
     /**
      * Applique les variations à un template
+     *
+     * @param array<string, string|int> $variations
      */
     private function applyVariations(string $template, array $variations): string
     {
@@ -1014,8 +1105,10 @@ PROMPT;
 
     /**
      * Retourne les templates de contexte par type de scam
+     *
+     * @return array<int, array<string, mixed>>
      */
-    private function getContextTemplates(ScamType $scamType): array
+    private function getContextTemplates(ScamType $scamType): array // @phpstan-ignore method.unused
     {
         // Simplified templates - real implementation would have 100+ templates
         $templates = [
@@ -1060,6 +1153,8 @@ PROMPT;
 
     /**
      * Retourne les templates de sujets par type de scam
+     *
+     * @return array<int, string>
      */
     private function getSubjectTemplates(ScamType $scamType): array
     {
@@ -1136,6 +1231,13 @@ PROMPT;
         );
     }
 
+    /**
+     * @template T
+     *
+     * @param array<int|string, T> $options
+     *
+     * @return T
+     */
     private function randomChoice(array $options): mixed
     {
         return $options[array_rand($options)];

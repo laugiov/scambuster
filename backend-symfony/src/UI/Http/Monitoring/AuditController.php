@@ -45,10 +45,12 @@ final class AuditController
 
         $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
 
-        $total = (int) $this->connection->fetchOne(
+        /** @var int|string|false $totalRaw */
+        $totalRaw = $this->connection->fetchOne(
             "SELECT COUNT(*) FROM audit_log {$whereClause}",
             $params
         );
+        $total = (int) $totalRaw;
 
         $rows = $this->connection->fetchAllAssociative(
             "SELECT * FROM audit_log {$whereClause} ORDER BY created_at DESC LIMIT :limit OFFSET :offset",
@@ -60,8 +62,13 @@ final class AuditController
         );
 
         $events = array_map(function (array $row): array {
+            /** @var int|string $rowId */
+            $rowId = $row['id'] ?? 0;
+            /** @var string $details */
+            $details = $row['details'] ?? '{}';
+
             return [
-                'id' => (int) $row['id'],
+                'id' => (int) $rowId,
                 'event_type' => $row['event_type'],
                 'actor_type' => $row['actor_type'],
                 'actor_id' => $row['actor_id'],
@@ -69,7 +76,7 @@ final class AuditController
                 'resource_id' => $row['resource_id'],
                 'action' => $row['action'],
                 'outcome' => $row['outcome'],
-                'details' => json_decode((string) ($row['details'] ?? '{}'), true),
+                'details' => json_decode($details, true),
                 'ip_address' => $row['ip_address'],
                 'trace_id' => $row['trace_id'],
                 'created_at' => $row['created_at'],

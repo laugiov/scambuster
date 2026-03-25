@@ -29,8 +29,12 @@ class MispTestCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $url = $this->mispUrl ?: $_ENV['MISP_URL'] ?? '';
-        $apiKey = $this->mispApiKey ?: $_ENV['MISP_API_KEY'] ?? '';
+        /** @var string $envUrl */
+        $envUrl = $_ENV['MISP_URL'] ?? '';
+        /** @var string $envKey */
+        $envKey = $_ENV['MISP_API_KEY'] ?? '';
+        $url = $this->mispUrl ?: $envUrl;
+        $apiKey = $this->mispApiKey ?: $envKey;
 
         if (empty($url) || empty($apiKey)) {
             $io->warning('MISP is not configured.');

@@ -6,9 +6,7 @@ parameters:
     paths:
         - src
         - tests
-    excludePaths:
-        - src/Infrastructure/*
-        - src/UI/*
+    # MT-6: excludePaths removed — full codebase analysis
     checkMissingIterableValueType: true
     checkGenericClassInNonGenericObjectType: true
     checkUnionTypes: true

@@ -21,7 +21,7 @@ final class ApiCsrfTokenListener
     {
         $request = $event->getRequest();
 
-        if (!$request->isMethodSafe(false)
+        if (!$request->isMethodSafe()
             && str_starts_with($request->getPathInfo(), '/api/')
             && $request->cookies->has('XSRF-TOKEN')
         ) {

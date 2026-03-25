@@ -6,6 +6,7 @@ namespace App\UI\Http\Dto;
 
 final class ConversationDetailResponseDto
 {
+    /** @param array<int, array<string, mixed>> $channels */
     public function __construct(
         public string $conv_id,
         public string $status,
@@ -17,6 +18,7 @@ final class ConversationDetailResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

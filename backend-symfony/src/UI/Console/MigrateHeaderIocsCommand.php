@@ -45,6 +45,7 @@ final class MigrateHeaderIocsCommand extends Command
         $io->title('Migrating messages to extract header IOCs');
 
         // Find all messages with headers
+        /** @var list<Message> $messages */
         $messages = $this->em->getRepository(Message::class)
             ->createQueryBuilder('m')
             ->where('m.headers IS NOT NULL')

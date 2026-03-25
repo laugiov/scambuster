@@ -20,6 +20,7 @@ class OpenAIService implements LLMServiceInterface
     ) {
     }
 
+    /** @param array<string, mixed> $options */
     public function complete(string $prompt, array $options = []): string
     {
         $temperature = $options['temperature'] ?? 0.7;

@@ -53,7 +53,7 @@ class LoadDemoDataCommand extends Command
 
         /** @var array{conversations: list<array<string, mixed>>} $dataset */
         $dataset = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
-        $conversations = $dataset['conversations'] ?? [];
+        $conversations = $dataset['conversations'];
 
         if (empty($conversations)) {
             $io->warning('No conversations found in dataset.');
@@ -65,7 +65,9 @@ class LoadDemoDataCommand extends Command
         $scamTypes = $this->loadLookup('lkp_scam_type', 'code', 'scam_type_id');
         $personas = $this->loadLookup('persona', 'persona_code', 'persona_id');
         $directions = $this->loadLookup('lkp_direction', 'code', 'dir_id');
-        $channelId = (int) $this->connection->fetchOne('SELECT channel_id FROM lkp_channel WHERE code = ?', ['email']);
+        /** @var int|string|false $channelIdRaw */
+        $channelIdRaw = $this->connection->fetchOne('SELECT channel_id FROM lkp_channel WHERE code = ?', ['email']);
+        $channelId = (int) $channelIdRaw;
         $accountId = $this->connection->fetchOne('SELECT account_id FROM mail_account LIMIT 1');
 
         if (!$channelId || !$accountId) {
@@ -87,6 +89,8 @@ class LoadDemoDataCommand extends Command
 
         try {
             foreach ($conversations as $conv) {
+                /** @var array<string, mixed> $conv */
+                /** @var string $convId */
                 $convId = $conv['conversation_id'] ?? bin2hex(random_bytes(16));
                 $scamCode = $conv['scam_type'] ?? 'unknown';
                 $personaCode = $conv['persona'] ?? 'generic_user';
@@ -106,9 +110,12 @@ class LoadDemoDataCommand extends Command
                     continue;
                 }
 
-                $stixId = 'demo-' . substr($convId, 0, 32);
-                $tsFirst = $conv['messages'][0]['timestamp'] ?? '2026-01-01 00:00:00';
-                $tsLast = end($conv['messages'])['timestamp'] ?? $tsFirst;
+                $stixId = 'demo-' . substr((string) $convId, 0, 32);
+                /** @var list<array<string, mixed>> $convMessages */
+                $convMessages = $conv['messages'] ?? [];
+                $tsFirst = $convMessages[0]['timestamp'] ?? '2026-01-01 00:00:00';
+                $lastMsg = end($convMessages);
+                $tsLast = ($lastMsg !== false ? ($lastMsg['timestamp'] ?? $tsFirst) : $tsFirst);
 
                 $this->connection->insert('conversation', [
                     'conv_id' => $convId,
@@ -132,7 +139,7 @@ class LoadDemoDataCommand extends Command
                 ++$convCount;
 
                 // Insert messages
-                foreach ($conv['messages'] ?? [] as $i => $msg) {
+                foreach ($convMessages as $i => $msg) {
                     $msgId = sprintf(
                         '%s-%04d-0000-0000-%012d',
                         substr($convId, 0, 8),
@@ -152,14 +159,17 @@ class LoadDemoDataCommand extends Command
                         'subject' => $msg['subject'] ?? null,
                         'body_text' => $msg['body'] ?? '',
                         'headers' => '{}',
-                        'composite_hash' => hash('sha256', $convId . $i),
+                        'composite_hash' => hash('sha256', (string) $convId . $i),
                         'ts_msg' => $msg['timestamp'] ?? $tsFirst,
                         'ts_ingest' => $msg['timestamp'] ?? $tsFirst,
                     ]);
                     ++$msgCount;
 
                     // Insert IOCs
-                    foreach ($msg['iocs_extracted'] ?? [] as $j => $ioc) {
+                    /** @var list<array<string, mixed>> $iocsExtracted */
+                    $iocsExtracted = $msg['iocs_extracted'] ?? [];
+
+                    foreach ($iocsExtracted as $j => $ioc) {
                         $obsId = sprintf(
                             '%s-%04d-%04d-0000-%012d',
                             substr($convId, 0, 8),
@@ -167,17 +177,25 @@ class LoadDemoDataCommand extends Command
                             $j,
                             $iocCount
                         );
-                        $indicatorId = md5(($ioc['type'] ?? '') . ':' . ($ioc['value'] ?? ''));
+                        /** @var string $iocTypeStr */
+                        $iocTypeStr = $ioc['type'] ?? '';
+                        /** @var string $iocValueStr */
+                        $iocValueStr = $ioc['value'] ?? '';
+                        $indicatorId = md5($iocTypeStr . ':' . $iocValueStr);
                         $indicatorId = substr($indicatorId, 0, 8) . '-'
                             . substr($indicatorId, 8, 4) . '-'
                             . substr($indicatorId, 12, 4) . '-'
                             . substr($indicatorId, 16, 4) . '-'
                             . substr($indicatorId, 20, 12);
 
-                        $context = json_encode([
-                            'type' => $ioc['type'] ?? 'unknown',
-                            'value' => $ioc['value'] ?? '',
-                            'value_norm' => strtolower($ioc['value'] ?? ''),
+                        /** @var string $iocType */
+                        $iocType = $ioc['type'] ?? 'unknown';
+                        /** @var string $iocValue */
+                        $iocValue = $ioc['value'] ?? '';
+                        $contextJson = json_encode([
+                            'type' => $iocType,
+                            'value' => $iocValue,
+                            'value_norm' => strtolower($iocValue),
                             'category' => $scamCode,
                             'source' => 'demo-dataset',
                         ], JSON_THROW_ON_ERROR);
@@ -186,7 +204,7 @@ class LoadDemoDataCommand extends Command
                             'obs_id' => $obsId,
                             'msg_id' => $msgId,
                             'indicator_id' => $indicatorId,
-                            'context_observation' => $context,
+                            'context_observation' => $contextJson,
                             'ts_observed' => $msg['timestamp'] ?? $tsFirst,
                         ]);
                         ++$iocCount;
@@ -224,7 +242,11 @@ class LoadDemoDataCommand extends Command
         $lookup = [];
 
         foreach ($rows as $row) {
-            $lookup[(string) $row[$codeCol]] = (int) $row[$idCol];
+            /** @var string|int $code */
+            $code = $row[$codeCol] ?? '';
+            /** @var string|int $id */
+            $id = $row[$idCol] ?? 0;
+            $lookup[(string) $code] = (int) $id;
         }
 
         return $lookup;

@@ -19,6 +19,7 @@ final class MessageRiskResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

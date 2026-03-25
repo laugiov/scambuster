@@ -30,7 +30,7 @@ final class SelectPersonaController extends AbstractController
         // 1. Valider le payload
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['scam_type_code']) || !is_string($data['scam_type_code'])) {
+        if (!is_array($data) || !isset($data['scam_type_code']) || !is_string($data['scam_type_code'])) {
             return new JsonResponse([
                 'success' => false,
                 'error' => 'Missing or invalid scam_type_code',

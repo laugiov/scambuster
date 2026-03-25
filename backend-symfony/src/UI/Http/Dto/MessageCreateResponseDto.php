@@ -13,6 +13,7 @@ final class MessageCreateResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

@@ -46,6 +46,8 @@ class IocGenerator
 
     /**
      * Génère des IOCs adaptés au type de scam
+     *
+     * @return array<string, mixed>
      */
     public function generateIocsForScamType(ScamType $scamType): array
     {
@@ -61,6 +63,7 @@ class IocGenerator
         };
     }
 
+    /** @return array<string, mixed> */
     private function generatePhishingIocs(): array
     {
         return [
@@ -78,6 +81,7 @@ class IocGenerator
         ];
     }
 
+    /** @return array<string, mixed> */
     private function generateRomanceIocs(): array
     {
         return [
@@ -97,6 +101,7 @@ class IocGenerator
         ];
     }
 
+    /** @return array<string, mixed> */
     private function generateTechSupportIocs(): array
     {
         return [
@@ -115,6 +120,7 @@ class IocGenerator
         ];
     }
 
+    /** @return array<string, mixed> */
     private function generateInvestmentIocs(): array
     {
         return [
@@ -138,6 +144,7 @@ class IocGenerator
         ];
     }
 
+    /** @return array<string, mixed> */
     private function generateBecIocs(): array
     {
         return [
@@ -156,6 +163,7 @@ class IocGenerator
         ];
     }
 
+    /** @return array<string, mixed> */
     private function generateGenericIocs(): array
     {
         return [
@@ -312,6 +320,13 @@ class IocGenerator
         return sprintf('%s %s', $this->randomChoice($firstNames), $this->randomChoice($lastNames));
     }
 
+    /**
+     * @template T
+     *
+     * @param array<int|string, T> $options
+     *
+     * @return T
+     */
     private function randomChoice(array $options): mixed
     {
         return $options[array_rand($options)];

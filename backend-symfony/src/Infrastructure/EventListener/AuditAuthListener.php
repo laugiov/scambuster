@@ -30,7 +30,7 @@ final class AuditAuthListener
     public function onAuthenticationSuccess(AuthenticationSuccessEvent $event): void
     {
         $user = $event->getUser();
-        $email = method_exists($user, 'getUserIdentifier') ? $user->getUserIdentifier() : 'unknown';
+        $email = $user->getUserIdentifier();
 
         $this->auditLogger->log(
             eventType: AuditEventType::AUTH_SUCCESS,
