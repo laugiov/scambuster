@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\UI\Http\Campaign;
 
 use App\Application\Campaign\CampaignPromoter;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -21,6 +22,54 @@ final class PromoteCampaignController
     ) {
     }
 
+    #[OA\Post(
+        path: '/api/v1/campaign/rule/{ruleId}/promote',
+        summary: 'Promouvoir une règle de campagne',
+        description: 'Promeut une règle de campagne si elle atteint les seuils requis (PPV, nombre de hits). Déclenche également un export STIX automatique.',
+        security: [['Bearer' => []]],
+        tags: ['Campaign'],
+        parameters: [
+            new OA\Parameter(
+                name: 'ruleId',
+                in: 'path',
+                required: true,
+                description: 'UUID de la règle à promouvoir',
+                schema: new OA\Schema(type: 'string', format: 'uuid')
+            ),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Règle promue avec succès',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'message', type: 'string', example: 'Rule promoted successfully'),
+                        new OA\Property(property: 'rule_id', type: 'string', format: 'uuid'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 400,
+                description: 'Seuils de promotion non atteints ou format invalide',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'error', type: 'string'),
+                        new OA\Property(property: 'message', type: 'string'),
+                    ]
+                )
+            ),
+            new OA\Response(
+                response: 404,
+                description: 'Règle introuvable',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [new OA\Property(property: 'error', type: 'string')]
+                )
+            ),
+        ]
+    )]
     public function __invoke(string $ruleId, Request $request): JsonResponse
     {
         try {

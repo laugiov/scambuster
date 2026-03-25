@@ -6,6 +6,7 @@ namespace App\UI\Http\Monitoring;
 
 use App\Application\Monitoring\AutonomyMonitoringHandler;
 use App\Application\Monitoring\HealthCheckHandler;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
@@ -24,6 +25,23 @@ final class MetricsController
     }
 
     #[Route('/api/metrics', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/metrics',
+        summary: 'Prometheus-compatible metrics',
+        description: 'Returns metrics in Prometheus text exposition format (text/plain, version 0.0.4)',
+        tags: ['Monitoring'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Prometheus text exposition format metrics',
+                content: new OA\MediaType(
+                    mediaType: 'text/plain',
+                    schema: new OA\Schema(type: 'string', example: "scambuster_info{version=\"1.3.0\"} 1\nscambuster_conversations_total{status=\"open\"} 12")
+                )
+            )
+        ],
+        security: [['Bearer' => []]]
+    )]
     public function __invoke(): Response
     {
         /** @var array<string, mixed> $autonomy */

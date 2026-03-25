@@ -6,12 +6,48 @@ namespace App\UI\Http\Monitoring;
 
 use App\Domain\Scambaiting\BanditConvergenceLog;
 use Doctrine\ORM\EntityManagerInterface;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/v1/monitoring/convergence-history', name: 'monitoring_convergence_history', methods: ['GET'])]
 final class ConvergenceHistoryController
 {
+    #[OA\Get(
+        path: '/api/v1/monitoring/convergence-history',
+        summary: 'Bandit convergence history by scam type (last 30 days)',
+        tags: ['Monitoring'],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Convergence history grouped by scam type',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'period_days', type: 'integer', example: 30),
+                        new OA\Property(
+                            property: 'by_scam_type',
+                            type: 'object',
+                            additionalProperties: new OA\AdditionalProperties(
+                                type: 'array',
+                                items: new OA\Items(
+                                    type: 'object',
+                                    properties: [
+                                        new OA\Property(property: 'date', type: 'string', format: 'date'),
+                                        new OA\Property(property: 'dominant_persona', type: 'string'),
+                                        new OA\Property(property: 'dominant_pct', type: 'number', format: 'float'),
+                                        new OA\Property(property: 'sessions_count', type: 'integer'),
+                                        new OA\Property(property: 'converged', type: 'boolean'),
+                                    ]
+                                )
+                            )
+                        ),
+                    ]
+                )
+            )
+        ],
+        security: [['Bearer' => []]]
+    )]
     public function __invoke(EntityManagerInterface $em): JsonResponse
     {
         $since = new \DateTimeImmutable('-30 days');

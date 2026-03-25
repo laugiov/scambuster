@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\UI\Http\Monitoring;
 
 use Doctrine\DBAL\Connection;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
@@ -23,6 +24,53 @@ final class AuditController
     }
 
     #[Route('/api/v1/monitoring/audit', methods: ['GET'])]
+    #[OA\Get(
+        path: '/api/v1/monitoring/audit',
+        summary: 'Query audit log events',
+        tags: ['Monitoring'],
+        parameters: [
+            new OA\Parameter(name: 'event_type', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'actor_id', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+            new OA\Parameter(name: 'limit', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 50, maximum: 200)),
+            new OA\Parameter(name: 'offset', in: 'query', required: false, schema: new OA\Schema(type: 'integer', default: 0)),
+        ],
+        responses: [
+            new OA\Response(
+                response: 200,
+                description: 'Paginated audit events',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'total', type: 'integer', example: 150),
+                        new OA\Property(property: 'limit', type: 'integer', example: 50),
+                        new OA\Property(property: 'offset', type: 'integer', example: 0),
+                        new OA\Property(
+                            property: 'events',
+                            type: 'array',
+                            items: new OA\Items(
+                                type: 'object',
+                                properties: [
+                                    new OA\Property(property: 'id', type: 'integer'),
+                                    new OA\Property(property: 'event_type', type: 'string'),
+                                    new OA\Property(property: 'actor_type', type: 'string'),
+                                    new OA\Property(property: 'actor_id', type: 'string'),
+                                    new OA\Property(property: 'resource_type', type: 'string'),
+                                    new OA\Property(property: 'resource_id', type: 'string'),
+                                    new OA\Property(property: 'action', type: 'string'),
+                                    new OA\Property(property: 'outcome', type: 'string'),
+                                    new OA\Property(property: 'details', type: 'object'),
+                                    new OA\Property(property: 'ip_address', type: 'string'),
+                                    new OA\Property(property: 'trace_id', type: 'string'),
+                                    new OA\Property(property: 'created_at', type: 'string', format: 'date-time'),
+                                ]
+                            )
+                        ),
+                    ]
+                )
+            )
+        ],
+        security: [['Bearer' => []]]
+    )]
     public function __invoke(Request $request): JsonResponse
     {
         $eventType = $request->query->get('event_type');
