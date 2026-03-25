@@ -6,6 +6,7 @@ namespace App\UI\Http\Dto;
 
 final class MessageResponseDto
 {
+    /** @param array<string, mixed> $headers */
     public function __construct(
         public string $msg_id,
         public string $body_text,
@@ -16,6 +17,7 @@ final class MessageResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

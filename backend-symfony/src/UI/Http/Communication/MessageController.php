@@ -135,7 +135,7 @@ final class MessageController
             $message->getDirection()->getCode(),
             $message->getTsMsg()->format(DATE_ATOM),
             $message->getHeaders(),
-            $message->getDeletedAt() ? $message->getDeletedAt()->format(DATE_ATOM) : null
+            null
         );
 
         return new JsonResponse($dto->toArray(), Response::HTTP_OK);
@@ -265,6 +265,7 @@ final class MessageController
         if (!$message) {
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
         }
+        /** @var \Symfony\Component\HttpFoundation\File\UploadedFile|null $file */
         $file = $request->files->get('file');
 
         if (!$file) {
@@ -456,20 +457,11 @@ final class MessageController
         }
         $dto = new MessageResponseDto(
             $message->getMsgId(),
-            $message->getConversation()->getConvId(),
-            $message->getChannel()->getCode(),
-            $message->getDirection()->getCode(),
-            $message->getLangDetect(),
-            $message->getSubject(),
             $message->getBodyText(),
-            $message->getBodyHtml(),
-            $message->getHeaders(),
-            $message->getCompositeHash(),
-            $message->getVectorId(),
-            $message->getReplyTo()?->getMsgId(),
+            $message->getDirection()->getCode(),
             $message->getTsMsg()->format(DATE_ATOM),
-            $message->getTsIngest()->format(DATE_ATOM),
-            $message->getDeletedAt()?->format(DATE_ATOM)
+            $message->getHeaders(),
+            null
         );
 
         return new JsonResponse($dto->toArray(), Response::HTTP_OK);
@@ -578,6 +570,7 @@ final class MessageController
             return new JsonResponse(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
 
+        /** @var array<string, mixed> $data */
         $method = $data['method'] ?? 'hybrid';
         $types = $data['types'] ?? [];
         $persist = $data['persist'] ?? false; // New parameter to persist IOCs

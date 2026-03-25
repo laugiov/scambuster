@@ -6,6 +6,11 @@ namespace App\UI\Http\Dto;
 
 final class ConversationContextResponseDto
 {
+    /**
+     * @param array<string, mixed> $scam_type
+     * @param array<string, mixed> $cadence
+     * @param array<int, mixed>    $last_messages
+     */
     public function __construct(
         public string $conv_id,
         public string $status,
@@ -17,6 +22,7 @@ final class ConversationContextResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

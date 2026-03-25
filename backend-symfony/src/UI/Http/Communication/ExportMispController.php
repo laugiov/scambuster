@@ -65,7 +65,7 @@ final class ExportMispController
             // Extract MISP metadata (already enriched by IocExportMapper)
             $mispMetadata = $context['misp'] ?? null;
 
-            if (!$mispMetadata) {
+            if (!is_array($mispMetadata)) {
                 // Skip IOCs without MISP metadata (should not happen after migration)
                 continue;
             }
@@ -113,8 +113,11 @@ final class ExportMispController
         }
 
         // Add score if available and significant
-        if (isset($context['score']['agg']) && is_int($context['score']['agg']) && $context['score']['agg'] > 0) {
-            $parts[] = "Risk score: {$context['score']['agg']}/100";
+        /** @var array<string, mixed> $score */
+        $score = $context['score'] ?? [];
+
+        if (isset($score['agg']) && is_int($score['agg']) && $score['agg'] > 0) {
+            $parts[] = "Risk score: {$score['agg']}/100";
         }
 
         // Add source

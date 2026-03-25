@@ -83,18 +83,19 @@ final class ConversationController
                 return new JsonResponse(['error' => "Missing field: $field"], Response::HTTP_BAD_REQUEST);
             }
         }
+        /** @var array<string, string|int|null> $data */
         $channel = $this->handler->getChannel((string)$data['primary_channel_id']);
         $scamType = $this->handler->getScamType((string)$data['scam_type_id']);
         $account = $this->handler->getMailAccount((string)$data['account_id']);
-        $status = ConversationStatus::tryFrom($data['status']);
+        $status = ConversationStatus::tryFrom((string)$data['status']);
 
         if (!$channel || !$scamType || !$account || !$status) {
             return new JsonResponse(['error' => 'Invalid reference'], Response::HTTP_BAD_REQUEST);
         }
         $scoreRisk = (int)$data['score_risk'];
-        $tsFirst = new \DateTimeImmutable($data['ts_first']);
-        $tsLast = new \DateTimeImmutable($data['ts_last']);
-        $stixId = $data['stix_id'];
+        $tsFirst = new \DateTimeImmutable((string)$data['ts_first']);
+        $tsLast = new \DateTimeImmutable((string)$data['ts_last']);
+        $stixId = (string)$data['stix_id'];
         $conv = $this->handler->createConversation(
             $channel,
             $scamType,
@@ -186,14 +187,17 @@ final class ConversationController
     #[Route('', name: 'list_conversations', methods: ['GET'])]
     public function listConversations(Request $request): JsonResponse
     {
-        $page = max(1, (int)$request->query->get('page', 1));
-        $limit = max(1, (int)$request->query->get('limit', 20));
+        $page = max(1, (int)$request->query->get('page', '1'));
+        $limit = max(1, (int)$request->query->get('limit', '20'));
         $offset = ($page - 1) * $limit;
+        /** @var string|null $status */
         $status = $request->query->get('status');
+        /** @var string|null $from */
         $from = $request->query->get('from');
+        /** @var string|null $to */
         $to = $request->query->get('to');
         $convs = $this->handler->getFilteredConversations($page, $limit, $status, $from, $to);
-        $convIds = array_map(static fn ($c) => $c->getConvId(), $convs);
+        $convIds = array_values(array_map(static fn ($c) => $c->getConvId(), $convs));
         $messageCounts = $this->handler->getMessageCountsForConversations($convIds);
         $result = array_map(function ($conv) use ($messageCounts) {
             $persona = $conv->getPersona();
@@ -325,7 +329,9 @@ final class ConversationController
         if (!is_array($data) || empty($data['channel_id'])) {
             return new JsonResponse(['error' => 'Missing channel_id'], Response::HTTP_BAD_REQUEST);
         }
-        $channel = $this->handler->getChannel((string)$data['channel_id']);
+        /** @var string|int $channelId */
+        $channelId = $data['channel_id'];
+        $channel = $this->handler->getChannel((string) $channelId);
 
         if (!$channel) {
             return new JsonResponse(['error' => 'Invalid reference'], Response::HTTP_BAD_REQUEST);
@@ -450,7 +456,9 @@ final class ConversationController
             }
         }
 
-        $items = array_map(function ($msg) {
+        /** @var list<\App\Domain\Communication\Message> $resultMessages */
+        $resultMessages = $result['messages'];
+        $items = array_map(function (\App\Domain\Communication\Message $msg) {
             return [
                 'message_id' => $msg->getMsgId(),
                 'direction' => $msg->getDirection()->getCode(),
@@ -461,7 +469,7 @@ final class ConversationController
                 'lang_detect' => $msg->getLangDetect(),
                 'external_message_id' => $msg->getExternalMessageId(),
             ];
-        }, $result['messages']);
+        }, $resultMessages);
 
         return new JsonResponse($items, Response::HTTP_OK);
     }
@@ -626,8 +634,8 @@ final class ConversationController
                 'persona_label' => $result['persona_label'] ?? null,
                 'confidence' => $result['confidence'],
                 'classified_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
-                'is_new_scam_type' => $result['is_new_scam_type'] ?? false,
-                'is_new_persona' => $result['is_new_persona'] ?? false,
+                'is_new_scam_type' => $result['is_new_scam_type'],
+                'is_new_persona' => $result['is_new_persona'],
             ], Response::HTTP_OK);
         } catch (\RuntimeException $e) {
             if (str_contains($e->getMessage(), 'not found')) {

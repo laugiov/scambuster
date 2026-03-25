@@ -48,12 +48,12 @@ final class AnthropicClient implements LLMClientInterface
             $apiMessages = [];
 
             foreach ($messages as $msg) {
-                if (($msg['role'] ?? '') === 'system') {
+                if ($msg['role'] === 'system') {
                     $systemContent = $msg['content'];
                 } else {
                     $apiMessages[] = [
-                        'role' => $msg['role'] ?? 'user',
-                        'content' => $msg['content'] ?? '',
+                        'role' => $msg['role'],
+                        'content' => $msg['content'],
                     ];
                 }
             }

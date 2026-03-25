@@ -11,6 +11,7 @@ final class ConversationDeleteResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

@@ -12,7 +12,6 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\Component\Serializer\Exception\NotEncodableValueException;
 use Symfony\Component\Serializer\SerializerInterface;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
@@ -60,7 +59,7 @@ final class LogoutController
     {
         try {
             $dto = $this->serializer->deserialize($request->getContent(), RefreshRequestDto::class, 'json');
-        } catch (NotEncodableValueException | \JsonException | \Throwable $e) {
+        } catch (\Throwable $e) {
             return new JsonResponse(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
         $errors = $this->validator->validate($dto);

@@ -24,7 +24,7 @@ final class ClusterAssignController
         // 1. Validation input
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['msg_id'])) {
+        if (!is_array($data) || !isset($data['msg_id'])) {
             return new JsonResponse(['error' => 'msg_id is required'], Response::HTTP_BAD_REQUEST);
         }
 

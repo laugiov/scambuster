@@ -49,8 +49,12 @@ class PreprodClearConversationsCommand extends Command
         }
 
         // Compter les conversations existantes
-        $countConv = (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM conversation');
-        $countMsg = (int) $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM message');
+        /** @var int|string|false $rawConv */
+        $rawConv = $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM conversation');
+        $countConv = (int) $rawConv;
+        /** @var int|string|false $rawMsg */
+        $rawMsg = $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM message');
+        $countMsg = (int) $rawMsg;
 
         if ($countConv === 0) {
             $io->success('Aucune conversation à supprimer');

@@ -96,7 +96,8 @@ final class CampaignPromoter
     /**
      * Promeut une règle de campagne.
      *
-     * @throws \DomainException si seuils non atteints
+     * @throws \DomainException  si seuils non atteints
+     * @throws \RuntimeException si la règle n'est pas trouvée
      */
     public function promote(Uuid $ruleId): void
     {

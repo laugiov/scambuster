@@ -98,6 +98,7 @@ final class ProfileCampaignController
         }
 
         // 2. Paramètres optionnels
+        /** @var array<string, mixed> $data */
         $data = json_decode($request->getContent(), true) ?? [];
         $sampleSize = $data['sample_size'] ?? 10;
 

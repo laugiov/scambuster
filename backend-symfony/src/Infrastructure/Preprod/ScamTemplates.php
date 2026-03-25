@@ -21,6 +21,8 @@ class ScamTemplates
 {
     /**
      * Returns all templates for a given scam type
+     *
+     * @return array<int, array<string, mixed>>
      */
     public static function getTemplates(string $scamTypeCode): array
     {
@@ -39,6 +41,7 @@ class ScamTemplates
         };
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getPhishingCredentialsTemplates(): array
     {
         return [
@@ -87,6 +90,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getBecTemplates(): array
     {
         return [
@@ -135,6 +139,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getBankImpersonationTemplates(): array
     {
         return [
@@ -183,6 +188,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getGovImpersonationTemplates(): array
     {
         return [
@@ -231,6 +237,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getTechSupportTemplates(): array
     {
         return [
@@ -279,6 +286,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getRomanceScamTemplates(): array
     {
         return [
@@ -327,6 +335,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getAdvanceFeeTemplates(): array
     {
         return [
@@ -375,6 +384,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getInvestmentScamTemplates(): array
     {
         return [
@@ -423,6 +433,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getDeliveryScamTemplates(): array
     {
         return [
@@ -471,6 +482,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getInvoiceFraudTemplates(): array
     {
         return [
@@ -519,6 +531,7 @@ class ScamTemplates
         ];
     }
 
+    /** @return array<int, array<string, mixed>> */
     private static function getGenericTemplates(): array
     {
         return [

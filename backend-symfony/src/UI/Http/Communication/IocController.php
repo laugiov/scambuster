@@ -175,6 +175,7 @@ final class IocController
             return new JsonResponse(['error' => 'Missing or invalid field: ioc'], Response::HTTP_BAD_REQUEST);
         }
 
+        /** @var array<string, string> $iocData */
         $iocData = $data['ioc'];
         $requiredIocFields = ['type', 'value', 'value_norm', 'source', 'first_seen'];
 
@@ -202,6 +203,7 @@ final class IocController
 
         // Delegate to handler (all business logic there)
         try {
+            /** @var array{message_id?: string, msg_id?: string, ioc: array{type: string, value: string, value_norm: string, source: string, first_seen: string}, enrichment?: array<string, mixed>, score?: array<string, mixed>, category?: string, tags?: array<string>, tlp?: string} $data */
             $observedIoc = $this->handler->upsertEnrichedIoc($data);
             $risk = $this->handler->calculateMessageRisk($observedIoc->getMessage()->getMsgId());
 

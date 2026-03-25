@@ -6,6 +6,7 @@ namespace App\UI\Http\Dto;
 
 final class ReplyComposeResponseDto
 {
+    /** @param array<string, mixed> $checks */
     public function __construct(
         public string $msg_id,
         public string $to,
@@ -20,6 +21,7 @@ final class ReplyComposeResponseDto
     ) {
     }
 
+    /** @return array<string, mixed> */
     public function toArray(): array
     {
         return [

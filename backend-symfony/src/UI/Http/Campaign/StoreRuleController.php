@@ -81,7 +81,7 @@ final class StoreRuleController
     {
         $data = json_decode($request->getContent(), true);
 
-        if (!isset($data['campaign_id'], $data['dsl'], $data['compiled_sql'])) {
+        if (!is_array($data) || !isset($data['campaign_id'], $data['dsl'], $data['compiled_sql'])) {
             return new JsonResponse([
                 'error' => 'campaign_id, dsl, and compiled_sql required',
             ], Response::HTTP_BAD_REQUEST);

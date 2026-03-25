@@ -28,7 +28,7 @@ class KernelExceptionListener
         $message = 'Internal server error';
 
         // In dev, show the real message for easier debugging
-        if ($_SERVER['APP_ENV'] ?? '' === 'dev') {
+        if (($_SERVER['APP_ENV'] ?? '') === 'dev') {
             $message = $exception->getMessage();
         }
         $response = new JsonResponse(['error' => $message], $statusCode);

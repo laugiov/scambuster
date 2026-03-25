@@ -9,6 +9,7 @@ namespace App\UI\Http\Dto;
  */
 final class MeResponseDto
 {
+    /** @param array<int, string> $roles */
     public function __construct(
         public ?string $id,
         public string $email,
