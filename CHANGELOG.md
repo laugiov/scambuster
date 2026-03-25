@@ -7,6 +7,90 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.7.0] - 2026-03-25
+
+### Added
+
+#### CI Pipeline Restoration (CT-1)
+- Backend unit + integration tests now run in CI via Docker containers
+- PHPUnit CI config with bootstrap_ci.php (include_once wrapper for Kernel)
+- 1150+ tests passing in GitHub Actions
+
+#### Security Headers (CT-2)
+- Content-Security-Policy and Strict-Transport-Security headers on all API responses
+- Relaxed CSP for Swagger UI page only (unsafe-inline/unsafe-eval)
+
+#### Dependency Audit (CT-3)
+- composer audit now blocking in CI (fails on new CVEs)
+- 2 known CVEs ignored with documentation (Symfony 7.2, PHPUnit)
+
+#### MISP/ATT&CK Taxonomy (CT-4)
+- All 13 scam types mapped to MISP RSIT taxonomy and ATT&CK techniques
+
+#### Community (CT-5, CT-6, CT-7)
+- CODE_OF_CONDUCT.md (Contributor Covenant v2.1)
+- GitHub Release v1.0.0 with release notes
+- GitHub Discussions enabled (6 categories)
+
+#### DPIA (CT-8)
+- GDPR Article 35 Data Protection Impact Assessment v1.1
+
+#### PII Masking (CT-9)
+- PiiMaskingProcessor for Monolog (masks emails, IPs in logs)
+
+#### PostgreSQL Backup (CT-10)
+- Automated daily backup via scheduler service (pg_dump + verification)
+- Restore documentation
+
+#### OpenAPI 3.0 (MT-3)
+- 100% API endpoint coverage with #[OA\*] annotations (43+ endpoints)
+- Swagger UI at /api/doc with interactive documentation
+- 7 endpoint tags: Auth, Communication, Campaign, Scambaiting, Monitoring, User, Meta
+
+#### PHPStan Full Coverage (MT-6)
+- Removed excludePaths for Infrastructure/ and UI/ layers
+- 100% of src/ analyzed at level 6 bleeding edge, 0 errors
+
+#### IOC Confidence Scoring & Decay (MT-10)
+- Confidence score per IOC (0.0-1.0) based on extraction method
+- Temporal decay with configurable half-life per IOC type
+- Effective score = confidence x decay factor
+- Frontend IOC Explorer updated with confidence column
+
+#### SIEM Connector (MT-7)
+- Pluggable SiemExporterInterface (hexagonal port/adapter)
+- 3 adapters: NullSiemExporter, FileSiemExporter, SyslogSiemExporter
+- 3 formatters: CEF (Common Event Format), ECS (Elastic Common Schema), JSON
+- 16 audit event types with severity mapping
+- CLI: app:siem:test + app:siem:export
+- Complete integration guide: docs/15_siem_integration.md
+
+#### Data Consistency Fixes
+- Dashboard/Conversations active count aligned with Monitoring (31 vs 20 bug)
+- Settings exploration rate, best persona, unique IOC types fixed
+- Conversation list message count column populated
+- All scam types shown in Monitoring (including 0-count)
+- Convergence history section on Personas page
+- Rate limits section on Monitoring page
+
+#### Campaign Radar Frontend
+- Campaign Detail page with metadata, messages, profile, actions
+- Clickable campaign IDs in list
+- Generate Profile (LLM), Promote Rule, Export STIX buttons
+- Run Hunt button for admin users
+
+### Changed
+- Conversation lifecycle policies for all 13 scam types
+- Per-sender rate limiting + flood detection
+- Human delay simulation in n8n (log-normal distribution)
+
+### Fixed
+- CI Kernel double-include issue resolved (Docker-based test execution)
+- Mock test MetaConfig missing llm_provider/llm_model fields
+- Campaign route conflict (/campaign/{id} vs /campaign/candidates)
+
+---
+
 ## [1.5.0] - March 2026
 
 ### Added — Security by Design

@@ -372,6 +372,25 @@ Requests exceeding 1 MB are rejected with `413 Payload Too Large` via `PayloadSi
 
 GitHub Actions CI includes `composer audit` (PHP dependency vulnerabilities) and Gitleaks (secret detection).
 
+### SIEM Event Export
+
+All 16 audit event types are exportable to enterprise SIEM platforms via pluggable connectors:
+
+| Severity | Event Types | CEF Level |
+|----------|-------------|-----------|
+| **Critical** | KILL_SWITCH_TOGGLED | 9 |
+| **High** | CONFIG_CHANGED, INJECTION_DETECTED | 7-8 |
+| **Medium** | AUTH_FAILURE, IOC_EXTRACTED, RATE_LIMIT_EXCEEDED | 4-6 |
+| **Low** | AUTH_SUCCESS, MESSAGE_INGESTED, REPLY_SENT, etc. | 1-3 |
+
+**Security controls**:
+- PII masked in exported events (emails hashed, IPs truncated)
+- Disabled by default (NullSiemExporter, zero overhead)
+- Transport security via TLS for TCP syslog
+- Audit of audit: export failures logged to Monolog
+
+See [SIEM Integration Guide](15_siem_integration.md) for configuration and testing.
+
 ---
 
 [← Back to Main](../README.md)

@@ -169,10 +169,11 @@ Domain-Driven Design (DDD) architecture:
 
 Standard formats for integration:
 
-| Format | Use Case |
-|--------|----------|
-| **STIX 2.1** | Threat intelligence platforms |
-| **REST API** | Custom integrations (JSON) |
+| Format | Details | Use Case |
+|--------|---------|----------|
+| **STIX 2.1** | Standard bundles | Threat intelligence platforms |
+| **REST API** | JSON | Custom integrations |
+| **SIEM** | CEF, ECS, JSON | Enterprise SIEM/SOAR integration |
 
 ---
 
@@ -185,8 +186,8 @@ Standard formats for integration:
 2. ENGAGE
    Select persona (ε-greedy bandit) → Generate response → Validate → Send
 
-3. EXTRACT
-   Receive reply → Extract IOCs → Deduplicate → Enrich
+3. EXTRACT & SCORE
+   Receive reply → Extract IOCs → Deduplicate → Enrich → Confidence Score → Decay
 
 4. LEARN
    Conversation ends → Calculate reward → Update bandit
@@ -316,6 +317,18 @@ ScamBuster is deployed as a **containerized application** with:
 
 > **Note**: Detailed infrastructure specifications available under NDA for pilot programs.
 
+### SIEM Export
+
+Pluggable SIEM connector (same port/adapter pattern as LLM providers):
+
+| Adapter | Transport | Format | Use Case |
+|---------|-----------|--------|----------|
+| **NullSiemExporter** | None | — | Default (disabled, zero overhead) |
+| **FileSiemExporter** | Local file | NDJSON | Testing, air-gapped deployments |
+| **SyslogSiemExporter** | UDP/TCP | CEF/ECS | QRadar, ArcSight, Elastic |
+
+Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_integration.md).
+
 ---
 
 ## Technology Choices
@@ -344,7 +357,7 @@ ScamBuster is deployed as a **containerized application** with:
 | System uptime | 60 days (0 incidents) |
 | Scam types supported | 13 (with per-type lifecycle policies) |
 | Frontend pages | 11 (Dashboard, Conversations, Detail, IOC Explorer, STIX Export, Personas, Campaigns, LLM Costs, Monitoring, Settings, Login) |
-| Automated tests | 1,147+ |
+| Automated tests | 1,180+ |
 | Infrastructure | Containerized, single host |
 
 ### Proven Quality

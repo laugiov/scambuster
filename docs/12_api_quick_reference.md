@@ -106,6 +106,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 |--------|------|------|-------------|
 | POST | `/iocs/enriched` | Yes | Ingest enriched IOC (from n8n) |
 | PATCH | `/iocs/{obsId}/enrich` | Yes | Update IOC enrichment data |
+| GET | `/api/v1/iocs` | Yes | List all IOCs with confidence score, decay factor, effective score |
 
 ---
 
@@ -226,6 +227,14 @@ Not intended for external use. Used by n8n and internal services.
 | `app:close-stale-conversations` | Daily | Close conversations exceeding per-scam-type lifecycle policies (timeout, max turns, max duration) |
 | `app:bandit:daily-report` | Daily 6h UTC | Log convergence snapshot per scam type to `bandit_convergence_log` |
 | `app:cleanup:weekly` | Weekly Sun 4h UTC | Soft-delete closed conversations >90 days, purge LLM usage >180 days |
+
+### SIEM Commands
+
+| Command | Description |
+|---------|-------------|
+| `app:siem:test` | Test SIEM provider connectivity and send test event |
+| `app:siem:export --since=24h` | Batch export historical audit events to configured SIEM |
+| `app:siem:export --since=7d --dry-run` | Dry run: count events without exporting |
 
 ```bash
 # Run stale closure with per-type policies

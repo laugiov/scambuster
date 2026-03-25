@@ -4,7 +4,7 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207.2%20|%20PostgreSQL%2015%20|%20LLM-green)
-![Tests](https://img.shields.io/badge/tests-1310%20passing-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1180%2B%20passing-brightgreen)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/laugiov/scambuster/actions/workflows/ci.yml/badge.svg)](https://github.com/laugiov/scambuster/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](docker-compose.yml)
@@ -41,7 +41,7 @@ Instead of discarding scam emails, ScamBuster creates an **observatory** that an
 
 | Question | ScamBuster Insight |
 |----------|-------------------|
-| **What scam types are trending?** | Real-time classification across 12 categories |
+| **What scam types are trending?** | Real-time classification across 13 types |
 | **Which personas maximize engagement?** | Adaptive learning identifies optimal strategies per scam type |
 | **What IOCs do scammers reveal?** | Automatic extraction of 34 indicator types |
 | **How do campaigns evolve?** | Clustering and attribution over time |
@@ -123,7 +123,7 @@ Five specialized AI agents form the core pipeline, supported by one forensic mod
 
 | Agent | Role | Achievement |
 |-------|------|-------------|
-| **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 12 types |
+| **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 13 types |
 | **IocExtractor** | Extract threat indicators | 100% precision on audited sample, 34 IOC types |
 | **Generator** | Create contextual responses | +35% IOCs post-IBAN detection |
 | **Validator** | Ensure safety & quality | 95% approval rate (PolicyGuard + LLM) |
@@ -146,7 +146,7 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 | Aspect | Summary |
 |--------|---------|
 | Approach | Contextual bandit / adaptive experimentation |
-| Context | One policy per scam category (12 types, extensible) |
+| Context | One policy per scam category (13 types, extensible) |
 | Strategy space | 27 personas with tailored system prompts |
 | Objectives | Intelligence yield, safety compliance, and cost efficiency |
 
@@ -201,6 +201,7 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 | **Secrets** | HashiCorp Vault |
 | **Monitoring** | `/api/health`, `/api/metrics` (Prometheus), LLM cost tracking |
 | **Infrastructure** | Docker Compose, GitHub Actions CI |
+| **SIEM** | CEF, ECS, JSON | Pluggable connector for Splunk, QRadar, Elastic |
 
 ---
 
@@ -290,18 +291,20 @@ scambuster/
 ### Attachments & IOCs
 - `POST/GET/DELETE /api/v1/communication/attachment/{id}`
 - `GET /api/v1/communication/message/{id}/iocs`
+- `GET /api/v1/iocs` -- IOCs with confidence scores
 
 ### Monitoring
 - `GET /api/v1/monitoring/autonomy` -- System health, convergence, kill switch, activity
 - `GET /api/v1/monitoring/llm-cost` -- LLM cost tracking (monthly, per-purpose, daily trend)
 - `GET /api/health` -- Dependency health checks (database, Redis) with latency
 - `GET /api/metrics` -- Prometheus-compatible metrics
+- `GET /api/doc` -- Swagger UI (OpenAPI 3.0)
 
 ---
 
 ## Testing
 
-1310 automated tests covering:
+1,180+ automated tests covering:
 - **E2E**: Full API flow with real JWT, database, and fixtures
 - **Integration**: Service/repository logic, business rules
 - **Unit**: Domain logic, value objects, algorithms
@@ -363,6 +366,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 | [API Quick Reference](docs/12_api_quick_reference.md) | All endpoints with curl examples |
 | [MISP Integration](docs/13_misp_integration.md) | Connect to MISP, export IOCs, troubleshooting |
 | [Key Management](docs/14_key_management.md) | JWT RS256 keys, rotation, emergency response |
+| [SIEM Integration](docs/15_siem_integration.md) | Enterprise SIEM connector guide (CEF/ECS/JSON) |
 
 ---
 
@@ -382,7 +386,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 | H1 | Adaptive selection improves engagement duration vs random | Validated (p < 0.001) |
 | H2 | Adaptive selection increases IOCs/conversation vs random | Validated (+51.3% median) |
 | H3 | Adaptive selection reduces early abandonment | Validated (48.6% -> 36.4%) |
-| H4 | Per-scam-type policy converges in <100 sessions | Validated (9/12 types) |
+| H4 | Per-scam-type policy converges in <100 sessions | Validated (9/13 types) |
 
 ### Planned (v2): Thompson Sampling
 
