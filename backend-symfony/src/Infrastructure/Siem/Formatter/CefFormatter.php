@@ -1,0 +1,120 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Infrastructure\Siem\Formatter;
+
+use App\Application\Audit\Port\SiemEventFormatterInterface;
+use App\Domain\Audit\SiemEvent;
+use App\Domain\Audit\SiemSeverityMap;
+
+/**
+ * Formats SiemEvents as CEF (Common Event Format) v25.
+ *
+ * CEF is the de facto standard for ArcSight, Splunk, and QRadar.
+ * Format: CEF:Version|Device Vendor|Device Product|Device Version|Event ID|Name|Severity|Extensions
+ *
+ * Reference: https://www.microfocus.com/documentation/arcsight/arcsight-smartconnectors/cef-implementation-standard/
+ */
+final class CefFormatter implements SiemEventFormatterInterface
+{
+    private const CEF_VERSION = 0;
+    private const VENDOR = 'ScamBuster';
+    private const PRODUCT = 'HoneypotPlatform';
+    private const PRODUCT_VERSION = '1.0';
+
+    public function format(SiemEvent $event): string
+    {
+        $header = sprintf(
+            'CEF:%d|%s|%s|%s|%s|%s|%d',
+            self::CEF_VERSION,
+            self::escape(self::VENDOR),
+            self::escape(self::PRODUCT),
+            self::PRODUCT_VERSION,
+            $event->eventType->value,
+            self::escape($this->getEventName($event)),
+            $event->severity,
+        );
+
+        $extensions = $this->buildExtensions($event);
+
+        return $header . '|' . $extensions;
+    }
+
+    public function getFormatName(): string
+    {
+        return 'cef';
+    }
+
+    private function getEventName(SiemEvent $event): string
+    {
+        return match ($event->eventType->value) {
+            'AUTH_SUCCESS' => 'Authentication Success',
+            'AUTH_FAILURE' => 'Authentication Failure',
+            'AUTH_TOKEN_EXPIRED' => 'Token Expired',
+            'AUTH_LOGOUT' => 'User Logout',
+            'MESSAGE_INGESTED' => 'Scam Email Ingested',
+            'REPLY_GENERATED' => 'LLM Reply Generated',
+            'REPLY_SENT' => 'Reply Sent to Scammer',
+            'IOC_EXTRACTED' => 'Threat Indicator Extracted',
+            'CONVERSATION_CLOSED' => 'Conversation Closed',
+            'INJECTION_DETECTED' => 'Prompt Injection Detected',
+            'RATE_LIMIT_EXCEEDED' => 'Rate Limit Exceeded',
+            'KILL_SWITCH_TOGGLED' => 'Emergency Kill Switch',
+            'EXPORT_MISP' => 'MISP Export',
+            'EXPORT_STIX' => 'STIX Export',
+            'PERSONA_SELECTED' => 'Persona Selected',
+            'CONFIG_CHANGED' => 'Configuration Changed',
+        };
+    }
+
+    private function buildExtensions(SiemEvent $event): string
+    {
+        $parts = [];
+
+        $parts[] = 'rt=' . $event->timestamp->format('U') . '000';
+        $parts[] = 'cat=' . SiemSeverityMap::getEcsCategory($event->eventType);
+        $parts[] = 'outcome=' . self::escape($event->outcome);
+        $parts[] = 'suser=' . self::escape($event->actorId);
+        $parts[] = 'suid=' . self::escape($event->actorType);
+
+        if ($event->ipAddress !== null) {
+            $parts[] = 'src=' . $event->ipAddress;
+        }
+
+        if ($event->traceId !== null) {
+            $parts[] = 'cs1=' . self::escape($event->traceId);
+            $parts[] = 'cs1Label=TraceID';
+        }
+
+        if ($event->resourceType !== null) {
+            $parts[] = 'cs2=' . self::escape($event->resourceType);
+            $parts[] = 'cs2Label=ResourceType';
+        }
+
+        if ($event->resourceId !== null) {
+            $parts[] = 'cs3=' . self::escape($event->resourceId);
+            $parts[] = 'cs3Label=ResourceID';
+        }
+
+        $details = $event->details;
+
+        if ($details !== []) {
+            $parts[] = 'msg=' . self::escape(json_encode($details, JSON_UNESCAPED_UNICODE) ?: '{}');
+        }
+
+        return implode(' ', $parts);
+    }
+
+    /**
+     * Escape CEF special characters: backslash, pipe, equals, newline.
+     */
+    private static function escape(string $value): string
+    {
+        return str_replace(
+            ['\\', '|', '=', "\n", "\r"],
+            ['\\\\', '\\|', '\\=', '\\n', '\\r'],
+            $value,
+        );
+    }
+}
