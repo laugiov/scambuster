@@ -80,11 +80,9 @@ jobs:
             echo 'Kernel boot OK\n';
           " || echo "Kernel boot failed"
 
-      - name: Run integration tests (CI bootstrap, no DAMA)
-        if: always()
+      - name: Run integration tests (phpunit.ci.xml — bootstrap_ci.php + DAMA, no SymfonyExtension)
         run: |
           docker compose exec backend-test vendor/bin/phpunit \
-            --bootstrap tests/bootstrap_ci.php \
+            --configuration phpunit.ci.xml \
             --testsuite integration \
-            --no-extensions \
-            --testdox --colors=never 2>&1 | head -50
+            --testdox --colors=never
