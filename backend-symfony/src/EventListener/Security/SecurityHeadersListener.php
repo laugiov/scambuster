@@ -37,6 +37,7 @@ class SecurityHeadersListener
 
         // Swagger UI requires unsafe-inline/unsafe-eval for its inline scripts
         $path = $event->getRequest()->getPathInfo();
+
         if (str_starts_with($path, '/api/doc')) {
             $headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
         } else {
