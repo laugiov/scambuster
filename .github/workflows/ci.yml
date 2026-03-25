@@ -110,9 +110,66 @@ jobs:
       - name: Run PHP-CS-Fixer (dry-run)
         run: docker compose exec backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no
 
-  # Backend tests disabled in CI - Kernel class double-include issue on GitHub Actions.
-  # Tests pass locally via: make test (1118 tests, unit + integration)
-  # PHPStan (level=max) and CS-Fixer enforce code quality above.
+  backend-tests:
+    name: Backend Tests (PHPUnit)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create environment files
+        run: |
+          cat > .env << 'ENVEOF'
+          APP_ENV=test
+          APP_DEBUG=0
+          DATABASE_URL=postgresql://postgres:postgres@postgres:5432/scambuster_test
+          REDIS_URL=redis://redis:6379
+          JWT_SECRET=ci-test
+          LLM_API_KEY=sk-test
+          LLM_PROVIDER=mock
+          LLM_MODEL=mock
+          LLM_API_URL=https://api.openai.com/v1
+          VAULT_ADDR=http://vault:8200
+          VAULT_TOKEN=root
+          VAULT_IMAP_PATH=secret/scambuster/imap/
+          LOGIN_HASH_SALT=ci-test
+          SCAMBUSTER_KILL_SWITCH=false
+          PROMPT_INJECTION_ENABLED=false
+          STIX_EXPORT_PATH=/tmp/stix-test
+          SCORE_RISK_MIN=30
+          CAMPAIGN_PROMOTION_PPV_THRESHOLD=0.85
+          CAMPAIGN_PROMOTION_MIN_HITS=5
+          CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
+          ENVEOF
+          sed -i 's/^[[:space:]]*//' .env
+          cp .env .env.test
+
+      - name: Start services
+        run: docker compose up -d --build postgres redis backend-test
+
+      - name: Wait for healthy services
+        run: |
+          echo "Waiting for postgres..."
+          for i in $(seq 1 30); do docker compose exec postgres pg_isready -U postgres && break || sleep 2; done
+          echo "Waiting for backend-test..."
+          for i in $(seq 1 30); do docker compose exec backend-test php -v > /dev/null 2>&1 && break || sleep 2; done
+
+      - name: Install dependencies
+        run: |
+          docker compose exec --user root backend-test composer install --no-interaction --no-progress 2>/dev/null
+          docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
+
+      - name: Setup database
+        run: |
+          docker compose exec backend-test php bin/console doctrine:database:create --if-not-exists --env=test
+          docker compose exec backend-test php bin/console doctrine:migrations:migrate --no-interaction --env=test
+          docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
+
+      - name: Run unit tests
+        run: docker compose exec backend-test vendor/bin/phpunit --testsuite unit --testdox --colors=never
+
+      - name: Run integration tests (with CI bootstrap)
+        run: docker compose exec backend-test vendor/bin/phpunit --configuration phpunit.ci.xml --testsuite integration --testdox --colors=never
 
   security:
     name: Security Scanning

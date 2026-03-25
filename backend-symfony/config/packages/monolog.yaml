@@ -7,6 +7,9 @@ services:
     App\EventListener\Security\TraceIdProcessor:
         tags:
             - { name: monolog.processor }
+    App\EventListener\Security\PiiMaskingProcessor:
+        tags:
+            - { name: monolog.processor }
 
 when@dev:
     monolog:
