@@ -68,7 +68,7 @@ class IngestRawRequestDto
      *     sandbox?: array<string, mixed>
      * }>|null
      */
-    #[OA\Property(type: 'array', nullable: true)]
+    #[OA\Property(type: 'array', items: new OA\Items(type: 'object'), nullable: true)]
     public ?array $attachments = null;
 
     /**

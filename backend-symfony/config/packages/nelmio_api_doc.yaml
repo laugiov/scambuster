@@ -14,10 +14,7 @@ nelmio_api_doc:
                 Bearer:
                     type: http
                     scheme: bearer
-                ApiKeyAuth:
-                    type: apiKey
-                    in: header
-                    name: X-API-Key
+                    bearerFormat: JWT
         security:
             - Bearer: []
     areas:

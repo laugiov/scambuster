@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\UI\Http\Communication;
 
 use App\Application\Communication\IocHandler;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -42,6 +43,31 @@ final class ExportMispController
      *
      * @return JsonResponse MISP Event JSON
      */
+    #[OA\Get(
+        path: '/api/v1/conversations/{id}/export/misp',
+        summary: 'Export conversation IOCs as MISP Event',
+        description: 'Returns a MISP Event JSON ready for import into MISP platform. Includes TLP marking and scam type tagging.',
+        tags: ['Communication'],
+        parameters: [
+            new OA\Parameter(name: 'id', in: 'path', required: true, description: 'Conversation UUID', schema: new OA\Schema(type: 'string', format: 'uuid')),
+        ],
+        responses: [
+            new OA\Response(response: 200, description: 'MISP Event JSON', content: new OA\JsonContent(
+                type: 'object',
+                properties: [
+                    new OA\Property(property: 'Event', type: 'object', properties: [
+                        new OA\Property(property: 'info', type: 'string', example: 'ScamBuster conversation abc-123'),
+                        new OA\Property(property: 'threat_level_id', type: 'integer', example: 2),
+                        new OA\Property(property: 'analysis', type: 'integer', example: 1),
+                        new OA\Property(property: 'distribution', type: 'integer', example: 3),
+                        new OA\Property(property: 'Attribute', type: 'array', items: new OA\Items(type: 'object')),
+                    ]),
+                ]
+            )),
+            new OA\Response(response: 404, description: 'No IOCs found for conversation'),
+        ],
+        security: [['Bearer' => []]]
+    )]
     #[Route('/api/v1/conversations/{id}/export/misp', methods: ['GET'])]
     #[IsGranted('ROLE_USER')]
     public function __invoke(string $id): JsonResponse
