@@ -11,9 +11,11 @@ echo "[scheduler] Tasks:"
 echo "  - app:close-stale-conversations  every 6h"
 echo "  - app:bandit:daily-report        daily at ~06:00 UTC"
 echo "  - app:cleanup:weekly             weekly (Sunday ~04:00 UTC)"
+echo "  - pg_dump backup                 daily at ~02:00 UTC"
 
 LAST_BANDIT_DAY=""
 LAST_CLEANUP_WEEK=""
+LAST_BACKUP_DAY=""
 
 while true; do
     CURRENT_HOUR=$(date -u +%H)
@@ -31,6 +33,28 @@ while true; do
         php /app/bin/console app:bandit:daily-report --no-interaction 2>&1 || \
             echo "[scheduler] WARNING: bandit:daily-report failed"
         LAST_BANDIT_DAY="$CURRENT_DAY"
+    fi
+
+    # ── Daily at 02:00 UTC: PostgreSQL backup ──
+    if [ "$CURRENT_HOUR" -ge 2 ] && [ "$LAST_BACKUP_DAY" != "$CURRENT_DAY" ]; then
+        BACKUP_DIR="/backups"
+        BACKUP_FILE="${BACKUP_DIR}/scambuster_${CURRENT_DAY}.sql.gz"
+        echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running PostgreSQL backup"
+        if pg_dump "${DATABASE_URL}" 2>/dev/null | gzip > "${BACKUP_FILE}"; then
+            BACKUP_SIZE=$(stat -f%z "${BACKUP_FILE}" 2>/dev/null || stat -c%s "${BACKUP_FILE}" 2>/dev/null || echo "0")
+            if [ "$BACKUP_SIZE" -gt 0 ]; then
+                echo "[scheduler] Backup OK: ${BACKUP_FILE} (${BACKUP_SIZE} bytes)"
+                # Cleanup backups older than 7 days
+                find "${BACKUP_DIR}" -name "scambuster_*.sql.gz" -mtime +7 -delete 2>/dev/null || true
+            else
+                echo "[scheduler] WARNING: Backup file is empty, removing"
+                rm -f "${BACKUP_FILE}"
+            fi
+        else
+            echo "[scheduler] WARNING: pg_dump failed"
+            rm -f "${BACKUP_FILE}"
+        fi
+        LAST_BACKUP_DAY="$CURRENT_DAY"
     fi
 
     # ── Weekly on Sunday at 04:00 UTC: cleanup ──
