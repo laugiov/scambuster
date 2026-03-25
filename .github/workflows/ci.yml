@@ -70,10 +70,22 @@ jobs:
       - name: Run unit tests
         run: docker compose exec backend-test vendor/bin/phpunit --testsuite unit --testdox --colors=never
 
+      - name: Debug — test Kernel boot
+        run: |
+          docker compose exec backend-test php -r "
+            require '/app/vendor/autoload.php';
+            require '/app/tests/bootstrap_ci.php';
+            echo 'Bootstrap OK\n';
+            \$k = new App\Kernel('test', false);
+            \$k->boot();
+            echo 'Kernel boot OK\n';
+          " || echo "Kernel boot failed"
+
       - name: Run integration tests (CI bootstrap, no DAMA)
+        if: always()
         run: |
           docker compose exec backend-test vendor/bin/phpunit \
             --bootstrap tests/bootstrap_ci.php \
             --testsuite integration \
             --no-extensions \
-            --testdox --colors=never
+            --testdox --colors=never 2>&1 | head -50
