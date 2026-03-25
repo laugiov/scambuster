@@ -5,9 +5,9 @@
 | Field | Value |
 |-------|-------|
 | System | ScamBuster -- Automated Scambaiting Honeypot |
-| Version | 1.0 |
+| Version | 1.1 |
 | Classification | Internal |
-| Last Updated | 2026-03-11 |
+| Last Updated | 2026-03-25 |
 
 ---
 
@@ -131,7 +131,7 @@ After all mitigations, the residual risk is **LOW**. The primary remaining risk 
 | Secrets management | HashiCorp Vault (API keys, IMAP credentials) |
 | Two-layer content validation | PolicyGuard (deterministic) + LLM Validator (semantic, gpt-4o-mini, temp=0.1) |
 | Kill switch | Environment variable-based, checked before every generation and send |
-| Rate limiting | Redis-backed Symfony rate-limiter at 3 levels |
+| Rate limiting | Redis-backed Symfony rate-limiter at 5 levels (login, API, LLM, per-sender, flood) |
 | Inbound-only enforcement | Data model FK constraints + handler exceptions + no outbound endpoint |
 | Data retention | PurgeService: anonymization at 6 months, hard delete at 12 months |
 | IOC validation | IocNormalizer + IocValidator (regex per type, checksum, format) |
@@ -143,11 +143,14 @@ After all mitigations, the residual risk is **LOW**. The primary remaining risk 
 
 | Measure | Description |
 |---------|-------------|
-| Access control | JWT-based authentication, role-based access |
-| Audit trail | LLM metadata (model, cost, approval) stored per message |
-| Automated testing | 1,039 automated tests (unit, integration, E2E) |
-| Code review | DDD architecture with strict layer separation |
-| Monitoring | SQL views for precision drift detection (7-day sliding window) |
+| Access control | JWT RS256 authentication (15min TTL), RBAC with 12 fine-grained permissions, PermissionVoter |
+| Audit trail | Append-only audit_log table with 16 event types, trace_id correlation, IP capture |
+| PII protection | PiiMaskingProcessor in Monolog (email + IP masking), no PII in application logs |
+| OWASP headers | 8 security headers (CSP, HSTS, X-Frame-Options, etc.) on all responses |
+| Database backup | Automated daily pg_dump (02:00 UTC), 7-day retention, verification |
+| Automated testing | 1,157+ automated tests (unit, integration, E2E) |
+| Code review | DDD architecture with strict layer separation, PHPStan level 6 |
+| Monitoring | Conversation lifecycle monitoring, LLM cost tracking, rate limit stats, convergence history |
 
 ---
 
@@ -196,11 +199,11 @@ This DPIA should be reviewed:
 
 ## Appendix: DPIA Checklist
 
-- [ ] Processing description is complete and accurate
-- [ ] Legal basis is identified and documented
-- [ ] Necessity and proportionality are justified
-- [ ] All risks are identified with mitigations
-- [ ] Technical and organizational measures are in place
-- [ ] Data subject rights procedures are defined
-- [ ] Review schedule is established
-- [ ] Relevant stakeholders have been consulted
+- [x] Processing description is complete and accurate
+- [x] Legal basis is identified and documented
+- [x] Necessity and proportionality are justified
+- [x] All risks are identified with mitigations (10 risks, all with controls)
+- [x] Technical and organizational measures are in place (v1.6.1 controls verified)
+- [x] Data subject rights procedures are defined
+- [x] Review schedule is established
+- [ ] Legal advisor review pending (recommended before enterprise deployment)
