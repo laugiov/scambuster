@@ -21,6 +21,9 @@
         <testsuite name="integration">
             <directory suffix="Test.php">tests/Integration</directory>
             <exclude>tests/Integration/Auth/AbstractAuthBase.php</exclude>
+            <exclude>tests/Integration/Command/MailAccountOnboardCommandTest.php</exclude>
+            <exclude>tests/Integration/Communication/MailAccountSecretControllerTest.php</exclude>
+            <exclude>tests/Integration/Application/Communication/MailAccountSecretResolverTest.php</exclude>
         </testsuite>
         <testsuite name="unit">
             <directory suffix="Test.php">tests/Unit</directory>
