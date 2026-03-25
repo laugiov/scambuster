@@ -33,8 +33,15 @@ class SecurityHeadersListener
         $headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
         $headers->set('Cross-Origin-Opener-Policy', 'same-origin');
         $headers->set('X-Permitted-Cross-Domain-Policies', 'none');
-        $headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
         $headers->set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+
+        // Swagger UI requires unsafe-inline/unsafe-eval for its inline scripts
+        $path = $event->getRequest()->getPathInfo();
+        if (str_starts_with($path, '/api/doc')) {
+            $headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+        } else {
+            $headers->set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+        }
 
         if (!$headers->has('Cache-Control')) {
             $headers->set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
