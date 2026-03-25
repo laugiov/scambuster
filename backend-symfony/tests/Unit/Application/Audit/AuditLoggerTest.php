@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Application\Audit;
 use App\Application\Audit\AuditLogger;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Audit\AuditLog;
+use App\Infrastructure\Siem\Adapter\NullSiemExporter;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -27,7 +28,7 @@ class AuditLoggerTest extends TestCase
 
         $em->expects($this->once())->method('flush');
 
-        $logger = new AuditLogger($em, new NullLogger(), new RequestStack());
+        $logger = new AuditLogger($em, new NullLogger(), new RequestStack(), new NullSiemExporter());
 
         $logger->log(
             eventType: AuditEventType::AUTH_SUCCESS,
@@ -42,7 +43,7 @@ class AuditLoggerTest extends TestCase
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('persist')->willThrowException(new \RuntimeException('DB down'));
 
-        $logger = new AuditLogger($em, new NullLogger(), new RequestStack());
+        $logger = new AuditLogger($em, new NullLogger(), new RequestStack(), new NullSiemExporter());
 
         // Should not throw — non-blocking
         $logger->log(
@@ -69,7 +70,7 @@ class AuditLoggerTest extends TestCase
 
         $em->expects($this->once())->method('flush');
 
-        $logger = new AuditLogger($em, new NullLogger(), new RequestStack());
+        $logger = new AuditLogger($em, new NullLogger(), new RequestStack(), new NullSiemExporter());
 
         $logger->log(
             eventType: AuditEventType::REPLY_GENERATED,
