@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Application\Communication;
+namespace Tests\Integration\Application\Communication;
 
 use App\Application\Communication\MailAccountSecretResolver;
 use App\Application\Communication\Dto\MailAccountSecretDto;

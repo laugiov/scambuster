@@ -31,3 +31,5 @@
 /phpunit.xml
 ###< symfony/phpunit-bridge ###
 scambuster-dataset-sample.json
+
+scheduler.sh
