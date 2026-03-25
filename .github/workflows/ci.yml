@@ -42,6 +42,14 @@ jobs:
           CAMPAIGN_PROMOTION_PPV_THRESHOLD=0.85
           CAMPAIGN_PROMOTION_MIN_HITS=5
           CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC=10800
+          REPLY_MIN_WORDS=50
+          REPLY_MAX_WORDS=150
+          REPLY_MAX_LINKS=1
+          LLM_VALIDATION_ENABLED=true
+          PROMPT_INJECTION_MODEL=gpt-4o-mini
+          PROMPT_INJECTION_TEMPERATURE=0.2
+          APP_API_BASE_URL=http://localhost:8080
+          N8N_ENCRYPTION_KEY=ci-test-n8n-key
           ENVEOF
           sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
