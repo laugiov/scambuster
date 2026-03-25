@@ -148,6 +148,9 @@
     "targetIdentity": "Identite cible",
     "scoreExplanation": "Explication du score",
     "stixContext": "Contexte STIX v2.1",
+    "confidence": "Confiance",
+    "effectiveScore": "Score effectif",
+    "decayFactor": "Decroissance",
     "loading": "Chargement des IOCs...",
     "failedLoad": "Echec du chargement des IOCs"
   },

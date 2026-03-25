@@ -390,16 +390,27 @@ final class ConversationController
         // Delegate to IocHandler for deduplicated IOC list
         $iocs = $this->iocHandler->getConversationIocs($convId);
 
-        $result = array_map(fn ($ioc) => [
-            'obs_id' => $ioc->getObsId(),
-            'ioc_id' => $ioc->getIndicatorId(),
-            'type' => $ioc->getContext()['type'] ?? '',
-            'value' => $ioc->getContext()['value'] ?? '',
-            'value_norm' => $ioc->getContext()['value_norm'] ?? '',
-            'score' => $ioc->getContext()['score'] ?? [],
-            'category' => $ioc->getContext()['category'] ?? '',
-            'ts_observed' => $ioc->getTsObserved()->format(DATE_ATOM),
-        ], $iocs);
+        $result = array_map(function ($ioc) {
+            $confidenceData = $this->iocHandler->computeConfidenceData(
+                $ioc->getIndicatorId(),
+                $ioc->getConfidenceScore(),
+                $ioc->getTsObserved(),
+            );
+
+            return [
+                'obs_id' => $ioc->getObsId(),
+                'ioc_id' => $ioc->getIndicatorId(),
+                'type' => $ioc->getContext()['type'] ?? '',
+                'value' => $ioc->getContext()['value'] ?? '',
+                'value_norm' => $ioc->getContext()['value_norm'] ?? '',
+                'score' => $ioc->getContext()['score'] ?? [],
+                'category' => $ioc->getContext()['category'] ?? '',
+                'ts_observed' => $ioc->getTsObserved()->format(DATE_ATOM),
+                'confidence' => $confidenceData['confidence'],
+                'decay_factor' => $confidenceData['decay_factor'],
+                'effective_score' => $confidenceData['effective_score'],
+            ];
+        }, $iocs);
 
         return new JsonResponse($result, Response::HTTP_OK);
     }
