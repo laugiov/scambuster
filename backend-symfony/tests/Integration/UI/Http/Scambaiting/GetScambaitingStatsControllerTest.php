@@ -11,21 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 final class GetScambaitingStatsControllerTest extends WebTestCase
 {
     private KernelBrowser $client;
-    private string $jwtToken;
 
     protected function setUp(): void
     {
         $this->client = static::createClient();
-
-        $this->client->request('POST', '/api/v1/auth/login', [], [], [
-            'CONTENT_TYPE' => 'application/json',
-        ], json_encode([
-            'email' => 'user@example.com',
-            'password' => 'Un1que$trongPassword2024',
-        ]));
-
-        $data = json_decode($this->client->getResponse()->getContent(), true);
-        $this->jwtToken = $data['access_token'] ?? '';
     }
 
     public function testGetStatsRequiresAuthentication(): void
@@ -38,7 +27,7 @@ final class GetScambaitingStatsControllerTest extends WebTestCase
     public function testGetStatsReturnsDataForValidScamType(): void
     {
         $this->client->request('GET', '/api/v1/scambaiting/stats/PHISHING', [], [], [
-            'HTTP_AUTHORIZATION' => "Bearer {$this->jwtToken}",
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 
         $this->assertResponseIsSuccessful();
@@ -49,10 +38,19 @@ final class GetScambaitingStatsControllerTest extends WebTestCase
         $this->assertArrayHasKey('data', $data);
     }
 
+    public function testGetStatsReturnsJsonContentType(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats/PHISHING', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseHeaderSame('content-type', 'application/json');
+    }
+
     public function testGetStatsReturnsErrorForInvalidScamType(): void
     {
         $this->client->request('GET', '/api/v1/scambaiting/stats/INVALID_SCAM_TYPE', [], [], [
-            'HTTP_AUTHORIZATION' => "Bearer {$this->jwtToken}",
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 
         $this->assertContains(
@@ -66,6 +64,26 @@ final class GetScambaitingStatsControllerTest extends WebTestCase
         }
     }
 
+    public function testGetStatsResponseStructure(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats/PHISHING', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('success', $data);
+        $this->assertIsBool($data['success']);
+        $this->assertArrayHasKey('data', $data);
+        $this->assertIsArray($data['data']);
+
+        // Verify the data structure contains expected fields
+        $statsData = $data['data'];
+        $this->assertArrayHasKey('scam_type_code', $statsData);
+        $this->assertSame('PHISHING', $statsData['scam_type_code']);
+    }
+
     public function testGetAllStatsRequiresAuthentication(): void
     {
         $this->client->request('GET', '/api/v1/scambaiting/stats');
@@ -76,7 +94,7 @@ final class GetScambaitingStatsControllerTest extends WebTestCase
     public function testGetAllStatsReturnsAggregatedData(): void
     {
         $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
-            'HTTP_AUTHORIZATION' => "Bearer {$this->jwtToken}",
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 
         $this->assertResponseIsSuccessful();
