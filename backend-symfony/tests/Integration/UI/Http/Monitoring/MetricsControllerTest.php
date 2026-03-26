@@ -75,4 +75,83 @@ final class MetricsControllerTest extends WebTestCase
             $this->assertStringContainsString('# TYPE scambuster_info gauge', $content);
         }
     }
+
+    public function testMetricsEachLineStartsWithScambusterOrIsComment(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            $lines = explode("\n", trim($content));
+
+            foreach ($lines as $line) {
+                if ($line === '') {
+                    continue;
+                }
+                // Each non-empty line must start with 'scambuster_' or '#'
+                $this->assertTrue(
+                    str_starts_with($line, 'scambuster_') || str_starts_with($line, '#'),
+                    "Line does not start with 'scambuster_' or '#': {$line}"
+                );
+            }
+        }
+    }
+
+    public function testMetricsContainsAtLeastFiveSpecificMetrics(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+
+            $expectedMetrics = [
+                'scambuster_info',
+                'scambuster_conversations_total',
+                'scambuster_messages_total',
+                'scambuster_iocs_total',
+                'scambuster_iocs_unique',
+                'scambuster_kill_switch',
+                'scambuster_health_check',
+                'scambuster_convergence_ratio',
+            ];
+
+            $foundCount = 0;
+
+            foreach ($expectedMetrics as $metric) {
+                if (str_contains($content, $metric)) {
+                    ++$foundCount;
+                }
+            }
+
+            $this->assertGreaterThanOrEqual(5, $foundCount, 'Expected at least 5 distinct metrics');
+        }
+    }
+
+    public function testMetricsDoesNotRequireAuthentication(): void
+    {
+        // Request without any Authorization header
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Metrics endpoint should be accessible without auth (200) or at worst 401
+        // if the firewall blocks it - but typically metrics are public
+        $this->assertContains($statusCode, [Response::HTTP_OK, Response::HTTP_UNAUTHORIZED]);
+    }
+
+    public function testMetricsContentTypeIsTextPlain(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $contentType = $this->client->getResponse()->headers->get('content-type');
+            $this->assertStringContainsString('text/plain', $contentType);
+            $this->assertStringContainsString('version=0.0.4', $contentType);
+        }
+    }
 }

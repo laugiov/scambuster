@@ -101,4 +101,70 @@ final class StoreRuleControllerTest extends WebTestCase
 
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    public function testStoreRuleRejectsMissingDslField(): void
+    {
+        $payload = [
+            'campaign_id' => '00000000-0000-0000-0000-000000000001',
+            'compiled_sql' => ['sql' => 'SELECT 1', 'params' => []],
+        ];
+
+        $this->client->request('POST', '/api/v1/campaign/rule', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertStringContainsString('campaign_id, dsl, and compiled_sql required', $data['error']);
+    }
+
+    public function testStoreRuleRejectsMissingCompiledSqlField(): void
+    {
+        $payload = [
+            'campaign_id' => '00000000-0000-0000-0000-000000000001',
+            'dsl' => 'RULE test { WHERE subject.simhash }',
+        ];
+
+        $this->client->request('POST', '/api/v1/campaign/rule', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testStoreRuleWithAdminToken(): void
+    {
+        $payload = [
+            'campaign_id' => '00000000-0000-0000-0000-000000000099',
+            'dsl' => 'RULE test { WHERE subject.simhash }',
+            'compiled_sql' => ['sql' => 'SELECT 1', 'params' => []],
+        ];
+
+        $this->client->request('POST', '/api/v1/campaign/rule', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        // Admin can also access - should reach handler (404 for unknown campaign)
+        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+    }
+
+    public function testStoreRuleRejectsEmptyBody(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/rule', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], '');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+    }
 }

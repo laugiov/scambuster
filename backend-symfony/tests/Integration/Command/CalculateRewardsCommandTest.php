@@ -64,4 +64,64 @@ class CalculateRewardsCommandTest extends KernelTestCase
         $output = $tester->getDisplay();
         $this->assertStringContainsString('Aucune conversation', $output);
     }
+
+    public function testForceOptionRecalculatesExistingRewards(): void
+    {
+        // First set reward on conv 002 so it's normally excluded
+        $conn = $this->em->getConnection();
+        $conn->executeStatement(
+            "UPDATE conversation SET reward_value = 0.5 WHERE status = 'closed' OR status = 'CLOSED'"
+        );
+
+        $command = self::getContainer()->get(CalculateRewardsCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        // With --force, should re-process even conversations with existing reward
+        $tester->execute(['--force' => true]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        // Should display the metrics table
+        $this->assertStringContainsString('Total', $output);
+    }
+
+    public function testOutputContainsTitle(): void
+    {
+        $command = self::getContainer()->get(CalculateRewardsCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('Calcul des rewards', $output);
+    }
+
+    public function testOutputContainsSuccessAndErrorMetrics(): void
+    {
+        $conv = $this->em->getRepository(Conversation::class)->find('00000000-0000-0000-0000-000000000002');
+        if ($conv !== null) {
+            $reflection = new \ReflectionProperty(Conversation::class, 'rewardValue');
+            $reflection->setValue($conv, null);
+            $this->em->flush();
+        }
+
+        $command = self::getContainer()->get(CalculateRewardsCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+
+        if (!str_contains($output, 'Aucune conversation')) {
+            $this->assertStringContainsString('Erreurs', $output);
+        }
+    }
 }

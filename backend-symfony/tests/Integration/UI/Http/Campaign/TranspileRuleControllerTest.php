@@ -84,4 +84,67 @@ final class TranspileRuleControllerTest extends WebTestCase
             $this->assertArrayHasKey('message', $data);
         }
     }
+
+    public function testTranspileWithValidDslReturns200(): void
+    {
+        $dsl = 'RULE test_rule { WHERE subject.simhash≈"urgent payment" ±15% AND dkim.pass ∈ {false, null} ACTION tag="test" }';
+
+        $this->client->request('POST', '/api/v1/campaign/transpile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['dsl' => $dsl]));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('sql', $data);
+        $this->assertArrayHasKey('params', $data);
+        $this->assertArrayHasKey('tests', $data);
+        $this->assertNotEmpty($data['sql']);
+    }
+
+    public function testTranspileWithAdminTokenWorks(): void
+    {
+        $dsl = 'RULE admin_rule { WHERE spf.pass ∈ {false, null} ACTION tag="spf_fail" }';
+
+        $this->client->request('POST', '/api/v1/campaign/transpile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['dsl' => $dsl]));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('sql', $data);
+    }
+
+    public function testTranspileWithEmptyDslStringReturns400(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/transpile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['dsl' => '']));
+
+        // Empty DSL will fail parsing (no WHERE clause)
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertSame('Transpilation failed', $data['error']);
+    }
+
+    public function testTranspileWithEmptyBodyReturns400(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/transpile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], '');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertSame('dsl is required', $data['error']);
+    }
 }

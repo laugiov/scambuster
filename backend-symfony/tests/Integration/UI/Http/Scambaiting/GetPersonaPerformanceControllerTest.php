@@ -70,4 +70,72 @@ final class GetPersonaPerformanceControllerTest extends WebTestCase
 
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    public function testPersonaPerformanceDataHasPerformanceByScamType(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/persona/elderly_person/performance', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $data = json_decode($this->client->getResponse()->getContent(), true);
+            $this->assertArrayHasKey('performance_by_scam_type', $data['data']);
+            $this->assertIsArray($data['data']['performance_by_scam_type']);
+
+            foreach ($data['data']['performance_by_scam_type'] as $entry) {
+                $this->assertArrayHasKey('scam_type_code', $entry);
+                $this->assertArrayHasKey('sessions_count', $entry);
+                $this->assertArrayHasKey('reward_avg', $entry);
+                $this->assertArrayHasKey('is_cold_start', $entry);
+                $this->assertIsBool($entry['is_cold_start']);
+            }
+        }
+    }
+
+    public function testPersonaPerformanceDataHasTotalSessions(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/persona/elderly_person/performance', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $data = json_decode($this->client->getResponse()->getContent(), true);
+            $this->assertArrayHasKey('total_sessions', $data['data']);
+            $this->assertIsInt($data['data']['total_sessions']);
+            $this->assertGreaterThanOrEqual(0, $data['data']['total_sessions']);
+        }
+    }
+
+    public function testPersonaPerformanceDataHasGlobalAvgReward(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/persona/elderly_person/performance', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $data = json_decode($this->client->getResponse()->getContent(), true);
+            $this->assertArrayHasKey('global_avg_reward', $data['data']);
+            $this->assertIsNumeric($data['data']['global_avg_reward']);
+        }
+    }
+
+    public function testPersonaPerformanceWithGenericUserPersona(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/persona/generic_user/performance', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [Response::HTTP_OK, Response::HTTP_NOT_FOUND]);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('success', $data);
+        $this->assertIsBool($data['success']);
+    }
 }

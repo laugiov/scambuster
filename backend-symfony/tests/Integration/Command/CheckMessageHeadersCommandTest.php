@@ -86,4 +86,43 @@ class CheckMessageHeadersCommandTest extends KernelTestCase
         $this->expectException(\Symfony\Component\Console\Exception\RuntimeException::class);
         $tester->execute([]);
     }
+
+    public function testOutputContainsThreadIdAndSendStatusHeaders(): void
+    {
+        $msgId = $this->connection->fetchOne('SELECT msg_id FROM message LIMIT 1');
+
+        if ($msgId === false) {
+            $this->markTestSkipped('No messages found in test database');
+        }
+
+        $app = new Application(self::$kernel);
+        $tester = new CommandTester($app->find('app:check-message-headers'));
+
+        $tester->execute(['msg_id' => (string) $msgId]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('Thread-ID:', $output);
+        $this->assertStringContainsString('Send Status:', $output);
+    }
+
+    public function testMultipleMessagesCanBeInspected(): void
+    {
+        $msgIds = $this->connection->fetchFirstColumn('SELECT msg_id FROM message LIMIT 2');
+
+        if (count($msgIds) < 2) {
+            $this->markTestSkipped('Need at least 2 messages in test database');
+        }
+
+        foreach ($msgIds as $msgId) {
+            $app = new Application(self::$kernel);
+            $tester = new CommandTester($app->find('app:check-message-headers'));
+
+            $tester->execute(['msg_id' => (string) $msgId]);
+
+            $this->assertSame(0, $tester->getStatusCode());
+            $output = $tester->getDisplay();
+            $this->assertStringContainsString('Message ID:', $output);
+        }
+    }
 }

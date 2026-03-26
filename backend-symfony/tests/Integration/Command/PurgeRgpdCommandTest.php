@@ -57,4 +57,32 @@ class PurgeRgpdCommandTest extends KernelTestCase
         $this->assertStringContainsString('Soft-deleted outbound conversations: 0', $output);
         $this->assertStringContainsString('Hard-deleted inbound conversations: 0', $output);
     }
+
+    public function testPurgeOutputContainsBothCountLines(): void
+    {
+        $command = self::getContainer()->get(PurgeRgpdCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        // Both lines should contain a numeric count
+        $this->assertMatchesRegularExpression('/Soft-deleted outbound conversations: \d+/', $output);
+        $this->assertMatchesRegularExpression('/Hard-deleted inbound conversations: \d+/', $output);
+    }
+
+    public function testPurgeReturnsSuccessExitCode(): void
+    {
+        $command = self::getContainer()->get(PurgeRgpdCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute([]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+    }
 }

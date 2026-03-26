@@ -49,4 +49,66 @@ final class GetAllScambaitingStatsControllerTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    public function testGetAllStatsDataItemsHaveScamTypeCode(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['data'] as $item) {
+            $this->assertArrayHasKey('scam_type_code', $item);
+            $this->assertIsString($item['scam_type_code']);
+            $this->assertNotEmpty($item['scam_type_code']);
+        }
+    }
+
+    public function testGetAllStatsDataItemsHaveTotalSessions(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['data'] as $item) {
+            $this->assertArrayHasKey('total_sessions', $item);
+            $this->assertIsInt($item['total_sessions']);
+            $this->assertGreaterThanOrEqual(0, $item['total_sessions']);
+        }
+    }
+
+    public function testGetAllStatsDataItemsHaveAvgReward(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['data'] as $item) {
+            $this->assertArrayHasKey('avg_reward', $item);
+            $this->assertIsNumeric($item['avg_reward']);
+        }
+    }
+
+    public function testGetAllStatsSuccessIsTrue(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(true, $data['success']);
+    }
 }
