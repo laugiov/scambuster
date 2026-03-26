@@ -205,6 +205,22 @@ jobs:
       - name: Run integration tests
         run: docker compose exec backend-test vendor/bin/phpunit --configuration phpunit.ci.xml --testsuite integration --testdox --colors=never
 
+      - name: Generate coverage report
+        if: always()
+        run: docker compose exec backend-test vendor/bin/phpunit --testsuite unit,integration --coverage-clover /tmp/coverage.xml --colors=never 2>/dev/null || true
+
+      - name: Extract coverage from container
+        if: always()
+        run: docker compose cp backend-test:/tmp/coverage.xml ./coverage.xml 2>/dev/null || true
+
+      - name: Upload to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
