@@ -43,10 +43,10 @@ final class MockLLMClient implements LLMClientInterface
             ], JSON_THROW_ON_ERROR);
         }
 
-        return 'Thank you for your message. I am very interested in learning more about this opportunity. '
-             . 'Could you please provide additional details about the process? '
-             . 'I want to make sure everything is legitimate before proceeding. '
-             . 'What documents or information would you need from me?';
+        return 'Merci pour votre message. Je suis très intéressé par cette proposition. '
+             . 'Pourriez-vous me fournir des informations complémentaires sur la procédure ? '
+             . 'Je souhaite m\'assurer que tout est en ordre avant de poursuivre. '
+             . 'Quels documents ou informations auriez-vous besoin de ma part ?';
     }
 
     private function campaignProfile(): string
