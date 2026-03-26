@@ -199,22 +199,19 @@ jobs:
           docker compose exec backend-test php bin/console doctrine:migrations:migrate --no-interaction --env=test
           docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
 
-      - name: Run unit tests
-        run: docker compose exec backend-test vendor/bin/phpunit --testsuite unit --testdox --colors=never
-
-      - name: Run integration tests
-        run: docker compose exec backend-test vendor/bin/phpunit --configuration phpunit.ci.xml --testsuite integration --testdox --colors=never
-
-      - name: Generate coverage report
-        if: always()
+      - name: Run tests with coverage
         run: |
           docker compose exec backend-test vendor/bin/phpunit \
             --configuration phpunit.ci.xml \
             --testsuite unit,integration \
             --coverage-clover /tmp/coverage.xml \
-            --colors=never || true
+            --testdox --colors=never
+
+      - name: Extract coverage
+        if: always()
+        run: |
           docker compose exec backend-test cat /tmp/coverage.xml > coverage.xml 2>/dev/null || true
-          wc -c coverage.xml || echo "coverage.xml empty or missing"
+          wc -c coverage.xml
 
       - name: Upload to Codecov
         if: always()
