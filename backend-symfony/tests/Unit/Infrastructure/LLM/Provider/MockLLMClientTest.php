@@ -152,8 +152,14 @@ class MockLLMClientTest extends TestCase
             ['role' => 'user', 'content' => 'I have a business proposition for you'],
         ]);
 
-        // The default response asks for more details (scambaiting tactic)
-        $this->assertStringContainsString('additional details', $result);
-        $this->assertStringContainsString('legitimate', $result);
+        // The default response asks for more details (scambaiting tactic, EN or FR)
+        $this->assertTrue(
+            str_contains($result, 'additional details') || str_contains($result, 'informations complémentaires'),
+            'Response should ask for more details'
+        );
+        $this->assertTrue(
+            str_contains($result, 'legitimate') || str_contains($result, 'en ordre'),
+            'Response should mention legitimacy'
+        );
     }
 }
