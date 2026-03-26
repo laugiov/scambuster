@@ -213,15 +213,55 @@ jobs:
           docker compose exec backend-test cat /tmp/coverage.xml > coverage-unit-integration.xml 2>/dev/null || true
           wc -c coverage-unit-integration.xml
 
-      # E2E tests run locally only (make endToEndTest) — they require JWT keys
-      # and e2e-specific fixtures not available in CI runners.
-      # Coverage: unit+integration = ~40% (CI), unit+integration+e2e = ~52% (local)
+      - name: Generate JWT keys for E2E
+        if: always()
+        run: |
+          mkdir -p backend-symfony/config/jwt
+          openssl genpkey -algorithm RSA \
+            -out backend-symfony/config/jwt/private.pem \
+            -aes-256-cbc -pass pass:scambuster-jwt-dev-passphrase \
+            -pkeyopt rsa_keygen_bits:2048 2>/dev/null
+          openssl rsa \
+            -in backend-symfony/config/jwt/private.pem \
+            -pubout -out backend-symfony/config/jwt/public.pem \
+            -passin pass:scambuster-jwt-dev-passphrase 2>/dev/null
+          chmod 644 backend-symfony/config/jwt/*.pem
+          echo "JWT keys generated for E2E"
 
-      - name: Upload to Codecov
+      - name: Start E2E container
+        if: always()
+        run: |
+          docker compose up -d --build backend-e2e
+          for i in $(seq 1 30); do docker compose exec backend-e2e php -v > /dev/null 2>&1 && break || sleep 2; done
+
+      - name: Setup E2E database
+        if: always()
+        run: |
+          docker compose exec --user root backend-e2e composer install --no-interaction --no-progress 2>/dev/null
+          docker compose exec --user root backend-e2e sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
+          docker compose exec backend-e2e php bin/console doctrine:database:create --if-not-exists --env=e2e
+          docker compose exec backend-e2e php bin/console doctrine:migrations:migrate --no-interaction --env=e2e
+          docker compose exec backend-e2e php bin/console doctrine:fixtures:load --no-interaction --env=e2e
+
+      - name: Run E2E tests with coverage
+        if: always()
+        run: |
+          docker compose exec backend-e2e vendor/bin/phpunit \
+            --testsuite endtoend \
+            --coverage-clover /tmp/coverage-e2e.xml \
+            --colors=never || true
+
+      - name: Extract E2E coverage
+        if: always()
+        run: |
+          docker compose exec backend-e2e cat /tmp/coverage-e2e.xml > coverage-e2e.xml 2>/dev/null || true
+          wc -c coverage-e2e.xml
+
+      - name: Upload to Codecov (unit + integration + e2e merged)
         if: always()
         uses: codecov/codecov-action@v4
         with:
-          files: ./coverage-unit-integration.xml
+          files: ./coverage-unit-integration.xml,./coverage-e2e.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
