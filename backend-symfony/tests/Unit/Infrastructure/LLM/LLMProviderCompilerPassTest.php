@@ -12,6 +12,10 @@ use App\Infrastructure\LLM\Provider\OllamaClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
+/**
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
+ */
 class LLMProviderCompilerPassTest extends TestCase
 {
     private ?string $originalProvider = null;
