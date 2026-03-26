@@ -15,6 +15,10 @@ use App\Infrastructure\Siem\SiemCompilerPass;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
+/**
+ * @runTestsInSeparateProcesses
+ * @preserveGlobalState disabled
+ */
 class SiemCompilerPassTest extends TestCase
 {
     private ?string $originalProvider = null;
