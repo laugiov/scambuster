@@ -147,4 +147,53 @@ final class TranspileRuleControllerTest extends WebTestCase
         $this->assertArrayHasKey('error', $data);
         $this->assertSame('dsl is required', $data['error']);
     }
+
+    public function testTranspileWithNullBodyReturns400(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/transpile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], 'null');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testTranspileSuccessResponseHasAllFields(): void
+    {
+        $dsl = 'RULE full_rule { WHERE subject.simhash≈"payment" ±15% AND spf.pass ∈ {false, null} ACTION tag="suspicious" }';
+
+        $this->client->request('POST', '/api/v1/campaign/transpile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['dsl' => $dsl]));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('sql', $data);
+        $this->assertArrayHasKey('params', $data);
+        $this->assertArrayHasKey('tests', $data);
+        $this->assertIsString($data['sql']);
+        $this->assertIsArray($data['params']);
+        $this->assertIsArray($data['tests']);
+    }
+
+    public function testTranspileErrorResponseHasErrorAndMessage(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/transpile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['dsl' => '']));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertArrayHasKey('message', $data);
+        $this->assertSame('Transpilation failed', $data['error']);
+        $this->assertIsString($data['message']);
+    }
 }

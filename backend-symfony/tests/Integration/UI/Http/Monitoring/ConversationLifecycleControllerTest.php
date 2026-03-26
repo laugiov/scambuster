@@ -134,4 +134,51 @@ final class ConversationLifecycleControllerTest extends WebTestCase
         $data = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertIsInt($data['reopened_today']);
     }
+
+    public function testConversationLifecycleWithAdminAuth(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/conversation-lifecycle', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('active', $data);
+        $this->assertArrayHasKey('about_to_timeout', $data);
+    }
+
+    public function testConversationLifecycleCountsAreNonNegative(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/conversation-lifecycle', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertGreaterThanOrEqual(0, $data['active']);
+        $this->assertGreaterThanOrEqual(0, $data['about_to_timeout']);
+        $this->assertGreaterThanOrEqual(0, $data['completed_today']);
+        $this->assertGreaterThanOrEqual(0, $data['reopened_today']);
+    }
+
+    public function testConversationLifecycleAboutToTimeoutListItemsHaveHoursRemaining(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/conversation-lifecycle', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['about_to_timeout_list'] as $item) {
+            $this->assertIsNumeric($item['hours_remaining']);
+            $this->assertIsInt($item['timeout_hours']);
+            $this->assertIsString($item['conv_id']);
+            $this->assertIsString($item['scam_type']);
+            $this->assertIsString($item['persona']);
+        }
+    }
 }

@@ -96,4 +96,68 @@ final class LoginControllerTest extends WebTestCase
             Response::HTTP_UNPROCESSABLE_ENTITY,
         ]);
     }
+
+    public function testLoginWithMissingPasswordReturnsValidationError(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/login', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['email' => 'user@example.com']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Missing password should trigger validation error (422) or auth failure (401)
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            Response::HTTP_UNAUTHORIZED,
+        ]);
+    }
+
+    public function testLoginWithMissingEmailReturnsValidationError(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/login', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['password' => 'SomePassword123!']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            Response::HTTP_UNAUTHORIZED,
+        ]);
+    }
+
+    public function testLoginSuccessResponseContainsAllFields(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/login', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode([
+            'email' => 'user@example.com',
+            'password' => 'Un1que$trongPassword2024',
+        ]));
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsString($data['access_token']);
+        $this->assertIsString($data['refresh_token']);
+        $this->assertIsInt($data['expires_in']);
+        $this->assertGreaterThan(0, $data['expires_in']);
+    }
+
+    public function testLoginFailureMessageIsLowercase(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/login', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode([
+            'email' => 'wrong@example.com',
+            'password' => 'wrongpassword',
+        ]));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('message', $data);
+        // LoginController lowercases the error message
+        $this->assertSame(strtolower($data['message']), $data['message']);
+    }
 }

@@ -58,4 +58,68 @@ final class RefreshControllerTest extends WebTestCase
 
         $this->assertStringContainsString('application/json', $this->client->getResponse()->headers->get('Content-Type') ?? '');
     }
+
+    public function testRefreshWithEmptyBodyReturnsError(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/refresh', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], '');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+            Response::HTTP_UNAUTHORIZED,
+        ]);
+    }
+
+    public function testRefreshWithValidTokenFromLogin(): void
+    {
+        // Login to get a valid refresh token
+        $this->client->request('POST', '/api/v1/auth/login', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode([
+            'email' => 'user@example.com',
+            'password' => 'Un1que$trongPassword2024',
+        ]));
+
+        $loginData = json_decode($this->client->getResponse()->getContent(), true);
+
+        if (!isset($loginData['refresh_token'])) {
+            $this->markTestSkipped('Login did not return refresh token');
+        }
+
+        // Now refresh
+        $this->client->request('POST', '/api/v1/auth/refresh', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['refresh_token' => $loginData['refresh_token']]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Should return 200 with new tokens or 401 if token already consumed
+        $this->assertContains($statusCode, [
+            Response::HTTP_OK,
+            Response::HTTP_UNAUTHORIZED,
+        ]);
+
+        if ($statusCode === Response::HTTP_OK) {
+            $data = json_decode($this->client->getResponse()->getContent(), true);
+            $this->assertArrayHasKey('access_token', $data);
+            $this->assertArrayHasKey('refresh_token', $data);
+            $this->assertArrayHasKey('expires_in', $data);
+        }
+    }
+
+    public function testRefreshUnauthorizedResponseContainsMessage(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/refresh', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['refresh_token' => 'invalid-token-123']));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('message', $data);
+        // Message should be lowercase (controller does strtolower)
+        $this->assertSame(strtolower($data['message']), $data['message']);
+    }
 }

@@ -85,4 +85,39 @@ class PurgeRgpdCommandTest extends KernelTestCase
 
         $this->assertSame(0, $tester->getStatusCode());
     }
+
+    public function testPurgeRunningTwiceIsIdempotent(): void
+    {
+        $command = self::getContainer()->get(PurgeRgpdCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        // First run
+        $tester->execute([]);
+        $this->assertSame(0, $tester->getStatusCode());
+
+        // Second run should also succeed (no duplicates or errors)
+        $tester->execute([]);
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        $this->assertMatchesRegularExpression('/Soft-deleted outbound conversations: \d+/', $output);
+        $this->assertMatchesRegularExpression('/Hard-deleted inbound conversations: \d+/', $output);
+    }
+
+    public function testOutputContainsInfoTags(): void
+    {
+        $command = self::getContainer()->get(PurgeRgpdCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        // Run with decorated output to see the info tags
+        $tester->execute([]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('Soft-deleted outbound conversations:', $output);
+        $this->assertStringContainsString('Hard-deleted inbound conversations:', $output);
+    }
 }

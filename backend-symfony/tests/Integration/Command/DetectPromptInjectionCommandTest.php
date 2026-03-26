@@ -149,4 +149,101 @@ class DetectPromptInjectionCommandTest extends KernelTestCase
 
         $this->assertSame(0, $tester->getStatusCode());
     }
+
+    public function testPatternOnlyNoteIsShown(): void
+    {
+        self::bootKernel();
+
+        $command = self::getContainer()->get(DetectPromptInjectionCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute([
+            '--pattern-only' => true,
+            '--dry-run' => true,
+            '--force' => true,
+            '--limit' => '5',
+        ]);
+
+        $output = $tester->getDisplay();
+
+        if (str_contains($output, 'Found')) {
+            $this->assertStringContainsString('Pattern-only mode', $output);
+        } else {
+            $this->assertStringContainsString('No messages to analyze', $output);
+        }
+    }
+
+    public function testNonDryRunWithForceAndPatternOnly(): void
+    {
+        self::bootKernel();
+
+        $command = self::getContainer()->get(DetectPromptInjectionCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        // Non-dry-run with pattern-only to avoid LLM calls, limit 1
+        $tester->execute([
+            '--pattern-only' => true,
+            '--force' => true,
+            '--limit' => '1',
+        ]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+
+        if (str_contains($output, 'Found')) {
+            // Should show success message, not dry-run note
+            $this->assertStringContainsString('Analysis complete', $output);
+            $this->assertStringNotContainsString('no data was persisted', $output);
+        } else {
+            $this->assertStringContainsString('No messages to analyze', $output);
+        }
+    }
+
+    public function testTitleIsAlwaysShown(): void
+    {
+        self::bootKernel();
+
+        $command = self::getContainer()->get(DetectPromptInjectionCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute([
+            '--pattern-only' => true,
+            '--dry-run' => true,
+            '--conversation' => '99999999-9999-9999-9999-999999999999',
+        ]);
+
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('Prompt Injection Detection', $output);
+    }
+
+    public function testMediumRiskColumnInTable(): void
+    {
+        self::bootKernel();
+
+        $command = self::getContainer()->get(DetectPromptInjectionCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute([
+            '--pattern-only' => true,
+            '--dry-run' => true,
+            '--force' => true,
+            '--limit' => '3',
+        ]);
+
+        $output = $tester->getDisplay();
+
+        if (str_contains($output, 'Found')) {
+            $this->assertStringContainsString('Medium risk', $output);
+        } else {
+            $this->assertStringContainsString('No messages to analyze', $output);
+        }
+    }
 }

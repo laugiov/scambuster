@@ -111,4 +111,64 @@ final class GetAllScambaitingStatsControllerTest extends WebTestCase
         $data = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertSame(true, $data['success']);
     }
+
+    public function testGetAllStatsWithAdminAuth(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertTrue($data['success']);
+        $this->assertIsArray($data['data']);
+    }
+
+    public function testGetAllStatsDataIsArrayNotObject(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        // data should be a sequential array, not an associative object
+        $this->assertIsArray($data['data']);
+
+        if (count($data['data']) > 0) {
+            // First key should be 0 (sequential array)
+            $this->assertArrayHasKey(0, $data['data']);
+        }
+    }
+
+    public function testGetAllStatsDataItemsHaveAllExpectedFields(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['data'] as $item) {
+            $this->assertArrayHasKey('scam_type_code', $item);
+            $this->assertArrayHasKey('total_sessions', $item);
+            $this->assertArrayHasKey('avg_reward', $item);
+            $this->assertIsString($item['scam_type_code']);
+            $this->assertIsInt($item['total_sessions']);
+            $this->assertIsNumeric($item['avg_reward']);
+        }
+    }
+
+    public function testGetAllStatsReturnsHttp200(): void
+    {
+        $this->client->request('GET', '/api/v1/scambaiting/stats', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_OK);
+    }
 }

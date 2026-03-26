@@ -104,4 +104,42 @@ final class RateLimitControllerTest extends WebTestCase
         $this->assertIsInt($data['llm_calls_limit']);
         $this->assertIsInt($data['active_conversations_limit']);
     }
+
+    public function testRateLimitWithAdminAuth(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/rate-limits', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('llm_calls_limit', $data);
+    }
+
+    public function testRateLimitLimitsArePositive(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/rate-limits', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertGreaterThan(0, $data['llm_calls_limit']);
+        $this->assertGreaterThan(0, $data['active_conversations_limit']);
+    }
+
+    public function testRateLimitQuarantinedSendersIsNonNegative(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/rate-limits', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertGreaterThanOrEqual(0, $data['quarantined_senders_today']);
+    }
 }

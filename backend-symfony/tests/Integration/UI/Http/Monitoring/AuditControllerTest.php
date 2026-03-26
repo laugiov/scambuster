@@ -176,4 +176,166 @@ final class AuditControllerTest extends WebTestCase
         $data = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertSame(0, $data['offset']);
     }
+
+    public function testAuditEndpointWithEventTypeFilterReturnsMatchingResults(): void
+    {
+        // Use a real event_type that likely exists from audit logging
+        $this->client->request('GET', '/api/v1/monitoring/audit?event_type=auth.login', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertIsInt($data['total']);
+
+        // All returned events should match the filter
+        foreach ($data['events'] as $event) {
+            $this->assertSame('auth.login', $event['event_type']);
+        }
+    }
+
+    public function testAuditEndpointWithActorIdFilter(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?actor_id=system', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertIsInt($data['total']);
+
+        // All returned events should match the actor_id filter
+        foreach ($data['events'] as $event) {
+            $this->assertSame('system', $event['actor_id']);
+        }
+    }
+
+    public function testAuditEndpointWithBothEventTypeAndActorIdFilters(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?event_type=auth.login&actor_id=system', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        // With both filters, should still return valid structure
+        $this->assertArrayHasKey('total', $data);
+        $this->assertArrayHasKey('events', $data);
+    }
+
+    public function testAuditEndpointWithNoFiltersReturnsAllEvents(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        // Default limit is 50, offset is 0
+        $this->assertSame(50, $data['limit']);
+        $this->assertSame(0, $data['offset']);
+        $this->assertIsArray($data['events']);
+    }
+
+    public function testAuditEndpointWithVeryLargeOffset(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?offset=999999999', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(999999999, $data['offset']);
+        $this->assertCount(0, $data['events']);
+        // Total count should still be accurate even with huge offset
+        $this->assertIsInt($data['total']);
+    }
+
+    public function testAuditEndpointWithEmptyStringEventType(): void
+    {
+        // Empty string should be treated as no filter (eventType !== '' check)
+        $this->client->request('GET', '/api/v1/monitoring/audit?event_type=', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('total', $data);
+        $this->assertArrayHasKey('events', $data);
+    }
+
+    public function testAuditEndpointWithEmptyStringActorId(): void
+    {
+        // Empty string should be treated as no filter (actorId !== '' check)
+        $this->client->request('GET', '/api/v1/monitoring/audit?actor_id=', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('total', $data);
+        $this->assertArrayHasKey('events', $data);
+    }
+
+    public function testAuditEndpointWithZeroLimit(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?limit=0', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(0, $data['limit']);
+        $this->assertCount(0, $data['events']);
+    }
+
+    public function testAuditEndpointDefaultLimitIs50(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(50, $data['limit']);
+    }
+
+    public function testAuditEndpointEventsHaveAllRequiredFields(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?limit=5', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $expectedFields = [
+            'id', 'event_type', 'actor_type', 'actor_id',
+            'resource_type', 'resource_id', 'action', 'outcome',
+            'details', 'ip_address', 'trace_id', 'created_at',
+        ];
+
+        foreach ($data['events'] as $event) {
+            foreach ($expectedFields as $field) {
+                $this->assertArrayHasKey($field, $event, "Event missing field: {$field}");
+            }
+            // details should be decoded JSON (array or null)
+            $this->assertTrue(
+                is_array($event['details']) || $event['details'] === null,
+                'Event details should be decoded JSON'
+            );
+        }
+    }
 }

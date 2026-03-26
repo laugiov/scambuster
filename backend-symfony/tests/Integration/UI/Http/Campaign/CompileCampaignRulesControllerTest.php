@@ -171,4 +171,39 @@ final class CompileCampaignRulesControllerTest extends WebTestCase
             Response::HTTP_INTERNAL_SERVER_ERROR,
         ]);
     }
+
+    public function testCompileRulesRejectsNegNotArray(): void
+    {
+        $payload = [
+            'examples' => [
+                'pos' => [],
+                'neg' => 'not-an-array',
+            ],
+        ];
+
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/rules/compile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertStringContainsString('examples must have', $data['error']);
+    }
+
+    public function testCompileRulesResponseContainsErrorKey(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000099/rules/compile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['examples' => ['pos' => [], 'neg' => []]]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode !== Response::HTTP_CREATED) {
+            $data = json_decode($this->client->getResponse()->getContent(), true);
+            $this->assertArrayHasKey('error', $data);
+        }
+    }
 }

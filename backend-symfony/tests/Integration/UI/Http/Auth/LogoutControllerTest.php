@@ -99,4 +99,43 @@ final class LogoutControllerTest extends WebTestCase
             $this->assertStringContainsString('application/json', $contentType);
         }
     }
+
+    public function testLogoutWithEmptyBodyReturnsError(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/logout', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], '');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+        ]);
+    }
+
+    public function testLogoutWithNullBodyReturnsError(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/logout', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], 'null');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_UNPROCESSABLE_ENTITY,
+        ]);
+    }
+
+    public function testLogoutErrorResponseContainsMessageKey(): void
+    {
+        $this->client->request('POST', '/api/v1/auth/logout', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], '{invalid json}');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('message', $data);
+    }
 }

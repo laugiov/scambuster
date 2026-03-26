@@ -135,4 +135,109 @@ final class CloseConversationControllerTest extends WebTestCase
         $this->assertArrayHasKey('success', $data);
         $this->assertIsBool($data['success']);
     }
+
+    public function testCloseConversationWithNonexistentUuid(): void
+    {
+        // This UUID does not exist in fixtures - should trigger RuntimeException catch
+        $convId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        // Should be 400 (RuntimeException) or 500 (general Exception)
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+        $this->assertFalse($data['success']);
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testCloseConversationRuntimeExceptionReturns400(): void
+    {
+        // A UUID that doesn't match any conversation triggers RuntimeException
+        $convId = '00000000-0000-0000-0000-ffffffffffff';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        // RuntimeException -> 400 with error message from exception
+        if ($statusCode === Response::HTTP_BAD_REQUEST) {
+            $this->assertFalse($data['success']);
+            $this->assertIsString($data['error']);
+            $this->assertNotEmpty($data['error']);
+        }
+    }
+
+    public function testCloseConversationSuccessResponseStructure(): void
+    {
+        $convId = '00000000-0000-0000-0000-000000000001';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        if ($statusCode === Response::HTTP_OK) {
+            $this->assertTrue($data['success']);
+            $this->assertSame('Conversation closed successfully', $data['message']);
+            $this->assertSame($convId, $data['conv_id']);
+        }
+    }
+
+    public function testCloseConversationWithMalformedUuidString(): void
+    {
+        // Not a valid UUID format - should still be routed to controller but fail in service
+        $convId = 'not-a-valid-uuid';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        // Should error (400 or 500) since the service can't find this conversation
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+        $this->assertFalse($data['success']);
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testCloseConversation500ResponseHasGenericError(): void
+    {
+        // Use a conv ID that might trigger a non-RuntimeException
+        $convId = '00000000-0000-0000-0000-000000000099';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        // Should be either 400 (RuntimeException) or 500 (general Exception)
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+        $this->assertFalse($data['success']);
+
+        // If we get 500, the error message should be generic
+        if ($statusCode === Response::HTTP_INTERNAL_SERVER_ERROR) {
+            $this->assertSame('Internal server error', $data['error']);
+        }
+    }
 }

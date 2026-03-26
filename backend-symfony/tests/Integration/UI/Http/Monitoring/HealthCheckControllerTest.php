@@ -104,4 +104,70 @@ final class HealthCheckControllerTest extends WebTestCase
         $this->assertArrayHasKey('status', $data);
         $this->assertContains($data['status'], ['ok', 'degraded', 'error']);
     }
+
+    public function testHealthCheckWhenDatabaseIsAvailable(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        // If database is available, status should be 200 and database check should be ok
+        if ($statusCode === Response::HTTP_OK) {
+            $this->assertSame('ok', $data['status']);
+            $this->assertSame('ok', $data['checks']['database']['status']);
+            $this->assertIsInt($data['checks']['database']['latency_ms']);
+            $this->assertGreaterThanOrEqual(0, $data['checks']['database']['latency_ms']);
+        }
+    }
+
+    public function testHealthCheckVersionMatchesSemverFormat(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('version', $data);
+        // Version should match semver-like format (e.g., 1.3.0)
+        $this->assertMatchesRegularExpression(
+            '/^\d+\.\d+\.\d+/',
+            $data['version'],
+            'Version should follow semver format (X.Y.Z)'
+        );
+    }
+
+    public function testHealthCheckReturns200WhenHealthy(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        // The controller has a branch: status ok => 200, otherwise => 503
+        if ($data['status'] === 'ok') {
+            $this->assertSame(Response::HTTP_OK, $statusCode);
+        } else {
+            $this->assertSame(Response::HTTP_SERVICE_UNAVAILABLE, $statusCode);
+        }
+    }
+
+    public function testHealthCheckUptimeSecondsIsPresent(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('uptime_seconds', $data);
+        $this->assertIsInt($data['uptime_seconds']);
+        $this->assertGreaterThanOrEqual(0, $data['uptime_seconds']);
+    }
+
+    public function testHealthCheckRedisCheckHasStatusAndLatency(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $redisCheck = $data['checks']['redis'] ?? [];
+        $this->assertArrayHasKey('status', $redisCheck);
+        $this->assertArrayHasKey('latency_ms', $redisCheck);
+        $this->assertContains($redisCheck['status'], ['ok', 'error']);
+    }
 }

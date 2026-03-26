@@ -142,4 +142,61 @@ final class LlmCostControllerTest extends WebTestCase
         $this->assertArrayHasKey('total_prompt_tokens', $currentMonth);
         $this->assertArrayHasKey('total_completion_tokens', $currentMonth);
     }
+
+    public function testLlmCostWithAdminAuth(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/llm-cost', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('current_month', $data);
+    }
+
+    public function testLlmCostCurrentMonthPctUsedIsNumeric(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/llm-cost', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $currentMonth = $data['current_month'];
+
+        $this->assertArrayHasKey('pct_used', $currentMonth);
+        $this->assertIsNumeric($currentMonth['pct_used']);
+        $this->assertGreaterThanOrEqual(0, $currentMonth['pct_used']);
+    }
+
+    public function testLlmCostCurrentMonthLimitUsdIsPositive(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/llm-cost', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $currentMonth = $data['current_month'];
+
+        $this->assertArrayHasKey('limit_usd', $currentMonth);
+        $this->assertIsNumeric($currentMonth['limit_usd']);
+        $this->assertGreaterThan(0, $currentMonth['limit_usd']);
+    }
+
+    public function testLlmCostTotalUsdIsNonNegative(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/llm-cost', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertGreaterThanOrEqual(0, $data['current_month']['total_usd']);
+    }
 }

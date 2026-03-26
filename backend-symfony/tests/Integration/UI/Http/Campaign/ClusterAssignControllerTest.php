@@ -96,4 +96,33 @@ final class ClusterAssignControllerTest extends WebTestCase
         $data = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertIsArray($data);
     }
+
+    public function testClusterAssignWithAdminToken(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/cluster/assign', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['msg_id' => '00000000-0000-0000-0000-000000000099']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_OK,
+            Response::HTTP_CREATED,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testClusterAssignRejectsNullBody(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/cluster/assign', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], 'null');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertSame('msg_id is required', $data['error']);
+    }
 }
