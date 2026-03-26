@@ -207,17 +207,47 @@ jobs:
             --coverage-clover /tmp/coverage.xml \
             --testdox --colors=never
 
-      - name: Extract coverage
+      - name: Extract unit+integration coverage
         if: always()
         run: |
-          docker compose exec backend-test cat /tmp/coverage.xml > coverage.xml 2>/dev/null || true
-          wc -c coverage.xml
+          docker compose exec backend-test cat /tmp/coverage.xml > coverage-unit-integration.xml 2>/dev/null || true
+          wc -c coverage-unit-integration.xml
 
-      - name: Upload to Codecov
+      - name: Start E2E container
+        if: always()
+        run: |
+          docker compose up -d --build backend-e2e
+          echo "Waiting for backend-e2e..."
+          for i in $(seq 1 30); do docker compose exec backend-e2e php -v > /dev/null 2>&1 && break || sleep 2; done
+
+      - name: Setup E2E database
+        if: always()
+        run: |
+          docker compose exec --user root backend-e2e composer install --no-interaction --no-progress 2>/dev/null
+          docker compose exec --user root backend-e2e sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
+          docker compose exec backend-e2e php bin/console doctrine:database:create --if-not-exists --env=e2e
+          docker compose exec backend-e2e php bin/console doctrine:migrations:migrate --no-interaction --env=e2e
+          docker compose exec backend-e2e php bin/console doctrine:fixtures:load --no-interaction --env=e2e
+
+      - name: Run E2E tests with coverage (non-blocking)
+        if: always()
+        run: |
+          docker compose exec backend-e2e vendor/bin/phpunit \
+            --testsuite endtoend \
+            --coverage-clover /tmp/coverage-e2e.xml \
+            --colors=never || true
+
+      - name: Extract E2E coverage
+        if: always()
+        run: |
+          docker compose exec backend-e2e cat /tmp/coverage-e2e.xml > coverage-e2e.xml 2>/dev/null || true
+          wc -c coverage-e2e.xml
+
+      - name: Upload to Codecov (merged unit+integration+e2e)
         if: always()
         uses: codecov/codecov-action@v4
         with:
-          files: ./coverage.xml
+          files: ./coverage-unit-integration.xml,./coverage-e2e.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
