@@ -107,4 +107,76 @@ final class ProfileCampaignControllerTest extends WebTestCase
         // With default sample_size=10, should not get 400
         $this->assertNotSame(Response::HTTP_BAD_REQUEST, $statusCode);
     }
+
+    public function testProfileRejectsSampleSizeOfZero(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/profile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['sample_size' => 0]));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertStringContainsString('sample_size must be', $data['error']);
+    }
+
+    public function testProfileRejectsNonIntegerSampleSize(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/profile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['sample_size' => 'ten']));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertStringContainsString('sample_size must be', $data['error']);
+    }
+
+    public function testProfileAcceptsValidSampleSizeBoundary(): void
+    {
+        // sample_size=3 is minimum valid
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/profile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['sample_size' => 3]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertNotSame(Response::HTTP_BAD_REQUEST, $statusCode);
+    }
+
+    public function testProfileAcceptsMaxSampleSize(): void
+    {
+        // sample_size=100 is maximum valid
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/profile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['sample_size' => 100]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertNotSame(Response::HTTP_BAD_REQUEST, $statusCode);
+    }
+
+    public function testProfileRejectsSampleSizeOver100(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/profile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['sample_size' => 101]));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+    }
+
+    public function testProfileWithEmptyBody(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/profile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Empty body defaults to sample_size=10, should not get 400
+        $this->assertNotSame(Response::HTTP_BAD_REQUEST, $statusCode);
+    }
 }

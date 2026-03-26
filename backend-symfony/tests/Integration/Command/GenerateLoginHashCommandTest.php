@@ -51,4 +51,50 @@ class GenerateLoginHashCommandTest extends KernelTestCase
 
         $this->assertNotSame($hash1, $hash2, 'Different logins should produce different hashes');
     }
+
+    public function testMissingLoginArgumentThrowsException(): void
+    {
+        self::bootKernel();
+
+        $command = self::getContainer()->get(GenerateLoginHashCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $this->expectException(\Symfony\Component\Console\Exception\RuntimeException::class);
+        $tester->execute([]);
+    }
+
+    public function testOutputContainsOnlyHash(): void
+    {
+        self::bootKernel();
+
+        $command = self::getContainer()->get(GenerateLoginHashCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute(['login' => 'test@scambuster.local']);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = trim($tester->getDisplay());
+        // Output should be exactly a 64-char hex string
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $output);
+    }
+
+    public function testEmptyStringLoginProducesHash(): void
+    {
+        self::bootKernel();
+
+        $command = self::getContainer()->get(GenerateLoginHashCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+
+        $tester->execute(['login' => '']);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = trim($tester->getDisplay());
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $output);
+    }
 }

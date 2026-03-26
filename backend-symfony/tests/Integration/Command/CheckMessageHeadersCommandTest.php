@@ -125,4 +125,49 @@ class CheckMessageHeadersCommandTest extends KernelTestCase
             $this->assertStringContainsString('Message ID:', $output);
         }
     }
+
+    public function testReplyToSectionShownWhenMessageHasReplyTo(): void
+    {
+        // Find a message that has a reply_to reference
+        $msgId = $this->connection->fetchOne(
+            'SELECT msg_id FROM message WHERE reply_to_msg_id IS NOT NULL LIMIT 1'
+        );
+
+        if ($msgId === false) {
+            $this->markTestSkipped('No messages with reply_to found in test database');
+        }
+
+        $app = new Application(self::$kernel);
+        $tester = new CommandTester($app->find('app:check-message-headers'));
+
+        $tester->execute(['msg_id' => (string) $msgId]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        $this->assertStringContainsString('=== Reply To (Internal) ===', $output);
+        $this->assertStringContainsString('Reply To Message ID:', $output);
+        $this->assertStringContainsString('Reply To Subject:', $output);
+        $this->assertStringContainsString('Parent Message-ID:', $output);
+    }
+
+    public function testNoReplyToSectionWhenMessageHasNoReplyTo(): void
+    {
+        // Find a message without reply_to
+        $msgId = $this->connection->fetchOne(
+            'SELECT msg_id FROM message WHERE reply_to_msg_id IS NULL LIMIT 1'
+        );
+
+        if ($msgId === false) {
+            $this->markTestSkipped('No messages without reply_to found in test database');
+        }
+
+        $app = new Application(self::$kernel);
+        $tester = new CommandTester($app->find('app:check-message-headers'));
+
+        $tester->execute(['msg_id' => (string) $msgId]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $output = $tester->getDisplay();
+        $this->assertStringNotContainsString('=== Reply To (Internal) ===', $output);
+    }
 }

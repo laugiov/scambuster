@@ -154,4 +154,117 @@ final class MetricsControllerTest extends WebTestCase
             $this->assertStringContainsString('version=0.0.4', $contentType);
         }
     }
+
+    public function testMetricsWorksWithAuthHeader(): void
+    {
+        $this->client->request('GET', '/api/metrics', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Should still work with auth (200) - auth is optional on this endpoint
+        $this->assertContains($statusCode, [Response::HTTP_OK, Response::HTTP_UNAUTHORIZED]);
+    }
+
+    public function testMetricsConversationsTotalHasStatusLabels(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            // The controller iterates over open, closed, abandoned statuses
+            $this->assertStringContainsString('scambuster_conversations_total{status="open"}', $content);
+            $this->assertStringContainsString('scambuster_conversations_total{status="closed"}', $content);
+            $this->assertStringContainsString('scambuster_conversations_total{status="abandoned"}', $content);
+        }
+    }
+
+    public function testMetricsMessagesHaveDirectionLabels(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            $this->assertStringContainsString('scambuster_messages_total{direction="inbound"}', $content);
+            $this->assertStringContainsString('scambuster_messages_total{direction="outbound"}', $content);
+        }
+    }
+
+    public function testMetricsInfoContainsVersionLabel(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            // scambuster_info{version="X.Y.Z"} 1
+            $this->assertMatchesRegularExpression(
+                '/scambuster_info\{version="[^"]+"\} 1/',
+                $content
+            );
+        }
+    }
+
+    public function testMetricsKillSwitchIsZeroOrOne(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            $this->assertMatchesRegularExpression(
+                '/scambuster_kill_switch [01]/',
+                $content
+            );
+        }
+    }
+
+    public function testMetricsHealthCheckHasServiceLabels(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            // Health checks iterate over service keys (database, redis)
+            $this->assertStringContainsString('scambuster_health_check{service=', $content);
+        }
+    }
+
+    public function testMetricsConvergenceRatioIsNumeric(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            $this->assertMatchesRegularExpression(
+                '/scambuster_convergence_ratio [0-9.]+/',
+                $content
+            );
+        }
+    }
+
+    public function testMetricsIocsUniqueIsPresent(): void
+    {
+        $this->client->request('GET', '/api/metrics');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        if ($statusCode === Response::HTTP_OK) {
+            $content = $this->client->getResponse()->getContent();
+            $this->assertMatchesRegularExpression(
+                '/scambuster_iocs_unique \d+/',
+                $content
+            );
+        }
+    }
 }

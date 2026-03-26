@@ -118,4 +118,72 @@ final class ConvergenceHistoryControllerTest extends WebTestCase
             }
         }
     }
+
+    public function testConvergenceHistoryWithAdminAuth(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/convergence-history', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('period_days', $data);
+        $this->assertSame(30, $data['period_days']);
+    }
+
+    public function testConvergenceHistoryEmptyByScamTypeIsValidObject(): void
+    {
+        // If no logs in last 30 days, by_scam_type should be an empty object
+        $this->client->request('GET', '/api/v1/monitoring/convergence-history', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        // Whether empty or populated, by_scam_type should be an array
+        $this->assertIsArray($data['by_scam_type']);
+    }
+
+    public function testConvergenceHistoryEntriesDateFormatIsYmd(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/convergence-history', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['by_scam_type'] as $entries) {
+            foreach ($entries as $entry) {
+                // Date should be Y-m-d format
+                $this->assertMatchesRegularExpression(
+                    '/^\d{4}-\d{2}-\d{2}$/',
+                    $entry['date'],
+                    'Date should be in Y-m-d format'
+                );
+            }
+        }
+    }
+
+    public function testConvergenceHistoryEntriesDominantPctIsNumeric(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/convergence-history', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['by_scam_type'] as $entries) {
+            foreach ($entries as $entry) {
+                $this->assertIsNumeric($entry['dominant_pct']);
+                $this->assertIsInt($entry['sessions_count']);
+                $this->assertGreaterThanOrEqual(0, $entry['sessions_count']);
+            }
+        }
+    }
 }

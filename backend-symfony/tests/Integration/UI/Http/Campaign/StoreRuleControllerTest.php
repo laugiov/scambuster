@@ -167,4 +167,38 @@ final class StoreRuleControllerTest extends WebTestCase
         $data = json_decode($this->client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('error', $data);
     }
+
+    public function testStoreRuleRejectsNullBody(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/rule', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], 'null');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testStoreRule404ErrorContainsMessage(): void
+    {
+        $payload = [
+            'campaign_id' => '00000000-0000-0000-0000-000000000099',
+            'dsl' => 'RULE test { WHERE subject.simhash }',
+            'compiled_sql' => ['sql' => 'SELECT 1', 'params' => []],
+        ];
+
+        $this->client->request('POST', '/api/v1/campaign/rule', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertIsString($data['error']);
+        $this->assertNotEmpty($data['error']);
+    }
 }
