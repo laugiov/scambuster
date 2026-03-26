@@ -202,19 +202,21 @@ jobs:
       - name: Run unit tests
         run: docker compose exec backend-test vendor/bin/phpunit --testsuite unit --testdox --colors=never
 
-      - name: Run integration tests with coverage
-        run: |
-          docker compose exec backend-test vendor/bin/phpunit \
-            --configuration phpunit.ci.xml \
-            --testsuite integration \
-            --coverage-clover /tmp/coverage-integration.xml \
-            --testdox --colors=never
+      - name: Run integration tests
+        run: docker compose exec backend-test vendor/bin/phpunit --configuration phpunit.ci.xml --testsuite integration --testdox --colors=never
 
-      - name: Merge and extract coverage
+      - name: Generate coverage report
         if: always()
         run: |
-          docker compose exec backend-test cat /tmp/coverage-integration.xml > coverage.xml 2>/dev/null || true
-          ls -la coverage.xml 2>/dev/null || echo "coverage.xml not found"
+          echo "Checking PCOV..."
+          docker compose exec backend-test php -m | grep pcov || echo "PCOV NOT FOUND"
+          docker compose exec backend-test vendor/bin/phpunit \
+            --testsuite unit,integration \
+            --coverage-clover /tmp/coverage.xml \
+            --colors=never || true
+          docker compose exec backend-test ls -la /tmp/coverage.xml || echo "coverage.xml not generated"
+          docker compose exec backend-test cat /tmp/coverage.xml > coverage.xml 2>/dev/null || true
+          ls -la coverage.xml 2>/dev/null || echo "coverage.xml not extracted"
 
       - name: Upload to Codecov
         if: always()
