@@ -40,8 +40,8 @@ RUN adduser --disabled-password --gecos '' --uid 10001 appuser
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         postgresql-client curl libpq-dev git unzip libzip-dev \
-    && pecl install mailparse redis \
-    && docker-php-ext-enable mailparse redis \
+    && pecl install mailparse redis pcov \
+    && docker-php-ext-enable mailparse redis pcov \
     && curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer \
     && docker-php-ext-install pdo pdo_pgsql zip \

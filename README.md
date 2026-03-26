@@ -9,6 +9,7 @@
 [![CI](https://github.com/laugiov/scambuster/actions/workflows/ci.yml/badge.svg)](https://github.com/laugiov/scambuster/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](docker-compose.yml)
 [![STIX](https://img.shields.io/badge/STIX-2.1-red.svg)](docs/03_high_level_architecture.md)
+[![codecov](https://codecov.io/gh/laugiov/scambuster/graph/badge.svg)](https://codecov.io/gh/laugiov/scambuster)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 > **Last updated**: 2026-03-16 | **Data period**: December 2025 - February 2026
