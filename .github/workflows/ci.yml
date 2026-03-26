@@ -199,7 +199,7 @@ jobs:
           docker compose exec backend-test php bin/console doctrine:migrations:migrate --no-interaction --env=test
           docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (unit + integration)
         run: |
           docker compose exec backend-test vendor/bin/phpunit \
             --configuration phpunit.ci.xml \

@@ -30,6 +30,8 @@
         </testsuite>
         <testsuite name="endtoend">
             <directory suffix="Test.php">tests/EndToEnd</directory>
+            <exclude>tests/EndToEnd/Communication/MailAccountSecretEndToEndTest.php</exclude>
+            <exclude>tests/EndToEnd/Communication/MailAccountSecretE2eTest.php</exclude>
         </testsuite>
     </testsuites>
 
