@@ -38,6 +38,9 @@
             <directory suffix=".php">src/DataFixtures</directory>
             <directory suffix=".php">src/Service</directory>
             <file>src/Kernel.php</file>
+            <file>src/Infrastructure/Preprod/ConversationGenerator.php</file>
+            <file>src/Infrastructure/Preprod/IocGenerator.php</file>
+            <file>src/Infrastructure/Preprod/ScamTemplates.php</file>
         </exclude>
     </source>
 
