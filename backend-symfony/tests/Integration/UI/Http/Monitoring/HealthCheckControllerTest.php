@@ -66,4 +66,42 @@ final class HealthCheckControllerTest extends WebTestCase
 
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    public function testHealthCheckVersionIsString(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('version', $data);
+        $this->assertIsString($data['version']);
+        $this->assertNotEmpty($data['version']);
+    }
+
+    public function testHealthCheckTimestampIsIso8601Format(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('timestamp', $data);
+        $this->assertIsString($data['timestamp']);
+
+        // Verify it can be parsed as a valid datetime (ISO 8601)
+        $parsed = \DateTimeImmutable::createFromFormat(\DATE_ATOM, $data['timestamp']);
+
+        if ($parsed === false) {
+            // Try ISO 8601 without timezone offset (e.g. 2026-03-26T12:00:00Z or similar)
+            $parsed = new \DateTimeImmutable($data['timestamp']);
+        }
+
+        $this->assertInstanceOf(\DateTimeImmutable::class, $parsed);
+    }
+
+    public function testHealthCheckStatusIsValidValue(): void
+    {
+        $this->client->request('GET', '/api/health');
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('status', $data);
+        $this->assertContains($data['status'], ['ok', 'degraded', 'error']);
+    }
 }

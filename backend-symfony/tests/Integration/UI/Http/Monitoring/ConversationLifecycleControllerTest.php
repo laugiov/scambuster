@@ -65,4 +65,73 @@ final class ConversationLifecycleControllerTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    public function testConversationLifecycleAboutToTimeoutListIsArray(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/conversation-lifecycle', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data['about_to_timeout_list']);
+
+        // Each item in the list should have expected fields
+        foreach ($data['about_to_timeout_list'] as $item) {
+            $this->assertArrayHasKey('conv_id', $item);
+            $this->assertArrayHasKey('scam_type', $item);
+            $this->assertArrayHasKey('persona', $item);
+            $this->assertArrayHasKey('last_activity', $item);
+            $this->assertArrayHasKey('timeout_hours', $item);
+            $this->assertArrayHasKey('hours_remaining', $item);
+        }
+    }
+
+    public function testConversationLifecycleByScamTypeIsObject(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/conversation-lifecycle', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        // by_scam_type is cast to (object), so it decodes as array
+        $this->assertIsArray($data['by_scam_type']);
+    }
+
+    public function testConversationLifecycleByScamTypeValuesHaveCountAndPolicy(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/conversation-lifecycle', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['by_scam_type'] as $scamTypeCode => $value) {
+            $this->assertIsArray($value);
+            $this->assertArrayHasKey('active', $value);
+            $this->assertArrayHasKey('about_to_timeout', $value);
+            $this->assertArrayHasKey('policy_timeout_hours', $value);
+            $this->assertArrayHasKey('max_turns', $value);
+            $this->assertIsInt($value['active']);
+            $this->assertIsInt($value['about_to_timeout']);
+            $this->assertIsInt($value['policy_timeout_hours']);
+        }
+    }
+
+    public function testConversationLifecycleReopenedTodayIsInteger(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/conversation-lifecycle', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsInt($data['reopened_today']);
+    }
 }

@@ -61,4 +61,47 @@ final class RateLimitControllerTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    public function testRateLimitQuarantinedSendersIsInteger(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/rate-limits', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsInt($data['quarantined_senders_today']);
+    }
+
+    public function testRateLimitTodayItemsHaveTypeAndCount(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/rate-limits', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['rate_limited_today'] as $item) {
+            $this->assertArrayHasKey('type', $item);
+            $this->assertArrayHasKey('count', $item);
+            $this->assertIsString($item['type']);
+            $this->assertIsInt($item['count']);
+        }
+    }
+
+    public function testRateLimitLlmCallsLimitIsInteger(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/rate-limits', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsInt($data['llm_calls_limit']);
+        $this->assertIsInt($data['active_conversations_limit']);
+    }
 }

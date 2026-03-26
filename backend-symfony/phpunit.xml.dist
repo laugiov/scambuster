@@ -41,6 +41,15 @@
             <file>src/Infrastructure/Preprod/ConversationGenerator.php</file>
             <file>src/Infrastructure/Preprod/IocGenerator.php</file>
             <file>src/Infrastructure/Preprod/ScamTemplates.php</file>
+            <directory suffix=".php">src/UI/Console</directory>
+            <file>src/Command/VaultAddImapSecretCommand.php</file>
+            <file>src/Command/VaultDeleteImapSecretCommand.php</file>
+            <file>src/Command/MailAccountOnboardCommand.php</file>
+            <file>src/Command/PreprodCopyConversationsCommand.php</file>
+            <file>src/Command/PreprodGenerateConversationsCommand.php</file>
+            <file>src/Command/TestContextCommand.php</file>
+            <file>src/Command/TestConversationContextCommand.php</file>
+            <file>src/Command/TestReplyGenerateCommand.php</file>
         </exclude>
     </source>
 

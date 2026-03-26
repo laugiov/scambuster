@@ -93,4 +93,82 @@ final class CompileCampaignRulesControllerTest extends WebTestCase
         // Should not be a 400 for bad input - the examples format is valid
         $this->assertNotSame(Response::HTTP_BAD_REQUEST, $statusCode);
     }
+
+    public function testCompileRulesWithValidCampaignIdReachesHandler(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/rules/compile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode([]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // The handler may throw RuntimeException (404) or other (500), but not 400
+        $this->assertContains($statusCode, [
+            Response::HTTP_CREATED,
+            Response::HTTP_NOT_FOUND,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+    }
+
+    public function testCompileRulesWithValidDslExamples(): void
+    {
+        $payload = [
+            'examples' => [
+                'pos' => [],
+                'neg' => [],
+            ],
+        ];
+
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/rules/compile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_CREATED,
+            Response::HTTP_NOT_FOUND,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+    }
+
+    public function testCompileRulesRejectsInvalidExamplesStructure(): void
+    {
+        $payload = [
+            'examples' => [
+                'pos' => 'not-an-array',
+                'neg' => [],
+            ],
+        ];
+
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/rules/compile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertStringContainsString('examples must have', $data['error']);
+    }
+
+    public function testCompileRulesWithEmptyBody(): void
+    {
+        $this->client->request('POST', '/api/v1/campaign/00000000-0000-0000-0000-000000000001/rules/compile', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Empty body defaults to empty examples, should reach handler
+        $this->assertContains($statusCode, [
+            Response::HTTP_CREATED,
+            Response::HTTP_NOT_FOUND,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+    }
 }

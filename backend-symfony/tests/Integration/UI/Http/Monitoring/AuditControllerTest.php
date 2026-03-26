@@ -92,4 +92,88 @@ final class AuditControllerTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    public function testAuditEndpointEventTypeFilterReturnsFilteredResults(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?event_type=NONEXISTENT_EVENT_TYPE_XYZ', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(0, $data['total']);
+        $this->assertCount(0, $data['events']);
+    }
+
+    public function testAuditEndpointRespectsOffsetParameter(): void
+    {
+        // First get total count
+        $this->client->request('GET', '/api/v1/monitoring/audit?limit=1&offset=0', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+        $this->assertResponseIsSuccessful();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $total = $data['total'];
+
+        // Now request with a large offset to get empty events
+        $this->client->request('GET', '/api/v1/monitoring/audit?limit=50&offset=99999', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(99999, $data['offset']);
+        $this->assertCount(0, $data['events']);
+        // Total should still reflect the real count regardless of offset
+        $this->assertSame($total, $data['total']);
+    }
+
+    public function testAuditEndpointReturnsEmptyResultSet(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?actor_id=nonexistent_actor_xyz', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(0, $data['total']);
+        $this->assertIsArray($data['events']);
+        $this->assertCount(0, $data['events']);
+    }
+
+    public function testAuditEndpointEventsArrayStructure(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?limit=5', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        foreach ($data['events'] as $event) {
+            $this->assertArrayHasKey('event_type', $event);
+            $this->assertArrayHasKey('actor_id', $event);
+            $this->assertArrayHasKey('created_at', $event);
+            $this->assertArrayHasKey('id', $event);
+            $this->assertArrayHasKey('action', $event);
+            $this->assertArrayHasKey('outcome', $event);
+            $this->assertIsInt($event['id']);
+            $this->assertIsString($event['event_type']);
+        }
+    }
+
+    public function testAuditEndpointNegativeOffsetIsClampedToZero(): void
+    {
+        $this->client->request('GET', '/api/v1/monitoring/audit?offset=-10', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame(0, $data['offset']);
+    }
 }

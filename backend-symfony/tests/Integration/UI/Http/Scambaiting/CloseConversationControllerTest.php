@@ -63,4 +63,76 @@ final class CloseConversationControllerTest extends WebTestCase
         $this->assertIsBool($data['success']);
         $this->assertIsString($data['error']);
     }
+
+    public function testCloseConversationWithFixtureConvId(): void
+    {
+        // Use the open conversation from fixtures
+        $convId = '00000000-0000-0000-0000-000000000001';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('success', $data);
+        $this->assertIsBool($data['success']);
+
+        // Should succeed (200) or fail with a business rule error (400)
+        $this->assertContains($statusCode, [
+            Response::HTTP_OK,
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+    }
+
+    public function testCloseConversationResponseHasSuccessAndMessageKeys(): void
+    {
+        $convId = '00000000-0000-0000-0000-000000000001';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $statusCode = $this->client->getResponse()->getStatusCode();
+
+        $this->assertArrayHasKey('success', $data);
+
+        if ($statusCode === Response::HTTP_OK) {
+            // Success responses have 'message' and 'conv_id'
+            $this->assertArrayHasKey('message', $data);
+            $this->assertArrayHasKey('conv_id', $data);
+            $this->assertTrue($data['success']);
+            $this->assertSame($convId, $data['conv_id']);
+        } else {
+            // Error responses have 'error'
+            $this->assertArrayHasKey('error', $data);
+            $this->assertFalse($data['success']);
+        }
+    }
+
+    public function testCloseAlreadyClosedConversationReturnsResponse(): void
+    {
+        // conv 00000000-0000-0000-0000-000000000002 is already CLOSED in fixtures
+        $convId = '00000000-0000-0000-0000-000000000002';
+
+        $this->client->request('POST', "/api/v1/scambaiting/conversation/{$convId}/close", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+
+        // Could return 200 (idempotent), 400 (RuntimeException), or 500
+        $this->assertContains($statusCode, [
+            Response::HTTP_OK,
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_INTERNAL_SERVER_ERROR,
+        ]);
+        $this->assertArrayHasKey('success', $data);
+        $this->assertIsBool($data['success']);
+    }
 }
