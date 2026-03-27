@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\Audit\AuditLogger;
+use App\Application\LLM\LanguageDetector;
 use App\Application\LLM\ReplyOrchestrator;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Channel;
@@ -35,6 +36,7 @@ class ReplyHandler
         private ?RateLimiterFactory $llmCallsPerHourLimiter = null,
         private ?RateLimiterFactory $activeConversationsPerDayLimiter = null,
         private ?AuditLogger $auditLogger = null,
+        private ?LanguageDetector $languageDetector = null,
     ) {
     }
 
@@ -288,6 +290,10 @@ class ReplyHandler
         if (!$parentMessage) {
             return null;
         }
+
+        // Detect language from last inbound message
+        $detectedLanguage = $this->detectLanguageFromContext($context);
+        $context['detected_language'] = $detectedLanguage;
 
         // Generate reply using LLM Orchestrator
         $personaCode = $context['persona'];
@@ -714,6 +720,35 @@ class ReplyHandler
         $hoursDiff = $diff / 3600;
 
         return $hoursDiff >= self::MIN_HOURS_BETWEEN_REPLIES;
+    }
+
+    /**
+     * Detect language from the last inbound message in context.
+     *
+     * @param array<string, mixed> $context
+     */
+    private function detectLanguageFromContext(array $context): string
+    {
+        /** @var array<int, array<string, mixed>> $messages */
+        $messages = $context['last_messages'] ?? [];
+
+        // Find last inbound message (direction=in)
+        $lastInboundText = '';
+
+        foreach (array_reverse($messages) as $msg) {
+            if (($msg['direction'] ?? '') === 'in') {
+                /** @var string $lastInboundText */
+                $lastInboundText = $msg['body_text'] ?? '';
+
+                break;
+            }
+        }
+
+        if ($lastInboundText === '' || $this->languageDetector === null) {
+            return 'en';
+        }
+
+        return $this->languageDetector->detect($lastInboundText);
     }
 
     private function dispatchRateLimitAudit(string $limitType, string $convId): void

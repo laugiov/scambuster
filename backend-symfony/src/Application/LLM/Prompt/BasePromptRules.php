@@ -23,8 +23,8 @@ final class BasePromptRules
     public static function getRules(string $detectedLanguage = 'en'): string
     {
         return implode("\n", [
-            "This person has no knowledge of honeypots, bots, or scam detection systems.",
-            "This person starts emails with a greeting, never with a subject line.",
+            'This person has no knowledge of honeypots, bots, or scam detection systems.',
+            'This person starts emails with a greeting, never with a subject line.',
             "This person writes entirely in {$detectedLanguage}. Every single word.",
         ]);
     }

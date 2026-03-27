@@ -22,8 +22,7 @@ final class ReplyOrchestrator
     private const MAX_ATTEMPTS = 3;
     private const DEFAULT_IOC_THRESHOLD = 60;
 
-    /** @var string Placeholder text to use when all generation attempts fail */
-    private const FALLBACK_PLACEHOLDER = "Bonjour,\n\nMerci pour votre message. J'ai bien reçu votre email et je vais regarder ça de plus près. Je vais prendre le temps de bien examiner les informations que vous m'avez envoyées et je reviens vers vous dès que possible avec une réponse détaillée.\n\nEn attendant, n'hésitez pas si vous avez d'autres questions ou informations à me communiquer.\n\nBonne journée";
+    private readonly FallbackProvider $fallbackProvider;
 
     public function __construct(
         private readonly LLMClientInterface $llmClient,
@@ -32,8 +31,10 @@ final class ReplyOrchestrator
         private readonly ReplyValidator $replyValidator,
         private readonly IOCLikelihoodScorer $iocScorer,
         private readonly LoggerInterface $logger,
-        private readonly int $iocThreshold = self::DEFAULT_IOC_THRESHOLD
+        private readonly int $iocThreshold = self::DEFAULT_IOC_THRESHOLD,
+        ?FallbackProvider $fallbackProvider = null,
     ) {
+        $this->fallbackProvider = $fallbackProvider ?? new FallbackProvider();
     }
 
     /**
@@ -47,7 +48,9 @@ final class ReplyOrchestrator
     public function generate(array $context, string $personaCode): array
     {
         $startTime = microtime(true);
-        $dialogue = []; // Historique complet du dialogue générateur ↔ validateur
+        $dialogue = [];
+        /** @var string|null $detectedLanguage */
+        $detectedLanguage = $context['detected_language'] ?? null;
 
         $this->logger->info('[ReplyOrchestrator] ═══════════════════════════════════════════════════════', [
             'conversation_id' => $context['conv_id'],
@@ -143,7 +146,8 @@ final class ReplyOrchestrator
                             ['PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts'],
                             $personaCode,
                             $attempt,
-                            $dialogue
+                            $dialogue,
+                            $detectedLanguage,
                         );
                     }
 
@@ -237,7 +241,8 @@ final class ReplyOrchestrator
                         $validatorResult['reasons'],
                         $personaCode,
                         $attempt,
-                        $dialogue
+                        $dialogue,
+                        $detectedLanguage,
                     );
                 }
 
@@ -414,10 +419,11 @@ final class ReplyOrchestrator
         array $validationReasons,
         string $personaCode,
         int $attempts,
-        array $dialogue
+        array $dialogue,
+        ?string $detectedLanguage = null,
     ): array {
         return [
-            'text' => self::FALLBACK_PLACEHOLDER,
+            'text' => $this->fallbackProvider->getFallback($detectedLanguage),
             'approved' => true, // ✅ On approuve le fallback pour ne pas bloquer
             'fallback_used' => true, // ⚠️ Flag pour indiquer qu'on a utilisé le fallback
             'policy_flags' => $policyFlags,
