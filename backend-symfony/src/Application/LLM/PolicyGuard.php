@@ -76,8 +76,8 @@ final class PolicyGuard
     /**
      * Validate text against all hard rules.
      *
-     * @param string                $text    Text to validate
-     * @param PolicyGuardConfig|null $config  Context-aware thresholds (null = default 50-150)
+     * @param string                 $text   Text to validate
+     * @param PolicyGuardConfig|null $config Context-aware thresholds (null = default 50-150)
      *
      * @return array{approved: bool, flags: array<string>}
      */
