@@ -130,8 +130,8 @@ services:
       - ./.env:/app/.env:ro
       - postgres-backups:/backups
     restart: unless-stopped
-    profiles:
-      - production
+    environment:
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
 
   frontend:
     build:

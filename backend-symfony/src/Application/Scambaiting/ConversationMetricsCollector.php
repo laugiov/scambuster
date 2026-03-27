@@ -31,45 +31,37 @@ class ConversationMetricsCollector
      *
      * @return ConversationMetrics Value Object avec métriques calculées
      */
-    public function collect(Conversation $conversation): ConversationMetrics
+    /**
+     * Collect metrics for a closed conversation and return a Value Object.
+     *
+     * engagement_duration_sec and turns_count must be set on the Conversation
+     * entity BEFORE calling this method (done by ConversationClosureService).
+     *
+     * @param Conversation $conversation Conversation to collect metrics for
+     * @param bool         $isCompleted  Whether the conversation ended naturally (true) or by timeout (false)
+     */
+    public function collect(Conversation $conversation, bool $isCompleted = true): ConversationMetrics
     {
         $convId = $conversation->getConvId();
-
-        // 1. Récupérer la durée (depuis conversation.engagement_duration_sec)
         $durationSec = $conversation->getEngagementDurationSec();
 
-        // 2. Récupérer le nombre de tours de parole (depuis conversation.turns_count)
-        $turnsCount = $conversation->getTurnsCount();
-
-        // 3. Récupérer les IOCs via IocHandler
         $iocs = $this->iocHandler->getConversationIocs($convId);
         $iocsTotal = count($iocs);
-
-        // 4. Compter les IOCs sensibles (IBAN, phone, crypto_wallet)
         $iocsSensibles = $this->countSensitiveIocs($iocs);
-
-        // 5. Déterminer si la conversation est "completed" (vs timeout/erreur)
-        // Une conversation fermée manuellement via l'API est toujours "completed"
-        // (vs timeout/erreur qui seraient gérés différemment - non implémenté actuellement)
-        // NOTE: Ne pas utiliser $conversation->getStatus() car il n'est pas encore à CLOSED
-        // au moment de l'appel depuis ConversationClosureService
-        $isCompleted = true;
 
         $this->logger->debug('Conversation metrics collected', [
             'conv_id' => $convId,
             'duration_sec' => $durationSec,
-            'turns_count' => $turnsCount,
             'iocs_total' => $iocsTotal,
             'iocs_sensibles' => $iocsSensibles,
             'is_completed' => $isCompleted,
         ]);
 
-        // 6. Créer le Value Object (validation automatique)
         return new ConversationMetrics(
             durationSec: $durationSec,
             iocsTotal: $iocsTotal,
             iocsSensibles: $iocsSensibles,
-            isCompleted: $isCompleted
+            isCompleted: $isCompleted,
         );
     }
 
