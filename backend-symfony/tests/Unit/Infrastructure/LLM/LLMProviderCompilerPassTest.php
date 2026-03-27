@@ -13,6 +13,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
 /**
+ * @group compiler-pass
  * @runTestsInSeparateProcesses
  * @preserveGlobalState disabled
  */

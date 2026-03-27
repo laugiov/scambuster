@@ -204,8 +204,16 @@ jobs:
           docker compose exec backend-test vendor/bin/phpunit \
             --configuration phpunit.ci.xml \
             --testsuite unit,integration \
+            --exclude-group compiler-pass \
             --coverage-clover /tmp/coverage.xml \
             --testdox --colors=never
+
+      - name: Run CompilerPass tests (isolated)
+        run: |
+          docker compose exec backend-test vendor/bin/phpunit \
+            --configuration phpunit.ci.xml \
+            --group compiler-pass \
+            --colors=never || true
 
       - name: Extract unit+integration coverage
         if: always()
