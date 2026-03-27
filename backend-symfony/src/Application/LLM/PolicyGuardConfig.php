@@ -25,11 +25,11 @@ final class PolicyGuardConfig
      * Build config from conversation context flags.
      *
      * @param array<string, mixed> $context Conversation context with optional flags:
-     *   - is_bot_accusation (bool): Scammer accused the system of being a bot
-     *   - is_aggression (bool): Scammer is aggressive/threatening
-     *   - is_post_iban (bool): IBAN was already captured in this conversation
-     *   - is_evasive_scammer (bool): Scammer ignored last 2+ requests
-     *   - tone_recommendation (string): From ConversationAnalyzer
+     *                                      - is_bot_accusation (bool): Scammer accused the system of being a bot
+     *                                      - is_aggression (bool): Scammer is aggressive/threatening
+     *                                      - is_post_iban (bool): IBAN was already captured in this conversation
+     *                                      - is_evasive_scammer (bool): Scammer ignored last 2+ requests
+     *                                      - tone_recommendation (string): From ConversationAnalyzer
      */
     public static function fromContext(array $context): self
     {

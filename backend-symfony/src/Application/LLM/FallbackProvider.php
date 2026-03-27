@@ -17,16 +17,16 @@ final class FallbackProvider
 {
     /** @var array<string, string> ISO 639-1 code → fallback message */
     private const FALLBACKS = [
-        'en' => "Thank you for your message. I will read it carefully and get back to you shortly.",
-        'fr' => "Merci pour votre message. Je vais le relire attentivement et vous repondre rapidement.",
-        'es' => "Gracias por su mensaje. Lo leere con atencion y le respondere pronto.",
-        'de' => "Vielen Dank fuer Ihre Nachricht. Ich werde sie sorgfaeltig lesen und mich bald melden.",
-        'pt' => "Obrigado pela sua mensagem. Vou le-la com atencao e responder em breve.",
-        'it' => "Grazie per il suo messaggio. Lo leggero attentamente e le rispondero a breve.",
-        'nl' => "Bedankt voor uw bericht. Ik zal het zorgvuldig lezen en snel reageren.",
+        'en' => 'Thank you for your message. I will read it carefully and get back to you shortly.',
+        'fr' => 'Merci pour votre message. Je vais le relire attentivement et vous repondre rapidement.',
+        'es' => 'Gracias por su mensaje. Lo leere con atencion y le respondere pronto.',
+        'de' => 'Vielen Dank fuer Ihre Nachricht. Ich werde sie sorgfaeltig lesen und mich bald melden.',
+        'pt' => 'Obrigado pela sua mensagem. Vou le-la com atencao e responder em breve.',
+        'it' => 'Grazie per il suo messaggio. Lo leggero attentamente e le rispondero a breve.',
+        'nl' => 'Bedankt voor uw bericht. Ik zal het zorgvuldig lezen en snel reageren.',
     ];
 
-    private const UNIVERSAL_FALLBACK = "Thank you for your message. I will read it carefully and get back to you shortly.";
+    private const UNIVERSAL_FALLBACK = 'Thank you for your message. I will read it carefully and get back to you shortly.';
 
     /**
      * Get a fallback message in the detected language.
