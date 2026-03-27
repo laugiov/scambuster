@@ -1,18 +1,18 @@
 {
-  "name": "ScamBuster - Gmail Scam Simulator",
+  "name": "ScamBuster - Gmail Scam Simulator - INIT",
   "nodes": [
     {
       "parameters": {
         "rule": {
           "interval": [
             {
-              "field": "hours",
-              "hoursInterval": 6
+              "field": "minutes",
+              "minutesInterval": 10
             }
           ]
         }
       },
-      "id": "schedule-trigger",
+      "id": "9590a9b6-e626-43f5-9710-46e33f92fe19",
       "name": "Schedule Initial Scam",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
@@ -23,37 +23,9 @@
     },
     {
       "parameters": {
-        "pollTimes": {
-          "item": [
-            {
-              "mode": "everyMinute"
-            }
-          ]
-        },
-        "filters": {
-          "sender": "honeypot@example.com"
-        }
-      },
-      "id": "gmail-trigger",
-      "name": "Gmail Trigger",
-      "type": "n8n-nodes-base.gmailTrigger",
-      "typeVersion": 1.3,
-      "position": [
-        112,
-        688
-      ],
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
         "functionCode": "const scenarios = [\n  // Scénarios entreprises (SC01-SC12)\n  { id: 'SC01', nom: 'BEC / Changement d\\'IBAN fournisseur', description: 'Faire mettre à jour les coordonnées bancaires d\\'un faux fournisseur avant échéance facture. Ton cordial-pressant, échéance proche, continuité de service.' },\n  { id: 'SC02', nom: 'Faux Président (CEO fraud)', description: 'Virement confidentiel et urgent. Ton autoritaire, confidentialité + urgence, pression temporelle, opération discrète.' },\n  { id: 'SC03', nom: 'Signature électronique (SharePoint/DocuSign)', description: 'Récolter identifiants via faux portail de signature. Ton professionnel, routine, conformité, demande de signature sur documents.' },\n  { id: 'SC04', nom: 'Alerte sécurité Microsoft 365', description: 'Forcer réauth/OTP sur faux portail. Ton urgent, sécurité + peur de blocage, tentative connexion suspecte, IP exotique.' },\n  { id: 'SC05', nom: 'Colis/douane (micro-paiement)', description: 'Récupérer CB pro via frais minimes. Ton neutre, faible montant, frustration, colis retenu.' },\n  { id: 'SC06', nom: 'Appel d\\'offres / RFP', description: 'Pousser vers portail téléchargement dossier fictif. Ton commercial, opportunité + délai court, accès cahier des charges.' },\n  { id: 'SC07', nom: 'RH / Paie : mise à jour RIB salarié', description: 'Détourner salaire. Ton personnel/informel, détresse / déménagement, changement de banque.' },\n  { id: 'SC08', nom: 'Fiscal / URSSAF', description: 'Récolter identifiants pro / IBAN. Ton administratif, mise en demeure / remboursement, référence dossier.' },\n  { id: 'SC09', nom: 'Opérateur télécom', description: 'Prélèvement SEPA / paiement. Ton urgent, coupure service, facture impayée, suspension 24h.' },\n  { id: 'SC10', nom: 'Banque pro (3-D Secure)', description: 'Creds banque pro. Ton sécurité, blocage paiement fournisseurs, analyse de risque, réactivation requise.' },\n  { id: 'SC11', nom: 'IT interne : suspension VPN/SSO', description: 'SSO creds. Ton technique, continuité d\\'accès, certificat/SSO expiré, guide self-service.' },\n  { id: 'SC12', nom: 'Invitation conférence (ICS / replay)', description: 'Récolter creds via replay protégé. Ton commercial, FOMO, crédibilité industrie, inscription/replay sécurisé.' },\n  \n  // Scénarios secteur public français (SC13-SC22)\n  { id: 'SC13', nom: 'Faux prestataire de marché public (changement RIB)', description: 'Usurpation titulaire de marché public (nettoyage, restauration, SSI) auprès de collectivité/hôpital pour détourner paiements. Ton administratif formel, exiger changement IBAN avec formulaires, Kbis, attestation bancaire. Invoquer procédure validation (DGS, comptable public, Chorus Pro).' },\n  { id: 'SC14', nom: 'Demande citoyenne piégée (formulaire malveillant)', description: 'Faux formulaire de contact usager (subvention, urbanisme, voirie) avec lien piégé ou PJ infectée pour phisher identifiants ou infecter poste. Ton service public bienveillant, demander justificatifs complémentaires, numéro de dossier, feindre problèmes techniques d\\'ouverture.' },\n  { id: 'SC15', nom: 'Usurpation ministère / préfecture (faux AAP)', description: 'Email avec PDF officiel (logo Marianne) prétendant être ministère/préfecture, demandant action rapide (AAP, mise en conformité). Ton administratif ultra-prudent, exiger renvoi depuis @gouv.fr, signature électronique qualifiée, référentiel juridique (NOR, JO), contacts vérifiables.' },\n  { id: 'SC16', nom: 'Usurpation ARS / DGFiP (PJ malware)', description: 'Message imitant ARS/DGFiP avec PJ malveillante (Excel macro, ZIP dropper). Ton administratif, feindre ouverture sur poste sécurisé, signaler macros désactivées par PSSI, demander renvoi autre format (PDF/CSV), invoquer validation RSSI (délai 72h).' },\n  { id: 'SC17', nom: 'BEC du Maire/Président (virement urgent)', description: 'Usurpation élu (Maire, Président EPCI) exigeant virement urgent confidentiel (acquisition foncière, contentieux). Ton subalterne respectueux mais procédurier, opposer séparation ordonnateur/comptable, exiger ordre signé, code PIN validation, contre-appel bancaire, blocage système.' },\n  { id: 'SC18', nom: 'Phishing portails admin (Chorus Pro / Démarches-simplifiées)', description: 'Email invitant à réinitialiser mot de passe sur portails admin (Chorus Pro, Démarches-simplifiées, impots.gouv) via page de phishing. Ton agent utilisateur, feindre tentatives avec erreurs (404, session expirée, code OTP invalide), signaler certificat SSL invalide, proposer validation téléphonique.' },\n  { id: 'SC19', nom: 'Faux support DSI / éditeur métier (télémaintenance)', description: 'Prétendu support technique DSI/éditeur demandant installation outil prise en main à distance (TeamViewer, AnyDesk) ou patch critique. Ton agent peu technique, accepter mais invoquer absence droits admin, PSSI impose ticket JIRA, fenêtre maintenance limitée, antivirus bloque, exiger bon d\\'intervention signé.' },\n  { id: 'SC20', nom: 'Faux financement / subvention (AAP factice)', description: 'Email promettant subvention (France Relance, FEDER, DETR) ou AAP avantageux demandant dossier KYC, RIB, pièces justificatives. Ton intéressé mais méthodique, inverser charge preuve : demander SIRET organisme financeur, attestation bancaire, statuts, délibération créant le fonds, liste projets financés, exiger dépôt via Démarches-simplifiées.fr officiel.' },\n  { id: 'SC21', nom: 'Faux achat d\\'urgence (crise climatique/sanitaire)', description: 'Usurpation responsable logistique/fournisseur demandant achat immédiat matériel urgence (générateurs, EPI, eau) en contexte crise (canicule, panne, épidémie) avec paiement anticipé. Ton service achats, confirmer urgence mais imposer trois devis, demander SIRET, références clients, validation technique (48-72h), passage CMP extraordinaire, visa préfecture/paierie.' },\n  { id: 'SC22', nom: 'Hôpitaux & SDIS (faux fournisseur matériel critique)', description: 'Usurpation fournisseur matériel médical (gaz, consommables, imagerie) ou télécom SDIS pour imposer changement RIB. Ton cellule financière hôpital/SDIS, exiger attestation bancaire originale (<3 mois), rappel bon de commande, numéro d\\'agrément ANSM, BL récents, contre-appel banque, invoquer contrôles ARS/comptable public, retards GEF/trésorerie.' },\n  \n  // Scénario test IOC (SC99)\n  { id: 'SC99', nom: 'Multi-IOC Validator (Test exhaustif extraction)', description: 'Email de test contenant TOUS les types d\\'IOCs supportés pour validation end-to-end de l\\'extraction LLM. Contexte : fusion BEC + phishing bancaire + ransomware avec 62 IOCs (emails, URLs, domaines, IPs, téléphones, IBAN, crypto wallets, hashes, CVE, MITRE) + 7 false positives (dates, factures, SIRET). Ton professionnel-urgent, cible DAF/Comptable.' }\n];\n\nconst personas = ['Comptable fournisseur (PME BTP)','Assistant DG','Responsable achats','Juriste entreprise','DAF','Responsable IT','Agent comptable collectivité','Responsable affaires financières','Secrétariat mairie','Service urbanisme','Responsable marchés publics','Cellule financière hôpital'];\nconst tons = ['professionnel-formel','professionnel-neutre','professionnel-pressant','cordial-pressant','administratif-formel','administratif-prudent'];\n\nconst randomScenario = scenarios[Math.floor(Math.random() * scenarios.length)];\n//const randomScenario = scenarios.find(s => s.id === 'SC99') || scenarios[0];\nconst randomPersona = personas[Math.floor(Math.random() * personas.length)];\nconst randomTon = tons[Math.floor(Math.random() * tons.length)];\n\nconst scenarioData = {\n  scenario_id: randomScenario.id,\n  scenario_nom: randomScenario.nom,\n  scenario_description: randomScenario.description,\n  langue: 'fr',\n  ton: randomTon,\n  cible_persona: randomPersona,\n  organisation_cible: 'honeypot.scambuster.local',\n  variation_axes: ['objet', 'salutation', 'longueur', 'signature'],\n  threading: false,\n  nb_liens: 1,\n  placeholders: {\n    NOM_CIBLE: 'M. Dupont',\n    ENTREPRISE_CIBLE: 'ScamBuster Lab',\n    FACTURE: `FAC-2025-${Math.floor(Math.random() * 99999).toString().padStart(5, '0')}`,\n    CONTRAT: `CTR-${Math.floor(Math.random() * 9999).toString().padStart(4, '0')}`,\n    TRACKING: `TRK-${Math.floor(Math.random() * 999999).toString().padStart(6, '0')}`,\n    FAUX_TICKET: `TCK-${Math.floor(Math.random() * 99999).toString().padStart(5, '0')}`,\n    FAUX_DOMAINE: 'contoso-secure.example',\n    MONTANT: `${(Math.random() * 500 + 50).toFixed(2)}€`,\n    DATE_LIMITE: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],\n    FOURNISSEUR_FAUX: 'Acme Services SAS',\n    PAYS: 'France',\n    SECTEUR: 'BTP',\n    MARCHE_PUBLIC: `MP-${Math.floor(Math.random() * 999).toString().padStart(3, '0')}-2025`,\n    SIRET: `${Math.floor(Math.random() * 900000000 + 100000000)}${Math.floor(Math.random() * 90000 + 10000)}`,\n    NOR: `${['PRMX','INTB','ECOT','SSAH'][Math.floor(Math.random() * 4)]}${new Date().getFullYear().toString().slice(2)}${Math.floor(Math.random() * 90000 + 10000)}A`,\n    ORGANISME_PUBLIC: ['Mairie de Bordeaux','Conseil Départemental 33','CHU Pellegrin','SDIS 33','Préfecture Gironde'][Math.floor(Math.random() * 5)],\n    MINISTERE: ['Ministère de l\\'Intérieur','Ministère de l\\'Économie','Ministère de la Santé','Préfecture'][Math.floor(Math.random() * 4)]\n  }\n};\n\n// Enrichissement spécial pour SC99 : ajouter tous les IOCs\nif (randomScenario.id === 'SC99') {\n  Object.assign(scenarioData.placeholders, {\n    // Emails (9 IOCs)\n    EMAIL_CFO: 'cfo@evil-corp.example',\n    EMAIL_URGENT: 'urgent-finance@protonmail.com',\n    EMAIL_BOUNCE: 'bounce-noreply@marketing.example',\n    EMAIL_FINANCE: 'finance-director@evil-corp.example',\n    EMAIL_CFO_BACKUP: 'urgent-cfo@protonmail.com',\n    EMAIL_WHOIS: 'admin@registrar-evil.example',\n    EMAIL_MAIRE: 'maire@gironde-mairie.test',\n    \n    // URLs (4 IOCs)\n    URL_BANK_SECURE: 'http://secure-login-verify.dynamic-dns.net/',\n    URL_PAYMENT: 'http://paypal-security-update.ddns.net/',\n    URL_MALWARE: 'http://eicar.org/download/eicar.com',\n    URL_MAIRIE: 'http://malicious-domain-for-testing.tk/',\n    \n    // Domaines (6 IOCs)\n    DOMAIN_EVIL: 'evil-corp.example',\n    DOMAIN_BANK: 'contoso-bank-secure.example',\n    DOMAIN_PAYMENT: 'validation-payment.example',\n    DOMAIN_MAIRIE: 'gironde-mairie.test',\n    DOMAIN_REGISTRAR: 'registrar-evil.example',\n    DOMAIN_PROTON: 'protonmail.com',\n    \n    // IPs (4 IOCs)\n    IP_ORIGIN: '198.51.100.42',\n    IP_BACKUP: '203.0.113.89',\n    IP_MALWARE: '192.0.2.100',\n    IPV6_ADDR: '2001:db8::1234:5678',\n    \n    // Téléphones (5 IOCs)\n    PHONE_MAIN: '+33 1 42 68 53 00',\n    PHONE_IT: '+33 6 12 34 56 78',\n    PHONE_US: '+1 555 123 4567',\n    PHONE_BE: '+32 2 123 45 67',\n    PHONE_MOBILE: '+33 6 98 76 54 32',\n    \n    // Finance (5 IOCs)\n    IBAN_FR: 'FR76 3000 6000 1111 2222 3333 444',\n    IBAN_DE: 'DE89 3704 0044 0532 0130 00',\n    BIC_FR: 'SOGEFRPPXXX',\n    BIC_DE: 'COBADEFFXXX',\n    CREDIT_CARD: '4532 1234 5678 9010',\n    \n    // Crypto Wallets (3 IOCs)\n    BTC_WALLET: '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa',\n    ETH_WALLET: '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb',\n    XMR_WALLET: '48Zu7dcV9rECbHBfJbEWp4diQDrGXZ6qLQxbEqCcAcFjDPWJYLEgKz6ycMxbGzKq8cMxhGzKq8cMxhGzKq8cMxh',\n    \n    // Hashes (3 IOCs)\n    MD5_HASH: '5d41402abc4b2a76b9719d911017c592',\n    SHA1_HASH: 'aaf4c61ddcc5e8a2dabede0f3b482cd9aea9434d',\n    SHA256_HASH: '2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae',\n    \n    // Security Identifiers (3 IOCs)\n    CVE_ID: 'CVE-2024-12345',\n    MALWARE_FAMILY: 'Emotet.variant.2025',\n    MITRE_ID: 'T1566.001',\n    \n    // Contact Channels (3 IOCs)\n    TELEGRAM_HANDLE: '@finance_acme_urgent',\n    DISCORD_HANDLE: 'evil_finance#1234',\n    SKYPE_ID: 'live:acme.finance.2025',\n    \n    // Files (2 IOCs)\n    FILE_MALWARE_1: 'invoice_Q4_2025.pdf.exe',\n    FILE_MALWARE_2: 'payment_confirmation.docm',\n    \n    // MIME Types (2 IOCs)\n    MIME_EXE: 'application/x-msdownload',\n    MIME_MACRO: 'application/vnd.ms-word.document.macroEnabled.12',\n    \n    // Registrar\n    REGISTRAR_NAME: 'NameCheap LLC',\n    \n    // Montant élevé pour SC99\n    MONTANT: '487 350,00 EUR',\n    \n    // False positives (ne seront pas extraits comme IOCs)\n    FACTURE_FP: 'FAC-2025-88951',\n    MARCHE_PUBLIC_FP: 'MP-667-2025',\n    SIRET_FP: '11907593899875',\n    TICKET_FP: 'TCK-48219'\n  });\n  \n  // Pour SC99, forcer le ton et persona\n  scenarioData.ton = 'professionnel-urgent';\n  scenarioData.cible_persona = 'DAF / Comptable';\n  scenarioData.nb_liens = 4;\n}\n\nreturn { json: scenarioData };"
       },
-      "id": "generate-scenario",
+      "id": "83ae040d-215f-41d1-9037-2b6bd8a182e9",
       "name": "Generate Scenario Data",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
@@ -83,7 +55,7 @@
         },
         "options": {}
       },
-      "id": "generate-initial-email",
+      "id": "897db7ce-6b1b-4db1-b70f-3e79b773c344",
       "name": "Generate Initial Scam Email",
       "type": "@n8n/n8n-nodes-langchain.openAi",
       "typeVersion": 1.8,
@@ -93,8 +65,8 @@
       ],
       "credentials": {
         "openAiApi": {
-          "id": "your-openai-credential-id",
-          "name": "OpenAI API"
+          "id": "BhvoITKgFAICsRco",
+          "name": "OpenAi account"
         }
       }
     },
@@ -102,7 +74,7 @@
       "parameters": {
         "functionCode": "const generatedText = $input.item.json.message.content;\nconst scenarioData = $('Generate Scenario Data').item.json;\n\nconst emailBody = generatedText.split('---\\n')[2] || generatedText;\nconst subjectMatch = emailBody.match(/Objet:\\s*(.+?)\\n/);\nconst subject = subjectMatch ? subjectMatch[1].trim() : 'Document à signer';\n\nconst bodyWithoutSubject = emailBody.replace(/Objet:.*?\\n\\n/, '');\n\nreturn {\n  json: {\n    scenario_id: scenarioData.scenario_id,\n    subject: subject,\n    body: bodyWithoutSubject,\n    scenario_context: JSON.stringify(scenarioData)\n  }\n};"
       },
-      "id": "parse-initial-email",
+      "id": "ec7aff09-1685-4a17-8fd7-182a09cc50e4",
       "name": "Parse Initial Email",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
@@ -113,7 +85,7 @@
     },
     {
       "parameters": {
-        "sendTo": "honeypot@example.com",
+        "sendTo": "valeris.conseil@gmail.com",
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
@@ -121,7 +93,7 @@
           "appendAttribution": false
         }
       },
-      "id": "send-initial-gmail",
+      "id": "750294b0-78f4-4a61-a2dd-b1c72aa68e54",
       "name": "Send Initial Email (Gmail)",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
@@ -129,122 +101,11 @@
         1264,
         304
       ],
-      "webhookId": "00000000-0000-0000-0000-000000000001",
+      "webhookId": "e0696f98-f8f3-4c1f-8621-0ec300428842",
       "credentials": {
         "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "resource": "thread",
-        "operation": "get",
-        "threadId": "={{ $json.threadId }}",
-        "options": {}
-      },
-      "id": "get-thread",
-      "name": "Get Full Gmail Thread",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        368,
-        688
-      ],
-      "webhookId": "00000000-0000-0000-0000-000000000002",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "functionCode": "const thread = $input.item.json;\nconst messages = thread.messages || [];\n\nlet conversationHistory = [];\n\nfor (const msg of messages) {\n  const body = msg.text || msg.snippet || '';\n  const subject = msg.subject || '';\n  \n  conversationHistory.push({\n    id: msg.id,\n    from: msg.from?.address || msg.from || 'unknown',\n    subject: subject,\n    body: body.substring(0, 2000),\n    date: msg.internalDate || msg.date\n  });\n}\n\nif (conversationHistory.length === 0) {\n  throw new Error('No messages found in thread');\n}\n\n// Le premier message est l'email de scam initial\nconst initialMessage = conversationHistory[0];\nconst latestMessage = conversationHistory[conversationHistory.length - 1];\n\nreturn {\n  json: {\n    thread_id: thread.id,\n    initial_message: initialMessage.body,\n    initial_subject: initialMessage.subject,\n    conversation_history: conversationHistory,\n    latest_message: latestMessage\n  }\n};"
-      },
-      "id": "extract-thread-context",
-      "name": "Extract Thread Context",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [
-        640,
-        688
-      ]
-    },
-    {
-      "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "gpt-4o-mini",
-          "mode": "list",
-          "cachedResultName": "GPT-4O-MINI"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "Tu es un simulateur de scammer pour un laboratoire red-team défensif.\n\nTon rôle est de POURSUIVRE une conversation de scam déjà commencée en RESTANT FIDÈLE au message initial.\n\nContraintes :\n- Analyser le premier message de la conversation pour comprendre le type de scam\n- Utiliser uniquement des domaines fictifs (example.com, .test, .invalid, *.scambuster.local)\n- Adapter ton discours selon la réponse reçue tout en maintenant l'objectif du scam\n- Rester cohérent avec le ton et la persona du premier message\n- NE PAS dévier de l'approche initiale même si la victime essaie de t'emmener ailleurs\n- Si la victime est suspicieuse, rassurer avec autorité mais SANS révéler que c'est un scam\n- Utiliser les mêmes références (numéros de facture, tickets, etc.) que dans le message initial\n- IMPORTANT: Ne jamais laisser de placeholders entre accolades {} dans le message\n- NE PAS ajouter de marqueurs de simulation ou de footers\n- Générer uniquement le sujet et le corps de l'email\n\nFormat de réponse :\nObjet: Re: [sujet original]\n\n[Corps de la réponse avec les vraies valeurs]\n\n(Pas de footer, pas de marqueurs)",
-              "role": "system"
-            },
-            {
-              "content": "=Message initial du scam:\nSujet: {{ $json.initial_subject }}\n{{ $json.initial_message }}\n\n---\n\nHistorique complet de la conversation:\n{{ JSON.stringify($json.conversation_history, null, 2) }}\n\n---\n\nDernier message de la victime:\nDe: {{ $json.latest_message.from }}\nSujet: {{ $json.latest_message.subject }}\n\n{{ $json.latest_message.body }}\n\n---\n\nGénère une réponse appropriée qui reste dans le cadre du scam initial."
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "generate-reply",
-      "name": "Generate Scam Reply",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.8,
-      "position": [
-        848,
-        688
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "your-openai-credential-id",
-          "name": "OpenAI API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "functionCode": "const generatedReply = $input.item.json.message.content;\nconst threadContext = $('Extract Thread Context').item.json;\n\nconst subjectMatch = generatedReply.match(/Objet:\\s*(.+?)\\n/);\nconst subject = subjectMatch ? subjectMatch[1].trim() : `Re: ${threadContext.latest_message.subject}`;\n\nconst bodyWithoutSubject = generatedReply.replace(/Objet:.*?\\n\\n/, '');\n\nreturn {\n  json: {\n    message_id: threadContext.latest_message.id,\n    subject: subject,\n    body: bodyWithoutSubject\n  }\n};\n\n// Debug: afficher le message_id\nconsole.log('Message ID:', threadContext.latest_message.id);\nconsole.log('Subject:', subject);\nconsole.log('Body preview:', bodyWithoutSubject.substring(0, 100));\n\nreturn {\n  json: {\n    message_id: threadContext.latest_message.id,\n    subject: subject,\n    body: bodyWithoutSubject\n  }\n};"
-      },
-      "id": "parse-reply",
-      "name": "Parse Reply",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [
-        1200,
-        688
-      ]
-    },
-    {
-      "parameters": {
-        "operation": "reply",
-        "messageId": "={{ $json.message_id }}",
-        "emailType": "text",
-        "message": "={{ $json.body }}",
-        "options": {
-          "appendAttribution": false
-        }
-      },
-      "id": "send-reply-gmail",
-      "name": "Send Reply (Gmail)",
-      "type": "n8n-nodes-base.gmail",
-      "typeVersion": 2.1,
-      "position": [
-        1424,
-        688
-      ],
-      "webhookId": "00000000-0000-0000-0000-000000000003",
-      "credentials": {
-        "gmailOAuth2": {
-          "id": "your-gmail-credential-id",
-          "name": "Gmail account"
+          "id": "aF2fzV6hdC1yiYMr",
+          "name": "Gmail account scamtest"
         }
       }
     }
@@ -294,61 +155,6 @@
           }
         ]
       ]
-    },
-    "Gmail Trigger": {
-      "main": [
-        [
-          {
-            "node": "Get Full Gmail Thread",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Full Gmail Thread": {
-      "main": [
-        [
-          {
-            "node": "Extract Thread Context",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract Thread Context": {
-      "main": [
-        [
-          {
-            "node": "Generate Scam Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Generate Scam Reply": {
-      "main": [
-        [
-          {
-            "node": "Parse Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Reply": {
-      "main": [
-        [
-          {
-            "node": "Send Reply (Gmail)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
   "active": true,
@@ -359,10 +165,10 @@
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1"
   },
-  "versionId": "00000000-0000-0000-0000-000000000000",
+  "versionId": "01c99afa-83dd-4a41-a39d-9f862b2034d1",
   "meta": {
-    "instanceId": "your-n8n-instance-id"
+    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
   },
-  "id": "your-wf-gmail-simulator-id",
+  "id": "eSwNSVEm8mdEY7a9",
   "tags": []
 }
