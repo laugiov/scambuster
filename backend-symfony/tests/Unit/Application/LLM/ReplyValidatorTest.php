@@ -195,7 +195,7 @@ JSON;
     {
         $text = str_repeat('Valid text. ', 20);
 
-        $mockLlmResponse = '{"approved": true, "reasons": [], "fix_suggestion": null}';
+        $mockLlmResponse = '{"naturalness":4,"naturalness_reasoning":"Good","persona_fit":4,"persona_fit_reasoning":"Good","ti_value":3,"ti_value_reasoning":"OK","security_pass":true,"security_reasoning":"Safe","feedback":"Good","fix_suggestion":null}';
 
         $this->llmClient
             ->expects($this->once())
@@ -203,7 +203,7 @@ JSON;
             ->with(
                 $this->anything(),
                 $this->callback(function ($options) {
-                    return isset($options['temperature']) && $options['temperature'] === 0.1;
+                    return isset($options['temperature']) && $options['temperature'] === 0.4;
                 })
             )
             ->willReturn($mockLlmResponse);

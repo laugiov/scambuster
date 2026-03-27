@@ -53,16 +53,27 @@ final class OpeningDiversityMetric implements MetricInterface
         );
     }
 
+    /**
+     * Extract the opening signature of a reply for diversity comparison.
+     *
+     * Strips common greetings ("Hello", "Bonjour", "Hi there") and captures
+     * the first 8 meaningful words — this is where persona voice appears.
+     */
     private function extractOpening(string $text): string
     {
         $text = trim($text);
 
-        if (preg_match('/^(.+?)[.!?\n]{1}/u', $text, $m)) {
-            return mb_strtolower(trim($m[1]));
+        // Strip common email greetings to compare actual content
+        $text = (string) preg_replace('/^(?:(?:Hello|Hi|Bonjour|Greetings|Dear\s+\w+)[\s,]*(?:there)?[\s,]*\n*)/iu', '', $text);
+        $text = trim($text);
+
+        // Take first 8 words of the actual content
+        $words = preg_split('/\s+/', $text, -1, PREG_SPLIT_NO_EMPTY);
+
+        if ($words === false || empty($words)) {
+            return '';
         }
 
-        $words = explode(' ', $text);
-
-        return mb_strtolower(implode(' ', array_slice($words, 0, 5)));
+        return mb_strtolower(implode(' ', array_slice($words, 0, 8)));
     }
 }
