@@ -66,7 +66,7 @@ class CalculateRewardsCommand extends Command
 
         foreach ($conversations as $conversation) {
             try {
-                $this->closureService->closeConversation($conversation->getConvId());
+                $this->closureService->recalculateMetricsAndReward($conversation->getConvId());
                 $success++;
             } catch (\Exception $e) {
                 $errors++;

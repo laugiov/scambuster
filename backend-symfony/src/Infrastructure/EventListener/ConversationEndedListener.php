@@ -44,23 +44,16 @@ final class ConversationEndedListener
         }
 
         try {
-            // 1. Calculer le reward
+            // Reward is already calculated and persisted by ConversationClosureService.
+            // This listener's ONLY job: update PersonaPerformanceStats for bandit learning.
             $metrics = new ConversationMetrics(
                 durationSec: $event->getDurationSec(),
                 iocsTotal: $event->getIocsTotal(),
                 iocsSensibles: $event->getIocsSensibles(),
-                isCompleted: $event->isCompleted()
+                isCompleted: $event->isCompleted(),
             );
-
             $reward = $metrics->calculateReward();
 
-            $this->logger->info('Reward calculated', [
-                'conversation_id' => $event->getConversationId(),
-                'reward' => $reward,
-                'metrics' => (string) $metrics,
-            ]);
-
-            // 2. Récupérer les entités Persona et ScamType
             $persona = $this->em->getRepository(Persona::class)->findOneBy([
                 'personaCode' => $event->getPersonaCode(),
             ]);
@@ -78,30 +71,16 @@ final class ConversationEndedListener
                 return;
             }
 
-            // 3. Mettre à jour les stats (ou créer si cold start)
             $this->em->beginTransaction();
 
             try {
                 $stats = $this->statsRepository->findOrCreate($persona, $scamType);
 
-                // Si nouvelle entité (cold start), on doit la persister
                 if ($stats->getSessionsCount() === 0) {
                     $this->em->persist($stats);
                 }
 
                 $stats->addReward($reward);
-
-                // 4. Mettre à jour la colonne reward_value dans Conversation
-                $conversation = $this->em->getRepository(\App\Domain\Communication\Conversation::class)
-                    ->find($event->getConversationId());
-
-                if ($conversation !== null) {
-                    $conversation->setRewardValue($reward);
-                } else {
-                    $this->logger->warning('Conversation not found for reward update', [
-                        'conversation_id' => $event->getConversationId(),
-                    ]);
-                }
 
                 $this->em->flush();
                 $this->em->commit();
@@ -110,6 +89,7 @@ final class ConversationEndedListener
                     'conversation_id' => $event->getConversationId(),
                     'persona_code' => $persona->getPersonaCode(),
                     'scam_type_code' => $scamType->getCode(),
+                    'reward' => $reward,
                     'new_sessions_count' => $stats->getSessionsCount(),
                     'new_reward_avg' => $stats->getRewardAvg(),
                 ]);
@@ -122,7 +102,6 @@ final class ConversationEndedListener
             $this->logger->error('Failed to update performance stats', [
                 'conversation_id' => $event->getConversationId(),
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
             ]);
         }
     }

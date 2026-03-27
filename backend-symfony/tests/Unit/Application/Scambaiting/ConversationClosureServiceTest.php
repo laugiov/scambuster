@@ -12,6 +12,7 @@ use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
 use App\Domain\Scambaiting\ConversationMetrics;
 use App\Domain\Scambaiting\Event\ConversationEndedEvent;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
@@ -66,12 +67,16 @@ class ConversationClosureServiceTest extends TestCase
             ->with('conv-123')
             ->willReturn($conversation);
 
+        // Mock Connection for computeMessageMetrics
+        $conn = $this->createMock(Connection::class);
+        $conn->method('fetchAssociative')->willReturn(['turns' => 10, 'duration_sec' => 450]);
+        $this->em->method('getConnection')->willReturn($conn);
+
         $this->em->method('getRepository')
             ->with(Conversation::class)
             ->willReturn($conversationRepo);
 
         $this->metricsCollector->method('collect')
-            ->with($conversation)
             ->willReturn($metrics);
 
         $conversation->expects($this->once())

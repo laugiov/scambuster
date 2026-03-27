@@ -26,16 +26,15 @@ final class ConversationClosureService
     }
 
     /**
-     * Ferme une conversation et dispatch l'événement ConversationEndedEvent.
-     * Cette méthode doit être appelée par le workflow n8n WF-SCAMBAITING-END-CONVERSATION.
+     * Close a conversation: compute engagement metrics, calculate reward, dispatch event.
      *
-     * @param string $convId ID de la conversation à fermer
+     * @param string $convId ID of the conversation to close
+     * @param string $reason Why the conversation is being closed ('manual', 'stale_timeout', 'max_turns', 'max_duration')
      *
-     * @throws \RuntimeException Si la conversation n'existe pas ou est déjà fermée
+     * @throws \RuntimeException If the conversation does not exist or is deleted
      */
-    public function closeConversation(string $convId): void
+    public function closeConversation(string $convId, string $reason = 'manual'): void
     {
-        // 1. Récupérer la conversation
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
 
         if ($conversation === null) {
@@ -46,7 +45,6 @@ final class ConversationClosureService
             throw new \RuntimeException("Conversation {$convId} is deleted");
         }
 
-        // 2. Vérifier que la conversation n'est pas déjà fermée (idempotence check)
         if ($conversation->getStatus() === ConversationStatus::CLOSED) {
             $this->logger->warning('Conversation already closed, skipping event dispatch', [
                 'conv_id' => $convId,
@@ -56,29 +54,30 @@ final class ConversationClosureService
             return;
         }
 
-        // 3. Collecter les métriques
-        $metrics = $this->metricsCollector->collect($conversation);
+        // Compute engagement metrics from actual message timestamps
+        $msgMetrics = $this->computeMessageMetrics($convId);
+        $conversation->setEngagementDurationSec($msgMetrics['duration_sec']);
+        $conversation->setTurnsCount($msgMetrics['turns_count']);
 
-        // 4. Calculer le reward
+        // Collect IOC metrics and calculate reward
+        $isCompleted = !in_array($reason, ['stale_timeout', 'max_duration'], true);
+        $metrics = $this->metricsCollector->collect($conversation, $isCompleted);
         $reward = $metrics->calculateReward();
 
-        // 5. Mettre à jour conversation.engagement_duration_sec, turns_count, reward_value
-        // (Ces colonnes sont déjà calculées en amont, mais on s'assure qu'elles existent)
         $conversation->setRewardValue($reward);
         $conversation->setStatus(ConversationStatus::CLOSED);
 
         $this->em->flush();
 
-        // 6. Dispatcher l'événement
         $event = new ConversationEndedEvent(
             conversationId: $conversation->getConvId(),
             scamTypeCode: $conversation->getScamType()->getCode(),
             personaCode: $conversation->getPersona()?->getPersonaCode(),
-            durationSec: $metrics->getDurationSec(),
-            turnsCount: $conversation->getTurnsCount(),
+            durationSec: $msgMetrics['duration_sec'],
+            turnsCount: $msgMetrics['turns_count'],
             iocsTotal: $metrics->getIocsTotal(),
             iocsSensibles: $metrics->getIocsSensibles(),
-            isCompleted: $metrics->isCompleted()
+            isCompleted: $isCompleted,
         );
 
         $this->eventDispatcher->dispatch($event);
@@ -86,8 +85,76 @@ final class ConversationClosureService
         $this->logger->info('Conversation closed and event dispatched', [
             'conv_id' => $convId,
             'reward' => $reward,
-            'has_persona' => $event->hasPersona(),
+            'reason' => $reason,
+            'duration_sec' => $msgMetrics['duration_sec'],
+            'turns_count' => $msgMetrics['turns_count'],
         ]);
+    }
+
+    /**
+     * Recalculate metrics and reward for an already-closed conversation.
+     * Used by the backfill command to fix historical conversations with missing/degenerate rewards.
+     * Does NOT change the conversation status. Dispatches ConversationEndedEvent to update persona stats.
+     */
+    public function recalculateMetricsAndReward(string $convId): void
+    {
+        $conversation = $this->em->getRepository(Conversation::class)->find($convId);
+
+        if ($conversation === null) {
+            throw new \RuntimeException("Conversation {$convId} not found");
+        }
+
+        $msgMetrics = $this->computeMessageMetrics($convId);
+        $conversation->setEngagementDurationSec($msgMetrics['duration_sec']);
+        $conversation->setTurnsCount($msgMetrics['turns_count']);
+
+        $metrics = $this->metricsCollector->collect($conversation);
+        $reward = $metrics->calculateReward();
+        $conversation->setRewardValue($reward);
+
+        $this->em->flush();
+
+        $event = new ConversationEndedEvent(
+            conversationId: $conversation->getConvId(),
+            scamTypeCode: $conversation->getScamType()->getCode(),
+            personaCode: $conversation->getPersona()?->getPersonaCode(),
+            durationSec: $msgMetrics['duration_sec'],
+            turnsCount: $msgMetrics['turns_count'],
+            iocsTotal: $metrics->getIocsTotal(),
+            iocsSensibles: $metrics->getIocsSensibles(),
+            isCompleted: true,
+        );
+
+        $this->eventDispatcher->dispatch($event);
+
+        $this->logger->info('Conversation metrics and reward recalculated', [
+            'conv_id' => $convId,
+            'reward' => $reward,
+            'duration_sec' => $msgMetrics['duration_sec'],
+            'turns_count' => $msgMetrics['turns_count'],
+        ]);
+    }
+
+    /**
+     * Compute engagement duration and turns count from actual message timestamps.
+     *
+     * @return array{duration_sec: int, turns_count: int}
+     */
+    private function computeMessageMetrics(string $convId): array
+    {
+        $conn = $this->em->getConnection();
+        $row = $conn->fetchAssociative(
+            'SELECT COUNT(*) as turns, EXTRACT(EPOCH FROM (MAX(ts_msg) - MIN(ts_msg)))::int as duration_sec FROM message WHERE conv_id = :convId',
+            ['convId' => $convId],
+        );
+
+        $rawDuration = $row['duration_sec'] ?? 0;
+        $rawTurns = $row['turns'] ?? 0;
+
+        return [
+            'duration_sec' => max(0, \is_numeric($rawDuration) ? (int) $rawDuration : 0),
+            'turns_count' => max(0, \is_numeric($rawTurns) ? (int) $rawTurns : 0),
+        ];
     }
 
     /**

@@ -5,6 +5,12 @@
 # ──────────────────────────────────────────────────────────────
 set -e
 
+# Allow disabling scheduler via environment variable
+if [ "${SCHEDULER_ENABLED:-true}" = "false" ]; then
+    echo "[scheduler] Scheduler is DISABLED (SCHEDULER_ENABLED=false). Exiting."
+    exit 0
+fi
+
 echo "[scheduler] Starting ScamBuster scheduler (PID $$)"
 echo "[scheduler] Timezone: $(date +%Z) | UTC offset: $(date +%z)"
 echo "[scheduler] Tasks:"
@@ -26,6 +32,11 @@ while true; do
     echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running close-stale-conversations"
     php /app/bin/console app:close-stale-conversations --no-interaction 2>&1 || \
         echo "[scheduler] WARNING: close-stale-conversations failed"
+
+    # Backfill rewards for any orphan closures (conversations closed without reward)
+    echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running calculate-rewards (backfill)"
+    php /app/bin/console preprod:calculate-rewards --no-interaction 2>&1 || \
+        echo "[scheduler] WARNING: calculate-rewards failed"
 
     # ── Daily at 06:00 UTC: bandit convergence report ──
     if [ "$CURRENT_HOUR" -ge 6 ] && [ "$LAST_BANDIT_DAY" != "$CURRENT_DAY" ]; then

@@ -194,31 +194,4 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
         );
     }
 
-    /**
-     * Sauvegarde une entité (raccourci pour persist + flush).
-     *
-     * @param bool $flush (default: true)
-     */
-    public function save(PersonaPerformanceStatsEntity $entity, bool $flush = true): void
-    {
-        $this->getEntityManager()->persist($entity);
-
-        if ($flush) {
-            $this->getEntityManager()->flush();
-        }
-    }
-
-    /**
-     * Supprime une entité (raccourci pour remove + flush).
-     *
-     * @param bool $flush (default: true)
-     */
-    public function remove(PersonaPerformanceStatsEntity $entity, bool $flush = true): void
-    {
-        $this->getEntityManager()->remove($entity);
-
-        if ($flush) {
-            $this->getEntityManager()->flush();
-        }
-    }
 }
