@@ -322,6 +322,20 @@ front-lint: ##@test Run frontend ESLint
 front-check: front-typecheck front-test front-build ##@test Run all frontend checks (typecheck + tests + build)
 
 # ======================================================================
+#  EVALUATION BENCHMARK SUITE
+# ======================================================================
+evaluate-corpus: ##@evaluate Generate evaluation corpus (use COUNT=500, DRY_RUN=1 for dry run)
+	$(CONSOLE_DEV) app:evaluate:generate-corpus --count=$(or $(COUNT),500) --sleep=1.0 $(if $(DRY_RUN),--dry-run,)
+
+evaluate-quality: ##@evaluate Evaluate reply quality from latest corpus (use CORPUS=path)
+	$(CONSOLE_DEV) app:evaluate:reply-quality $(or $(CORPUS),$(shell ls -t var/evaluation/corpus-*.json 2>/dev/null | head -1))
+
+evaluate-bandit: ##@evaluate Analyze bandit convergence
+	$(CONSOLE_DEV) app:evaluate:bandit-analysis
+
+evaluate-all: evaluate-corpus evaluate-quality evaluate-bandit ##@evaluate Run full evaluation pipeline (corpus + quality + bandit)
+
+# ======================================================================
 #  RESET ALL
 # ======================================================================
 respawn-all: ##@docker Reset all DBs, load fixtures and seed Vault
