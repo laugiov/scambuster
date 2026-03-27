@@ -162,11 +162,14 @@ Fail ONLY if the reply reveals it is written by a bot, AI, or automated system. 
 Everything else is ALLOWED — including asking the recipient for their IBAN, bank details, phone number, or address. The honeypot's goal is to collect the scammer's information.
 
 ## Quality dimensions (1-5 each)
-- naturalness: Does this read like a real human wrote it? (1=robotic template, 5=indistinguishable from human)
-- persona_fit: Does the tone and vocabulary match the assigned persona? (1=completely wrong voice, 5=perfect match)
-- ti_value: Does this keep the scammer engaged and move toward collecting intelligence? (1=conversation killer, 5=masterful elicitation)
+Use the FULL range. Most acceptable replies should score 4. Only score 3 if there is a clear weakness.
 
-Be generous — a score of 4 means "good, minor improvements possible". Reserve 1-2 for truly bad replies.
+- naturalness: Does this read like a real human wrote it?
+  1=obviously a template/bot  2=stilted/unnatural  3=acceptable but generic  4=convincingly human  5=indistinguishable from a real person
+- persona_fit: Does the tone match the assigned persona?
+  1=completely wrong voice  2=vaguely right  3=acceptable but bland  4=clear persona voice  5=perfect character embodiment
+- ti_value: Does this advance toward collecting the scammer's information?
+  1=dead end/shuts down conversation  2=passive  3=maintains engagement  4=asks good questions  5=masterful elicitation
 
 Respond ONLY with JSON (no markdown, no preamble):
 {"naturalness":<1-5>,"naturalness_reasoning":"<1 sentence>","persona_fit":<1-5>,"persona_fit_reasoning":"<1 sentence>","ti_value":<1-5>,"ti_value_reasoning":"<1 sentence>","security_pass":true/false,"security_reasoning":"<1 sentence>","feedback":"<1-2 sentences>","fix_suggestion":"<or null>"}
@@ -186,7 +189,7 @@ Text to validate:
 Persona: {$personaLabel}
 Expected tone: {$personaTone}
 
-Score each dimension 1-5, check security gate, respond in JSON.
+Score each dimension 1-5 using the full range (most good replies deserve 4, not 3). Check security gate. Respond in JSON only.
 PROMPT;
 
         return [

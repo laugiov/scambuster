@@ -69,7 +69,7 @@ final class ReplyValidator
         ];
 
         $options = [
-            'temperature' => 0.1,
+            'temperature' => 0.4,
             'max_tokens' => 500,
             'purpose' => 'reply_validation',
         ];

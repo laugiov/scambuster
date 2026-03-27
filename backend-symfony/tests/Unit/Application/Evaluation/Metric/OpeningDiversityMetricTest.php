@@ -42,7 +42,7 @@ final class OpeningDiversityMetricTest extends TestCase
         $corpus = [];
 
         for ($i = 0; $i < 10; ++$i) {
-            $corpus[] = ['text' => 'Hello there. Variation number ' . $i . ' of the same opening.'];
+            $corpus[] = ['text' => 'I understand your concern about this matter and I will look into it. Additional context ' . $i];
         }
 
         $result = $this->metric->compute($corpus);
