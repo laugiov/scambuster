@@ -19,8 +19,6 @@ class PolicyGuardTest extends TestCase
     {
         $this->guard = new PolicyGuard(
             logger: new NullLogger(),
-            minWords: 50,
-            maxWords: 150,
             maxLinks: 1
         );
     }
@@ -41,15 +39,32 @@ class PolicyGuardTest extends TestCase
     /**
      * @test
      */
-    public function it_accepts_short_text(): void
+    public function it_accepts_short_text_with_bot_accusation_context(): void
+    {
+        // 28 words — above bot accusation min (20) but below normal min (50)
+        $shortText = 'Wait what? I am not a robot! I am a real person and I find it quite offensive that you would say something like that. Why do you think that exactly?';
+
+        // Short text is accepted when context allows it (bot accusation = min 20 words)
+        $config = \App\Application\LLM\PolicyGuardConfig::fromContext(['is_bot_accusation' => true]);
+        $result = $this->guard->validate($shortText, $config);
+
+        $this->assertTrue($result['approved']);
+        $this->assertEmpty($result['flags']);
+    }
+
+    /**
+     * @test
+     */
+    public function it_rejects_short_text_in_normal_context(): void
     {
         $shortText = 'Bonjour, merci pour ton message !';
 
+        // Short text is rejected in normal context (min 50 words)
         $result = $this->guard->validate($shortText);
 
-        // No minimum word count - ReplyValidator handles conversation quality
-        $this->assertTrue($result['approved']);
-        $this->assertEmpty($result['flags']);
+        $this->assertFalse($result['approved']);
+        $this->assertNotEmpty($result['flags']);
+        $this->assertStringContainsString('too_short', $result['flags'][0]);
     }
 
     /**

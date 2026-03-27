@@ -95,12 +95,10 @@ services:
             $logger: '@monolog.logger.llm'
             $conversationAnalyzer: '@App\Application\LLM\ConversationAnalyzer'
 
-    # Application - PolicyGuard
+    # Application - PolicyGuard (word count thresholds are now dynamic via PolicyGuardConfig)
     App\Application\LLM\PolicyGuard:
         arguments:
             $logger: '@monolog.logger.llm'
-            $minWords: '%reply.min_words%'
-            $maxWords: '%reply.max_words%'
             $maxLinks: '%reply.max_links%'
 
     # Application - ReplyValidator

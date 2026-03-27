@@ -69,21 +69,22 @@ final class PolicyGuard
 
     public function __construct(
         private readonly LoggerInterface $logger,
-        private readonly int $minWords = 50,
-        private readonly int $maxWords = 150,
-        private readonly int $maxLinks = 1
+        private readonly int $maxLinks = 1,
     ) {
     }
 
     /**
-     * Validate text against all hard rules
+     * Validate text against all hard rules.
      *
-     * @param string $text Text to validate
+     * @param string                $text    Text to validate
+     * @param PolicyGuardConfig|null $config  Context-aware thresholds (null = default 50-150)
      *
      * @return array{approved: bool, flags: array<string>}
      */
-    public function validate(string $text): array
+    public function validate(string $text, ?PolicyGuardConfig $config = null): array
     {
+        $config ??= PolicyGuardConfig::default();
+
         $this->logger->debug('[PolicyGuard] Starting syntactic validation', [
             'text_length' => strlen($text),
             'text_preview' => substr($text, 0, 100) . '...',
@@ -91,20 +92,28 @@ final class PolicyGuard
 
         $flags = [];
 
-        // Check length (max only - min is handled by ReplyValidator's "maintient la conversation" check)
+        // Check word count against context-aware thresholds
         $wordCount = str_word_count($text, 0, 'àâäéèêëïîôùûüÿç');
 
         $this->logger->debug('[PolicyGuard] Checking word count', [
             'word_count' => $wordCount,
-            'min_allowed' => $this->minWords,
-            'max_allowed' => $this->maxWords,
+            'min_allowed' => $config->minWords,
+            'max_allowed' => $config->maxWords,
         ]);
 
-        if ($wordCount > $this->maxWords) {
+        if ($wordCount < $config->minWords) {
+            $flags[] = "too_short:{$wordCount}_words_min_{$config->minWords}";
+            $this->logger->warning('[PolicyGuard] ❌ Text too short', [
+                'word_count' => $wordCount,
+                'min_allowed' => $config->minWords,
+            ]);
+        }
+
+        if ($wordCount > $config->maxWords) {
             $flags[] = "too_long:{$wordCount}_words";
             $this->logger->warning('[PolicyGuard] ❌ Text too long', [
                 'word_count' => $wordCount,
-                'max_allowed' => $this->maxWords,
+                'max_allowed' => $config->maxWords,
             ]);
         }
 
