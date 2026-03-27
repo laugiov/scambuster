@@ -46,7 +46,7 @@ final class CorpusGeneratorTest extends TestCase
         $this->assertSame(0, $entry['attempts']);
     }
 
-    public function test_real_generation_calls_reply_handler(): void
+    public function test_real_generation_without_orchestrator_skips(): void
     {
         $rows = [
             ['conv_id' => 'c1', 'status' => 'open', 'scam_type_code' => 'PHISHING', 'persona_code' => 'elderly_person', 'last_msg_id' => 'm1', 'last_inbound_text' => 'Hello', 'message_count' => '2'],
@@ -61,36 +61,15 @@ final class CorpusGeneratorTest extends TestCase
         $replyHandler = $this->createMock(ReplyHandler::class);
         $replyHandler->method('getConversationContext')->willReturn([
             'conv_id' => 'c1',
+            'persona' => 'elderly_person',
             'detected_language' => 'en',
         ]);
-        $replyHandler->method('generateReply')->willReturn([
-            'msg_id' => 'out1',
-            'conv_id' => 'c1',
-            'draft' => ['text' => 'Oh dear, I received your message about the bank.'],
-            'meta' => [
-                'persona' => 'elderly_person',
-                'attempts' => 1,
-                'fallback_used' => false,
-                'naturalness' => 4,
-                'persona_fit' => 3,
-                'ti_value' => 3,
-                'security_pass' => true,
-                'policy_flags' => [],
-                'cost_estimate' => 0.003,
-            ],
-        ]);
 
+        // No ReplyOrchestrator provided — should skip gracefully
         $generator = new CorpusGenerator($em, $replyHandler, new LanguageDetector(), new NullLogger());
         $result = $generator->generate(count: 1, dryRun: false, sleep: 0);
 
-        $this->assertCount(1, $result['entries']);
-        $this->assertFalse($result['summary']['dry_run']);
-
-        $entry = $result['entries'][0];
-        $this->assertStringContainsString('bank', $entry['text']);
-        $this->assertSame(1, $entry['attempts']);
-        $this->assertSame(4, $entry['naturalness']);
-        $this->assertGreaterThan(0, $entry['word_count']);
+        $this->assertEmpty($result['entries']);
     }
 
     public function test_empty_conversations_returns_empty(): void
