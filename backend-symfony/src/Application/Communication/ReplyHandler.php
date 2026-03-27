@@ -381,7 +381,7 @@ class ReplyHandler
             $conversation,
             $channelEmail,
             $directionOut,
-            'fr', // TODO: Detect from context
+            (string) $context['detected_language'],
             $subject,
             $replyText,
             $replyHtml,

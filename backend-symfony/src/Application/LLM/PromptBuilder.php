@@ -54,8 +54,16 @@ final class PromptBuilder
         $detectedLanguage = $context['detected_language'] ?? 'en';
 
         // === SYSTEM PROMPT: persona identity + BasePromptRules (lean, ~100 words total) ===
-        /** @var string $systemPrompt */
-        $systemPrompt = $persona['system_prompt'];
+        /** @var string $rawPrompt */
+        $rawPrompt = $persona['system_prompt'];
+
+        // When detected language is NOT French, neutralize French cultural markers
+        // to prevent LLM from defaulting to French due to persona names/cities
+        if ($detectedLanguage !== 'fr') {
+            $rawPrompt = $this->neutralizeLocale($rawPrompt, $detectedLanguage);
+        }
+
+        $systemPrompt = $rawPrompt;
         $systemPrompt .= "\n\n" . BasePromptRules::getRules($detectedLanguage);
 
         // === USER PROMPT: 4 sections — SITUATION → MESSAGES → VARIETY → OBJECTIVE ===
@@ -117,6 +125,9 @@ final class PromptBuilder
             $userPrompt .= 'If natural, try to obtain: ' . implode(', ', $missingIocs) . ".\n";
         }
 
+        $langNames = ['en' => 'English', 'fr' => 'French', 'es' => 'Spanish', 'de' => 'German', 'pt' => 'Portuguese', 'it' => 'Italian', 'nl' => 'Dutch'];
+        $langName = $langNames[$detectedLanguage] ?? 'English';
+        $userPrompt .= "⚠️ LANGUAGE OVERRIDE: The correspondent writes in {$langName}. You MUST reply in {$langName}. Not French. Not any other language. {$langName} only. This overrides your persona's nationality.\n";
         $userPrompt .= 'Write your reply now.';
 
         $this->logger->debug('[PromptBuilder] Prompt built for LLM generator', [
@@ -470,5 +481,63 @@ PROMPT;
 
         // Last resort: just take first 1000 chars and hope for the best
         return substr($mimeMessage, 0, 1000) . "\n[... complex MIME content ...]";
+    }
+
+    /**
+     * Neutralize French cultural markers in persona prompt when replying in another language.
+     *
+     * GPT-4o strongly associates French names/cities with French output.
+     * This prefixes the persona with a language-override preamble and strips
+     * city names to reduce the French cultural signal.
+     */
+    /**
+     * Neutralize French cultural markers in persona prompt when replying in another language.
+     *
+     * GPT-4o strongly associates French names/cities with French output.
+     * When the target language is not French, we strip all French proper nouns
+     * (names, cities, cultural references) and prefix with an absolute language constraint.
+     */
+    private function neutralizeLocale(string $prompt, string $targetLang): string
+    {
+        $langNames = [
+            'en' => 'English', 'es' => 'Spanish', 'de' => 'German',
+            'pt' => 'Portuguese', 'it' => 'Italian', 'nl' => 'Dutch',
+        ];
+        $langName = $langNames[$targetLang] ?? 'English';
+
+        // Strip French first names (replace with gender-neutral placeholder)
+        $prompt = (string) preg_replace(
+            '/\b(?:Marcel|Brigitte|Sylvie|Catherine|Bernard|Amélie|Karim|Léa|Pierre|François|Thierry|Thomas|Nathalie|Antoine|Gérard|Damien|Odette|Philippe|Chloé|Julien|Monique|Henri|Sophie|Emma|Martine|Rachid|Jacqueline)\b/u',
+            'This person',
+            $prompt,
+        );
+
+        // Strip French surnames
+        $prompt = (string) preg_replace(
+            '/\b(?:Dupont|Moreau|Perrot|Vidal|Leroy|Vasseur|Benziane|Martin|Lambert|Beaumont|Roussel|Girard|Renard|Lefèvre|Fontaine|Cartier|Blanchard|Garnier|Durand|Roche|Faure|Marchand|Dumas|Petit|Bouvier|Hamidi|Morel)\b/u',
+            '',
+            $prompt,
+        );
+
+        // Strip French cities
+        $prompt = (string) preg_replace(
+            '/\b(?:in|from|of|à)\s+(?:Paris|Lyon|Marseille|Toulouse|Bordeaux|Lille|Nantes|Strasbourg|Montpellier|Rennes|Grenoble|Rouen|Toulon|Nice|Aix-en-Provence|Avignon|Biarritz|Pau|Limoges|Clermont-Ferrand|Dijon|Annecy|Saint-Denis|Tours)\b/ui',
+            'in their city',
+            $prompt,
+        );
+
+        // Strip French cultural references
+        $prompt = str_replace(
+            ['"electronic mail"', '"the administration"', '"the screen thing"', '"the internet button"', 'Mr. Lefèvre'],
+            ['"email"', '"the office"', '"the device"', '"the browser"', 'their manager'],
+            $prompt,
+        );
+
+        // Clean up double spaces and "This person  is" patterns
+        $prompt = (string) preg_replace('/This person\s+This person/i', 'This person', $prompt);
+        $prompt = (string) preg_replace('/\s{2,}/', ' ', $prompt);
+
+        // Prefix with absolute language constraint
+        return "You are role-playing a character. YOU MUST WRITE EXCLUSIVELY IN {$langName}. This is non-negotiable.\n\n" . $prompt;
     }
 }
