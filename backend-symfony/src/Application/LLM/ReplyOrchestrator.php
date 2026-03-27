@@ -33,6 +33,7 @@ final class ReplyOrchestrator
         private readonly LoggerInterface $logger,
         private readonly int $iocThreshold = self::DEFAULT_IOC_THRESHOLD,
         ?FallbackProvider $fallbackProvider = null,
+        private readonly ?CostEstimator $costEstimator = null,
     ) {
         $this->fallbackProvider = $fallbackProvider ?? new FallbackProvider();
     }
@@ -55,12 +56,14 @@ final class ReplyOrchestrator
         $this->logger->info('[ReplyOrchestrator] ═══════════════════════════════════════════════════════', [
             'conversation_id' => $context['conv_id'],
         ]);
+        $messageCount = count($context['last_messages'] ?? []);
+
         $this->logger->info('[ReplyOrchestrator] 🚀 STARTING REPLY GENERATION ORCHESTRATION', [
             'conversation_id' => $context['conv_id'],
             'persona' => $personaCode,
             'max_attempts' => self::MAX_ATTEMPTS,
             'ioc_threshold' => $this->iocThreshold,
-            'message_count' => count($context['last_messages'] ?? []),
+            'message_count' => $messageCount,
         ]);
 
         try {
@@ -153,6 +156,7 @@ final class ReplyOrchestrator
                             $attempt,
                             $dialogue,
                             $detectedLanguage,
+                            $messageCount,
                         );
                     }
 
@@ -237,7 +241,7 @@ final class ReplyOrchestrator
                         'ioc_likelihood_score' => $iocLikelihood,
                         'ioc_scoring_duration_ms' => round($iocDuration * 1000, 2),
                         'total_latency_ms' => $totalLatencyMs,
-                        'estimated_cost_usd' => $this->estimateTotalCost($dialogue),
+                        'estimated_cost_usd' => $this->estimateTotalCost($dialogue, $messageCount),
                     ]);
 
                     return [
@@ -247,7 +251,7 @@ final class ReplyOrchestrator
                         'validation_reasons' => $validatorResult['reasons'],
                         'model' => $this->getModelName(),
                         'persona' => $personaCode,
-                        'cost_estimate' => $this->estimateTotalCost($dialogue),
+                        'cost_estimate' => $this->estimateTotalCost($dialogue, $messageCount),
                         'attempts' => $attempt,
                         'ioc_likelihood' => $iocLikelihood,
                     ];
@@ -281,7 +285,7 @@ final class ReplyOrchestrator
                     'validation_reasons' => ['Best-of-3: PolicyGuard-approved, validator rejected'],
                     'model' => $this->getModelName(),
                     'persona' => $personaCode,
-                    'cost_estimate' => $this->estimateTotalCost($dialogue),
+                    'cost_estimate' => $this->estimateTotalCost($dialogue, $messageCount),
                     'attempts' => self::MAX_ATTEMPTS,
                     'ioc_likelihood' => 0,
                 ];
@@ -298,6 +302,7 @@ final class ReplyOrchestrator
                 self::MAX_ATTEMPTS,
                 $dialogue,
                 $detectedLanguage,
+                $messageCount,
             );
 
         } catch (\Throwable $e) {
@@ -469,16 +474,17 @@ final class ReplyOrchestrator
         int $attempts,
         array $dialogue,
         ?string $detectedLanguage = null,
+        int $msgCount = 0,
     ): array {
         return [
             'text' => $this->fallbackProvider->getFallback($detectedLanguage),
-            'approved' => true, // ✅ On approuve le fallback pour ne pas bloquer
-            'fallback_used' => true, // ⚠️ Flag pour indiquer qu'on a utilisé le fallback
+            'approved' => true,
+            'fallback_used' => true,
             'policy_flags' => $policyFlags,
             'validation_reasons' => $validationReasons,
             'model' => $this->getModelName(),
             'persona' => $personaCode,
-            'cost_estimate' => $this->estimateTotalCost($dialogue),
+            'cost_estimate' => $this->estimateTotalCost($dialogue, $msgCount),
             'attempts' => $attempts,
         ];
     }
@@ -488,22 +494,34 @@ final class ReplyOrchestrator
      *
      * @param array<int, array<string, mixed>> $dialogue
      */
-    private function estimateTotalCost(array $dialogue): float
+    /**
+     * Estimate total cost of all LLM calls using real model pricing via CostEstimator.
+     *
+     * @param array<int, array<string, mixed>> $dialogue
+     */
+    private function estimateTotalCost(array $dialogue, int $messageCount = 0): float
     {
-        // Coût approximatif GPT-4o-mini: $0.15/1M input, $0.60/1M output
-        $inputCostPer1K = 0.00015;
-        $outputCostPer1K = 0.0006;
+        if ($this->costEstimator === null) {
+            return 0.0;
+        }
 
         $totalCost = 0.0;
+        $model = $this->getModelName();
 
         foreach ($dialogue as $entry) {
             if ($entry['role'] === 'generator') {
-                // Génération: ~500 tokens input, ~100 tokens output
-                $totalCost += (500 * $inputCostPer1K / 1000) + (100 * $outputCostPer1K / 1000);
+                /** @var string $text */
+                $text = $entry['text'] ?? '';
+                $outputTokens = $this->costEstimator->approximateTokens($text);
+                $totalCost += $this->costEstimator->estimate('openai', $model, 500, $outputTokens);
             } elseif ($entry['role'] === 'validator') {
-                // Validation: ~300 tokens input, ~50 tokens output
-                $totalCost += (300 * $inputCostPer1K / 1000) + (50 * $outputCostPer1K / 1000);
+                $totalCost += $this->costEstimator->estimate('openai', 'gpt-4o-mini', 300, 50);
             }
+        }
+
+        // ConversationAnalyzer cost (separate gpt-4o call for anti-repetition on 2+ messages)
+        if ($messageCount >= 2) {
+            $totalCost += $this->costEstimator->estimate('openai', $model, 2000, 1500);
         }
 
         return round($totalCost, 6);

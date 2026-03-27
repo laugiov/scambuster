@@ -49,7 +49,7 @@ class ReplyOrchestratorTest extends TestCase
         $logger = $this->createMock(\Psr\Log\LoggerInterface::class);
 
         $this->promptBuilder = new PromptBuilder($this->contextAnalyzer, $variationProvider, $reciprocityManager, $personaManager, $logger);
-        $this->policyGuard = new PolicyGuard($logger, 50, 150, 1);
+        $this->policyGuard = new PolicyGuard($logger, 1);
         $this->iocScorer = new IOCLikelihoodScorer();
         $this->logger = $logger;
 
@@ -65,7 +65,10 @@ class ReplyOrchestratorTest extends TestCase
             $this->policyGuard,
             $this->replyValidator,
             $this->iocScorer,
-            $this->logger
+            $this->logger,
+            60,
+            null,
+            new \App\Application\LLM\CostEstimator(),
         );
     }
 

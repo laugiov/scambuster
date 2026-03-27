@@ -17,6 +17,11 @@ namespace App\Application\LLM;
  */
 final class ReciprocityManager
 {
+    public function __construct(
+        private readonly ?\Psr\Log\LoggerInterface $logger = null,
+    ) {
+    }
+
     /**
      * Emotional keywords indicating attacker vulnerability
      */
@@ -120,13 +125,22 @@ final class ReciprocityManager
         }
 
         // Default: No need to give yet
-        return [
+        $result = [
             'should_give_info' => false,
             'reason' => 'balanced',
             'suggested_action' => '',
             'give_count' => $giveCount,
             'take_count' => $takeCount,
         ];
+
+        $this->logger?->debug('[ReciprocityManager] Analysis', [
+            'should_give_info' => $result['should_give_info'],
+            'reason' => $result['reason'],
+            'give_count' => $giveCount,
+            'take_count' => $takeCount,
+        ]);
+
+        return $result;
     }
 
     /**

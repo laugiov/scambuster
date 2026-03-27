@@ -397,6 +397,24 @@ class ReplyHandler
         $this->em->persist($message);
         $this->em->flush();
 
+        // Audit trail: log REPLY_GENERATED event
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::REPLY_GENERATED,
+            $convId,
+            'generate_reply',
+            'success',
+            'conversation',
+            $convId,
+            [
+                'persona' => $personaCode,
+                'model' => $llmResult['model'] ?? 'unknown',
+                'cost' => $llmResult['cost_estimate'] ?? 0,
+                'attempts' => $llmResult['attempts'] ?? 1,
+                'detected_language' => (string) $context['detected_language'],
+                'fallback_used' => $llmResult['fallback_used'] ?? false,
+            ],
+        );
+
         return [
             'msg_id' => $msgId,
             'conv_id' => $convId,

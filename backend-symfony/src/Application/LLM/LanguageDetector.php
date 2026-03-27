@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Application\LLM;
 
+use Psr\Log\LoggerInterface;
+
 /**
  * Detects the language of a text using trigram frequency analysis.
  *
@@ -16,6 +18,11 @@ namespace App\Application\LLM;
  */
 final class LanguageDetector
 {
+    public function __construct(
+        private readonly ?LoggerInterface $logger = null,
+    ) {
+    }
+
     /**
      * Top trigrams per language (most distinctive, ordered by frequency).
      * Source: corpus analysis of scam email datasets.
@@ -79,6 +86,11 @@ final class LanguageDetector
         if ($bestScore < 5) {
             return self::DEFAULT_LANGUAGE;
         }
+
+        $this->logger?->debug('[LanguageDetector] Detected language', [
+            'text_length' => mb_strlen($text),
+            'detected' => $bestLang,
+        ]);
 
         return $bestLang;
     }
