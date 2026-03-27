@@ -28,10 +28,18 @@ final class MockLLMClient implements LLMClientInterface
             return $this->compiledRule();
         }
 
-        if (str_contains($content, 'Évalue') || str_contains($content, 'valider') || str_contains($content, 'Texte à valider')) {
+        if (str_contains($content, 'Évalue') || str_contains($content, 'valider') || str_contains($content, 'Texte à valider')
+            || str_contains($content, 'Text to validate') || str_contains($content, 'Score each dimension')) {
             return json_encode([
-                'approved' => true,
-                'reasons' => [],
+                'naturalness' => 4,
+                'naturalness_reasoning' => 'The message reads naturally.',
+                'persona_fit' => 4,
+                'persona_fit_reasoning' => 'Tone matches the assigned persona.',
+                'ti_value' => 3,
+                'ti_value_reasoning' => 'The message advances the conversation.',
+                'security_pass' => true,
+                'security_reasoning' => 'No forbidden words or PII detected.',
+                'feedback' => 'Good quality reply.',
                 'fix_suggestion' => null,
             ], JSON_THROW_ON_ERROR);
         }
