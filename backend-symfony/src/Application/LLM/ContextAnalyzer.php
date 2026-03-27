@@ -19,6 +19,11 @@ namespace App\Application\LLM;
  */
 final class ContextAnalyzer
 {
+    public function __construct(
+        private readonly ?\Psr\Log\LoggerInterface $logger = null,
+    ) {
+    }
+
     /** @var array<string> All possible IOC types we want to collect */
     private const IOC_TYPES = ['phone', 'url', 'iban', 'whatsapp', 'crypto', 'email'];
 
@@ -70,7 +75,7 @@ final class ContextAnalyzer
      */
     public function analyzeConversation(array $messages): array
     {
-        return [
+        $result = [
             'stage' => $this->detectStage($messages),
             'iocs_obtained' => $this->extractIOCs($messages),
             'missing_iocs' => $this->identifyMissingIOCs($messages),
@@ -79,6 +84,15 @@ final class ContextAnalyzer
             'promises_made' => $this->extractPromises($messages),
             'message_count' => count($messages),
         ];
+
+        $this->logger?->debug('[ContextAnalyzer] Analysis complete', [
+            'stage' => $result['stage'],
+            'iocs_obtained' => $result['iocs_obtained'],
+            'missing_iocs' => $result['missing_iocs'],
+            'risk_tone' => $result['risk_tone'],
+        ]);
+
+        return $result;
     }
 
     /**
