@@ -6,12 +6,16 @@ namespace App\Application\Evaluation;
 
 use App\Application\Communication\ReplyHandler;
 use App\Application\LLM\LanguageDetector;
+use App\Application\LLM\ReplyOrchestrator;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Generates an evaluation corpus by calling the real LLM pipeline
+ * Generates an evaluation corpus by calling the LLM pipeline
  * on existing conversations and capturing full metadata.
+ *
+ * Uses ReplyOrchestrator directly (no persistence) to avoid
+ * polluting conversations with evaluation messages.
  */
 class CorpusGenerator
 {
@@ -20,6 +24,7 @@ class CorpusGenerator
         private readonly ReplyHandler $replyHandler,
         private readonly LanguageDetector $languageDetector,
         private readonly LoggerInterface $logger,
+        private readonly ?ReplyOrchestrator $replyOrchestrator = null,
     ) {
     }
 
@@ -81,13 +86,18 @@ class CorpusGenerator
                     continue;
                 }
 
-                $result = $this->replyHandler->generateReply($convId, $lastMsgId, true, 'evaluation');
+                // Call ReplyOrchestrator directly — no message persistence
+                if ($this->replyOrchestrator === null) {
+                    $this->logger->warning('ReplyOrchestrator not available, skipping {conv_id}', ['conv_id' => $convId]);
 
-                if ($result === null) {
                     continue;
                 }
 
-                $entries[] = $this->buildEntry($conv, $context, $result);
+                /** @var string $personaCode */
+                $personaCode = $context['persona'] ?? 'generic_user';
+                $llmResult = $this->replyOrchestrator->generate($context, $personaCode);
+
+                $entries[] = $this->buildOrchestratorEntry($conv, $context, $llmResult);
                 ++$processed;
 
                 if ($onProgress !== null) {
@@ -164,20 +174,18 @@ class CorpusGenerator
     }
 
     /**
+     * Build entry from ReplyOrchestrator result (no persistence).
+     *
      * @param array<string, mixed> $conv
      * @param array<string, mixed> $context
-     * @param array<string, mixed> $result
+     * @param array<string, mixed> $llmResult ReplyOrchestrator::generate() output
      *
      * @return array<string, mixed>
      */
-    private function buildEntry(array $conv, array $context, array $result): array
+    private function buildOrchestratorEntry(array $conv, array $context, array $llmResult): array
     {
-        /** @var array<string, mixed> $draft */
-        $draft = $result['draft'] ?? [];
-        /** @var array<string, mixed> $meta */
-        $meta = $result['meta'] ?? [];
         /** @var string $text */
-        $text = $draft['text'] ?? '';
+        $text = $llmResult['text'] ?? '';
         $detectedLang = $context['detected_language'] ?? 'en';
         $rawMsgCount = $conv['message_count'] ?? 0;
 
@@ -190,15 +198,15 @@ class CorpusGenerator
             'reply_language' => $this->languageDetector->detect($text),
             'text' => $text,
             'word_count' => str_word_count($text),
-            'attempts' => $meta['attempts'] ?? 1,
-            'fallback_used' => $meta['fallback_used'] ?? false,
-            'approved' => true,
-            'naturalness' => $meta['naturalness'] ?? 3,
-            'persona_fit' => $meta['persona_fit'] ?? 3,
-            'ti_value' => $meta['ti_value'] ?? 3,
-            'security_pass' => $meta['security_pass'] ?? true,
-            'policy_flags' => $meta['policy_flags'] ?? [],
-            'cost_estimate' => $meta['cost_estimate'] ?? 0.003,
+            'attempts' => $llmResult['attempts'] ?? 1,
+            'fallback_used' => $llmResult['fallback_used'] ?? false,
+            'approved' => $llmResult['approved'] ?? false,
+            'naturalness' => $llmResult['naturalness'] ?? 3,
+            'persona_fit' => $llmResult['persona_fit'] ?? 3,
+            'ti_value' => $llmResult['ti_value'] ?? 3,
+            'security_pass' => $llmResult['security_pass'] ?? true,
+            'policy_flags' => $llmResult['policy_flags'] ?? [],
+            'cost_estimate' => $llmResult['cost_estimate'] ?? 0.003,
             'generated_at' => date(\DATE_ATOM),
         ];
     }
