@@ -14,24 +14,23 @@ use Psr\Log\LoggerInterface;
  */
 final class PolicyGuard
 {
-    /** @var array<string> Forbidden patterns that reveal the honeypot */
+    /**
+     * Forbidden patterns — ONLY words that reveal the honeypot/automation.
+     *
+     * Responsibility: PolicyGuard owns ALL pattern-based checks.
+     * The LLM validator does NOT re-check these — it focuses on semantic quality.
+     *
+     * Common victim words like "test", "suspect", "strange" are intentionally ALLOWED.
+     *
+     * @var array<string>
+     */
     private const FORBIDDEN_PATTERNS = [
         '/\bhoneypot\b/i',
-        '/\btest(?:ing)?\b/i',
-        '/\banalyse\b/i',
-        '/\bleurre\b/i',
-        '/\bfake\b/i',
-        '/\bsimulation\b/i',
-        '/\bbot\b/i',
-        '/\bautomatique\b/i',
-        '/\bintelligence artificielle\b/i',
         '/\bscambuster\b/i',
-        '/\barnaque\b/i',
-        '/\bscam\b/i',
-        '/\bsuspect\b/i',
-        '/\bétrange\b/i',
-        '/\binhabituel\b/i',
-        '/\bmenace\b/i',
+        '/\bI am (?:a |an )?(?:bot|automated|AI)\b/i',
+        '/\bautomated system\b/i',
+        '/\bartificial intelligence\b/i',
+        '/\bleurre\b/i',
     ];
 
     /** @var array<string> Threat and intimidation patterns */

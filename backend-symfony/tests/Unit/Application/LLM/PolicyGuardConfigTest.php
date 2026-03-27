@@ -13,7 +13,7 @@ class PolicyGuardConfigTest extends TestCase
     {
         $config = PolicyGuardConfig::default();
 
-        $this->assertSame(50, $config->minWords);
+        $this->assertSame(35, $config->minWords);
         $this->assertSame(150, $config->maxWords);
     }
 
@@ -21,7 +21,7 @@ class PolicyGuardConfigTest extends TestCase
     {
         $config = PolicyGuardConfig::fromContext([]);
 
-        $this->assertSame(50, $config->minWords);
+        $this->assertSame(35, $config->minWords);
         $this->assertSame(150, $config->maxWords);
     }
 
@@ -94,7 +94,7 @@ class PolicyGuardConfigTest extends TestCase
             'is_evasive_scammer' => false,
         ]);
 
-        $this->assertSame(50, $config->minWords);
+        $this->assertSame(35, $config->minWords);
         $this->assertSame(150, $config->maxWords);
     }
 }
