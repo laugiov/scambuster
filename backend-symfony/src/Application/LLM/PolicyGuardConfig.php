@@ -46,7 +46,7 @@ final class PolicyGuardConfig
             $isAggression => new self(minWords: 25, maxWords: 90),
             $isPostIban => new self(minWords: 30, maxWords: 100),
             $isEvasiveScammer => new self(minWords: 30, maxWords: 120),
-            default => new self(minWords: 50, maxWords: 150),
+            default => new self(minWords: 35, maxWords: 150),
         };
     }
 
@@ -55,6 +55,6 @@ final class PolicyGuardConfig
      */
     public static function default(): self
     {
-        return new self(minWords: 50, maxWords: 150);
+        return new self(minWords: 35, maxWords: 150);
     }
 }

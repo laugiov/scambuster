@@ -128,6 +128,7 @@ final class PromptBuilder
         $langNames = ['en' => 'English', 'fr' => 'French', 'es' => 'Spanish', 'de' => 'German', 'pt' => 'Portuguese', 'it' => 'Italian', 'nl' => 'Dutch'];
         $langName = $langNames[$detectedLanguage] ?? 'English';
         $userPrompt .= "⚠️ LANGUAGE OVERRIDE: The correspondent writes in {$langName}. You MUST reply in {$langName}. Not French. Not any other language. {$langName} only. This overrides your persona's nationality.\n";
+        $userPrompt .= "Never use placeholders like [Your Name] or [Company] — write concrete text only.\n";
         $userPrompt .= 'Write your reply now.';
 
         $this->logger->debug('[PromptBuilder] Prompt built for LLM generator', [
@@ -158,10 +159,11 @@ You are a quality auditor for a honeypot system. Score each reply on 3 dimension
 ## Security gate (pass/fail)
 Fail if ANY of these:
 - Contains forbidden words: "honeypot", "test", "analysis", "bot", "scambuster", "scam", "suspect", "threat"
-- Contains real PII: full IBAN, full street address (fake phone numbers are ALLOWED)
+- Reveals awareness of being a honeypot, bot, or automated system
 - Starts with "Subject:" or "Objet:"
-- Contains unresolved placeholders: [Your company], [Name], {...}
-- Contains unsolicited URLs
+- Contains unresolved placeholders: [Your company], [Your Name], [Name], {...}
+
+IMPORTANT: Asking for the recipient's IBAN, BIC, phone, address, or banking details is ALLOWED and ENCOURAGED. This is a honeypot — the goal is to collect the scammer's information. Only fail if the sender reveals THEIR OWN real sensitive data.
 
 ## Quality dimensions (1-5 each)
 - naturalness: Does this read like a real human wrote it? (1=robotic, 5=indistinguishable from human)
