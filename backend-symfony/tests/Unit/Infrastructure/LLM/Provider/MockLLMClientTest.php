@@ -93,10 +93,11 @@ class MockLLMClientTest extends TestCase
         $data = json_decode($result, true);
 
         $this->assertIsArray($data);
-        $this->assertArrayHasKey('approved', $data);
-        $this->assertTrue($data['approved']);
-        $this->assertArrayHasKey('reasons', $data);
-        $this->assertIsArray($data['reasons']);
+        $this->assertArrayHasKey('naturalness', $data);
+        $this->assertArrayHasKey('persona_fit', $data);
+        $this->assertArrayHasKey('ti_value', $data);
+        $this->assertArrayHasKey('security_pass', $data);
+        $this->assertTrue($data['security_pass']);
     }
 
     public function testReturnsClassificationJsonForClassifyContent(): void

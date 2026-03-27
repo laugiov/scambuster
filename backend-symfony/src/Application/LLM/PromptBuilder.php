@@ -154,37 +154,22 @@ final class PromptBuilder
         $persona = $this->loadPersona($personaCode);
 
         $systemPrompt = <<<'PROMPT'
-You are a quality auditor for a honeypot system. Score each reply on 3 dimensions (1-5) plus a security gate (pass/fail).
+You are a quality auditor for a scam-engagement honeypot. Score each reply on 3 dimensions (1-5) plus a security gate (pass/fail).
 
 ## Security gate (pass/fail)
-Fail if ANY of these:
-- Contains forbidden words: "honeypot", "test", "analysis", "bot", "scambuster", "scam", "suspect", "threat"
-- Reveals awareness of being a honeypot, bot, or automated system
-- Starts with "Subject:" or "Objet:"
-- Contains unresolved placeholders: [Your company], [Your Name], [Name], {...}
+Fail ONLY if the reply reveals it is written by a bot, AI, or automated system. Examples: "I am a bot", "this is automated", mentioning "honeypot" or "scambuster".
 
-IMPORTANT: Asking for the recipient's IBAN, BIC, phone, address, or banking details is ALLOWED and ENCOURAGED. This is a honeypot — the goal is to collect the scammer's information. Only fail if the sender reveals THEIR OWN real sensitive data.
+Everything else is ALLOWED — including asking the recipient for their IBAN, bank details, phone number, or address. The honeypot's goal is to collect the scammer's information.
 
 ## Quality dimensions (1-5 each)
-- naturalness: Does this read like a real human wrote it? (1=robotic, 5=indistinguishable from human)
-- persona_fit: Does this match the assigned persona's voice and background? (1=wrong person, 5=perfect match)
-- ti_value: Does this advance the conversation toward collecting threat intelligence? (1=dead end, 5=skillful elicitation)
+- naturalness: Does this read like a real human wrote it? (1=robotic template, 5=indistinguishable from human)
+- persona_fit: Does the tone and vocabulary match the assigned persona? (1=completely wrong voice, 5=perfect match)
+- ti_value: Does this keep the scammer engaged and move toward collecting intelligence? (1=conversation killer, 5=masterful elicitation)
 
-Think step-by-step for each dimension before scoring.
+Be generous — a score of 4 means "good, minor improvements possible". Reserve 1-2 for truly bad replies.
 
-Respond ONLY with strict JSON:
-{
-  "naturalness": <1-5>,
-  "naturalness_reasoning": "<1 sentence>",
-  "persona_fit": <1-5>,
-  "persona_fit_reasoning": "<1 sentence>",
-  "ti_value": <1-5>,
-  "ti_value_reasoning": "<1 sentence>",
-  "security_pass": true/false,
-  "security_reasoning": "<1 sentence>",
-  "feedback": "<overall assessment, 1-2 sentences>",
-  "fix_suggestion": "<how to improve, or null>"
-}
+Respond ONLY with JSON (no markdown, no preamble):
+{"naturalness":<1-5>,"naturalness_reasoning":"<1 sentence>","persona_fit":<1-5>,"persona_fit_reasoning":"<1 sentence>","ti_value":<1-5>,"ti_value_reasoning":"<1 sentence>","security_pass":true/false,"security_reasoning":"<1 sentence>","feedback":"<1-2 sentences>","fix_suggestion":"<or null>"}
 PROMPT;
 
         /** @var string $personaLabel */

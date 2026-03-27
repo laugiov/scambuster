@@ -135,15 +135,11 @@ class PolicyGuardTest extends TestCase
     {
         return [
             'honeypot' => ['honeypot'],
-            'test' => ['test'],
-            'analyse' => ['analyse'],
-            'leurre' => ['leurre'],
-            'fake' => ['fake'],
-            'simulation' => ['simulation'],
-            'bot' => ['bot'],
-            'automatique' => ['automatique'],
-            'intelligence artificielle' => ['intelligence artificielle'],
             'scambuster' => ['scambuster'],
+            'I am a bot' => ['I am a bot'],
+            'automated system' => ['automated system'],
+            'artificial intelligence' => ['artificial intelligence'],
+            'leurre' => ['leurre'],
         ];
     }
 

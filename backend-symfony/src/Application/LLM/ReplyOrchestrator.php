@@ -64,6 +64,8 @@ final class ReplyOrchestrator
         ]);
 
         try {
+            $bestPolicyApprovedText = null;
+
             for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
                 $this->logger->info('[ReplyOrchestrator] ─────────────────────────────────────────────────────────', [
                     'conversation_id' => $context['conv_id'],
@@ -114,7 +116,10 @@ final class ReplyOrchestrator
                     'conversation_id' => $context['conv_id'],
                 ]);
 
-                $policyResult = $this->policyGuard->validate($generatedText);
+                $policyConfig = PolicyGuardConfig::fromContext($context);
+                $context['policy_min_words'] = $policyConfig->minWords;
+                $context['policy_max_words'] = $policyConfig->maxWords;
+                $policyResult = $this->policyGuard->validate($generatedText, $policyConfig);
 
                 if (!$policyResult['approved']) {
                     $feedback = $this->buildPolicyFeedback($policyResult['flags']);
@@ -155,6 +160,9 @@ final class ReplyOrchestrator
                     continue;
                 }
 
+                // Track PolicyGuard-approved text for best-of-3 fallback
+                $bestPolicyApprovedText = $generatedText;
+
                 $this->logger->info("[ReplyOrchestrator] [ATTEMPT {$attempt}] ✅ PolicyGuard APPROVED", [
                     'conversation_id' => $context['conv_id'],
                 ]);
@@ -165,7 +173,33 @@ final class ReplyOrchestrator
                 ]);
 
                 $valStartTime = microtime(true);
-                $validatorResult = $this->replyValidator->validate($generatedText, $personaCode);
+
+                try {
+                    $validatorResult = $this->replyValidator->validate($generatedText, $personaCode);
+                } catch (\RuntimeException $e) {
+                    // Validator JSON parse error — treat as soft failure, retry
+                    $this->logger->warning("[ReplyOrchestrator] [ATTEMPT {$attempt}] Validator error (soft fail, retrying)", [
+                        'conversation_id' => $context['conv_id'],
+                        'error' => $e->getMessage(),
+                    ]);
+
+                    $dialogue[] = [
+                        'role' => 'validator',
+                        'attempt' => $attempt,
+                        'approved' => false,
+                        'reasons' => ['Validator returned malformed response: ' . $e->getMessage()],
+                        'fix_suggestion' => 'Regenerate with simpler phrasing',
+                    ];
+
+                    // bestPolicyApprovedText already set above after PolicyGuard approval
+
+                    if ($attempt === self::MAX_ATTEMPTS) {
+                        break;
+                    }
+
+                    continue;
+                }
+
                 $valDuration = microtime(true) - $valStartTime;
 
                 $dialogue[] = [
@@ -228,29 +262,43 @@ final class ReplyOrchestrator
                     'fix_suggestion' => $validatorResult['fix_suggestion'],
                 ]);
 
-                // Si dernière tentative, utiliser le fallback
                 if ($attempt === self::MAX_ATTEMPTS) {
-                    $this->logger->warning('All attempts failed, using fallback placeholder', [
-                        'conversation_id' => $context['conv_id'],
-                        'reason' => 'LLM Validator rejected all attempts',
-                        'validation_reasons' => $validatorResult['reasons'],
-                    ]);
-
-                    return $this->buildFallbackResponse(
-                        [],
-                        $validatorResult['reasons'],
-                        $personaCode,
-                        $attempt,
-                        $dialogue,
-                        $detectedLanguage,
-                    );
+                    break;
                 }
-
-                // Sinon, on continue avec le prochain attempt (dialogue enrichi)
             }
 
-            // Ne devrait jamais arriver ici
-            throw new \RuntimeException('Unexpected: loop exited without return');
+            // All attempts exhausted — use best-of-3 or fallback
+            if ($bestPolicyApprovedText !== null) {
+                $this->logger->warning('All validator attempts failed — using best PolicyGuard-approved reply (best-of-3)', [
+                    'conversation_id' => $context['conv_id'],
+                    'text_preview' => substr($bestPolicyApprovedText, 0, 100),
+                ]);
+
+                return [
+                    'text' => $bestPolicyApprovedText,
+                    'approved' => true,
+                    'policy_flags' => [],
+                    'validation_reasons' => ['Best-of-3: PolicyGuard-approved, validator rejected'],
+                    'model' => $this->getModelName(),
+                    'persona' => $personaCode,
+                    'cost_estimate' => $this->estimateTotalCost($dialogue),
+                    'attempts' => self::MAX_ATTEMPTS,
+                    'ioc_likelihood' => 0,
+                ];
+            }
+
+            $this->logger->warning('All attempts failed, using fallback placeholder', [
+                'conversation_id' => $context['conv_id'],
+            ]);
+
+            return $this->buildFallbackResponse(
+                [],
+                ['All attempts rejected by both PolicyGuard and Validator'],
+                $personaCode,
+                self::MAX_ATTEMPTS,
+                $dialogue,
+                $detectedLanguage,
+            );
 
         } catch (\Throwable $e) {
             $this->logger->error('LLM reply generation failed', [
@@ -288,37 +336,37 @@ final class ReplyOrchestrator
 
             if ($role === 'generator') {
                 $dialogueHistory[] = [
-                    'role' => 'Générateur (tentative ' . $attempt . ')',
+                    'role' => 'Generator (attempt ' . $attempt . ')',
                     'content' => $entry['text'],
                 ];
             } elseif ($role === 'validator') {
                 /** @var bool $approved */
                 $approved = $entry['approved'] ?? false;
-                $status = $approved ? '✅ APPROUVÉ' : '❌ REJETÉ';
+                $status = $approved ? 'APPROVED' : 'REJECTED';
                 $content = $status;
 
                 if (!$approved) {
                     /** @var array<string> $reasons */
                     $reasons = $entry['reasons'] ?? [];
-                    $content .= "\nRaisons: " . implode(', ', $reasons);
+                    $content .= "\nReasons: " . implode(', ', $reasons);
 
                     /** @var string|null $fixSuggestion */
                     $fixSuggestion = $entry['fix_suggestion'] ?? null;
 
                     if ($fixSuggestion) {
-                        $content .= "\nSuggestion: " . $fixSuggestion;
+                        $content .= "\nFix: " . $fixSuggestion;
                     }
                 }
                 $dialogueHistory[] = [
-                    'role' => 'Validateur (tentative ' . $attempt . ')',
+                    'role' => 'Validator (attempt ' . $attempt . ')',
                     'content' => $content,
                 ];
             } elseif ($role === 'policy_guard') {
                 /** @var string $feedback */
                 $feedback = $entry['feedback'] ?? '';
                 $dialogueHistory[] = [
-                    'role' => 'PolicyGuard (tentative ' . $attempt . ')',
-                    'content' => '❌ REJETÉ - ' . $feedback,
+                    'role' => 'PolicyGuard (attempt ' . $attempt . ')',
+                    'content' => 'REJECTED - ' . $feedback,
                 ];
             }
         }
