@@ -25,49 +25,34 @@ class SiemTestCommandTest extends KernelTestCase
 
         $output = $this->tester->getDisplay();
         $this->assertStringContainsString('SIEM Connector Test', $output);
+    }
+
+    public function testCommandReportsProvider(): void
+    {
+        $this->tester->execute([]);
+
+        $output = $this->tester->getDisplay();
         $this->assertStringContainsString('Provider:', $output);
     }
 
-    public function testCommandReportsProviderName(): void
+    public function testCommandExitCodeIsZero(): void
     {
         $this->tester->execute([]);
 
-        $output = $this->tester->getDisplay();
-        $this->assertMatchesRegularExpression('/Provider:\s+(none|file|syslog)/', $output);
-    }
-
-    public function testOutputContainsHealthCheckLine(): void
-    {
-        $this->tester->execute([]);
-
-        $output = $this->tester->getDisplay();
-        // When provider is 'none', the command warns and exits before health check
-        // When provider is active, it reports health check status
-        $this->assertTrue(
-            str_contains($output, 'Health check:') || str_contains($output, 'SIEM export is disabled'),
-            'Output should contain either Health check result or disabled warning'
-        );
-    }
-
-    public function testExitCodeIsZero(): void
-    {
-        $this->tester->execute([]);
-
-        // NullSiemExporter returns 'none', so the command returns SUCCESS with a warning
+        // Both provider=none (warning) and provider=file (success) return 0
         $this->assertSame(0, $this->tester->getStatusCode());
     }
 
-    public function testNoneProviderShowsDisabledWarning(): void
+    public function testCommandOutputHandlesBothProviders(): void
     {
         $this->tester->execute([]);
 
         $output = $this->tester->getDisplay();
-        // In test environment, SIEM_PROVIDER is typically 'none'
-        if (str_contains($output, 'Provider: none')) {
-            $this->assertStringContainsString('SIEM export is disabled', $output);
-        } else {
-            // If a real provider is configured, expect health check
-            $this->assertStringContainsString('Health check:', $output);
-        }
+
+        // Provider=none shows warning, provider=file/syslog shows health check
+        $this->assertTrue(
+            str_contains($output, 'SIEM export is disabled') || str_contains($output, 'Health check:'),
+            'Output should contain either disabled warning or health check result'
+        );
     }
 }

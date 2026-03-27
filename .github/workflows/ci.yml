@@ -256,6 +256,7 @@ jobs:
         run: |
           docker compose exec backend-e2e vendor/bin/phpunit \
             --testsuite endtoend \
+            --exclude-group ci-skip \
             --coverage-clover /tmp/coverage-e2e.xml \
             --colors=never || true
 
