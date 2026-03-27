@@ -5,15 +5,21 @@ declare(strict_types=1);
 namespace App\Application\LLM;
 
 use App\Application\LLM\Port\LLMClientInterface;
+use App\Domain\Validation\ValidationResult;
 use Psr\Log\LoggerInterface;
 
 /**
- * Reply Validator - LLM-based semantic validation
+ * Reply Validator - LLM-based multi-criteria validation
  *
  * Uses a separate LLM call to validate generated replies against
- * persona coherence, tone, and security criteria.
+ * 3 quality dimensions (naturalness, persona_fit, ti_value) + security gate.
  *
- * Returns structured JSON verdict: {approved, reasons, fix_suggestion}
+ * Rejection logic:
+ * - security_pass = false → reject
+ * - naturalness < 2 → reject
+ * - average(naturalness, persona_fit, ti_value) < 2.5 → reject
+ *
+ * Returns ValidationResult (with backward-compatible toLegacyArray()).
  */
 final class ReplyValidator
 {
@@ -25,7 +31,10 @@ final class ReplyValidator
     }
 
     /**
-     * Validate a generated reply text using LLM judge
+     * Validate a generated reply text using LLM multi-criteria judge.
+     *
+     * Returns a legacy array for backward compatibility.
+     * Use validateMultiCriteria() for the full ValidationResult.
      *
      * @param string             $text             Generated reply text to validate
      * @param string             $personaCode      Persona code for validation context
@@ -36,6 +45,16 @@ final class ReplyValidator
      * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null}
      */
     public function validate(string $text, string $personaCode, ?array $previousMessages = null): array
+    {
+        return $this->validateMultiCriteria($text, $personaCode)->toLegacyArray();
+    }
+
+    /**
+     * Validate a generated reply with multi-criteria scoring.
+     *
+     * @throws \RuntimeException If LLM call fails or returns invalid JSON
+     */
+    public function validateMultiCriteria(string $text, string $personaCode): ValidationResult
     {
         $this->logger->debug('[ReplyValidator] Building validation prompts', [
             'persona' => $personaCode,
@@ -50,64 +69,48 @@ final class ReplyValidator
         ];
 
         $options = [
-            'temperature' => 0.1, // Low temperature for consistent validation
-            'max_tokens' => 300,
+            'temperature' => 0.1,
+            'max_tokens' => 500,
             'purpose' => 'reply_validation',
         ];
 
-        $this->logger->debug('[ReplyValidator] 📤 CALLING LLM VALIDATOR', [
+        $this->logger->debug('[ReplyValidator] Calling LLM validator', [
             'persona' => $personaCode,
             'model' => 'gpt-4o-mini',
             'temperature' => $options['temperature'],
             'max_tokens' => $options['max_tokens'],
-            'system_prompt_length' => strlen($prompts['system']),
-            'user_prompt_length' => strlen($prompts['user']),
-            'system_prompt' => $prompts['system'],
-            'user_prompt' => $prompts['user'],
         ]);
 
         try {
             $response = $this->llmClient->chat($messages, $options);
 
-            $this->logger->debug('[ReplyValidator] 📥 LLM VALIDATOR RAW RESPONSE', [
+            $this->logger->debug('[ReplyValidator] LLM validator response', [
                 'persona' => $personaCode,
                 'response_length' => strlen($response),
                 'raw_response' => $response,
             ]);
 
-            // Extract JSON from response (handle markdown code blocks)
             $jsonText = $this->extractJson($response);
+            $data = json_decode($jsonText, true, 512, JSON_THROW_ON_ERROR);
 
-            $verdict = json_decode($jsonText, true, 512, JSON_THROW_ON_ERROR);
-
-            if (!is_array($verdict)) {
+            if (!is_array($data)) {
                 throw new \RuntimeException('Invalid validator response: not a JSON object');
             }
 
-            // Validate verdict structure
-            if (!isset($verdict['approved']) || !is_bool($verdict['approved'])) {
-                throw new \RuntimeException('Invalid validator response: missing or invalid "approved" field');
-            }
+            // Support both legacy and multi-criteria format
+            $result = $this->parseValidatorResponse($data);
 
-            $reasons = $verdict['reasons'] ?? [];
-
-            if (!is_array($reasons)) {
-                throw new \RuntimeException('Invalid validator response: "reasons" must be an array');
-            }
-
-            $this->logger->info('[ReplyValidator] ✅ Validation completed', [
-                'approved' => $verdict['approved'],
-                'reasons_count' => count($reasons),
-                'reasons' => $reasons,
-                'fix_suggestion' => $verdict['fix_suggestion'] ?? null,
+            $this->logger->info('[ReplyValidator] Validation completed', [
+                'approved' => $result->approved,
+                'naturalness' => $result->naturalness,
+                'persona_fit' => $result->personaFit,
+                'ti_value' => $result->tiValue,
+                'security_pass' => $result->securityPass,
+                'average_quality' => $result->averageQualityScore(),
                 'persona' => $personaCode,
             ]);
 
-            return [
-                'approved' => $verdict['approved'],
-                'reasons' => $reasons,
-                'fix_suggestion' => $verdict['fix_suggestion'] ?? null,
-            ];
+            return $result;
         } catch (\JsonException $e) {
             $this->logger->error('LLM validator returned invalid JSON', [
                 'error' => $e->getMessage(),
@@ -116,9 +119,45 @@ final class ReplyValidator
 
             throw new \RuntimeException(
                 "Validator returned invalid JSON: {$e->getMessage()}",
-                previous: $e
+                previous: $e,
             );
         }
+    }
+
+    /**
+     * Parse validator response, supporting both multi-criteria and legacy formats.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function parseValidatorResponse(array $data): ValidationResult
+    {
+        // Multi-criteria format (new): has naturalness, persona_fit, ti_value
+        if (isset($data['naturalness'])) {
+            return ValidationResult::fromLLMResponse($data);
+        }
+
+        // Legacy format: has approved + reasons
+        if (!isset($data['approved']) || !is_bool($data['approved'])) {
+            throw new \RuntimeException('Invalid validator response: missing or invalid "approved" field');
+        }
+
+        $reasons = $data['reasons'] ?? [];
+
+        if (!is_array($reasons)) {
+            throw new \RuntimeException('Invalid validator response: "reasons" must be an array');
+        }
+
+        // Convert legacy to ValidationResult with default scores
+        return new ValidationResult(
+            approved: $data['approved'],
+            naturalness: $data['approved'] ? 3 : 1,
+            personaFit: $data['approved'] ? 3 : 1,
+            tiValue: $data['approved'] ? 3 : 1,
+            securityPass: $data['approved'],
+            feedback: implode('; ', $reasons),
+            reasons: $reasons,
+            fixSuggestion: $data['fix_suggestion'] ?? null,
+        );
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\LLM;
 
 use App\Application\Communication\PersonaManager;
+use App\Application\LLM\Prompt\BasePromptRules;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -41,194 +42,82 @@ final class PromptBuilder
 
         /** @var array<string, string> $scamTypeData */
         $scamTypeData = $context['scam_type'] ?? [];
-        $scamTypeLabel = (string) ($scamTypeData['label_fr'] ?? 'Menace inconnue');
+        $scamTypeLabel = (string) ($scamTypeData['label_fr'] ?? 'Unknown threat');
         $conversationHistory = $this->formatConversationHistory($context['last_messages'] ?? []);
 
         // Analyze conversation context using ContextAnalyzer
         $stateSlots = $this->contextAnalyzer->analyzeConversation($context['last_messages'] ?? []);
-
-        // Count how many messages in history (for greeting logic)
         $messageCount = $stateSlots['message_count'];
 
-        // === SYSTEM PROMPT AVEC INSTRUCTION DE LANGUE ===
+        // Detect language from context (passed by ReplyHandler) or default to 'en'
+        /** @var string $detectedLanguage */
+        $detectedLanguage = $context['detected_language'] ?? 'en';
+
+        // === SYSTEM PROMPT: persona identity + BasePromptRules (lean, ~100 words total) ===
         /** @var string $systemPrompt */
         $systemPrompt = $persona['system_prompt'];
+        $systemPrompt .= "\n\n" . BasePromptRules::getRules($detectedLanguage);
 
-        // Ajoute instruction linguistique DANS le system prompt (prioritaire)
-        $systemPrompt .= "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        $systemPrompt .= "⚠️ RÈGLE LINGUISTIQUE ABSOLUE :\n";
-        $systemPrompt .= "Tu DOIS répondre dans la MÊME LANGUE que le dernier message que tu as reçu.\n";
-        $systemPrompt .= "- Message en ANGLAIS → Réponds EN ANGLAIS (pas en français !)\n";
-        $systemPrompt .= "- Message en FRANÇAIS → Réponds EN FRANÇAIS\n";
-        $systemPrompt .= "- Message en ESPAGNOL → Réponds EN ESPAGNOL\n";
-        $systemPrompt .= "NE JAMAIS mélanger les langues. Cette règle est NON NÉGOCIABLE et prioritaire sur tout le reste.\n";
-        $systemPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        // === USER PROMPT: 4 sections — SITUATION → MESSAGES → VARIETY → OBJECTIVE ===
 
-        // === DIVERSITY & NO-COPY GUARD ===
-        $systemPrompt .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        $systemPrompt .= "⚠️ DIVERSITY & NO-COPY GUARD:\n";
-        $systemPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-        $systemPrompt .= "RÈGLES ABSOLUES DE VARIATION (apply in the target language):\n\n";
-        $systemPrompt .= "1. NO-COPY RULE:\n";
-        $systemPrompt .= "   - Do NOT copy any quoted phrase from the prompt or prior instructions\n";
-        $systemPrompt .= "   - Treat examples as INSPIRATION only, never copy verbatim\n";
-        $systemPrompt .= "   - Adapt principles to your own natural formulation\n\n";
-        $systemPrompt .= "2. OPENING DIVERSITY:\n";
-        $systemPrompt .= "   - NEVER reuse an opening you already used earlier in this thread\n";
-        $systemPrompt .= "   - Vary completely: different greeting, direct start, question first, etc.\n";
-        $systemPrompt .= "   - If your opening is ≥70% similar to your previous message, REWRITE immediately\n\n";
-        $systemPrompt .= "3. REQUEST DIVERSITY:\n";
-        $systemPrompt .= "   - Each request frame is allowed ONLY ONCE per conversation\n";
-        $systemPrompt .= "   - Alternate: direct question, verification, reformulation, alternative phrasing\n";
-        $systemPrompt .= "   - Never use same interrogative structure twice (Pourriez-vous, Serait-il possible, etc.)\n\n";
-        $systemPrompt .= "4. N-GRAM NOVELTY:\n";
-        $systemPrompt .= "   - Avoid reusing any 2-4 word sequence you already used\n";
-        $systemPrompt .= "   - Exception: proper nouns, IOCs, technical terms\n";
-        $systemPrompt .= "   - Rephrase common expressions differently each time\n\n";
-        $systemPrompt .= "5. RHYTHM VARIATION:\n";
-        $systemPrompt .= "   - Alternate sentence length and structure\n";
-        $systemPrompt .= "   - Prefer direct starts 50% of the time (no greeting formula)\n";
-        $systemPrompt .= "   - Mix: short punchy sentences + longer explanatory ones\n\n";
-        $systemPrompt .= "6. SIMILARITY CHECK:\n";
-        $systemPrompt .= "   - Before finalizing, compare your first 6-10 words with your previous message\n";
-        $systemPrompt .= "   - If similarity ≥70%, REWRITE with a completely different approach\n";
-        $systemPrompt .= "   - Change structure, vocabulary, and tone if needed\n\n";
-        $systemPrompt .= "⚠️ PRIORITY: Appearing HUMAN and NATURAL is more important than following rigid templates.\n";
-        $systemPrompt .= "⚠️ If instructions suggest fixed phrases, ignore them - create your own variation.\n";
-        $systemPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-
-        $userPrompt = "Type de menace détectée : {$scamTypeLabel}\n\n";
-
-        // === AJOUT DES STATE SLOTS POUR CONTEXTUALISATION INTELLIGENTE ===
+        // --- Section 1 (START): SITUATION ---
+        $userPrompt = "## SITUATION\n";
         $userPrompt .= $this->formatStateSlots($stateSlots);
-        $userPrompt .= "\n";
+        $userPrompt .= "threat_type: {$scamTypeLabel}\n";
+        $userPrompt .= "language: {$detectedLanguage}\n";
+        $userPrompt .= "exchange_count: {$messageCount}\n";
 
-        // === SENDER HISTORY SUMMARY (if available) ===
         if (!empty($context['sender_history_summary'])) {
-            $userPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-            $userPrompt .= "📋 CONTEXTE SUPPLÉMENTAIRE - Échanges précédents avec cet expéditeur :\n\n";
             /** @var string $senderHistory */
             $senderHistory = $context['sender_history_summary'];
-            $userPrompt .= $senderHistory . "\n\n";
-            $userPrompt .= "Note : Ces informations proviennent d'autres conversations avec le même scammer.\n";
-            $userPrompt .= "Utilise ce contexte pour maintenir la cohérence et adapter ta stratégie.\n";
-            $userPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+            $userPrompt .= "\nPrior exchanges with this sender:\n{$senderHistory}\n";
         }
 
-        $userPrompt .= "Historique de la conversation actuelle :\n{$conversationHistory}\n\n";
-
-        // Add context about message count for natural flow
-        if ($messageCount >= 2) {
-            $userPrompt .= "⚠️ CONTEXTE : Vous avez déjà échangé {$messageCount} messages dans cette conversation.\n";
-            $userPrompt .= "Si l'échange est casual, évite de répéter 'Bonjour'. Si l'échange est formel, conserve les formules de politesse appropriées.\n\n";
-        }
-
-        // === ANALYSE RÉCIPROCITÉ (GIVE/TAKE BALANCE) ===
+        // Reciprocity analysis
         $reciprocityAnalysis = $this->reciprocityManager->analyze($context['last_messages'] ?? []);
 
         if ($reciprocityAnalysis['should_give_info']) {
-            $userPrompt .= "💡 SUGGESTION POUR CETTE RÉPONSE :\n";
-            $userPrompt .= $reciprocityAnalysis['suggested_action'] . "\n";
+            $userPrompt .= "\nSuggestion: " . $reciprocityAnalysis['suggested_action'] . "\n";
             $userPrompt .= $this->reciprocityManager->generateFakeDataSuggestions($context);
-            $userPrompt .= "\n";
         }
+        $userPrompt .= "\n";
 
-        // === INTÉGRATION DU DIALOGUE GÉNÉRATION ↔ VALIDATION ===
-        if (isset($context['generation_dialogue']) && !empty($context['generation_dialogue'])) {
+        // --- Section 2: RECENT MESSAGES ---
+        $userPrompt .= "## RECENT MESSAGES\n";
+        $userPrompt .= "{$conversationHistory}\n\n";
+
+        // Generation dialogue from previous attempts (if retry)
+        if (!empty($context['generation_dialogue'])) {
             $userPrompt .= $this->formatGenerationDialogue($context['generation_dialogue']);
             $userPrompt .= "\n";
         }
 
-        // === FORMAT EMAIL IMPORTANT ===
-        $userPrompt .= "⚠️ FORMAT EMAIL CRITIQUE :\n";
-        $userPrompt .= "- NE JAMAIS écrire 'Objet :' au début du message\n";
-        $userPrompt .= "- Le sujet de l'email est géré automatiquement par le système de messagerie\n";
-        $userPrompt .= "- Commence DIRECTEMENT par la salutation ('Bonjour', 'Madame', etc.)\n";
-        $userPrompt .= "- Exemple INCORRECT : 'Objet : Re: Facture\\n\\nBonjour...'\n";
-        $userPrompt .= "- Exemple CORRECT : 'Bonjour,\\n\\nMerci pour votre message...'\n\n";
+        // --- Section 3: VARIETY CONSTRAINT ---
+        $userPrompt .= "## VARIETY\n";
+        $userPrompt .= $this->buildVarietySection($context, $stateSlots, $personaCode, $messageCount);
 
-        $userPrompt .= "⚠️ SIGNATURE - RÈGLE ABSOLUE :\n";
-        $userPrompt .= "- NE PAS mettre de signature avec un nom (pas de 'M. Dupont', 'Jean', etc.)\n";
-        $userPrompt .= "- Termine UNIQUEMENT par 'Cordialement' ou 'Merci' seul sur la dernière ligne\n";
-        $userPrompt .= "- INTERDIT : 'Cordialement,\\nM. Dupont' ou 'Cordialement,\\nJean'\n";
-        $userPrompt .= "- CORRECT : Terminer par 'Cordialement' ou 'Merci de votre aide'\n\n";
+        // --- Section 4 (END): OBJECTIVE (recency bias — LLM follows last instructions best) ---
+        $userPrompt .= "## OBJECTIVE\n";
 
-        // === INSTRUCTIONS ANTI-RÉPÉTITION INTELLIGENTES (CONVERSATIONANALYZER) ===
-        // ⚠️ POSITIONNÉES À LA FIN POUR RECENCY BIAS (les LLMs suivent mieux les instructions récentes)
-        if ($this->conversationAnalyzer !== null && $messageCount >= 2) {
-            try {
-                // Prepare context for ConversationAnalyzer
-                $analysisContext = [
-                    'conversation_id' => $context['conv_id'] ?? 'unknown',
-                    'scam_type' => (string) ($scamTypeData['code'] ?? 'unknown'),
-                    'persona_code' => $personaCode,
-                    'all_messages' => $context['last_messages'] ?? [],
-                    'extracted_iocs' => $context['extracted_iocs'] ?? [],
-                ];
-
-                // Call ConversationAnalyzer for intelligent anti-repetition
-                $analysis = $this->conversationAnalyzer->analyzeAndGenerateInstructions($analysisContext);
-
-                // Add strategic instructions from LLM analyzer (AT THE END for better instruction-following)
-                $userPrompt .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-                $userPrompt .= "🎯 INSTRUCTIONS PRIORITAIRES ANTI-RÉPÉTITION (À SUIVRE ABSOLUMENT) :\n";
-                $userPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-                $userPrompt .= $this->formatInstructions($analysis['instructions_for_llm']);
-                $userPrompt .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-
-                $this->logger->info('[PromptBuilder] ConversationAnalyzer instructions added (at END for recency bias)', [
-                    'conv_id' => $context['conv_id'] ?? 'unknown',
-                    'repetitions_detected' => count($analysis['repetitions_detected']),
-                    'repetitions_list' => $analysis['repetitions_detected'],
-                    'tone_recommended' => $analysis['tone_recommendation'],
-                    'interdictions_count' => count($analysis['instructions_for_llm']['interdictions'] ?? []),
-                    'obligations_count' => count($analysis['instructions_for_llm']['obligations'] ?? []),
-                ]);
-
-                $this->logger->debug('[PromptBuilder] ConversationAnalyzer instructions applied', [
-                    'conv_id' => $context['conv_id'] ?? 'unknown',
-                    'has_instructions' => !empty($analysis['instructions_for_llm']),
-                    'suggestions_count' => count($analysis['strategic_suggestions']),
-                ]);
-            } catch (\Throwable $e) {
-                // Fallback to VariationProvider if ConversationAnalyzer fails
-                $this->logger->warning('[PromptBuilder] ConversationAnalyzer failed, falling back to VariationProvider', [
-                    'error' => $e->getMessage(),
-                    'conv_id' => $context['conv_id'] ?? 'unknown',
-                ]);
-
-                $variationInstructions = $this->variationProvider->generateInstructions($context['last_messages'] ?? []);
-
-                if (!empty($variationInstructions)) {
-                    $userPrompt .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-                    $userPrompt .= $variationInstructions;
-                    $userPrompt .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-                }
-            }
-        } else {
-            // Use basic VariationProvider if ConversationAnalyzer not available or not enough messages
-            $variationInstructions = $this->variationProvider->generateInstructions($context['last_messages'] ?? []);
-
-            if (!empty($variationInstructions)) {
-                $userPrompt .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-                $userPrompt .= $variationInstructions;
-                $userPrompt .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-            }
+        if ($messageCount >= 2) {
+            $userPrompt .= "This is message #{$messageCount} in the thread. Vary your opening.\n";
         }
 
-        // === INSTRUCTION DE LANGUE (DERNIÈRE CHOSE QUE LE LLM VOIT) ===
-        $userPrompt .= "\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-        $userPrompt .= "⚠️⚠️⚠️ RÈGLE LINGUISTIQUE CRITIQUE - LIRE ATTENTIVEMENT ⚠️⚠️⚠️\n\n";
-        $userPrompt .= "AVANT de rédiger, regarde le message ci-dessus marqué [Attaquant].\n";
-        $userPrompt .= "Quelle est sa langue ? Anglais, français, espagnol ?\n\n";
-        $userPrompt .= "✅ SI LE MESSAGE EST EN ANGLAIS → TA RÉPONSE DOIT ÊTRE EN ANGLAIS\n";
-        $userPrompt .= "✅ SI LE MESSAGE EST EN FRANÇAIS → TA RÉPONSE DOIT ÊTRE EN FRANÇAIS\n";
-        $userPrompt .= "✅ SI LE MESSAGE EST EN ESPAGNOL → TA RÉPONSE DOIT ÊTRE EN ESPAGNOL\n\n";
-        $userPrompt .= "❌ NE JAMAIS RÉPONDRE EN FRANÇAIS SI LE MESSAGE EST EN ANGLAIS\n";
-        $userPrompt .= "❌ NE JAMAIS RÉPONDRE EN ANGLAIS SI LE MESSAGE EST EN FRANÇAIS\n\n";
-        $userPrompt .= "Cette règle est PRIORITAIRE sur TOUT le reste (persona, ton, etc.)\n";
-        $userPrompt .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
-        $userPrompt .= 'Maintenant, rédige ta réponse dans la bonne langue.';
+        // Target word count from PolicyGuardConfig context
+        /** @var int $minWords */
+        $minWords = $context['policy_min_words'] ?? 50;
+        /** @var int $maxWords */
+        $maxWords = $context['policy_max_words'] ?? 150;
+        $userPrompt .= "Target length: {$minWords}-{$maxWords} words.\n";
+
+        // Missing IOCs to collect naturally
+        if (!empty($stateSlots['missing_iocs'])) {
+            /** @var array<string> $missingIocs */
+            $missingIocs = $stateSlots['missing_iocs'];
+            $userPrompt .= 'If natural, try to obtain: ' . implode(', ', $missingIocs) . ".\n";
+        }
+
+        $userPrompt .= 'Write your reply now.';
 
         $this->logger->debug('[PromptBuilder] Prompt built for LLM generator', [
             'conv_id' => $context['conv_id'] ?? 'unknown',
@@ -252,45 +141,36 @@ final class PromptBuilder
     {
         $persona = $this->loadPersona($personaCode);
 
-        $systemPrompt = <<<PROMPT
-Tu es un auditeur qui valide des messages générés pour un honeypot.
+        $systemPrompt = <<<'PROMPT'
+You are a quality auditor for a honeypot system. Score each reply on 3 dimensions (1-5) plus a security gate (pass/fail).
 
-⚠️ TON RÔLE : Rejeter UNIQUEMENT les messages qui révèlent le honeypot ou sont clairement non-humains.
+## Security gate (pass/fail)
+Fail if ANY of these:
+- Contains forbidden words: "honeypot", "test", "analysis", "bot", "scambuster", "scam", "suspect", "threat"
+- Contains real PII: full IBAN, full street address (fake phone numbers are ALLOWED)
+- Starts with "Subject:" or "Objet:"
+- Contains unresolved placeholders: [Your company], [Name], {...}
+- Contains unsolicited URLs
 
-Critères OBLIGATOIRES (rejette SEULEMENT si l'un est violé) :
-1. Longueur : 40-150 mots
-2. Pas de mots interdits : "honeypot", "test", "analyse", "bot", "scambuster", "arnaque", "suspect", "étrange", "menace"
-3. Pas de PII réelles sensibles : IBAN complet, adresse complète avec numéro de rue
-   ⚠️ EXCEPTION : Les faux numéros de téléphone sont AUTORISÉS (06 XX XX XX XX) - c'est voulu pour le honeypot
-4. Pas d'URL additionnelles non sollicitées
-5. Maintient la conversation (pose une question OU fait une affirmation qui appelle une réponse)
-6. ⚠️ CRITIQUE : NE DOIT PAS commencer par "Objet :" - rejette immédiatement si présent
-7. ⚠️ CRITIQUE : NE DOIT PAS contenir de placeholders : [Votre entreprise], [Nom], [Fonction], {...} - rejette immédiatement si présent
+## Quality dimensions (1-5 each)
+- naturalness: Does this read like a real human wrote it? (1=robotic, 5=indistinguishable from human)
+- persona_fit: Does this match the assigned persona's voice and background? (1=wrong person, 5=perfect match)
+- ti_value: Does this advance the conversation toward collecting threat intelligence? (1=dead end, 5=skillful elicitation)
 
-⚠️ RÈGLES DE PERMISSIVITÉ :
-- APPROUVE même si le ton n'est pas parfait
-- APPROUVE même si le message est un peu formel
-- APPROUVE même si le message ne demande pas explicitement des IOCs
-- APPROUVE même si le message est moyen - l'important est qu'il ne révèle PAS le honeypot
-- REJETTE SEULEMENT si le message est clairement robotique ou révèle le dispositif
+Think step-by-step for each dimension before scoring.
 
-⚠️ CAS LIMITES :
-- "Je comprends que..." → APPROUVE (pas idéal mais acceptable)
-- "Il est essentiel de..." → APPROUVE (formel mais humain)
-- "Pour ma part je pense..." → APPROUVE (verbeux mais humain)
-- "Je vois que tu cherches..." → APPROUVE si le reste est naturel
-- Message de 100 mots → APPROUVE (long mais pas bloquant)
-- "Objet : Re: ..." au début → ❌ REJETTE (révèle l'automatisation)
-- "[Votre entreprise]" dans signature → ❌ REJETTE (placeholder non rempli)
-- "{nom}" ou "[Nom]" → ❌ REJETTE (template non complété)
-
-PRINCIPE : En cas de doute, APPROUVE. Rejette SEULEMENT si c'est clairement problématique.
-
-Réponds UNIQUEMENT en JSON strict :
+Respond ONLY with strict JSON:
 {
-  "approved": true ou false,
-  "reasons": ["raison 1", "raison 2"],
-  "fix_suggestion": "suggestion si rejet (optionnel)"
+  "naturalness": <1-5>,
+  "naturalness_reasoning": "<1 sentence>",
+  "persona_fit": <1-5>,
+  "persona_fit_reasoning": "<1 sentence>",
+  "ti_value": <1-5>,
+  "ti_value_reasoning": "<1 sentence>",
+  "security_pass": true/false,
+  "security_reasoning": "<1 sentence>",
+  "feedback": "<overall assessment, 1-2 sentences>",
+  "fix_suggestion": "<how to improve, or null>"
 }
 PROMPT;
 
@@ -300,18 +180,15 @@ PROMPT;
         $personaTone = $persona['persona_tone'];
 
         $userPrompt = <<<PROMPT
-Texte à valider :
+Text to validate:
 """
 {$generatedText}
 """
 
-Persona : {$personaLabel}
-Ton attendu : {$personaTone}
+Persona: {$personaLabel}
+Expected tone: {$personaTone}
 
-⚠️ Question clé : Est-ce que ce message révèle le honeypot ou contient des mots interdits ?
-Si NON → APPROUVE même si pas parfait.
-
-Évalue et réponds en JSON.
+Score each dimension 1-5, check security gate, respond in JSON.
 PROMPT;
 
         return [
@@ -321,31 +198,78 @@ PROMPT;
     }
 
     /**
-     * Formate les state slots pour enrichir le prompt avec contexte intelligent
+     * Build the VARIETY section using ConversationAnalyzer or VariationProvider fallback.
+     *
+     * @param array<string, mixed> $context
+     * @param array<string, mixed> $stateSlots
+     */
+    private function buildVarietySection(array $context, array $stateSlots, string $personaCode, int $messageCount): string
+    {
+        /** @var array<string, string> $scamTypeData */
+        $scamTypeData = $context['scam_type'] ?? [];
+
+        // Try ConversationAnalyzer first (LLM-powered anti-repetition)
+        if ($this->conversationAnalyzer !== null && $messageCount >= 2) {
+            try {
+                $analysisContext = [
+                    'conversation_id' => $context['conv_id'] ?? 'unknown',
+                    'scam_type' => (string) ($scamTypeData['code'] ?? 'unknown'),
+                    'persona_code' => $personaCode,
+                    'all_messages' => $context['last_messages'] ?? [],
+                    'extracted_iocs' => $context['extracted_iocs'] ?? [],
+                ];
+
+                $analysis = $this->conversationAnalyzer->analyzeAndGenerateInstructions($analysisContext);
+
+                $this->logger->info('[PromptBuilder] ConversationAnalyzer instructions added', [
+                    'conv_id' => $context['conv_id'] ?? 'unknown',
+                    'repetitions_detected' => count($analysis['repetitions_detected']),
+                    'tone_recommended' => $analysis['tone_recommendation'],
+                ]);
+
+                $result = $this->formatInstructions($analysis['instructions_for_llm']);
+
+                return !empty($result) ? $result . "\n" : "Vary your opening and phrasing from previous messages.\n\n";
+            } catch (\Throwable $e) {
+                $this->logger->warning('[PromptBuilder] ConversationAnalyzer failed, falling back to VariationProvider', [
+                    'error' => $e->getMessage(),
+                    'conv_id' => $context['conv_id'] ?? 'unknown',
+                ]);
+            }
+        }
+
+        // Fallback: VariationProvider (basic, PHP-only)
+        $variationInstructions = $this->variationProvider->generateInstructions($context['last_messages'] ?? []);
+
+        if (!empty($variationInstructions)) {
+            return $variationInstructions . "\n\n";
+        }
+
+        return "Vary your opening and phrasing from previous messages.\n\n";
+    }
+
+    /**
+     * Format state slots as key:value pairs for the SITUATION section.
      *
      * @param array<string, mixed> $stateSlots
      */
     private function formatStateSlots(array $stateSlots): string
     {
-        $output = "CONTEXTE:\n";
+        /** @var string $stage */
+        $stage = $stateSlots['stage'] ?? 'unknown';
+        $output = "stage: {$stage}\n";
 
-        // Stage simplifié
-        $stageLabelFr = match($stateSlots['stage']) {
-            'first_contact' => 'Premier contact',
-            'follow_up' => 'Conversation en cours',
-            'payment_push' => 'Phase avancée',
-            default => 'Inconnu',
-        };
-        $output .= "Stage: {$stageLabelFr}\n";
-
-        // IOCs manquants uniquement (on garde cette info utile pour le honeypot)
-        if (!empty($stateSlots['missing_iocs']) && is_array($stateSlots['missing_iocs'])) {
-            /** @var array<string> $missingIocs */
-            $missingIocs = $stateSlots['missing_iocs'];
-            $output .= "Essayer d'obtenir (si opportunité naturelle): " . implode(', ', $missingIocs) . "\n";
+        if (!empty($stateSlots['attacker_tone'])) {
+            /** @var string $tone */
+            $tone = $stateSlots['attacker_tone'];
+            $output .= "attacker_tone: {$tone}\n";
         }
 
-        $output .= "\n";
+        if (!empty($stateSlots['target_channel'])) {
+            /** @var string $channel */
+            $channel = $stateSlots['target_channel'];
+            $output .= "target_channel: {$channel}\n";
+        }
 
         return $output;
     }
@@ -357,28 +281,17 @@ PROMPT;
      */
     private function formatGenerationDialogue(array $dialogue): string
     {
-        $output = "═══════════════════════════════════════════════════════════\n";
-        $output .= "⚠️ HISTORIQUE DES TENTATIVES PRÉCÉDENTES (DIALOGUE GÉNÉRATEUR ↔ VALIDATEUR)\n";
-        $output .= "═══════════════════════════════════════════════════════════\n\n";
+        $output = "### Previous attempts\n";
 
         foreach ($dialogue as $entry) {
             /** @var string $role */
             $role = $entry['role'];
             /** @var string $content */
             $content = $entry['content'];
-
-            $output .= ">>> {$role}:\n";
-            $output .= "{$content}\n\n";
+            $output .= "**{$role}**: {$content}\n";
         }
 
-        $output .= "═══════════════════════════════════════════════════════════\n";
-        $output .= "⚠️ CONSIGNES IMPORTANTES:\n";
-        $output .= "- Lis attentivement les feedbacks du validateur ci-dessus\n";
-        $output .= "- Identifie EXACTEMENT ce qui a été rejeté et pourquoi\n";
-        $output .= "- Ajuste ta réponse pour corriger ces problèmes spécifiques\n";
-        $output .= "- NE répète PAS les mêmes erreurs\n";
-        $output .= "- Si le validateur est trop strict, simplifie encore plus ta réponse\n";
-        $output .= "═══════════════════════════════════════════════════════════\n\n";
+        $output .= "\nFix the issues above. Simplify if needed.\n";
 
         return $output;
     }
@@ -399,9 +312,8 @@ PROMPT;
 
         $formatted = '';
 
-        // 🚫 INTERDICTIONS
         if (!empty($instructions['interdictions']) && is_array($instructions['interdictions'])) {
-            $formatted .= "🚫 INTERDICTIONS (ce qui est répété et DOIT être évité) :\n";
+            $formatted .= "Avoid repeating:\n";
 
             /** @var string $interdiction */
             foreach ($instructions['interdictions'] as $interdiction) {
@@ -410,9 +322,8 @@ PROMPT;
             $formatted .= "\n";
         }
 
-        // ✅ OBLIGATIONS
         if (!empty($instructions['obligations']) && is_array($instructions['obligations'])) {
-            $formatted .= "✅ OBLIGATIONS (ce qui DOIT être fait à la place) :\n";
+            $formatted .= "Instead, do:\n";
 
             /** @var string $obligation */
             foreach ($instructions['obligations'] as $obligation) {
@@ -421,17 +332,12 @@ PROMPT;
             $formatted .= "\n";
         }
 
-        // 🎯 OBJECTIF STRATÉGIQUE
         if (isset($instructions['objectif_strategique']) && is_string($instructions['objectif_strategique'])) {
-            $formatted .= "🎯 OBJECTIF STRATÉGIQUE :\n";
-            $formatted .= '- ' . $instructions['objectif_strategique'] . "\n";
-            $formatted .= "\n";
+            $formatted .= 'Strategic goal: ' . $instructions['objectif_strategique'] . "\n";
         }
 
-        // ➡️ STYLE/TON
         if (isset($instructions['style_ton']) && is_string($instructions['style_ton'])) {
-            $formatted .= "➡️ STYLE/TON à adopter :\n";
-            $formatted .= '- ' . $instructions['style_ton'] . "\n";
+            $formatted .= 'Tone: ' . $instructions['style_ton'] . "\n";
         }
 
         return $formatted;
@@ -468,20 +374,20 @@ PROMPT;
     private function formatConversationHistory(array $messages): string
     {
         if (empty($messages)) {
-            return '(Aucun message précédent - c\'est le premier échange)';
+            return '(No prior messages — this is the first exchange)';
         }
 
         $formatted = [];
 
         foreach ($messages as $msg) {
-            $direction = $msg['direction'] === 'in' ? 'Attaquant' : 'Victime';
+            $direction = $msg['direction'] === 'in' ? 'Attacker' : 'Victim';
             /** @var array<string, mixed> $headers */
             $headers = $msg['headers'] ?? [];
             /** @var string $from */
-            $from = $headers['from'] ?? 'inconnu';
+            $from = $headers['from'] ?? 'unknown';
             /** @var string $tsMsg */
             $tsMsg = $msg['ts_msg'] ?? '';
-            $date = $tsMsg !== '' ? (new \DateTimeImmutable($tsMsg))->format('d/m/Y H:i') : 'date inconnue';
+            $date = $tsMsg !== '' ? (new \DateTimeImmutable($tsMsg))->format('Y-m-d H:i') : 'unknown date';
             /** @var string $bodyText */
             $bodyText = $msg['body_text'] ?? '';
             $body = $this->cleanBodyForLLM($bodyText);
@@ -530,7 +436,7 @@ PROMPT;
 
         // Final truncation to reasonable size (10KB max for LLM context)
         if (strlen($body) > 10000) {
-            $body = substr($body, 0, 10000) . "\n\n[... message tronqué (trop long) ...]";
+            $body = substr($body, 0, 10000) . "\n\n[... message truncated ...]";
         }
 
         return $body;
@@ -563,6 +469,6 @@ PROMPT;
         }
 
         // Last resort: just take first 1000 chars and hope for the best
-        return substr($mimeMessage, 0, 1000) . "\n[... contenu MIME complexe ...]";
+        return substr($mimeMessage, 0, 1000) . "\n[... complex MIME content ...]";
     }
 }

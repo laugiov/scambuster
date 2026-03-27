@@ -85,6 +85,12 @@ services:
     # Application - ReciprocityManager (manages give/take balance)
     App\Application\LLM\ReciprocityManager: ~
 
+    # Application - LanguageDetector (trigram-based language detection)
+    App\Application\LLM\LanguageDetector: ~
+
+    # Application - FallbackProvider (multilingual fallback messages)
+    App\Application\LLM\FallbackProvider: ~
+
     # Application - PromptBuilder
     App\Application\LLM\PromptBuilder:
         arguments:

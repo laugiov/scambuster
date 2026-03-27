@@ -136,7 +136,7 @@ class PromptBuilderTest extends TestCase
         $this->assertArrayHasKey('system', $prompts);
         $this->assertArrayHasKey('user', $prompts);
         $this->assertStringContainsString('Arnaque bancaire', $prompts['user']);
-        $this->assertStringContainsString('(Aucun message précédent - c\'est le premier échange)', $prompts['user']);
+        $this->assertStringContainsString('No prior messages', $prompts['user']);
     }
 
     /**
@@ -164,8 +164,8 @@ class PromptBuilderTest extends TestCase
 
         $prompts = $this->builder->buildGeneratorPrompts($context, 'bank_customer');
 
-        $this->assertStringContainsString('Attaquant', $prompts['user']);
-        $this->assertStringContainsString('Victime', $prompts['user']);
+        $this->assertStringContainsString('Attacker', $prompts['user']);
+        $this->assertStringContainsString('Victim', $prompts['user']);
         $this->assertStringContainsString('coordonnées bancaires', $prompts['user']);
         $this->assertStringContainsString('qui êtes-vous', $prompts['user']);
         $this->assertStringContainsString('scammer@evil.com', $prompts['user']);
@@ -183,7 +183,7 @@ class PromptBuilderTest extends TestCase
         $this->assertIsArray($prompts);
         $this->assertArrayHasKey('system', $prompts);
         $this->assertArrayHasKey('user', $prompts);
-        $this->assertStringContainsString('auditeur', $prompts['system']);
+        $this->assertStringContainsString('auditor', $prompts['system']);
         $this->assertStringContainsString('JSON', $prompts['system']);
         $this->assertStringContainsString($generatedText, $prompts['user']);
     }
@@ -199,7 +199,7 @@ class PromptBuilderTest extends TestCase
 
         $formatted = $method->invoke($this->builder, []);
 
-        $this->assertStringContainsString('Aucun message précédent', $formatted);
+        $this->assertStringContainsString('No prior messages', $formatted);
     }
 
     /**
@@ -222,10 +222,10 @@ class PromptBuilderTest extends TestCase
 
         $formatted = $method->invoke($this->builder, $messages);
 
-        $this->assertStringContainsString('Attaquant', $formatted);
+        $this->assertStringContainsString('Attacker', $formatted);
         $this->assertStringContainsString('scammer@evil.com', $formatted);
         $this->assertStringContainsString('Hello victim', $formatted);
-        $this->assertStringContainsString('15/01/2025', $formatted);
+        $this->assertStringContainsString('2025-01-15', $formatted);
     }
 
     /**
@@ -242,8 +242,8 @@ class PromptBuilderTest extends TestCase
 
         // Should include scam type information
         $this->assertStringContainsString('Phishing', $prompts['user']);
-        // Should include context information
-        $this->assertStringContainsString('CONTEXTE:', $prompts['user']);
+        // Should include situation section
+        $this->assertStringContainsString('## SITUATION', $prompts['user']);
     }
 
     /**
