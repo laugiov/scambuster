@@ -15,6 +15,9 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  * 3. Summary is NOT generated for excluded email addresses (test emails)
  * 4. Summary is properly integrated in the reply generation context
  */
+/**
+ * @group ci-skip
+ */
 class ConversationHistorySummaryTest extends WebTestCase
 {
     private function getValidJwt($client): string

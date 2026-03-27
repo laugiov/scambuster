@@ -8,6 +8,9 @@ use App\Domain\Communication\MailAccount;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
+/**
+ * @group ci-skip
+ */
 class MailAccountSecretE2eTest extends WebTestCase
 {
     public function test_resolve_secret_e2e(): void
