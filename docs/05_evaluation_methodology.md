@@ -310,6 +310,72 @@ reward = 0.40 × duration_score
 
 ---
 
+## Automated Benchmark Suite (v1.8.0)
+
+### Overview
+
+ScamBuster v1.8.0 introduces an **automated quality benchmark suite** consisting of 3 Symfony console commands that measure reply quality, persona effectiveness, and bandit convergence through reproducible, machine-readable metrics.
+
+### Commands
+
+| Command | Purpose | Output |
+|---------|---------|--------|
+| `app:evaluate:generate-corpus` | Generate 500+ LLM replies with full metadata | JSON corpus + Markdown summary |
+| `app:evaluate:reply-quality` | Compute 9 quality metrics across 6 dimensions | JSON + Markdown report with pass/fail |
+| `app:evaluate:bandit-analysis` | Analyze epsilon-greedy convergence per scam type | JSON + Markdown report |
+
+### Quality Metrics (9 metrics, 6 dimensions)
+
+| Metric | Dimension | Target | Method |
+|--------|-----------|--------|--------|
+| Non-repetitiveness | Diversity | Jaccard < 0.30 | Character trigram similarity between consecutive replies |
+| Opening diversity | Diversity | Ratio > 0.80 | Unique first sentences / total replies |
+| Persona distinctness | Persona | Variance > 0.15 | TF-IDF cosine similarity across persona pairs |
+| First-attempt approval | Naturalness | Rate > 60% | % of replies approved on first PolicyGuard pass |
+| Average naturalness | Naturalness | Score > 3.0/5 | Multi-criteria validator naturalness dimension |
+| Language compliance | Language | Rate > 95% | Detected language vs reply language match |
+| IOC elicitation | Intelligence | Score > 2.5/5 | Multi-criteria validator ti_value dimension |
+| Security pass rate | Safety | Rate > 99% | Explicit security gate in validator |
+| Fallback rate | Safety | Rate < 10% | % of replies using fallback instead of LLM |
+
+### Corpus Generation
+
+Each corpus entry captures:
+- **Reply text** with word count and detected language
+- **Persona and scam type** context
+- **Multi-criteria validation scores**: naturalness (1-5), persona_fit (1-5), ti_value (1-5), security_pass (bool)
+- **Pipeline metadata**: attempt count, fallback flag, PolicyGuard flags, cost estimate
+- **Conversation context**: message count, conversation ID
+
+### Bandit Convergence Analysis
+
+Per scam type:
+- Dominant persona % and convergence status (>60% with >=10 sessions)
+- Reward distribution (mean, stddev, quartiles) per persona
+- Cumulative regret vs oracle and random baseline
+- Cold start analysis (first 3 sessions exploration ratio)
+
+### Reproducibility
+
+```bash
+# Full pipeline (Makefile targets)
+make evaluate-corpus COUNT=500    # ~$1.50, ~15 minutes
+make evaluate-quality             # Uses latest corpus
+make evaluate-bandit              # Reads database directly
+make evaluate-all                 # Runs all 3 in sequence
+
+# Dry-run (no LLM cost)
+make evaluate-corpus COUNT=500 DRY_RUN=1
+```
+
+### Test Coverage
+
+- 83 unit tests covering all 7 metric calculators, 2 analyzers, 2 report writers, 3 commands
+- 96.9% line coverage on Application/Evaluation layer
+- PHPStan level 6 with zero errors
+
+---
+
 ## Reporting
 
 ### Metrics Dashboard (Planned)
