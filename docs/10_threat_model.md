@@ -111,9 +111,10 @@ ScamBuster operates at the intersection of adversarial communications, LLM pipel
 |---------|---------------|----------|
 | PII patterns | Regex patterns detecting real personal data in outbound messages | `PolicyGuard::PII_PATTERNS` |
 | Forbidden patterns | Pattern set blocking dangerous content categories | `PolicyGuard::FORBIDDEN_PATTERNS` |
-| Word limit | Configurable maximum words per reply (limits information surface) | `PolicyGuard` |
+| Word limit | Context-aware word limits via `PolicyGuardConfig` (dynamic per conversation state) | `PolicyGuard`, `PolicyGuardConfig` |
 | Link limit | Configurable maximum links per reply | `PolicyGuard` |
-| LLM validation | Second LLM pass validates safety and coherence | `ReplyValidator` |
+| LLM validation | Multi-criteria LLM scoring (naturalness, persona_fit, ti_value 1-5 + security gate) | `ReplyValidator`, `ValidationResult` |
+| Language detection | Auto-detect scammer language, reply in same language (7 languages supported) | `LanguageDetector`, `FallbackProvider` |
 | Persona prompts | System prompts instruct personas to use fictional details only | Persona system prompts |
 
 **Residual risk**: Low. The double validation pipeline (PolicyGuard + LLM validator) with fail-closed orchestration provides strong defense. Observed approval rates during the controlled deployment confirm the filters are effective without excessive false positives.

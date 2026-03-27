@@ -123,14 +123,16 @@ DPIA documentation covers:
 | **Financial fraud** | Real account numbers, transfers |
 | **Impersonation** | Law enforcement, government |
 
-**LLM Validator** (AI-based) ensures:
+**LLM Validator** (AI-based, multi-criteria scoring):
 
-| Quality | Check |
-|---------|-------|
-| **Coherence** | Response makes sense in context |
-| **Tone** | Matches persona profile |
-| **Safety** | No harmful content slipped through |
-| **Strategy** | Aligns with engagement goals |
+| Dimension | Scale | Rejection threshold |
+|-----------|-------|---------------------|
+| **Naturalness** | 1-5 | Reject if < 2 |
+| **Persona fit** | 1-5 | Used in average |
+| **TI value** | 1-5 | Used in average |
+| **Security gate** | pass/fail | Reject if fail |
+
+Average quality score (naturalness + persona_fit + ti_value) / 3 must be >= 2.5. Chain-of-thought reasoning per dimension.
 
 **Prompt Injection Detector** (forensic analysis):
 

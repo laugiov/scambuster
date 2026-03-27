@@ -115,9 +115,9 @@ Five specialized agents form the core pipeline, supported by one forensic module
 |-------|------|-------|
 | **ScamClassifier** | Categorize inbound scam emails (13 types) | Ingestion |
 | **IocExtractor** | Extract IOCs from messages (34 types, hybrid regex+LLM) | Ingestion |
-| **Generator** | Generate contextual replies using persona system prompts | Reply |
-| **Validator** | Two-layer safety validation (PolicyGuard + LLM Validator) | Reply |
-| **Orchestrator** | Coordinate generation loop (3 attempts, cost tracking) | Reply |
+| **Generator** | Generate contextual replies using identity-focused persona prompts (27 personas, auto language detection) | Reply |
+| **Validator** | Two-layer validation: PolicyGuard (dynamic thresholds) + LLM multi-criteria scoring (naturalness, persona_fit, ti_value) | Reply |
+| **Orchestrator** | Coordinate generation loop (3 attempts, multilingual fallback, cost tracking) | Reply |
 
 | Forensic Module | Role | Phase |
 |-----------------|------|-------|
