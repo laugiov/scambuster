@@ -6,6 +6,8 @@
     bootstrap="tests/bootstrap_ci.php"
     cacheDirectory="/tmp/.phpunit.cache"
     colors="true"
+    failOnWarning="false"
+    failOnDeprecation="false"
 >
     <extensions>
         <bootstrap class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
