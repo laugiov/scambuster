@@ -105,7 +105,7 @@ function ComponentWaterfall({ components, totalDuration }: { components: Compone
 }
 
 export default function PipelineMonitor() {
-  const { t } = useTranslation();
+  useTranslation();
   const [period, setPeriod] = useState(PERIOD_OPTIONS[0]);
   const [traces, setTraces] = useState<TraceSummary[]>([]);
   const [health, setHealth] = useState<HealthData | null>(null);
@@ -124,7 +124,7 @@ export default function PipelineMonitor() {
       setTraces(tracesRes.data.traces || []);
       setHealth(healthRes.data);
       setError(null);
-    } catch (err) {
+    } catch {
       setError('Failed to load pipeline data');
     } finally {
       setIsLoading(false);
