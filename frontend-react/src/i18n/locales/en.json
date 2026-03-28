@@ -36,7 +36,8 @@
     "logout": "Logout",
     "subtitle": "Threat Intelligence",
     "llmCosts": "LLM Costs",
-    "monitoring": "Monitoring"
+    "monitoring": "Monitoring",
+    "pipelineMonitor": "Pipeline Monitor"
   },
   "auth": {
     "email": "Email",
