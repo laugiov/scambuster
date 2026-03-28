@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\LLM;
 
 use App\Application\LLM\Port\LLMClientInterface;
+use App\Domain\LLM\ComponentTrace;
+use App\Domain\LLM\PipelineTrace;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -53,6 +55,14 @@ final class ReplyOrchestrator
         /** @var string|null $detectedLanguage */
         $detectedLanguage = $context['detected_language'] ?? null;
 
+        // Initialize pipeline trace
+        /** @var string $convId */
+        $convId = $context['conv_id'] ?? '';
+        /** @var array<string, string> $scamTypeData */
+        $scamTypeData = $context['scam_type'] ?? [];
+        $scamTypeLabel = $scamTypeData['code'] ?? 'unknown';
+        $trace = new PipelineTrace($convId, $personaCode, $scamTypeLabel, $detectedLanguage ?? 'en');
+
         $this->logger->info('[ReplyOrchestrator] ═══════════════════════════════════════════════════════', [
             'conversation_id' => $context['conv_id'],
         ]);
@@ -92,6 +102,14 @@ final class ReplyOrchestrator
                 $generatedText = $this->generateText($enrichedContext, $personaCode);
                 $genDuration = microtime(true) - $genStartTime;
 
+                // Trace: prompt_builder (includes ContextAnalyzer, ConversationAnalyzer, ReciprocityManager)
+                if ($attempt === 1) {
+                    $trace->addComponent(ComponentTrace::ran('prompt_builder', round($genDuration * 1000, 2), [
+                        'text_length' => strlen($generatedText),
+                        'word_count' => str_word_count($generatedText),
+                    ], $this->costEstimator?->estimate('openai', $this->getModelName(), 500, $this->costEstimator->approximateTokens($generatedText))));
+                }
+
                 // Enregistrer la tentative du générateur
                 $dialogue[] = [
                     'role' => 'generator',
@@ -119,10 +137,20 @@ final class ReplyOrchestrator
                     'conversation_id' => $context['conv_id'],
                 ]);
 
+                $pgStartTime = microtime(true);
                 $policyConfig = PolicyGuardConfig::fromContext($context);
                 $context['policy_min_words'] = $policyConfig->minWords;
                 $context['policy_max_words'] = $policyConfig->maxWords;
                 $policyResult = $this->policyGuard->validate($generatedText, $policyConfig);
+                $pgDuration = round((microtime(true) - $pgStartTime) * 1000, 2);
+
+                $trace->addComponent(ComponentTrace::ran('policy_guard', $pgDuration, [
+                    'approved' => $policyResult['approved'],
+                    'flags' => $policyResult['flags'],
+                    'min_words' => $policyConfig->minWords,
+                    'max_words' => $policyConfig->maxWords,
+                    'attempt' => $attempt,
+                ]));
 
                 if (!$policyResult['approved']) {
                     $feedback = $this->buildPolicyFeedback($policyResult['flags']);
@@ -149,7 +177,10 @@ final class ReplyOrchestrator
                             'policy_flags' => $policyResult['flags'],
                         ]);
 
-                        return $this->buildFallbackResponse(
+                        $trace->attempts = $attempt;
+                        $trace->fallbackUsed = true;
+
+                        $fallback = $this->buildFallbackResponse(
                             $policyResult['flags'],
                             ['PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts'],
                             $personaCode,
@@ -158,6 +189,9 @@ final class ReplyOrchestrator
                             $detectedLanguage,
                             $messageCount,
                         );
+                        $fallback['pipeline_trace'] = $trace->toArray();
+
+                        return $fallback;
                     }
 
                     // Sinon, on continue avec le feedback
@@ -195,7 +229,7 @@ final class ReplyOrchestrator
                         'fix_suggestion' => 'Regenerate with simpler phrasing',
                     ];
 
-                    // bestPolicyApprovedText already set above after PolicyGuard approval
+                    $trace->addComponent(ComponentTrace::error('reply_validator', $e->getMessage(), round((microtime(true) - $valStartTime) * 1000, 2)));
 
                     if ($attempt === self::MAX_ATTEMPTS) {
                         break;
@@ -214,6 +248,12 @@ final class ReplyOrchestrator
                     'fix_suggestion' => $validatorResult['fix_suggestion'] ?? null,
                 ];
 
+                $trace->addComponent(ComponentTrace::ran('reply_validator', round($valDuration * 1000, 2), [
+                    'approved' => $validatorResult['approved'],
+                    'reasons' => $validatorResult['reasons'],
+                    'attempt' => $attempt,
+                ], $this->costEstimator?->estimate('openai', 'gpt-4o-mini', 300, 50)));
+
                 if ($validatorResult['approved']) {
                     $this->logger->info("[ReplyOrchestrator] [ATTEMPT {$attempt}] ✅ ReplyValidator APPROVED", [
                         'conversation_id' => $context['conv_id'],
@@ -221,14 +261,13 @@ final class ReplyOrchestrator
                         'validation_reasons' => $validatorResult['reasons'],
                     ]);
 
-                    // ✅ SUCCÈS ! Now score IOC likelihood
-                    $this->logger->debug("[ReplyOrchestrator] [ATTEMPT {$attempt}] Step 4: Calling IOCLikelihoodScorer", [
-                        'conversation_id' => $context['conv_id'],
-                    ]);
-
                     $iocStartTime = microtime(true);
                     $iocLikelihood = $this->iocScorer->score($generatedText, $context);
                     $iocDuration = microtime(true) - $iocStartTime;
+
+                    $trace->addComponent(ComponentTrace::ran('ioc_scorer', round($iocDuration * 1000, 2), [
+                        'score' => $iocLikelihood,
+                    ]));
                     $totalLatencyMs = (int) ((microtime(true) - $startTime) * 1000);
 
                     $this->logger->info('[ReplyOrchestrator] ═══════════════════════════════════════════════════════', [
@@ -244,6 +283,10 @@ final class ReplyOrchestrator
                         'estimated_cost_usd' => $this->estimateTotalCost($dialogue, $messageCount),
                     ]);
 
+                    $trace->attempts = $attempt;
+                    $trace->approved = true;
+                    $trace->totalCost = $this->estimateTotalCost($dialogue, $messageCount);
+
                     return [
                         'text' => $generatedText,
                         'approved' => true,
@@ -251,9 +294,10 @@ final class ReplyOrchestrator
                         'validation_reasons' => $validatorResult['reasons'],
                         'model' => $this->getModelName(),
                         'persona' => $personaCode,
-                        'cost_estimate' => $this->estimateTotalCost($dialogue, $messageCount),
+                        'cost_estimate' => $trace->totalCost,
                         'attempts' => $attempt,
                         'ioc_likelihood' => $iocLikelihood,
+                        'pipeline_trace' => $trace->toArray(),
                     ];
                 }
 
@@ -278,6 +322,10 @@ final class ReplyOrchestrator
                     'text_preview' => substr($bestPolicyApprovedText, 0, 100),
                 ]);
 
+                $trace->attempts = self::MAX_ATTEMPTS;
+                $trace->approved = true;
+                $trace->totalCost = $this->estimateTotalCost($dialogue, $messageCount);
+
                 return [
                     'text' => $bestPolicyApprovedText,
                     'approved' => true,
@@ -285,9 +333,10 @@ final class ReplyOrchestrator
                     'validation_reasons' => ['Best-of-3: PolicyGuard-approved, validator rejected'],
                     'model' => $this->getModelName(),
                     'persona' => $personaCode,
-                    'cost_estimate' => $this->estimateTotalCost($dialogue, $messageCount),
+                    'cost_estimate' => $trace->totalCost,
                     'attempts' => self::MAX_ATTEMPTS,
                     'ioc_likelihood' => 0,
+                    'pipeline_trace' => $trace->toArray(),
                 ];
             }
 
@@ -295,7 +344,10 @@ final class ReplyOrchestrator
                 'conversation_id' => $context['conv_id'],
             ]);
 
-            return $this->buildFallbackResponse(
+            $trace->attempts = self::MAX_ATTEMPTS;
+            $trace->fallbackUsed = true;
+
+            $fallback = $this->buildFallbackResponse(
                 [],
                 ['All attempts rejected by both PolicyGuard and Validator'],
                 $personaCode,
@@ -304,6 +356,9 @@ final class ReplyOrchestrator
                 $detectedLanguage,
                 $messageCount,
             );
+            $fallback['pipeline_trace'] = $trace->toArray();
+
+            return $fallback;
 
         } catch (\Throwable $e) {
             $this->logger->error('LLM reply generation failed', [
