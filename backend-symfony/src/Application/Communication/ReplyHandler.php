@@ -376,6 +376,11 @@ class ReplyHandler
             'llm_cost_estimate' => $llmResult['cost_estimate'],
         ];
 
+        // Store pipeline trace if available
+        if (isset($llmResult['pipeline_trace'])) {
+            $headers['pipeline_trace'] = $llmResult['pipeline_trace'];
+        }
+
         $message = new Message(
             $msgId,
             $conversation,
