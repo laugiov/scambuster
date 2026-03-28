@@ -35,7 +35,7 @@ final class PipelineTraceHandler
         $days = min($days, 30);
         $limit = min($limit, 100);
 
-        $where = "m.direction = 4 AND m.ts_msg > NOW() - INTERVAL '{$days} days' AND m.headers::jsonb ? 'pipeline_trace'";
+        $where = "m.direction = 4 AND m.ts_msg > NOW() - INTERVAL '{$days} days' AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')";
         $params = [];
 
         if ($persona !== null) {
@@ -130,7 +130,7 @@ final class PipelineTraceHandler
             FROM message m
             WHERE m.direction = 4
               AND m.ts_msg > NOW() - INTERVAL '{$hours} hours'
-              AND m.headers::jsonb ? 'pipeline_trace'
+              AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')
             ORDER BY m.ts_msg DESC
             SQL;
 
@@ -227,7 +227,7 @@ final class PipelineTraceHandler
             FROM message m
             WHERE m.direction = 4
               AND m.ts_msg::date = {$dateExpr}
-              AND m.headers::jsonb ? 'pipeline_trace'
+              AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')
             SQL;
 
         $result = $this->connection->fetchOne($sql);
