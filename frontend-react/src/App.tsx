@@ -17,6 +17,7 @@ const Campaigns = lazy(() => import('@/pages/Campaigns'));
 const LlmCosts = lazy(() => import('@/pages/LlmCosts'));
 const CampaignDetail = lazy(() => import('@/pages/CampaignDetail'));
 const ConversationMonitoring = lazy(() => import('@/pages/ConversationMonitoring'));
+const PipelineMonitor = lazy(() => import('@/pages/PipelineMonitor'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 const queryClient = new QueryClient({
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="personas" element={<Personas />} />
               <Route path="llm-costs" element={<LlmCosts />} />
               <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
+              <Route path="monitoring/pipeline" element={<PipelineMonitor />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="campaigns/:id" element={<CampaignDetail />} />
               <Route path="settings" element={<Settings />} />

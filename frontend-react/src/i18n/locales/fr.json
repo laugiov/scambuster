@@ -36,7 +36,8 @@
     "logout": "Deconnexion",
     "subtitle": "Renseignement sur les menaces",
     "llmCosts": "Couts LLM",
-    "monitoring": "Monitoring"
+    "monitoring": "Monitoring",
+    "pipelineMonitor": "Pipeline Monitor"
   },
   "auth": {
     "email": "Email",

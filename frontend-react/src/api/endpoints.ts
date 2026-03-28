@@ -10,6 +10,9 @@ export const ENDPOINTS = {
     lifecycle: '/monitoring/conversation-lifecycle',
     rateLimits: '/monitoring/rate-limits',
     convergenceHistory: '/monitoring/convergence-history',
+    pipelineTraces: '/monitoring/pipeline-traces',
+    pipelineTraceDetail: (msgId: string) => `/monitoring/pipeline-traces/${msgId}`,
+    pipelineHealth: '/monitoring/pipeline-health',
   },
   conversations: {
     list: '/communication/conversation',
