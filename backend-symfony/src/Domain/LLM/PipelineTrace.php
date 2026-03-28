@@ -12,11 +12,14 @@ namespace App\Domain\LLM;
  */
 final class PipelineTrace
 {
-    /** @var string[] Components expected in a normal execution */
+    /**
+     * Components traced at the Orchestrator level (always expected).
+     * Sub-components (language_detector, context_analyzer, reciprocity_manager)
+     * run inside prompt_builder and are included in its timing.
+     *
+     * @var string[]
+     */
     private const EXPECTED_COMPONENTS = [
-        'language_detector',
-        'context_analyzer',
-        'reciprocity_manager',
         'prompt_builder',
         'policy_guard',
         'reply_validator',
@@ -24,9 +27,7 @@ final class PipelineTrace
     ];
 
     /** @var string[] Components that may be legitimately skipped */
-    private const SKIPPABLE_COMPONENTS = [
-        'conversation_analyzer',
-    ];
+    private const SKIPPABLE_COMPONENTS = [];
 
     /** @var ComponentTrace[] */
     private array $components = [];

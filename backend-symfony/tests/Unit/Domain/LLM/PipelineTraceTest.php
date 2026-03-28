@@ -54,8 +54,8 @@ final class PipelineTraceTest extends TestCase
 
         $this->assertContains('policy_guard', $missing);
         $this->assertContains('reply_validator', $missing);
-        $this->assertContains('conversation_analyzer', $missing);
         $this->assertNotContains('language_detector', $missing);
+        $this->assertNotContains('context_analyzer', $missing);
     }
 
     public function test_has_alerts_on_error(): void
