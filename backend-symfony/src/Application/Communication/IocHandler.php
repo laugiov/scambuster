@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Communication;
 
+use App\Application\Audit\AuditLogger;
 use App\Domain\Communication\Message;
 use App\Domain\Communication\ObservedIoc;
 use Doctrine\ORM\EntityManagerInterface;
@@ -32,7 +33,8 @@ class IocHandler
         private readonly HeaderIocExtractor $headerExtractor,
         private readonly IocValidator $validator,
         private readonly IocNormalizer $normalizer,
-        private readonly IocExtractor $iocExtractor
+        private readonly IocExtractor $iocExtractor,
+        private readonly ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -176,12 +178,20 @@ class IocHandler
             );
         }
 
-        // Compute confidence based on extraction method
+        // Compute confidence based on extraction method + multi-observation boost
         /** @var string $extractionMethod */
         $extractionMethod = $context['extraction_method'] ?? 'unknown';
         $confidence = IocConfidenceCalculator::getBaseConfidence($extractionMethod);
 
-        // Now create the ObservedIoc with the indicator_id and confidence
+        // Boost confidence based on how many times this indicator has been observed
+        $occurrencesRow = $conn->fetchOne(
+            'SELECT occurrences FROM indicator WHERE indicator_id = :id',
+            ['id' => $indicatorId],
+        );
+        $occurrences = \is_numeric($occurrencesRow) ? (int) $occurrencesRow : 1;
+        $confidence = IocConfidenceCalculator::boostConfidence($confidence, $occurrences);
+
+        // Now create the ObservedIoc with the indicator_id and boosted confidence
         $observedIoc = new ObservedIoc(
             $obsId,
             $message,
@@ -193,6 +203,20 @@ class IocHandler
 
         $this->em->persist($observedIoc);
         $this->em->flush();
+
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::IOC_EXTRACTED,
+            $message->getConversation()->getConvId(),
+            'ioc_extracted',
+            'success',
+            'observed_ioc',
+            $obsId,
+            [
+                'type' => $type,
+                'value_norm' => $valueNorm,
+                'indicator_id' => $indicatorId,
+            ],
+        );
 
         return $observedIoc;
     }

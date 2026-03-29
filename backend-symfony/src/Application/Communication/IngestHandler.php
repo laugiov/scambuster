@@ -619,6 +619,16 @@ class IngestHandler
                 'msg_id' => $msgId,
                 'conv_id' => $conversation->getConvId()
             ]);
+
+            $this->auditLogger?->log(
+                \App\Domain\Audit\AuditEventType::MESSAGE_INGESTED,
+                $conversation->getConvId(),
+                'ingest_message',
+                'success',
+                'message',
+                $msgId,
+                ['channel' => $dto->channel ?? 'unknown'],
+            );
         } catch (UniqueConstraintViolationException $e) {
             $errorMessage = $e->getMessage();
 
@@ -674,6 +684,21 @@ class IngestHandler
                         'risk_score' => $analysis->getRiskScore(),
                         'high_risk' => $analysis->isHighRisk(),
                     ]);
+
+                    if ($analysis->isHighRisk()) {
+                        $this->auditLogger?->log(
+                            \App\Domain\Audit\AuditEventType::INJECTION_DETECTED,
+                            $conversation->getConvId(),
+                            'injection_detected',
+                            'blocked',
+                            'message',
+                            $msgId,
+                            [
+                                'risk_score' => $analysis->getRiskScore(),
+                                'conv_id' => $conversation->getConvId(),
+                            ],
+                        );
+                    }
                 }
             } catch (\Exception $e) {
                 $this->logger->error('[IngestHandler] Prompt injection analysis failed', [
