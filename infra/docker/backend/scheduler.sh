@@ -38,11 +38,21 @@ while true; do
     php /app/bin/console preprod:calculate-rewards --no-interaction 2>&1 || \
         echo "[scheduler] WARNING: calculate-rewards failed"
 
-    # ── Daily at 06:00 UTC: bandit convergence report ──
+    # Generate semantic embeddings for unprocessed messages
+    echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running generate-embeddings"
+    php /app/bin/console app:generate-embeddings --no-interaction --limit=500 2>&1 || \
+        echo "[scheduler] WARNING: generate-embeddings failed"
+
+    # ── Daily at 06:00 UTC: bandit convergence report + actor profiles ──
     if [ "$CURRENT_HOUR" -ge 6 ] && [ "$LAST_BANDIT_DAY" != "$CURRENT_DAY" ]; then
         echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running bandit:daily-report"
         php /app/bin/console app:bandit:daily-report --no-interaction 2>&1 || \
             echo "[scheduler] WARNING: bandit:daily-report failed"
+
+        echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running generate-actor-profiles"
+        php /app/bin/console app:generate-actor-profiles --no-interaction 2>&1 || \
+            echo "[scheduler] WARNING: generate-actor-profiles failed"
+
         LAST_BANDIT_DAY="$CURRENT_DAY"
     fi
 
