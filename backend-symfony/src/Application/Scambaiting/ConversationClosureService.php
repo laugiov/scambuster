@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Scambaiting;
 
+use App\Application\Audit\AuditLogger;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationStatus;
 use App\Domain\Scambaiting\Event\ConversationEndedEvent;
@@ -21,7 +22,8 @@ final class ConversationClosureService
         private readonly EntityManagerInterface $em,
         private readonly ConversationMetricsCollector $metricsCollector,
         private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -68,6 +70,19 @@ final class ConversationClosureService
         $conversation->setStatus(ConversationStatus::CLOSED);
 
         $this->em->flush();
+
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::CONVERSATION_CLOSED,
+            $convId,
+            'close_conversation',
+            'success',
+            'conversation',
+            $convId,
+            [
+                'reward' => $reward,
+                'reason' => $reason,
+            ],
+        );
 
         $event = new ConversationEndedEvent(
             conversationId: $conversation->getConvId(),

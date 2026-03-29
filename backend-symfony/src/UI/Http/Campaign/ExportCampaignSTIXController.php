@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Campaign;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\Campaign\STIXExporter;
 use App\Domain\CampaignRadar\Campaign;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,7 +21,8 @@ final class ExportCampaignSTIXController
 {
     public function __construct(
         private readonly EntityManagerInterface $em,
-        private readonly STIXExporter $exporter
+        private readonly STIXExporter $exporter,
+        private readonly ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -103,6 +105,19 @@ final class ExportCampaignSTIXController
                 'message' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
+
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::EXPORT_STIX,
+            $campaignId,
+            'export_stix',
+            'success',
+            'campaign',
+            $campaignId,
+            [
+                'bundle_id' => $result['bundle_id'],
+                'file_path' => $result['file_path'],
+            ],
+        );
 
         return new JsonResponse([
             'message' => 'STIX export completed',

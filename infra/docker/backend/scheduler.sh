@@ -38,6 +38,11 @@ while true; do
     php /app/bin/console preprod:calculate-rewards --no-interaction 2>&1 || \
         echo "[scheduler] WARNING: calculate-rewards failed"
 
+    # Prompt injection forensic analysis on all unanalyzed inbound messages
+    echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running prompt injection detection"
+    php /app/bin/console app:detect-prompt-injection --no-interaction 2>&1 || \
+        echo "[scheduler] WARNING: detect-prompt-injection failed"
+
     # ── Daily at 06:00 UTC: bandit convergence report ──
     if [ "$CURRENT_HOUR" -ge 6 ] && [ "$LAST_BANDIT_DAY" != "$CURRENT_DAY" ]; then
         echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running bandit:daily-report"

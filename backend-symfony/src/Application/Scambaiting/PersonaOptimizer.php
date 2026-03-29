@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Scambaiting;
 
+use App\Application\Audit\AuditLogger;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
 use App\Domain\Scambaiting\PersonaPerformance;
@@ -32,7 +33,8 @@ final class PersonaOptimizer
     public function __construct(
         private readonly PersonaPerformanceStatsRepository $statsRepository,
         private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -153,6 +155,19 @@ final class PersonaOptimizer
                 'cold_start_count' => count($performances),
             ]);
 
+            $this->auditLogger?->log(
+                \App\Domain\Audit\AuditEventType::PERSONA_SELECTED,
+                'system',
+                'select_persona',
+                'success',
+                'persona',
+                $selectedPersona->getPersonaCode(),
+                [
+                    'scam_type_code' => $scamTypeCode,
+                    'strategy' => 'cold_start',
+                ],
+            );
+
             return ['persona_code' => $selectedPersona->getPersonaCode(), 'strategy' => 'cold_start'];
         }
 
@@ -176,6 +191,21 @@ final class PersonaOptimizer
                 'random_value' => $random,
             ]);
 
+            $this->auditLogger?->log(
+                \App\Domain\Audit\AuditEventType::PERSONA_SELECTED,
+                'system',
+                'select_persona',
+                'success',
+                'persona',
+                $selectedPersona->getPersonaCode(),
+                [
+                    'scam_type_code' => $scamTypeCode,
+                    'strategy' => 'exploration',
+                    'epsilon' => $effectiveEpsilon,
+                    'converged' => $converged,
+                ],
+            );
+
             return ['persona_code' => $selectedPersona->getPersonaCode(), 'strategy' => 'exploration'];
         }
 
@@ -192,6 +222,22 @@ final class PersonaOptimizer
             'epsilon' => $effectiveEpsilon,
             'random_value' => $random,
         ]);
+
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::PERSONA_SELECTED,
+            'system',
+            'select_persona',
+            'success',
+            'persona',
+            $selectedPersona->getPersonaCode(),
+            [
+                'scam_type_code' => $scamTypeCode,
+                'strategy' => 'exploitation',
+                'reward_avg' => $selectedPersona->getRewardAvg(),
+                'epsilon' => $effectiveEpsilon,
+                'converged' => $converged,
+            ],
+        );
 
         return ['persona_code' => $selectedPersona->getPersonaCode(), 'strategy' => 'exploitation'];
     }

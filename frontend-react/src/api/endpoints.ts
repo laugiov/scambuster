@@ -13,6 +13,7 @@ export const ENDPOINTS = {
     pipelineTraces: '/monitoring/pipeline-traces',
     pipelineTraceDetail: (msgId: string) => `/monitoring/pipeline-traces/${msgId}`,
     pipelineHealth: '/monitoring/pipeline-health',
+    injection: '/monitoring/injection',
   },
   conversations: {
     list: '/communication/conversation',

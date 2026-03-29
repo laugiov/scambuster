@@ -619,6 +619,19 @@ class ReplyHandler
 
         $this->em->flush();
 
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::REPLY_SENT,
+            $conversation->getConvId(),
+            'mark_as_sent',
+            'success',
+            'message',
+            $msgId,
+            [
+                'provider' => $provider,
+                'provider_msg_id' => $providerMsgId,
+            ],
+        );
+
         return true;
     }
 

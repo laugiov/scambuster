@@ -37,7 +37,8 @@
     "subtitle": "Threat Intelligence",
     "llmCosts": "LLM Costs",
     "monitoring": "Monitoring",
-    "pipelineMonitor": "Pipeline Monitor"
+    "pipelineMonitor": "Pipeline Monitor",
+    "injectionMonitor": "Injection Monitor"
   },
   "auth": {
     "email": "Email",

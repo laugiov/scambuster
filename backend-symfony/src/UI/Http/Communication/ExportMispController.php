@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Communication;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\Communication\IocHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -25,7 +26,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class ExportMispController
 {
     public function __construct(
-        private readonly IocHandler $iocHandler
+        private readonly IocHandler $iocHandler,
+        private readonly ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -118,6 +120,18 @@ final class ExportMispController
                 'Attribute' => $attributes,
             ],
         ];
+
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::EXPORT_MISP,
+            $id,
+            'export_misp',
+            'success',
+            'conversation',
+            $id,
+            [
+                'ioc_count' => count($attributes),
+            ],
+        );
 
         return new JsonResponse($event, Response::HTTP_OK);
     }
