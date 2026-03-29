@@ -370,9 +370,20 @@ make evaluate-corpus COUNT=500 DRY_RUN=1
 
 ### Test Coverage
 
-- 83 unit tests covering all 7 metric calculators, 2 analyzers, 2 report writers, 3 commands
-- 96.9% line coverage on Application/Evaluation layer
-- PHPStan level 6 with zero errors
+- 1,306+ automated tests (unit + integration + E2E)
+- 81.75% overall code coverage (Codecov)
+- 83 evaluation-specific tests covering all metric calculators, analyzers, report writers, and commands
+- PHPStan level 6 with zero errors on full codebase
+
+### System Integrity Audit (v1.8.0+)
+
+99 features inventoried across 11 domains. Verification-by-proof audit results:
+
+| Category | PASS | PARTIAL | DEAD | Total |
+|----------|------|---------|------|-------|
+| After audit fixes | 20 | 3 | 0 | 25 |
+
+All 4 previously DEAD features (IOC confidence, message vectors, URL analysis, actor profiles) have been activated. All critical PARTIAL features (prompt injection, audit trail) have been fixed.
 
 ---
 

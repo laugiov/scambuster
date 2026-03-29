@@ -154,23 +154,31 @@ Average quality score (naturalness + persona_fit + ti_value) / 3 must be >= 2.5.
 
 ### 5. Audit Trail
 
-**Application-level audit trail** of all operations:
+**Structured audit trail** with 16 event types, SIEM-forwarded:
 
-| Event | Data Captured |
-|-------|---------------|
-| **Conversation start** | Timestamp, source, scam type |
-| **Message sent** | Content reference (ID/hash), persona used |
-| **Message received** | Content reference (ID/hash), IOCs extracted |
-| **LLM calls** | Call metadata, cost (prompts stored separately in Content layer) |
-| **Validation** | Pass/fail, reasons |
-| **Admin actions** | User, action, timestamp |
-| **Injection detected** | Risk score, techniques, evidence |
+| Event Type | Trigger | Data Captured |
+|------------|---------|---------------|
+| **AUTH_SUCCESS/FAILURE** | Login attempt | User, IP, outcome |
+| **AUTH_TOKEN_EXPIRED** | JWT expiry | User, token age |
+| **MESSAGE_INGESTED** | Email ingestion | Message ID, conversation ID, channel |
+| **REPLY_GENERATED** | Reply creation | Persona, model, cost, attempts, language |
+| **REPLY_SENT** | Reply sent via email | Message ID, provider |
+| **IOC_EXTRACTED** | IOC extraction | IOC type, value, indicator ID |
+| **CONVERSATION_CLOSED** | Conversation end | Reward value, closure reason, duration |
+| **PERSONA_SELECTED** | Bandit selection | Persona, scam type, strategy (exploit/explore) |
+| **INJECTION_DETECTED** | High-risk injection | Risk score, patterns, conversation ID |
+| **RATE_LIMIT_EXCEEDED** | Rate limit hit | Limit type, sender |
+| **KILL_SWITCH_TOGGLED** | Emergency halt | Actor, new state |
+| **EXPORT_STIX/MISP** | Data export | Campaign/conversation ID, item count |
+| **CONFIG_CHANGED** | Configuration update | Setting, old/new values |
 
-Logs are:
-- **Metadata layer**: Retained for 12 months (no raw content)
-- **Content layer**: Retained for 6 months max, then anonymized/deleted (see Retention Model above)
-- Designed for append-only operation
-- Available for security review
+All events include: `trace_id`, `actor_id`, `ip_address`, `timestamp`. Forwarded to SIEM (CEF/ECS/JSON).
+
+Additional security features (v1.8.0+):
+- **IOC Confidence Scoring**: Multi-observation boost formula (1-(1-base)^n) with temporal decay per IOC type
+- **Prompt Injection Detection**: Scheduled forensic analysis (cron every 6h) with dedicated monitoring page
+- **Pipeline Tracing**: Per-reply component trace (timing, cost, approval) stored on message headers
+- **Production LLM Logs**: Dedicated Monolog handler bypassing fingers_crossed for always-on visibility
 
 ---
 

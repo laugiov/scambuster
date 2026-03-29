@@ -155,7 +155,9 @@ Domain-Driven Design (DDD) architecture:
 - **Message**: Threading, direction, deduplication
 - **IOC**: Extraction, classification, enrichment
 - **Adaptive**: Epsilon-greedy bandit, persona performance tracking, convergence logging
-- **Monitoring**: Lifecycle alerts, rate limit stats, LLM cost tracking, audit trail
+- **Monitoring**: Lifecycle alerts, rate limit stats, LLM cost tracking, audit trail (16 event types)
+- **Evaluation**: Automated benchmark suite (9 quality metrics, 3 CLI commands)
+- **Tracing**: Per-reply pipeline trace (component timing, cost, approval status)
 
 ### 5. Data Layer
 
@@ -339,7 +341,8 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 | **Framework** | Symfony 7.2 | Enterprise-grade, security features |
 | **Database** | PostgreSQL 15 | JSON support, reliability, access control |
 | **Cache & Locks** | Redis 7 | Rate limiting, distributed locks |
-| **LLM** | OpenAI API (GPT-4o-mini) | Cost-effective, consistent quality |
+| **LLM** | OpenAI API (GPT-4o generation, GPT-4o-mini validation) | Quality for generation, cost-effective for validation |
+| **Embeddings** | OpenAI text-embedding-3-small | Semantic similarity for campaign clustering ($0.02/1M tokens) |
 | **Orchestration** | n8n | Visual debugging, 400+ integrations |
 | **Secrets** | HashiCorp Vault | IMAP credentials, API keys |
 | **CI/CD** | GitHub Actions | PHPStan, PHP-CS-Fixer, PHPUnit |
@@ -356,8 +359,9 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 | IOC Precision | 100% (N=107) |
 | System uptime | 60 days (0 incidents) |
 | Scam types supported | 13 (with per-type lifecycle policies) |
-| Frontend pages | 11 (Dashboard, Conversations, Detail, IOC Explorer, STIX Export, Personas, Campaigns, LLM Costs, Monitoring, Settings, Login) |
-| Automated tests | 1,180+ |
+| Frontend pages | 14 (Dashboard, Conversations, Detail, IOC Explorer, STIX Export, Personas, Campaigns, Campaign Detail, LLM Costs, Monitoring, Pipeline Monitor, Injection Monitor, Settings, Login) |
+| Automated tests | 1,306+ |
+| Code coverage | 81.75% (Codecov) |
 | Infrastructure | Containerized, single host |
 
 ### Proven Quality
