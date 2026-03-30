@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useConversations, PAGE_SIZE } from '@/hooks/useConversations';
 import { Badge } from '@/components/ui/Badge';
+import { SearchBar } from '@/components/ui/SearchBar';
 import { statusToBadgeVariant } from '@/components/ui/badgeUtils';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -14,6 +15,7 @@ import { timeSince } from '@/lib/time';
 export function Conversations() {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
   const { data: conversations, isLoading, error, refetch } = useConversations(page);
   const { data: config } = useMetaConfig();
   const { data: stats } = useAutonomyStats();
@@ -25,7 +27,15 @@ export function Conversations() {
     (a, b) => new Date(b.ts_last ?? b.updated_at ?? 0).getTime() - new Date(a.ts_last ?? a.updated_at ?? 0).getTime()
   );
 
-  // Use autonomy stats for accurate totals (API paginates at 20)
+  const filtered = search
+    ? sorted.filter((c) => {
+        const q = search.toLowerCase();
+        return c.conv_id.toLowerCase().includes(q)
+          || (c.scam_type ?? '').toLowerCase().includes(q)
+          || (c.persona ?? '').toLowerCase().includes(q);
+      })
+    : sorted;
+
   const totalCount = stats?.conversations.total ?? sorted.length;
   const activeCount = stats?.conversations.open ?? stats?.conversations.active ?? sorted.filter((c) => c.status === 'open').length;
   const closedCount = stats?.conversations.closed ?? sorted.filter((c) => c.status === 'closed').length;
@@ -34,12 +44,17 @@ export function Conversations() {
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-on-surface">{t('conversations.title')}</h1>
-        <div className="flex items-center gap-4 text-xs text-on-surface-dim">
-          <span>{t('conversations.total', { count: totalCount })}</span>
-          <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
-          <span>{t('conversations.closed', { count: closedCount })}</span>
+        <div className="flex items-center gap-4">
+          <SearchBar value={search} onChange={setSearch} placeholder="Search by ID, scam type, persona..." ariaLabel="Search conversations" />
+          <div className="flex items-center gap-4 text-xs text-on-surface-dim shrink-0">
+            <span>{t('conversations.total', { count: totalCount })}</span>
+            <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
+            <span>{t('conversations.closed', { count: closedCount })}</span>
+          </div>
         </div>
       </header>
+
+      <Pagination page={page} pageSize={PAGE_SIZE} totalItems={totalCount} onPageChange={setPage} />
 
       <div className="bg-surface-low rounded-lg overflow-hidden">
         <table className="w-full">
@@ -55,7 +70,7 @@ export function Conversations() {
             </tr>
           </thead>
           <tbody className="text-sm">
-            {sorted.map((conv) => (
+            {filtered.map((conv) => (
               <tr key={conv.conv_id} className="hover:bg-surface-high/50 transition-colors">
                 <td className="px-5 py-3">
                   <Link
@@ -83,7 +98,7 @@ export function Conversations() {
                 </td>
               </tr>
             ))}
-            {sorted.length === 0 && (
+            {filtered.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-on-surface-dim">
                   {t('conversations.noConversations')}
