@@ -16,10 +16,10 @@
 > **Last updated**: 2026-03-30 | **Data period**: December 2025 - ongoing
 
 <p align="center">
-  <img src="docs/images/dashboard_v2.png" alt="ScamBuster Operations Dashboard" width="100%" />
+  <img src="frontend-react/public/dashboard_v2.png" alt="ScamBuster Operations Dashboard" width="100%" />
 </p>
 <p align="center">
-  <img src="docs/images/analytics.png" alt="ScamBuster Analytics" width="100%" />
+  <img src="frontend-react/public/analytics.png" alt="ScamBuster Analytics" width="100%" />
 </p>
 
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
