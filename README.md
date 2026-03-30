@@ -15,6 +15,13 @@
 
 > **Last updated**: 2026-03-30 | **Data period**: December 2025 - ongoing
 
+<p align="center">
+  <img src="frontend-react/public/dashboard_v2.png" alt="ScamBuster Operations Dashboard" width="100%" />
+</p>
+<p align="center">
+  <img src="frontend-react/public/analytics.png" alt="ScamBuster Analytics" width="100%" />
+</p>
+
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
 
 The project serves defensive security, fraud prevention, and applied research purposes (not offensive use). It extracts IOCs, maps campaigns, measures engagement effectiveness, and exports intelligence in STIX/MISP formats. All workflows are safety-gated, cost-aware, and fully auditable.
@@ -305,20 +312,22 @@ scambuster/
 
 ## Frontend (React Dashboard)
 
-14 pages for operators and analysts:
+16 pages for operators and analysts:
 
 | Page | Purpose |
 |------|---------|
-| **Dashboard** | System overview, kill switch, convergence stats |
-| **Conversations** | List and detail view of all conversations |
-| **IOC Explorer** | Browse IOCs with confidence scores and decay |
+| **Dashboard** | Operations overview with activity feed, weekly trends, top IOCs, pipeline health |
+| **Conversations** | List with search, pagination, CSV export |
+| **IOC Explorer** | Browse IOCs with confidence scores, decay, CSV export |
 | **Campaign Radar** | Campaign clustering, profiling, rule hunting |
+| **Analytics** | 7 interactive charts: IOC timeline, conversation volume, distributions, cost trend, pipeline health, convergence sparklines |
 | **Pipeline Monitor** | Per-reply tracing with component waterfall and health metrics |
 | **Injection Monitor** | Prompt injection detection coverage and alerts |
 | **Monitoring** | Conversation lifecycle, timeout alerts, by scam type |
 | **LLM Costs** | Monthly budget, per-purpose breakdown, daily trend |
-| **Personas** | 27 personas with performance stats per scam type |
-| **STIX Export** | Export campaigns as STIX 2.1 bundles |
+| **Personas** | 27 personas with performance matrix per scam type |
+| **Convergence** | Bandit convergence history with pagination |
+| **STIX Export** | Export campaigns as STIX 2.1 bundles with real preview and download |
 | **Settings** | System configuration, LLM provider, kill switch |
 
 Bilingual (EN/FR) with automatic language detection.

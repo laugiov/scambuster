@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useConversations, PAGE_SIZE } from '@/hooks/useConversations';
+import { useAllConversations, PAGE_SIZE } from '@/hooks/useConversations';
 import { Badge } from '@/components/ui/Badge';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { statusToBadgeVariant } from '@/components/ui/badgeUtils';
@@ -11,12 +11,13 @@ import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import { useAutonomyStats } from '@/hooks/useStats';
 import { Pagination } from '@/components/ui/Pagination';
 import { timeSince } from '@/lib/time';
+import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
 
 export function Conversations() {
   const { t } = useTranslation();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
-  const { data: conversations, isLoading, error, refetch } = useConversations(page);
+  const { data: conversations, isLoading, error, refetch } = useAllConversations();
   const { data: config } = useMetaConfig();
   const { data: stats } = useAutonomyStats();
 
@@ -36,6 +37,8 @@ export function Conversations() {
       })
     : sorted;
 
+  const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
   const totalCount = stats?.conversations.total ?? sorted.length;
   const activeCount = stats?.conversations.open ?? stats?.conversations.active ?? sorted.filter((c) => c.status === 'open').length;
   const closedCount = stats?.conversations.closed ?? sorted.filter((c) => c.status === 'closed').length;
@@ -45,7 +48,20 @@ export function Conversations() {
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-on-surface">{t('conversations.title')}</h1>
         <div className="flex items-center gap-4">
-          <SearchBar value={search} onChange={setSearch} placeholder="Search by ID, scam type, persona..." ariaLabel="Search conversations" />
+          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search by ID, scam type, persona..." ariaLabel="Search conversations" />
+          <ExportCsvButton
+            data={filtered as Record<string, unknown>[]}
+            columns={[
+              { key: 'conv_id', header: 'Conversation ID' },
+              { key: 'status', header: 'Status' },
+              { key: 'scam_type', header: 'Scam Type' },
+              { key: 'persona', header: 'Persona' },
+              { key: 'score_risk', header: 'Risk Score' },
+              { key: 'message_count', header: 'Messages' },
+              { key: 'ts_last', header: 'Last Activity' },
+            ]}
+            filename={`scambuster-conversations-${new Date().toISOString().slice(0, 10)}.csv`}
+          />
           <div className="flex items-center gap-4 text-xs text-on-surface-dim shrink-0">
             <span>{t('conversations.total', { count: totalCount })}</span>
             <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
@@ -54,7 +70,7 @@ export function Conversations() {
         </div>
       </header>
 
-      <Pagination page={page} pageSize={PAGE_SIZE} totalItems={search ? filtered.length : totalCount} onPageChange={setPage} />
+      <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
 
       <div className="bg-surface-low rounded-lg overflow-hidden">
         <table className="w-full">
@@ -70,7 +86,7 @@ export function Conversations() {
             </tr>
           </thead>
           <tbody className="text-sm">
-            {filtered.map((conv) => (
+            {paged.map((conv) => (
               <tr key={conv.conv_id} className="hover:bg-surface-high/50 transition-colors">
                 <td className="px-5 py-3">
                   <Link
@@ -98,7 +114,7 @@ export function Conversations() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
+            {paged.length === 0 && (
               <tr>
                 <td colSpan={7} className="px-5 py-12 text-center text-on-surface-dim">
                   {t('conversations.noConversations')}
@@ -107,7 +123,7 @@ export function Conversations() {
             )}
           </tbody>
         </table>
-        <Pagination page={page} pageSize={PAGE_SIZE} totalItems={search ? filtered.length : totalCount} onPageChange={setPage} />
+        <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
       </div>
     </div>
   );

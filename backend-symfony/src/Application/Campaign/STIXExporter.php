@@ -64,7 +64,7 @@ final class STIXExporter
      *
      * @throws \RuntimeException si export échoue
      *
-     * @return array{file_path: string, bundle_id: string}
+     * @return array{file_path: string, bundle_id: string, bundle: array<string, mixed>}
      */
     public function export(Campaign $campaign): array
     {
@@ -97,6 +97,7 @@ final class STIXExporter
         return [
             'file_path' => $filePath,
             'bundle_id' => $bundle['id'],
+            'bundle' => $bundle,
         ];
     }
 

@@ -16,6 +16,7 @@ interface StixExportResult {
   message: string;
   file_path: string;
   bundle_id: string;
+  bundle: Record<string, unknown>;
 }
 
 export function useCampaignCandidates() {

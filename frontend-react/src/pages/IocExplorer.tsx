@@ -8,6 +8,7 @@ import { SearchBar } from '@/components/ui/SearchBar';
 import { Pagination } from '@/components/ui/Pagination';
 import type { Ioc } from '@/types/api';
 import { timeSince } from '@/lib/time';
+import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
 
 const IOC_PAGE_SIZE = 30;
 
@@ -85,8 +86,20 @@ export function IocExplorer() {
         </div>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-light text-on-surface tracking-tight">{t('iocExplorer.title')}</h1>
-          <div className="ml-8">
+          <div className="ml-8 flex items-center gap-3">
             <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('iocExplorer.searchPlaceholder')} ariaLabel="Search IOCs" />
+            <ExportCsvButton
+              data={filtered as Record<string, unknown>[]}
+              columns={[
+                { key: 'type', header: 'Type' },
+                { key: 'value', header: 'Value' },
+                { key: 'category', header: 'Category' },
+                { key: 'confidence', header: 'Confidence' },
+                { key: 'effective_score', header: 'Effective Score' },
+                { key: 'ts_observed', header: 'Observed At' },
+              ]}
+              filename={`scambuster-iocs-${new Date().toISOString().slice(0, 10)}.csv`}
+            />
           </div>
         </div>
       </header>

@@ -18,6 +18,20 @@ export function useConversations(page = 1) {
   });
 }
 
+export function useAllConversations() {
+  return useQuery<Conversation[]>({
+    queryKey: ['all-conversations'],
+    queryFn: async () => {
+      const { data } = await client.get<Conversation[]>(ENDPOINTS.conversations.list, {
+        params: { limit: 5000 },
+      });
+      return data;
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
 export function useConversationDetail(conversationId: string) {
   return useQuery<Conversation>({
     queryKey: ['conversation', conversationId],
