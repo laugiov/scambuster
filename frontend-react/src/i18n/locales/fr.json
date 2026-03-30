@@ -35,10 +35,11 @@
     "settings": "Parametres",
     "logout": "Deconnexion",
     "subtitle": "Renseignement sur les menaces",
-    "llmCosts": "Couts LLM",
-    "monitoring": "Monitoring",
-    "pipelineMonitor": "Pipeline Monitor",
-    "injectionMonitor": "Injection Monitor"
+    "monitoringGroup": "Monitoring",
+    "monitoring": "Conversations",
+    "pipelineMonitor": "Pipeline",
+    "injectionMonitor": "Injection",
+    "llmCosts": "Couts LLM"
   },
   "auth": {
     "email": "Email",

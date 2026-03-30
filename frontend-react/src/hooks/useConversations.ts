@@ -3,7 +3,7 @@ import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
 import type { Conversation, Message, Ioc } from '@/types/api';
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 50;
 
 export function useConversations(page = 1) {
   return useQuery<Conversation[]>({
