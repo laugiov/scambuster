@@ -1,6 +1,6 @@
 # High-Level Architecture
 
-> **Note**: This document describes the conceptual architecture without implementation details. Operational specifics are available under NDA.
+> **Note**: This document describes the conceptual architecture without implementation details. For implementation details, see the source code.
 
 ---
 
@@ -317,7 +317,7 @@ ScamBuster is deployed as a **containerized application** with:
 - **Secrets management**: HashiCorp Vault (credentials never in code)
 - **Network isolation**: Docker Compose, defense-in-depth
 
-> **Note**: Detailed infrastructure specifications available under NDA for pilot programs.
+> **Note**: See docker-compose.yml for full infrastructure configuration.
 
 ### SIEM Export
 

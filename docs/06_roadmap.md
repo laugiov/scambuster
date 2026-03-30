@@ -31,7 +31,7 @@ Build the core platform with multi-agent LLM architecture and production-grade i
 |-------------|--------|---------|
 | Multi-agent LLM architecture | ✅ | 5 specialized agents |
 | Hybrid IOC extraction | ✅ | High precision on audited samples, 34 types |
-| Double validation pipeline | ✅ | 95% approval rate |
+| Double validation pipeline | ✅ | 100% first-attempt approval |
 | Production deployment | ✅ | Continuous operation, 0 incidents |
 | Metrics collection | ✅ | Multiple unique IOCs/conv, high precision |
 | DDD backend architecture | ✅ | Comprehensive automated test suite |

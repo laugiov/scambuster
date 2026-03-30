@@ -71,7 +71,7 @@ DPIA documentation covers:
 - Risk assessment and mitigation measures
 - Proportionality of processing
 
-> **Status**: Internal documentation available upon request under NDA.
+> **Status**: Full implementation details in the source code.
 
 ### Jurisdictional Considerations
 
@@ -272,7 +272,7 @@ ScamBuster is a **defensive research and fraud-prevention system**. Key complian
 | **Scammer retaliation** | Low | Low | No real identities exposed |
 | **Data breach** | Low | High | Encryption, access control, monitoring |
 | **Legal challenge** | Low | Medium | GDPR compliance, legal review |
-| **Misuse of code** | Medium | High | Private repository, NDA for access |
+| **Misuse of code** | Medium | High | Open source (MIT License), responsible use agreement recommended |
 | **LLM cost explosion** | Low | Medium | Hard limits, monitoring |
 
 ### Residual Risks

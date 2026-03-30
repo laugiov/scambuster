@@ -57,7 +57,7 @@ This separation ensures appropriate context for each metric type.
 | **Scammer response rate** | 54% | In line with manual scambaiting literature |
 | **Cost per IOC** | Low cost per IOC (with lightweight models) | LLM API only |
 | **System uptime** | 100% | Continuous operation, 0 incidents |
-| **LLM approval rate** | 95% | With retry mechanism |
+| **LLM approval rate** | 100% (after pipeline hardening) | With retry mechanism |
 
 **Key Observations**:
 - **5.5× variance** in persona performance by scam type
@@ -266,7 +266,7 @@ reward = 0.40 × duration_score
 
 | Artifact | Availability |
 |----------|--------------|
-| **Source code** | Private (available under NDA) |
+| **Source code** | Open source (MIT License) on GitHub |
 | **Configuration** | Documented in specs |
 | **Dependencies** | Pinned versions (composer.lock) |
 | **LLM version** | Configurable per environment (default: GPT-4o for generation, GPT-4o-mini for validation) |

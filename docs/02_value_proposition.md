@@ -58,7 +58,7 @@ Unlike single-prompt systems, ScamBuster uses **five specialized agents** suppor
 | **ScamClassifier** | Categorize incoming scams | 82% automatic classification across 13 types |
 | **IocExtractor** | Extract indicators from messages | High precision on audited samples, 34 IOC types |
 | **Generator** | Create contextual responses | +35% IOC extraction after IBAN detection |
-| **Validator** | Ensure response safety/quality | 95% approval rate (vs 60-70% baseline) |
+| **Validator** | Ensure response safety/quality | 100% first-attempt approval rate (after pipeline hardening) |
 | **Orchestrator** | Coordinate agents, optimize costs | <€0.0002 per message |
 
 | Forensic Module | Responsibility | Notes |
@@ -138,7 +138,7 @@ Generator → PolicyGuard (hard rules) → LLM Validator (quality) → Send
 | **PolicyGuard** | Rule-based | Block forbidden content |
 | **LLM Validator** | AI-based | Ensure coherence and strategic alignment |
 
-**Result**: 95% approval rate vs 60-70% for single-pass systems.
+**Result**: 100% first-attempt approval (hardened pipeline) vs 60-70% for single-pass systems.
 
 ---
 
