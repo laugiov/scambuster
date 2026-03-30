@@ -22,6 +22,7 @@
         "symfony/flex": "^2.5",
         "symfony/framework-bundle": "7.2.*",
         "symfony/lock": "7.2.*",
+        "symfony/mailer": "7.2.*",
         "symfony/mime": "7.2.*",
         "symfony/rate-limiter": "^7.2",
         "symfony/runtime": "7.2.*",
