@@ -53,6 +53,13 @@ services:
     # Application - LLM Cost monitoring
     App\Application\LLM\CostEstimator: ~
 
+    # Application - Embedding Service (text-embedding-3-small)
+    App\Application\LLM\EmbeddingService:
+        arguments:
+            $httpClient: '@http_client'
+            $apiKey: '%llm.api_key%'
+            $logger: '@monolog.logger.llm'
+
     App\Application\Monitoring\LlmCostHandler:
         arguments:
             $connection: '@doctrine.dbal.default_connection'
