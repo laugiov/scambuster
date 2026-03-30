@@ -14,6 +14,8 @@ use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 class ReplyHandler
@@ -37,6 +39,7 @@ class ReplyHandler
         private ?RateLimiterFactory $activeConversationsPerDayLimiter = null,
         private ?AuditLogger $auditLogger = null,
         private ?LanguageDetector $languageDetector = null,
+        private ?MailerInterface $mailer = null,
     ) {
     }
 
@@ -803,5 +806,85 @@ class ReplyHandler
             details: ['limit_type' => $limitType],
             actorType: 'system'
         );
+    }
+
+    /**
+     * Send a reply email via Symfony Mailer (SMTP).
+     * Stateless: reads draft from DB, sends, returns Message-ID. Does NOT modify message state.
+     *
+     * @return array{success: bool, message_id: string, ts_sent: string}
+     */
+    public function sendEmail(string $msgId): array
+    {
+        if (!$this->mailer) {
+            throw new \RuntimeException('Mailer not configured (MAILER_DSN missing or symfony/mailer not installed)');
+        }
+
+        $message = $this->messageHandler->getMessage($msgId);
+
+        if (!$message) {
+            throw new \RuntimeException('Message not found');
+        }
+
+        // Verify it's an outbound reply
+        if ($message->getDirection()->getCode() !== 'out') {
+            throw new \RuntimeException('Cannot send a non-outbound message');
+        }
+
+        // Get compose/threading data
+        $compose = $this->composeHeaders($msgId);
+
+        if (!$compose) {
+            throw new \RuntimeException('Cannot compose headers for message');
+        }
+
+        if (!$compose['safe_to_send']) {
+            throw new \RuntimeException('Safety checks failed: ' . json_encode($compose['checks']));
+        }
+
+        // Generate a local Message-ID
+        $generatedMessageId = '<' . bin2hex(random_bytes(16)) . '@scambuster.local>';
+        $tsSent = new \DateTimeImmutable();
+
+        // Build the email
+        $email = (new Email())
+            ->from($compose['from'])
+            ->to($compose['to'])
+            ->subject($compose['subject']);
+
+        // Set threading headers
+        if (!empty($compose['in_reply_to'])) {
+            $email->getHeaders()->addTextHeader('In-Reply-To', $compose['in_reply_to']);
+        }
+        if (!empty($compose['references'])) {
+            $email->getHeaders()->addTextHeader('References', $compose['references']);
+        }
+        $email->getHeaders()->addTextHeader('Message-ID', $generatedMessageId);
+
+        // Set body
+        $bodyHtml = $message->getBodyHtml();
+        $bodyText = $message->getBodyText();
+
+        if ($bodyHtml) {
+            $email->html($bodyHtml);
+        }
+        if ($bodyText) {
+            $email->text($bodyText);
+        }
+
+        // Send
+        $this->mailer->send($email);
+
+        $this->logger->info('[ReplyHandler] Email sent via SMTP', [
+            'msg_id' => $msgId,
+            'to' => $compose['to'],
+            'message_id' => $generatedMessageId,
+        ]);
+
+        return [
+            'success' => true,
+            'message_id' => $generatedMessageId,
+            'ts_sent' => $tsSent->format(\DateTimeInterface::ATOM),
+        ];
     }
 }
