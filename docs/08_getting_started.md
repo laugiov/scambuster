@@ -398,6 +398,24 @@ scambuster/
 | `redis` | redis:7-alpine | -- | Cache and distributed locks |
 | `vault` | hashicorp/vault | -- | Secrets management (dev mode) |
 | `n8n` | n8nio/n8n | -- | Workflow automation |
+| `scheduler` | Custom (PHP 8.3) | `dev` | Automated tasks (close stale, rewards, injection detection, embeddings, bandit report, backups) |
+
+### Scheduler (Automated Tasks)
+
+The `scheduler` container runs automatically with `docker compose up`. It executes these tasks on a loop:
+
+| Task | Frequency | Command |
+|------|-----------|---------|
+| Close stale conversations | Every 6h | `app:close-stale-conversations` |
+| Backfill rewards | Every 6h | `preprod:calculate-rewards` |
+| Prompt injection detection | Every 6h | `app:detect-prompt-injection` |
+| Generate embeddings | Every 6h | `app:generate-embeddings --limit=500` |
+| Bandit convergence report | Daily 06:00 UTC | `app:bandit:daily-report` |
+| Actor profile generation | Daily 06:00 UTC | `app:generate-actor-profiles` |
+| PostgreSQL backup | Daily 02:00 UTC | `pg_dump` (7-day retention) |
+| Weekly cleanup | Sunday 04:00 UTC | `app:cleanup:weekly` |
+
+To disable the scheduler: set `SCHEDULER_ENABLED=false` in `.env`.
 
 ---
 
@@ -435,6 +453,16 @@ Run `make help` for the full list. Here are the most useful commands:
 |---------|-------------|
 | `make close-stale` | Close conversations inactive > 7 days (use `d=N` to override) |
 | `make close-stale-dry` | Preview stale conversations without closing |
+
+### Evaluation Benchmark
+
+| Command | Description |
+|---------|-------------|
+| `make evaluate-corpus COUNT=500` | Generate evaluation corpus (500 LLM replies with metadata) |
+| `make evaluate-corpus COUNT=500 DRY_RUN=1` | Estimate cost without LLM calls |
+| `make evaluate-quality` | Compute 9 quality metrics on latest corpus |
+| `make evaluate-bandit` | Analyze bandit convergence per scam type |
+| `make evaluate-all` | Run full evaluation pipeline (corpus + quality + bandit) |
 
 ### Deployment
 

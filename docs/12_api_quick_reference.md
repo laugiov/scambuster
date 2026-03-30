@@ -179,7 +179,11 @@ curl http://localhost:8081/api/v1/scambaiting/stats/PHISH_CREDENTIALS | jq .
 | GET | `/monitoring/conversation-lifecycle` | Yes | Active conversations, about-to-timeout list, by scam type |
 | GET | `/monitoring/rate-limits` | Yes | Rate limit stats, quarantined senders, daily limit hits |
 | GET | `/monitoring/convergence-history` | Yes | Last 30 days bandit convergence snapshots by scam type |
-| GET | `/monitoring/audit` | Yes | Structured audit trail (paginated) |
+| GET | `/monitoring/audit` | Yes | Structured audit trail (paginated, 16 event types) |
+| GET | `/monitoring/pipeline-traces` | Yes | Recent pipeline execution traces (paginated, filterable by persona/scam_type) |
+| GET | `/monitoring/pipeline-traces/{msgId}` | Yes | Full pipeline trace for a specific outbound message |
+| GET | `/monitoring/pipeline-health` | Yes | Aggregated pipeline health: per-component success rates, avg cost, avg duration |
+| GET | `/monitoring/injection` | Yes | Prompt injection detection stats: coverage, risk distribution, recent alerts |
 
 ```bash
 # Example: check system status
