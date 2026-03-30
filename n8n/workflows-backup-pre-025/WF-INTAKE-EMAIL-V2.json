@@ -46,7 +46,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/auth/login",
+        "url": "http://backend-dev:8080/api/v1/auth/login",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -58,7 +58,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"email\": $env.INGEST_LOGIN, \"password\": $env.INGEST_PASSWORD } }}",
+        "jsonBody": "={{ { \"email\": \"user@example.com\", \"password\": \"Un1que$trongPassword2024\" } }}",
         "options": {
           "response": {
             "response": {
@@ -92,7 +92,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/ingest/raw",
+        "url": "http://backend-dev:8080/api/v1/communication/ingest/raw",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -128,7 +128,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.SCAMBUSTER_API_URL + '/api/v1/communication/message/' + $('Ingest Email').first().json.msg_id + '/risk' }}",
+        "url": "={{ 'http://backend-dev:8080/api/v1/communication/message/' + $('Ingest Email').first().json.msg_id + '/risk' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -193,8 +193,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "WF-REPLY-GENERATE-V2",
-          "mode": "name"
+          "value": "Jx9lpFM49jf9cBTP",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/Jx9lpFM49jf9cBTP",
+          "cachedResultName": "WF-REPLY-GENERATE-V2"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -277,8 +279,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "WF-EXTRACT-AND-ENRICH-IOC",
-          "mode": "name"
+          "value": "csaNdBEuJLViUqcz",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/csaNdBEuJLViUqcz",
+          "cachedResultName": "WF-EXTRACT-AND-ENRICH-IOC"
         },
         "options": {}
       },
