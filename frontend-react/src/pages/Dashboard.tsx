@@ -145,9 +145,22 @@ export function Dashboard() {
             <h2 className="text-base font-medium text-on-surface">{t('dashboard.banditPerformance')}</h2>
             <span className="text-xs text-on-surface-dim">{t('dashboard.rewardWeighting')}</span>
           </div>
-          <div className="space-y-3">
-            <BanditBar label={data?.convergence.best_persona ?? 'Best'} value={data?.convergence.best_score ?? 0} />
-            <p className="text-xs text-on-surface-dim mt-4">
+          <div className="space-y-2">
+            {personas && personas.length > 0 ? (
+              [...personas]
+                .sort((a, b) => b.global_avg_reward - a.global_avg_reward)
+                .slice(0, 5)
+                .map((p) => (
+                  <BanditBar
+                    key={p.persona_code}
+                    label={personaDisplayName(config, p.persona_code)}
+                    value={p.global_avg_reward}
+                  />
+                ))
+            ) : (
+              <BanditBar label={data?.convergence.best_persona ?? 'N/A'} value={data?.convergence.best_score ?? 0} />
+            )}
+            <p className="text-xs text-on-surface-dim mt-3">
               {t('dashboard.explorationRate', { rate: ((data?.convergence.exploration_rate ?? 0.15) * 100).toFixed(0) })}
             </p>
             <p className="text-xs text-on-surface-dim">
@@ -164,7 +177,7 @@ function BanditBar({ label, value }: { label: string; value: number }) {
   const pct = Math.min(value * 100, 100);
   return (
     <div className="flex items-center gap-3">
-      <span className="text-sm text-on-surface-variant w-24 shrink-0">{label}</span>
+      <span className="text-xs text-on-surface-variant w-32 shrink-0 truncate" title={label}>{label}</span>
       <div className="flex-1 bg-surface-high rounded-full h-2 overflow-hidden">
         <div
           className="h-full bg-accent-muted rounded-full transition-all duration-500"

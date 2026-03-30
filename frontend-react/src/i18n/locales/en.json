@@ -35,10 +35,11 @@
     "settings": "Settings",
     "logout": "Logout",
     "subtitle": "Threat Intelligence",
-    "llmCosts": "LLM Costs",
-    "monitoring": "Monitoring",
-    "pipelineMonitor": "Pipeline Monitor",
-    "injectionMonitor": "Injection Monitor"
+    "monitoringGroup": "Monitoring",
+    "monitoring": "Conversations",
+    "pipelineMonitor": "Pipeline",
+    "injectionMonitor": "Injection",
+    "llmCosts": "LLM Costs"
   },
   "auth": {
     "email": "Email",
