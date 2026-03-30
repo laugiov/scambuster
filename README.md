@@ -1,6 +1,8 @@
-# ScamBuster
+<p align="center">
+  <img src="frontend-react/public/scambuster_logo_horizontal.svg" alt="ScamBuster" width="500" />
+</p>
 
-**A Defensive Engagement & Threat Intelligence Research Laboratory (Email-first)**
+<p align="center"><strong>A Defensive Engagement & Threat Intelligence Research Laboratory (Email-first)</strong></p>
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207.2%20|%20PostgreSQL%2015%20|%20LLM-green)
