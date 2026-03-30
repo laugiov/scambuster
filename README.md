@@ -6,12 +6,11 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207.2%20|%20PostgreSQL%2015%20|%20LLM-green)
-![Tests](https://img.shields.io/badge/tests-1306%2B%20passing-brightgreen)
+[![codecov](https://codecov.io/gh/laugiov/scambuster/graph/badge.svg?token=4TXL7E2L7W)](https://codecov.io/gh/laugiov/scambuster)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/laugiov/scambuster/actions/workflows/ci.yml/badge.svg)](https://github.com/laugiov/scambuster/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](docker-compose.yml)
 [![STIX](https://img.shields.io/badge/STIX-2.1-red.svg)](docs/03_high_level_architecture.md)
-[![codecov](https://codecov.io/gh/laugiov/scambuster/graph/badge.svg?token=4TXL7E2L7W)](https://codecov.io/gh/laugiov/scambuster)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
 > **Last updated**: 2026-03-16 | **Data period**: December 2025 - February 2026
@@ -80,12 +79,12 @@ Instead of discarding scam emails, ScamBuster creates an **observatory** that an
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| **Unique IOCs per conversation** | 5.34 (deduplicated) | Emails, phones, IBANs, crypto wallets |
-| **IOC Precision** | 100% on audited sample (N=107) | vs 44% with regex-only baseline |
+| **Unique IOCs per conversation** | Multiple unique IOCs per conversation (deduplicated) | Emails, phones, IBANs, crypto wallets |
+| **IOC Precision** | High precision on audited samples | vs 44% with regex-only baseline |
 | **Persona variance** | 5.5x between best/worst | Data-driven persona optimization |
 | **Scammer response rate** | 54% | Indistinguishable from human operators |
-| **Cost per IOC** | EUR 0.0002 | Negligible operational expense |
-| **System Uptime** | 60 days | Zero incidents, fully automated |
+| **Cost per IOC** | Low cost per IOC (with lightweight models) | Negligible operational expense |
+| **System Uptime** | Continuous operation | Zero incidents, fully automated |
 | **Max engagement** | 48.7 hours | Longest sustained interaction |
 
 > **Metrics scope & definitions**
@@ -127,10 +126,10 @@ Five specialized AI agents form the core pipeline, supported by one forensic mod
 | Agent | Role | Achievement |
 |-------|------|-------------|
 | **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 13 types |
-| **IocExtractor** | Extract threat indicators | 100% precision on audited sample, 34 IOC types |
+| **IocExtractor** | Extract threat indicators | High precision on audited samples, 34 IOC types |
 | **Generator** | Create contextual responses | +35% IOCs post-IBAN detection |
 | **Validator** | Ensure safety & quality | 95% approval rate (PolicyGuard + LLM) |
-| **Orchestrator** | Coordinate & optimize costs | <EUR 0.0002/message |
+| **Orchestrator** | Coordinate & optimize costs | Low cost per message |
 
 | Forensic Module | Role | Notes |
 |-----------------|------|-------|
@@ -267,7 +266,7 @@ scambuster/
     migrations/            # Doctrine migrations + reference data
   n8n/                     # Workflow definitions (JSON)
   infra/                   # Docker configs
-  docs/                    # Detailed documentation (10 documents)
+  docs/                    # Detailed documentation (15 documents)
 ```
 
 ---
@@ -278,7 +277,7 @@ scambuster/
 - `POST /api/v1/auth/login` -- Obtain JWT
 - `POST /api/v1/auth/refresh` -- Refresh JWT
 - `POST /api/v1/auth/logout` -- Invalidate refresh token
-- `GET  /api/v1/auth/me` -- Current user info
+- `GET  /api/v1/me` -- Current user info
 
 ### Conversations & Messages
 - `POST/GET/PATCH/DELETE /api/v1/communication/conversation/{id}`
@@ -307,7 +306,7 @@ scambuster/
 
 ## Testing
 
-1,180+ automated tests covering:
+Comprehensive automated test suite (unit, integration, E2E) covering:
 - **E2E**: Full API flow with real JWT, database, and fixtures
 - **Integration**: Service/repository logic, business rules
 - **Unit**: Domain logic, value objects, algorithms
@@ -380,7 +379,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 1. **Methodological**: Reproducible protocol for adaptive honeypot evaluation
 2. **Technical**: Multi-agent LLM with double validation pipeline (95% approval vs 60-70% baseline)
 3. **Scientific**: Empirically validated adaptive engagement (p < 0.001, N=2,221, Cohen's d = 0.37)
-4. **Practical**: Demonstrated efficiency at pilot scale (EUR 0.0002 per IOC, 100% extraction precision)
+4. **Practical**: Demonstrated efficiency at pilot scale (low cost per IOC with lightweight models, high extraction precision)
 
 ### Validated Hypotheses (Epsilon-Greedy with UCB1)
 

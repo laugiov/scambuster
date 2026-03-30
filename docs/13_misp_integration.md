@@ -32,7 +32,7 @@ Each IOC is mapped to a MISP attribute using the mapping defined in `IocExportMa
 | cve | External analysis | vulnerability | No |
 | filename | Payload delivery | filename | No |
 
-36 IOC types are mapped in total. Unmapped types default to `Other / other / to_ids=false`.
+34 IOC types are mapped in total. Unmapped types default to `Other / other / to_ids=false`.
 
 ### MISP Event Structure
 

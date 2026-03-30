@@ -464,5 +464,5 @@ Campaigns eligible for promotion (PPV >= 0.85, hits >= 5, lead time >= 3h).
 | conversation | 147 |
 | message | 1,224 |
 | observed_ioc | 442 |
-| persona | 6 |
+| persona | 27 |
 | lkp_scam_type | 13 |

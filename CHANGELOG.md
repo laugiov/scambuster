@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.8.0] - 2026-03-30
+
+### Added
+
+#### Quality Benchmark Suite (Feature 016)
+- 3 evaluation commands: `app:evaluate:generate-corpus`, `app:evaluate:reply-quality`, `app:evaluate:bandit-analysis`
+- 9 quality metrics across 6 dimensions (diversity, naturalness, language compliance, IOC elicitation, safety)
+- Makefile targets: `evaluate-corpus`, `evaluate-quality`, `evaluate-bandit`, `evaluate-all`
+
+#### Pipeline Monitoring Dashboard (Feature 020)
+- PipelineTrace and ComponentTrace value objects for per-reply tracing
+- 3 API endpoints: `/monitoring/pipeline-traces`, `/monitoring/pipeline-traces/{msgId}`, `/monitoring/pipeline-health`
+- React page at `/monitoring/pipeline` with live feed, component waterfall, health table
+
+#### Injection Monitoring (Feature 021)
+- `app:detect-prompt-injection` added to scheduler (every 6h)
+- API endpoint: `/monitoring/injection` with risk stats and recent alerts
+- React page at `/monitoring/injection` with coverage bar and alert list
+
+#### Semantic Embeddings (Feature 022)
+- `EmbeddingService` using OpenAI text-embedding-3-small (1536 dimensions)
+- `app:generate-embeddings` command added to scheduler (every 6h)
+
+#### Actor Profiles (Feature 022)
+- `ActorProfileGenerator` computes style_dna and infra_dna from campaign messages
+- `app:generate-actor-profiles` command added to scheduler (daily)
+
+### Fixed
+
+#### Reply Pipeline Hardening (Feature 017)
+- PolicyGuardConfig::fromContext() now wired into ReplyOrchestrator (was dead code)
+- Forbidden patterns narrowed from 16 to 6 (removed "test", "suspect", etc.)
+- Validator prompt simplified — PolicyGuard owns syntax, Validator owns semantics
+- Best-of-3 fallback strategy replaces canned response when validator rejects
+- First-attempt approval: 29% → 100%, Fallback rate: 30% → 0%
+
+#### Feedback Loop (Feature 018)
+- engagement_duration_sec computed from actual message timestamps (was always 0)
+- turns_count computed from message count (was always 0)
+- CalculateRewardsCommand fixed (was broken — idempotence check bypassed)
+- ConversationEndedListener: removed redundant reward double-write
+- Scheduler: removed `profiles: [production]` gate, added `SCHEDULER_ENABLED` env var
+
+#### Pipeline Observability (Feature 019)
+- Dedicated production LLM log handler bypassing fingers_crossed
+- CostEstimator wired into ReplyOrchestrator (was using hardcoded 16x underestimate)
+- REPLY_GENERATED audit event added to ReplyHandler
+- Debug logging added to LanguageDetector, ContextAnalyzer, ReciprocityManager
+
+#### Dead Wiring Fixes (Feature 021)
+- IOC multi-observation boost: `boostConfidence()` now called after indicator upsert
+- Complete audit trail: 8 additional event types wired (MESSAGE_INGESTED, IOC_EXTRACTED, CONVERSATION_CLOSED, PERSONA_SELECTED, REPLY_SENT, INJECTION_DETECTED, EXPORT_STIX, EXPORT_MISP)
+- Dead methods removed from PersonaPerformanceStatsRepository
+
+#### Language Compliance
+- `neutralizeLocale()` strips French cultural markers for non-French replies
+- Language override instruction in OBJECTIVE section
+- Persona labels migrated from French to English
+
+---
+
 ## [1.7.0] - 2026-03-25
 
 ### Added
@@ -14,7 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 #### CI Pipeline Restoration (CT-1)
 - Backend unit + integration tests now run in CI via Docker containers
 - PHPUnit CI config with bootstrap_ci.php (include_once wrapper for Kernel)
-- 1150+ tests passing in GitHub Actions
+- Comprehensive test suite passing in GitHub Actions
 
 #### Security Headers (CT-2)
 - Content-Security-Policy and Strict-Transport-Security headers on all API responses

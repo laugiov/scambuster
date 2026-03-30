@@ -109,7 +109,7 @@ DPIA documentation covers:
 | **Emails/sender/day** | 10 max | Per-sender abuse prevention |
 | **Sender flood (burst)** | 5 in 5min | Quarantine sender for 1 hour |
 
-**Sender-level rate limiting** (v1.6.0): When a sender exceeds 10 emails/24h, messages are still ingested (for analysis) but no reply is generated. Burst flood detection quarantines senders who send 5+ emails within 5 minutes. All rate limit hits generate `RATE_LIMIT_EXCEEDED` audit events.
+**Sender-level rate limiting**: When a sender exceeds 10 emails/24h, messages are still ingested (for analysis) but no reply is generated. Burst flood detection quarantines senders who send 5+ emails within 5 minutes. All rate limit hits generate `RATE_LIMIT_EXCEEDED` audit events.
 
 ### 3. Content Filters
 
@@ -174,7 +174,7 @@ Average quality score (naturalness + persona_fit + ti_value) / 3 must be >= 2.5.
 
 All events include: `trace_id`, `actor_id`, `ip_address`, `timestamp`. Forwarded to SIEM (CEF/ECS/JSON).
 
-Additional security features (v1.8.0+):
+Additional security features:
 - **IOC Confidence Scoring**: Multi-observation boost formula (1-(1-base)^n) with temporal decay per IOC type
 - **Prompt Injection Detection**: Scheduled forensic analysis (cron every 6h) with dedicated monitoring page
 - **Pipeline Tracing**: Per-reply component trace (timing, cost, approval) stored on message headers
@@ -346,13 +346,13 @@ For security concerns or responsible disclosure:
 
 ---
 
-## Security by Design Implementation (v1.5.0)
+## Security by Design Implementation
 
 The following controls were implemented based on the [security-by-design](https://github.com/laugiov/security-by-design) reference framework:
 
 ### OWASP Security Headers
 
-All API responses include: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cross-Origin-Opener-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`. Implemented via `SecurityHeadersListener` on `kernel.response`.
+All API responses include: `Content-Security-Policy: default-src 'none'`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, `Permissions-Policy`, `Cross-Origin-Opener-Policy: same-origin`, `X-Permitted-Cross-Domain-Policies: none`. Implemented via `SecurityHeadersListener` on `kernel.response`.
 
 ### Structured Audit Trail
 
