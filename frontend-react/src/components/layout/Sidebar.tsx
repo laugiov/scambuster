@@ -37,9 +37,12 @@ export function Sidebar() {
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-[var(--spacing-sidebar)] bg-sidebar flex flex-col z-50" role="navigation" aria-label="Main navigation">
-      <div className="px-5 py-6">
-        <h1 className="text-lg font-semibold text-on-surface tracking-wide">ScamBuster</h1>
-        <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-0.5">{t('nav.subtitle')}</p>
+      <div className="px-5 py-6 flex items-center gap-3">
+        <img src="/scambuster_icon.svg" alt="ScamBuster" className="w-9 h-9" />
+        <div>
+          <h1 className="text-lg font-semibold text-on-surface tracking-wide">ScamBuster</h1>
+          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-0.5">{t('nav.subtitle')}</p>
+        </div>
       </div>
 
       <nav className="flex-1 px-3 space-y-0.5" aria-label="Pages">
