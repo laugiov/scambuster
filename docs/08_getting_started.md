@@ -128,7 +128,7 @@ ScamBuster supports multiple LLM providers. Set `LLM_PROVIDER` in `.env`:
 
 | Provider | `LLM_PROVIDER` | `LLM_MODEL` | Cost | Notes |
 |----------|----------------|-------------|------|-------|
-| OpenAI | `openai` | `gpt-4o-mini` | ~$0.0002/msg | Default. Requires `LLM_API_KEY` |
+| OpenAI | `openai` | `gpt-4o / gpt-4o-mini` | ~$0.008/msg | Default. Requires `LLM_API_KEY` |
 | Anthropic | `anthropic` | `claude-haiku-4-5-20251001` | ~$0.0003/msg | Requires `ANTHROPIC_API_KEY` |
 | Ollama | `ollama` | `llama3` / `mistral` | Free | Local. Set `OLLAMA_BASE_URL` |
 | Mock | `mock` | -- | Free | Static responses, no API calls |

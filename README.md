@@ -13,7 +13,7 @@
 [![STIX](https://img.shields.io/badge/STIX-2.1-red.svg)](docs/03_high_level_architecture.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> **Last updated**: 2026-03-16 | **Data period**: December 2025 - February 2026
+> **Last updated**: 2026-03-30 | **Data period**: December 2025 - ongoing
 
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
 
@@ -87,13 +87,9 @@ Instead of discarding scam emails, ScamBuster creates an **observatory** that an
 | **System Uptime** | Continuous operation | Zero incidents, fully automated |
 | **Max engagement** | 48.7 hours | Longest sustained interaction |
 
-> **Metrics scope & definitions**
->
-> Figures come from a **controlled live deployment** (December 2025 - February 2026).
-> Quality metrics are reproducible regardless of deployment scale.
->
-> **IOC precision (100%)** = no false positives in audited sample (precision = TP / (TP + FP), N=107 messages).
-> Sample-based validation details are documented in [Evaluation Methodology](docs/05_evaluation_methodology.md).
+> **Metrics scope**: Figures come from a **controlled live deployment** (December 2025 - ongoing).
+> Quality metrics are reproducible via the automated benchmark suite (`make evaluate-all`).
+> Detailed validation methodology in [Evaluation Methodology](docs/05_evaluation_methodology.md).
 
 ### Validation Summary
 
@@ -128,8 +124,8 @@ Five specialized AI agents form the core pipeline, supported by one forensic mod
 | **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 13 types |
 | **IocExtractor** | Extract threat indicators | High precision on audited samples, 34 IOC types |
 | **Generator** | Create contextual responses | +35% IOCs post-IBAN detection |
-| **Validator** | Ensure safety & quality | 95% approval rate (PolicyGuard + LLM) |
-| **Orchestrator** | Coordinate & optimize costs | Low cost per message |
+| **Validator** | Ensure safety & quality | 100% first-attempt approval (PolicyGuard + multi-criteria LLM) |
+| **Orchestrator** | Coordinate & optimize costs | 3-attempt loop, best-of-3 fallback, per-reply cost tracking |
 
 | Forensic Module | Role | Notes |
 |-----------------|------|-------|
@@ -198,7 +194,7 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 | **Backend** | PHP 8.3, Symfony 7.2, DDD architecture |
 | **Database** | PostgreSQL 15, Redis 7 |
 | **Frontend** | React 19, TypeScript, TailwindCSS, i18n (EN/FR) |
-| **LLM** | OpenAI, Anthropic, Ollama (local), or Mock (demo) |
+| **LLM** | OpenAI GPT-4o (generation) + GPT-4o-mini (validation). Also supports Anthropic, Ollama, Mock |
 | **Orchestration** | n8n (self-hosted workflow automation) |
 | **Secrets** | HashiCorp Vault |
 | **Monitoring** | `/api/health`, `/api/metrics` (Prometheus), LLM cost tracking |
@@ -295,12 +291,37 @@ scambuster/
 - `GET /api/v1/communication/message/{id}/iocs`
 - `GET /api/v1/iocs` -- IOCs with confidence scores
 
-### Monitoring
+### Monitoring & Observability
 - `GET /api/v1/monitoring/autonomy` -- System health, convergence, kill switch, activity
 - `GET /api/v1/monitoring/llm-cost` -- LLM cost tracking (monthly, per-purpose, daily trend)
+- `GET /api/v1/monitoring/pipeline-traces` -- Per-reply pipeline execution traces
+- `GET /api/v1/monitoring/pipeline-health` -- Aggregated pipeline component health
+- `GET /api/v1/monitoring/injection` -- Prompt injection detection stats and alerts
 - `GET /api/health` -- Dependency health checks (database, Redis) with latency
 - `GET /api/metrics` -- Prometheus-compatible metrics
 - `GET /api/doc` -- Swagger UI (OpenAPI 3.0)
+
+---
+
+## Frontend (React Dashboard)
+
+14 pages for operators and analysts:
+
+| Page | Purpose |
+|------|---------|
+| **Dashboard** | System overview, kill switch, convergence stats |
+| **Conversations** | List and detail view of all conversations |
+| **IOC Explorer** | Browse IOCs with confidence scores and decay |
+| **Campaign Radar** | Campaign clustering, profiling, rule hunting |
+| **Pipeline Monitor** | Per-reply tracing with component waterfall and health metrics |
+| **Injection Monitor** | Prompt injection detection coverage and alerts |
+| **Monitoring** | Conversation lifecycle, timeout alerts, by scam type |
+| **LLM Costs** | Monthly budget, per-purpose breakdown, daily trend |
+| **Personas** | 27 personas with performance stats per scam type |
+| **STIX Export** | Export campaigns as STIX 2.1 bundles |
+| **Settings** | System configuration, LLM provider, kill switch |
+
+Bilingual (EN/FR) with automatic language detection.
 
 ---
 
@@ -341,10 +362,21 @@ Full details in [Security & Guardrails](docs/04_security_guardrails.md).
 |-------|--------|----------|
 | **Phase 1**: Multi-agent LLM architecture | ✅ Complete | Oct-Nov 2025 |
 | **Phase 2**: Adaptive engagement (epsilon-greedy) | ✅ Complete | Nov-Dec 2025 |
-| **Phase 3**: Thompson Sampling | Planned (v2) | -- |
-| **Phase 4**: Scale & Dashboards | ✅ Complete | Jan 2026 |
-| **Phase 5**: A/B Testing & Validation | ✅ Complete | Jan-Feb 2026 |
-| **Phase 6**: Publication & Dataset Release | 🔄 In Progress | Mar 2026 |
+| **Phase 3**: Scale & Dashboards | ✅ Complete | Jan 2026 |
+| **Phase 4**: A/B Testing & Validation | ✅ Complete | Jan-Feb 2026 |
+| **Phase 5**: Quality Assurance & Observability | ✅ Complete | Mar 2026 |
+| **Phase 6**: Publication & Open Source | 🔄 In Progress | Mar 2026 |
+| **Planned**: Thompson Sampling (v2) | Roadmap | -- |
+
+**Phase 5 highlights** (features 016-022):
+- Automated quality benchmark suite (9 metrics, reproducible evaluation)
+- Pipeline monitoring dashboard with per-reply tracing and component waterfall
+- Injection monitoring page with scheduled forensic detection
+- Feedback loop fixed (rewards, engagement metrics, bandit learning)
+- IOC confidence scoring activated (multi-observation boost + temporal decay)
+- Semantic embeddings and actor profile generation
+- Complete audit trail (16 event types, SIEM-forwarded)
+- System integrity audit: 99 features verified, 0 dead code remaining
 
 See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 
@@ -377,7 +409,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 ### Research Contributions
 
 1. **Methodological**: Reproducible protocol for adaptive honeypot evaluation
-2. **Technical**: Multi-agent LLM with double validation pipeline (95% approval vs 60-70% baseline)
+2. **Technical**: Multi-agent LLM with double validation pipeline (100% first-attempt approval after hardening)
 3. **Scientific**: Empirically validated adaptive engagement (p < 0.001, N=2,221, Cohen's d = 0.37)
 4. **Practical**: Demonstrated efficiency at pilot scale (low cost per IOC with lightweight models, high extraction precision)
 

@@ -12,7 +12,7 @@ ScamBuster is an **adaptive conversational honeypot** that engages email scammer
 
 ### Can I get access to the code?
 
-Yes, for **serious interest** (demo, pilot, hiring, partnership). See the [Contact section](../README.md#contact) to request access. Private access may require an NDA and/or responsible-use agreement.
+The complete source code is available on GitHub under MIT License.
 
 ### What's the current project status?
 
@@ -46,7 +46,7 @@ ScamBuster uses **five specialized agents** supported by one forensic module:
 1. **ScamClassifier**: Categorizes incoming scams (13 types)
 2. **IocExtractor**: Extracts indicators with 100% precision on audited sample
 3. **Generator**: Creates contextual responses
-4. **Validator**: Ensures safety and quality (95% approval rate)
+4. **Validator**: Ensures safety and quality (100% first-attempt approval)
 5. **Orchestrator**: Coordinates agents and optimizes costs
 
 Additionally, the **InjectionDetector** forensic module analyzes inbound messages for prompt injection attempts (non-blocking, results stored for research).
@@ -206,7 +206,7 @@ Access requires NDA and responsible-use agreement.
 ### What's the academic contribution?
 
 1. **Methodological**: Reproducible protocol for adaptive honeypot evaluation
-2. **Technical**: Multi-agent LLM with double validation (95% vs 60-70% baseline)
+2. **Technical**: Multi-agent LLM with double validation (100% first-attempt approval vs 60-70% baseline)
 3. **Scientific**: Empirically validated adaptive scambaiting (p < 0.001, N=2,221)
 4. **Practical**: Demonstrated efficiency at pilot scale
 
