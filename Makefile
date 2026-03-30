@@ -256,6 +256,9 @@ cleanup-weekly-dry: ##@scambaiting Preview weekly cleanup without changes
 validate: ##@docker Validate installation (check all services)
 	bash scripts/validate-install.sh
 
+validate-n8n: ##@docker Validate n8n workflow JSON files (no hardcoded values)
+	bash scripts/validate-n8n-workflows.sh
+
 wait-healthy: ##@docker Wait for PostgreSQL and Redis to be healthy
 	@echo "Waiting for PostgreSQL..."
 	@until $(DC) exec postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done

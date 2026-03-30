@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/compose",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/compose",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -112,7 +112,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/sent",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/sent",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -169,7 +169,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/auth/login",
+        "url": "http://backend-dev:8080/api/v1/auth/login",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -181,7 +181,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"email\": $env.INGEST_LOGIN, \"password\": $env.INGEST_PASSWORD } }}",
+        "jsonBody": "={{ { \"email\": \"user@example.com\", \"password\": \"Un1que$trongPassword2024\" } }}",
         "options": {}
       },
       "id": "b7fa4522-6b5e-4958-aa46-f1ce979b0e3f",
