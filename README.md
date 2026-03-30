@@ -18,10 +18,6 @@
 <p align="center">
   <img src="frontend-react/public/dashboard_v2.png" alt="ScamBuster Operations Dashboard" width="100%" />
 </p>
-<p align="center">
-  <img src="frontend-react/public/analytics.png" alt="ScamBuster Analytics" width="100%" />
-</p>
-
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
 
 The project serves defensive security, fraud prevention, and applied research purposes (not offensive use). It extracts IOCs, maps campaigns, measures engagement effectiveness, and exports intelligence in STIX/MISP formats. All workflows are safety-gated, cost-aware, and fully auditable.
