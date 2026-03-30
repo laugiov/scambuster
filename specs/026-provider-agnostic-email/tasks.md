@@ -4,11 +4,14 @@
 **Depends on**: 025-n8n-workflow-hardening (merged)
 **Tests**: Integration tests (PHPUnit), grep validation, manual IMAP test, manual E2E smoke test
 
-## Phase 0: PREREQUISITE — IMAP Raw Format Validation
+## Phase 0: PREREQUISITE — IMAP Format Validation
 
-**BLOCKER**: This must be done before ANY US1 code is written.
+**COMPLETED 2026-03-30**: Manual test confirmed:
+- "Raw" format = MIME body only (NO envelope headers) → UNUSABLE
+- "Simple" format = structured fields with ALL RFC822 headers → CORRECT CHOICE
+- Decision: format "Simple" + reconstruct RFC822 in code node → `/ingest/raw` unchanged
 
-- [ ] T000 [BLOCKER] Test emailReadImap node in n8n: create test workflow, connect to real IMAP mailbox, format: "raw", send test email, inspect output structure. Document exact output fields. Compare with Extract Email Data input expectations. Result determines if US1 proceeds as-is or requires adaptation.
+- [X] T000 [DONE] Test emailReadImap in n8n with real IMAP mailbox. Result: use format "Simple".
 
 ## Phase 1: Setup
 
@@ -36,11 +39,15 @@
 
 **Goal**: WF-INTAKE-EMAIL-V2 receives emails via standard IMAP instead of Gmail OAuth.
 
-- [ ] T015 [US1] WF-INTAKE-EMAIL-V2.json: Replace Gmail Trigger node with emailReadImap node (format: raw, postProcessAction: read, mailbox: INBOX). Credential reference: "ScamBuster IMAP" (created by spec 027 bootstrap)
-- [ ] T016 [US1] WF-INTAKE-EMAIL-V2.json: Remove "Gmail Get Raw Message" node entirely (IMAP trigger provides raw directly)
-- [ ] T017 [US1] WF-INTAKE-EMAIL-V2.json: Update "Merge Email Data" code node to read from IMAP trigger output instead of Gmail Trigger + Gmail Get Raw Message
-- [ ] T018 [US1] WF-INTAKE-EMAIL-V2.json: Update "Prepare Payload" code node — replace references to $('Gmail Trigger') and $('Gmail Get Raw Message') with reference to new IMAP node name
-- [ ] T019 [US1] WF-INTAKE-EMAIL-V2.json: Update node connections (wiring) to reflect removed node
+- [ ] T015 [US1] WF-INTAKE-EMAIL-V2.json: Replace Gmail Trigger node with emailReadImap node (format: "simple", postProcessAction: "read", mailbox: INBOX). Credential reference: "ScamBuster IMAP" (created by spec 027 bootstrap)
+- [ ] T016 [US1] WF-INTAKE-EMAIL-V2.json: Remove "Gmail Get Raw Message" node entirely (IMAP Simple format provides all data in one node)
+- [ ] T017 [US1] WF-INTAKE-EMAIL-V2.json: Rewrite "Extract Email Data" + "Merge Email Data" code nodes into a single "Reconstruct RFC822" code node that:
+  - Reads structured fields from IMAP output: from, to, subject, date, textPlain, textHtml, metadata (all headers)
+  - Reconstructs a valid RFC822 string by concatenating: From/To/Subject/Date/Message-ID/In-Reply-To/References/Content-Type headers + empty line + body
+  - Outputs the same format the current flow produces for /ingest/raw (base64-encoded RFC822)
+  - This is the CRITICAL task — the reconstructed RFC822 must be compatible with the existing backend IngestHandler
+- [ ] T018 [US1] WF-INTAKE-EMAIL-V2.json: Update "Prepare Payload" code node — replace references to $('Gmail Trigger') and $('Gmail Get Raw Message') with reference to new IMAP node name and Reconstruct RFC822 output
+- [ ] T019 [US1] WF-INTAKE-EMAIL-V2.json: Update node connections (wiring) to reflect removed/replaced nodes
 - [ ] T020 [US1] Validate: grep -r "gmailTrigger\|gmailOAuth2" n8n/workflows/WF-INTAKE-EMAIL-V2.json returns 0 matches
 
 ## Phase 4: US2 continued — Replace Gmail Send in WF-REPLY-SEND-v1 (P1)

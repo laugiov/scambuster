@@ -59,23 +59,29 @@ Extract Email Data (code node)
 
 ```
 IMAP Email Trigger (emailReadImap)
-  - host: {{ $env.HONEYPOT_IMAP_HOST }}
-  - port: {{ $env.HONEYPOT_IMAP_PORT }}
-  - user: {{ $env.HONEYPOT_IMAP_USER }}
-  - password: {{ $env.HONEYPOT_IMAP_PASSWORD }}
-  - secure: {{ $env.HONEYPOT_IMAP_SECURE }}
+  - credential: "ScamBuster IMAP" (created by spec 027 bootstrap)
   - mailbox: INBOX
-  - format: "raw" (full RFC822 output)
-  - postProcessAction: "markRead" (mark as read after fetching)
-  - pollTimes: everyMinute (same as current)
-  - output: raw RFC822 message (NOT base64url -- standard base64 or plain text)
+  - format: "simple" (returns structured fields — VERIFIED 2026-03-30)
+  - postProcessAction: "read" (mark as read after fetching)
+  - output: { textHtml, textPlain, metadata: {all headers}, from, to, subject, date }
       |
       v
-Extract Email Data (code node) -- MODIFIED
-  - Remove base64url-to-base64 conversion (b64urlToB64) since IMAP
-    provides standard base64 or raw text, not Gmail's base64url encoding
-  - Keep all RFC822 parsing logic unchanged
-  - Adapt input field name from item.raw to the IMAP node's output field
+Reconstruct RFC822 (code node) -- NEW (replaces Extract Email Data + Merge)
+  - Reads structured fields from IMAP trigger output
+  - Reconstructs a valid RFC822 message string:
+    From: item.json.from
+    To: item.json.to
+    Subject: item.json.subject
+    Date: item.json.date
+    Message-ID: item.json.metadata["message-id"]
+    In-Reply-To: item.json.metadata["in-reply-to"]
+    References: item.json.metadata["references"]
+    Content-Type: item.json.metadata["content-type"]
+    + all other metadata headers
+    + empty line
+    + item.json.textPlain (or textHtml)
+  - Outputs the same format that Extract Email Data currently produces
+  - /ingest/raw receives RFC822 exactly as before — ZERO backend changes
 ```
 
 **Key changes**:
@@ -341,7 +347,7 @@ Limitations section:
 - **FR-003**: IMAP credentials MUST be injectable into n8n via the bootstrap script (spec 027) using the n8n REST API (`POST /rest/credentials`). SMTP credentials are configured in the backend via `MAILER_DSN` env var (Symfony Mailer standard) — not in n8n.
 - **FR-004**: The backend send endpoint MUST preserve email threading by setting `In-Reply-To` and `References` headers (RFC 2822) on outgoing emails, using stored Message-IDs from the conversation history.
 - **FR-005**: System MUST mark emails as read after fetching via IMAP to prevent re-processing on the next poll cycle.
-- **FR-006**: System MUST output RFC822 raw format from the IMAP trigger so the existing `Extract Email Data` parsing code and the backend `/ingest/raw` endpoint continue to work. **PREREQUISITE BEFORE IMPLEMENTATION**: The `emailReadImap` node in "raw" format MUST be manually tested on a real IMAP mailbox in n8n UI (20 min effort). Inspect the exact output structure and compare with what `Extract Email Data` expects. If the raw format does not provide full RFC822 (headers + body as a single string/base64), US1 must be redesigned to consume the node's structured output (text, html, headers fields) and adapt `Extract Email Data` accordingly. This test blocks all US1 implementation.
+- **FR-006**: The IMAP trigger MUST use format **"Simple"** (NOT "Raw"). **VERIFIED BY MANUAL TEST (2026-03-30)**: the "Raw" format returns only the MIME body without envelope headers (useless). The "Simple" format returns structured fields: `textHtml`, `textPlain`, `metadata` (object with ALL RFC822 headers: message-id, in-reply-to, references, received, received-spf, dkim-signature, authentication-results, return-path, etc.), `from`, `to`, `subject`, `date`, `attributes.uid`. The `Extract Email Data` code node MUST be **rewritten** to reconstruct a valid RFC822 message from these structured fields so that the existing backend `/ingest/raw` endpoint receives the same format it expects today. **This approach requires ZERO backend changes** — only the n8n code node changes.
 - **FR-007**: System MUST forward `HONEYPOT_IMAP_*` environment variables from `.env` to the n8n container and `MAILER_DSN` to the backend container via `docker-compose.yml`.
 - **FR-008**: System MUST handle SMTP send failures gracefully -- the reply remains in draft status and the confirm endpoint is not called.
 - **FR-009**: System MUST generate a local Message-ID for sent replies (format: `<uuid@scambuster.local>`) since SMTP does not return server-assigned Message-IDs.
