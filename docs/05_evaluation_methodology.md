@@ -13,10 +13,10 @@ ScamBuster employs **rigorous, reproducible evaluation methods** to measure and 
 | Metric | Definition | Target | Status |
 |--------|------------|--------|--------|
 | **Engagement Duration** | Time from first response to conversation end | >1 hour median | 0.3h median, 48.7h max |
-| **Unique IOCs per Conversation** | Deduplicated indicators extracted | >5 per conversation | 5.34 achieved (deduplicated) |
+| **Unique IOCs per Conversation** | Deduplicated indicators extracted | >5 per conversation | Multiple unique IOCs per conversation (deduplicated) |
 | **High-Value IOC Rate** | % of IOCs that are actionable (IBAN, phone, crypto) | >10% | IBANs, phones, crypto captured |
 | **Conversation Completion Rate** | % of conversations reaching natural end | >30% | Measuring |
-| **System Uptime** | Continuous operation without incidents | >99% | 100% (60 days) |
+| **System Uptime** | Continuous operation without incidents | >99% | 100% (continuous operation) |
 
 ### Secondary Metrics
 
@@ -36,7 +36,7 @@ Metrics in this documentation come from **controlled live deployment** (December
 
 | Window | Duration | Purpose | Key Metrics |
 |--------|----------|---------|-------------|
-| **Production run** | 60 days | Stability, quality metrics, uptime | 5.34 unique IOCs/conv, 100% precision, 0 incidents |
+| **Production run** | 60 days | Stability, quality metrics, uptime | Multiple unique IOCs/conv, high precision, 0 incidents |
 | **Controlled validation** | Ongoing | Precision analysis, campaign attribution | Detailed cost/value analysis |
 
 This separation ensures appropriate context for each metric type.
@@ -51,12 +51,12 @@ This separation ensures appropriate context for each metric type.
 
 | Metric | Value | Notes |
 |--------|-------|-------|
-| **Unique IOCs per conversation** | 5.34 | Deduplicated |
-| **IOC Precision** | 100% (N=107) | Audited sample |
+| **Unique IOCs per conversation** | Multiple unique IOCs per conversation | Deduplicated |
+| **IOC Precision** | High precision on audited samples | Audited sample |
 | **Persona variance** | 5.5x | Best vs worst per scam type |
 | **Scammer response rate** | 54% | In line with manual scambaiting literature |
-| **Cost per IOC** | EUR 0.0002 | LLM API only |
-| **System uptime** | 100% | 60 days, 0 incidents |
+| **Cost per IOC** | Low cost per IOC (with lightweight models) | LLM API only |
+| **System uptime** | 100% | Continuous operation, 0 incidents |
 | **LLM approval rate** | 95% | With retry mechanism |
 
 **Key Observations**:
@@ -166,7 +166,7 @@ Target sample size based on:
 
 ### Thompson Sampling (Planned -- v2 Roadmap)
 
-Thompson Sampling is planned as a v2 upgrade. It is **not implemented** in the current codebase. The current production algorithm (epsilon-greedy + UCB1) already demonstrates strong convergence properties (9/12 scam types converged in <100 sessions).
+Thompson Sampling is planned as a v2 upgrade. It is **not implemented** in the current codebase. The current production algorithm (epsilon-greedy + UCB1) already demonstrates strong convergence properties (9/13 scam types converged in <100 sessions).
 
 **Expected Advantages** (if implemented):
 
@@ -269,7 +269,7 @@ reward = 0.40 × duration_score
 | **Source code** | Private (available under NDA) |
 | **Configuration** | Documented in specs |
 | **Dependencies** | Pinned versions (composer.lock) |
-| **LLM version** | Pinned (gpt-4o-mini-2024-07-18) |
+| **LLM version** | Configurable per environment (default: GPT-4o for generation, GPT-4o-mini for validation) |
 
 ### Dataset
 
@@ -310,11 +310,11 @@ reward = 0.40 × duration_score
 
 ---
 
-## Automated Benchmark Suite (v1.8.0)
+## Automated Benchmark Suite
 
 ### Overview
 
-ScamBuster v1.8.0 introduces an **automated quality benchmark suite** consisting of 3 Symfony console commands that measure reply quality, persona effectiveness, and bandit convergence through reproducible, machine-readable metrics.
+ScamBuster includes an **automated quality benchmark suite** consisting of 3 Symfony console commands that measure reply quality, persona effectiveness, and bandit convergence through reproducible, machine-readable metrics.
 
 ### Commands
 
@@ -370,12 +370,12 @@ make evaluate-corpus COUNT=500 DRY_RUN=1
 
 ### Test Coverage
 
-- 1,306+ automated tests (unit + integration + E2E)
+- Comprehensive automated test suite (unit + integration + E2E)
 - 81.75% overall code coverage (Codecov)
-- 83 evaluation-specific tests covering all metric calculators, analyzers, report writers, and commands
+- Extensive evaluation-specific tests covering all metric calculators, analyzers, report writers, and commands
 - PHPStan level 6 with zero errors on full codebase
 
-### System Integrity Audit (v1.8.0+)
+### System Integrity Audit
 
 99 features inventoried across 11 domains. Verification-by-proof audit results:
 
@@ -389,7 +389,7 @@ All 4 previously DEAD features (IOC confidence, message vectors, URL analysis, a
 
 ## Reporting
 
-### Metrics Dashboard (Planned)
+### Metrics Dashboard
 
 **Grafana dashboards** will display:
 

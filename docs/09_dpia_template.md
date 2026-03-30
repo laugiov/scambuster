@@ -148,7 +148,7 @@ After all mitigations, the residual risk is **LOW**. The primary remaining risk 
 | PII protection | PiiMaskingProcessor in Monolog (email + IP masking), no PII in application logs |
 | OWASP headers | 8 security headers (CSP, HSTS, X-Frame-Options, etc.) on all responses |
 | Database backup | Automated daily pg_dump (02:00 UTC), 7-day retention, verification |
-| Automated testing | 1,157+ automated tests (unit, integration, E2E) |
+| Automated testing | Comprehensive automated test suite (unit, integration, E2E) |
 | Code review | DDD architecture with strict layer separation, PHPStan level 6 |
 | Monitoring | Conversation lifecycle monitoring, LLM cost tracking, rate limit stats, convergence history |
 

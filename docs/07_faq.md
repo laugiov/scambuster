@@ -8,7 +8,7 @@ ScamBuster is an **adaptive conversational honeypot** that engages email scammer
 
 ### Is this an open-source project?
 
-**Not in its current form.** This repository is a public preview containing documentation only. The operational code is private for security reasons. Some components (IOC normalization utilities, STIX mapping helpers) may be open-sourced in Q1 2026.
+**Yes.** This repository contains the complete ScamBuster source code, including backend, frontend, workflows, and tests. It is released under the MIT license.
 
 ### Can I get access to the code?
 
@@ -33,7 +33,7 @@ Yes, for **serious interest** (demo, pilot, hiring, partnership). See the [Conta
 | **Backend** | PHP 8.3, Symfony 7.2 |
 | **Architecture** | Domain-Driven Design (DDD) |
 | **Database** | PostgreSQL 15, Redis 7 |
-| **LLM** | GPT-4o-mini (OpenAI API) |
+| **LLM** | GPT-4o (generation), GPT-4o-mini (validation/classification) |
 | **Orchestration** | n8n (workflow automation) |
 | **Infrastructure** | Docker, Docker Compose |
 | **CI/CD** | GitHub Actions |
@@ -43,7 +43,7 @@ Yes, for **serious interest** (demo, pilot, hiring, partnership). See the [Conta
 
 ScamBuster uses **five specialized agents** supported by one forensic module:
 
-1. **ScamClassifier**: Categorizes incoming scams (12 types)
+1. **ScamClassifier**: Categorizes incoming scams (13 types)
 2. **IocExtractor**: Extracts indicators with 100% precision on audited sample
 3. **Generator**: Creates contextual responses
 4. **Validator**: Ensures safety and quality (95% approval rate)
@@ -60,7 +60,7 @@ Each agent has a single responsibility and can be optimized independently.
 | **Exploration** | UCB1 bonus + 20% random | Probability-weighted by uncertainty |
 | **Parameters** | ε=0.20, C=0.5, convergence=60% | None (auto-adaptive) |
 | **Bad performers** | UCB1 reduces over time | Naturally eliminated |
-| **Convergence** | 9/12 types in <100 sessions | Expected: faster |
+| **Convergence** | 9/13 types in <100 sessions | Expected: faster |
 | **Status** | Validated (production) | Planned (roadmap v2) |
 
 ### How accurate is IOC extraction?
@@ -70,13 +70,13 @@ Each agent has a single responsibility and can be optimized independently.
 - **Hybrid approach**: Regex patterns + LLM understanding
 - **34 IOC types**: emails, phones, IBANs, crypto wallets, URLs, etc.
 - **Contextual extraction**: LLM understands when text is an IOC vs normal content
-- **Pilot results**: 5.34 unique IOCs per conversation (deduplicated), 100% precision (N=107)
+- **Pilot results**: Multiple unique IOCs per conversation (deduplicated), high precision on audited samples
 
 Compared to regex-only approaches (44% precision), this is a 2.3× improvement.
 
 ### What scam types are supported?
 
-Currently 12 scam types:
+Currently 13 scam types:
 
 | Type | Description |
 |------|-------------|
@@ -92,6 +92,7 @@ Currently 12 scam types:
 | LOTTERY | Fake winnings |
 | JOB_OFFER | Employment scams |
 | CHARITY | Disaster relief fraud |
+| ADVANCE_FEE_419 | Advance-fee / 419 scams |
 
 ---
 
@@ -110,16 +111,16 @@ Currently 12 scam types:
 
 ### What's the ROI?
 
-Based on February 2026 pilot data (60 days):
+Based on February 2026 pilot data:
 
 | Metric | Value |
 |--------|-------|
-| **Unique IOCs per conversation** | 5.34 (deduplicated) |
-| **IOC Precision** | 100% (N=107) |
-| **Cost per IOC** | EUR 0.0002 |
+| **Unique IOCs per conversation** | Multiple unique IOCs per conversation (deduplicated) |
+| **IOC Precision** | High precision on audited samples |
+| **Cost per IOC** | Low cost per IOC (with lightweight models) |
 | **Persona variance** | 5.5x best vs worst |
 
-At EUR 0.0002 per IOC vs $137 per phishing incident (Ponemon), the cost efficiency is substantial.
+With lightweight models, the cost per IOC is orders of magnitude cheaper than the $137 per phishing incident (Ponemon). The cost efficiency is substantial.
 
 ### How much does it cost to operate?
 
@@ -127,7 +128,7 @@ At EUR 0.0002 per IOC vs $137 per phishing incident (Ponemon), the cost efficien
 |-----------|------|
 | **LLM API** | ~€0.0002/message |
 | **Infrastructure** | Existing Docker host |
-| **Total actual** | EUR 0.0002/IOC extracted |
+| **Total actual** | Low cost per IOC (with lightweight models) |
 | **Hard limit** | €50/month configured |
 
 ### Is there a commercial offering?

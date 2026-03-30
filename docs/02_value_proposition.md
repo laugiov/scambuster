@@ -6,9 +6,9 @@ ScamBuster is a **novel adaptive conversational honeypot** that combines:
 
 1. **Research laboratory approach**: Not just blocking scams, but understanding them
 2. **Multi-agent LLM architecture** for realistic, scalable engagement
-3. **Hybrid IOC extraction** with 100% precision on audited sample (vs 44% regex-only)
+3. **Hybrid IOC extraction** with high precision on audited samples (vs 44% regex-only)
 4. **Reinforcement learning** to automatically optimize strategies per scam type
-5. **Pilot-proven results**: 5.34 unique IOCs/conversation, 100% extraction precision, EUR 0.0002/IOC
+5. **Pilot-proven results**: multiple unique IOCs per conversation, high extraction precision, low cost per IOC with lightweight models
 
 ---
 
@@ -32,7 +32,7 @@ Scam Email → Engage → Extract → Analyze → Learn → Share
 
 | Capability | What It Reveals |
 |------------|-----------------|
-| **Scam Type Tracking** | Which fraud types are trending (12 categories) |
+| **Scam Type Tracking** | Which fraud types are trending (13 categories) |
 | **Persona Effectiveness** | Which strategies work best per scam type |
 | **IOC Patterns** | When and how scammers reveal indicators |
 | **Campaign Attribution** | Linking individual scams to coordinated operations |
@@ -55,8 +55,8 @@ Unlike single-prompt systems, ScamBuster uses **five specialized agents** suppor
 
 | Agent | Responsibility | Key Achievement |
 |-------|---------------|-----------------|
-| **ScamClassifier** | Categorize incoming scams | 82% automatic classification across 12 types |
-| **IocExtractor** | Extract indicators from messages | 100% precision on audited sample, 34 IOC types |
+| **ScamClassifier** | Categorize incoming scams | 82% automatic classification across 13 types |
+| **IocExtractor** | Extract indicators from messages | High precision on audited samples, 34 IOC types |
 | **Generator** | Create contextual responses | +35% IOC extraction after IBAN detection |
 | **Validator** | Ensure response safety/quality | 95% approval rate (vs 60-70% baseline) |
 | **Orchestrator** | Coordinate agents, optimize costs | <€0.0002 per message |
@@ -148,12 +148,12 @@ Generator → PolicyGuard (hard rules) → LLM Validator (quality) → Send
 
 | Metric | Value |
 |--------|-------|
-| **Unique IOCs per conversation** | 5.34 (deduplicated) |
-| **IOC Precision** | 100% on audited sample (N=107) |
+| **Unique IOCs per conversation** | Multiple unique IOCs per conversation (deduplicated) |
+| **IOC Precision** | High precision on audited samples |
 | **Persona variance** | 5.5x between best/worst per scam type |
 | **Scammer response rate** | 54% |
-| **Cost per IOC** | EUR 0.0002 |
-| **System uptime** | 60 days (0 incidents) |
+| **Cost per IOC** | Low cost per IOC (with lightweight models) |
+| **System uptime** | Continuous operation (0 incidents) |
 
 > **Metrics scope**: Quality metrics from controlled live deployment (December 2025 - February 2026). These ratios are reproducible regardless of deployment scale. See [Evaluation Methodology](05_evaluation_methodology.md) for definitions.
 
@@ -185,12 +185,12 @@ From pilot data, identified patterns suggesting coordinated operations:
 
 | Metric | Value |
 |--------|-------|
-| **Cost per IOC** | EUR 0.0002 |
-| **LLM provider** | GPT-4o-mini |
+| **Cost per IOC** | Low (with lightweight models) |
+| **LLM provider** | GPT-4o (generation) + GPT-4o-mini (validation) |
 | **Infrastructure** | Docker (existing) |
 | **Human intervention** | Zero |
 
-At EUR 0.0002 per IOC, the system is **orders of magnitude cheaper** than manual threat intelligence collection. The Ponemon Institute estimates $137 per phishing incident handled manually.
+With lightweight models, the cost per IOC is **orders of magnitude cheaper** than manual threat intelligence collection. The Ponemon Institute estimates $137 per phishing incident handled manually.
 
 > **Note**: Cost per IOC is a unit metric, reproducible at any scale. Infrastructure costs (hosting, email) are deployment-dependent and not included.
 
@@ -200,8 +200,8 @@ At EUR 0.0002 per IOC, the system is **orders of magnitude cheaper** than manual
 
 | Capability | Traditional Honeypot | Manual Scambaiting | ScamBuster |
 |------------|---------------------|-------------------|------------|
-| **Scale** | Limited | Very limited | **Fully automated, 60 days continuous** |
-| **IOC precision** | Low (regex) | High (human) | **100% on audited sample** |
+| **Scale** | Limited | Very limited | **Fully automated, continuous operation** |
+| **IOC precision** | Low (regex) | High (human) | **High precision on audited samples** |
 | **Learning** | None | Slow (experience) | **Automatic** |
 | **Cost per conversation** | N/A | €50-100 (analyst) | **<€0.01** |
 | **24/7 operation** | Yes | No | **Yes** |

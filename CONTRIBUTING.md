@@ -30,7 +30,7 @@ Use conventional commits:
 feat(domain): add new scam type classification
 fix(ingest): handle duplicate message-id correctly
 docs(readme): update setup instructions
-test(persona): add unit tests for Thompson sampling
+test(evaluation): add benchmark metric tests for non-repetitiveness
 ```
 
 ### Code quality checks

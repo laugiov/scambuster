@@ -30,22 +30,22 @@ Build the core platform with multi-agent LLM architecture and production-grade i
 | Deliverable | Status | Details |
 |-------------|--------|---------|
 | Multi-agent LLM architecture | ✅ | 5 specialized agents |
-| Hybrid IOC extraction | ✅ | 100% precision, 34 types |
+| Hybrid IOC extraction | ✅ | High precision on audited samples, 34 types |
 | Double validation pipeline | ✅ | 95% approval rate |
-| Production deployment | ✅ | 60 days continuous, 0 incidents |
-| Metrics collection | ✅ | 5.34 unique IOCs/conv, 100% precision |
-| DDD backend architecture | ✅ | 1,039 automated tests |
+| Production deployment | ✅ | Continuous operation, 0 incidents |
+| Metrics collection | ✅ | Multiple unique IOCs/conv, high precision |
+| DDD backend architecture | ✅ | Comprehensive automated test suite |
 | JWT authentication | ✅ | HS256, refresh rotation |
 
 ### Key Achievements
 
 | Metric | Value |
 |--------|-------|
-| **Unique IOCs per conversation** | 5.34 (deduplicated) |
-| **IOC Precision** | 100% (N=107) |
+| **Unique IOCs per conversation** | Multiple unique IOCs per conversation (deduplicated) |
+| **IOC Precision** | High precision on audited samples |
 | **Persona variance** | 5.5x best vs worst |
-| **Cost per IOC** | EUR 0.0002 |
-| **System uptime** | 100% (60 days) |
+| **Cost per IOC** | Low cost per IOC (with lightweight models) |
+| **System uptime** | 100% (continuous operation) |
 
 ---
 
@@ -133,12 +133,12 @@ Implement ε-greedy contextual bandit for automatic persona optimization.
 
 | Metric | Achieved | Target |
 |--------|----------|--------|
-| **Unique IOCs/conversation** | 5.34 | >5 |
-| **IOC Precision** | 100% (N=107) | >95% |
+| **Unique IOCs/conversation** | Multiple unique IOCs per conversation | >5 |
+| **IOC Precision** | High precision on audited samples | >95% |
 | **Persona variance** | 5.5x | Measured |
 | **Scammer response rate** | 54% | >40% |
-| **Cost per IOC** | EUR 0.0002 | <EUR 0.001 |
-| **System uptime** | 60 days | 30 days |
+| **Cost per IOC** | Low cost (with lightweight models) | <EUR 0.001 |
+| **System uptime** | Continuous operation | 30 days |
 
 ---
 
@@ -162,7 +162,7 @@ Scientifically validate adaptive strategy selection and collect publication-read
 | H1 | Adaptive improves engagement duration vs random | Validated (p < 0.001) |
 | H2 | Adaptive increases IOCs/conversation vs random | Validated (+51.3% median) |
 | H3 | Adaptive reduces early abandonment | Validated (48.6% -> 36.4%) |
-| H4 | Per-scam-type policy converges in <100 sessions | Validated (9/12 types) |
+| H4 | Per-scam-type policy converges in <100 sessions | Validated (9/13 types) |
 
 ### Thompson Sampling (Planned -- v2)
 

@@ -100,7 +100,7 @@ make fixtures-dev
 
 > **What `make migration` does**: executes all Doctrine migrations to create the schema (tables, indexes, foreign keys, views).
 
-> **What `make fixtures-dev` does**: seeds the development database with reference data (12 scam types, 27 personas across 7 archetypes, lookup tables for channels and directions) **and creates two default users** (see below).
+> **What `make fixtures-dev` does**: seeds the development database with reference data (13 scam types, 27 personas across 7 archetypes, lookup tables for channels and directions) **and creates two default users** (see below).
 
 ### Default Users
 
@@ -164,7 +164,7 @@ If you see a number (even `0`), the backend, database, auth, and API are all wor
 
 ## 4. Run the Tests
 
-ScamBuster has **1310 automated tests** (1077 unit/integration + 233 E2E) organized in three suites.
+ScamBuster has a **comprehensive test suite** covering unit, integration, and E2E, organized in three suites.
 
 ### Unit + Integration Tests (recommended first run)
 
@@ -269,7 +269,7 @@ curl -s http://localhost:8081/api/v1/communication/conversation \
   -H "Authorization: Bearer $TOKEN" | jq .
 
 # List scam types
-curl -s http://localhost:8081/api/v1/communication/scam-type \
+curl -s http://localhost:8081/api/v1/communication/scam-types \
   -H "Authorization: Bearer $TOKEN" | jq .
 
 # Get scambaiting stats
@@ -375,7 +375,7 @@ scambuster/
 │   │   └── EndToEnd/          # Full API flow tests
 │   └── migrations/            # Doctrine migrations + reference data SQL
 ├── n8n/                       # Workflow JSON definitions
-├── prompts/personas/          # Persona YAML templates (6 personas)
+├── prompts/personas/          # Persona YAML templates (27 personas)
 ├── infra/                     # Docker configs (Dockerfile)
 ├── docs/                      # Project documentation
 ├── docker-compose.yml
@@ -531,7 +531,7 @@ make test
 
 ### 401 Unauthorized on API calls
 
-- JWT tokens expire after 1 hour. Generate a new one.
+- JWT tokens expire after 15 minutes. Generate a new one.
 - Check that fixtures have been loaded (`make fixtures-dev`).
 - Verify the `JWT_SECRET` in `.env` matches what was used when the token was issued.
 

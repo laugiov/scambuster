@@ -355,12 +355,12 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 
 | Metric | Value |
 |--------|-------|
-| Unique IOCs per conversation | 5.34 (deduplicated) |
-| IOC Precision | 100% (N=107) |
-| System uptime | 60 days (0 incidents) |
+| Unique IOCs per conversation | Multiple unique IOCs per conversation (deduplicated) |
+| IOC Precision | High precision on audited samples |
+| System uptime | Continuous operation (0 incidents) |
 | Scam types supported | 13 (with per-type lifecycle policies) |
 | Frontend pages | 14 (Dashboard, Conversations, Detail, IOC Explorer, STIX Export, Personas, Campaigns, Campaign Detail, LLM Costs, Monitoring, Pipeline Monitor, Injection Monitor, Settings, Login) |
-| Automated tests | 1,306+ |
+| Automated tests | Comprehensive test suite (unit, integration, E2E) |
 | Code coverage | 81.75% (Codecov) |
 | Infrastructure | Containerized, single host |
 
@@ -368,9 +368,9 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 
 | Metric | Achieved |
 |--------|----------|
-| Unique IOCs/conversation | 5.34 |
+| Unique IOCs/conversation | Multiple unique IOCs per conversation |
 | Persona variance | 5.5x best vs worst |
-| Cost per IOC | EUR 0.0002 |
+| Cost per IOC | Low cost per IOC (with lightweight models) |
 | Infrastructure | Same (sufficient headroom) |
 
 ### Future Scaling Options
