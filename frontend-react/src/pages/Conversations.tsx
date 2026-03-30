@@ -54,7 +54,7 @@ export function Conversations() {
         </div>
       </header>
 
-      <Pagination page={page} pageSize={PAGE_SIZE} totalItems={totalCount} onPageChange={setPage} />
+      <Pagination page={page} pageSize={PAGE_SIZE} totalItems={search ? filtered.length : totalCount} onPageChange={setPage} />
 
       <div className="bg-surface-low rounded-lg overflow-hidden">
         <table className="w-full">
@@ -107,7 +107,7 @@ export function Conversations() {
             )}
           </tbody>
         </table>
-        <Pagination page={page} pageSize={PAGE_SIZE} totalItems={totalCount} onPageChange={setPage} />
+        <Pagination page={page} pageSize={PAGE_SIZE} totalItems={search ? filtered.length : totalCount} onPageChange={setPage} />
       </div>
     </div>
   );
