@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAllPersonaPerformances } from '@/hooks/usePersonas';
 import { useAutonomyStats } from '@/hooks/useStats';
-import { useConvergenceHistory } from '@/hooks/useConvergenceHistory';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -63,7 +62,6 @@ export function Personas() {
         <BanditSettings epsilon={epsilon} config={config} />
       </div>
 
-      <ConvergenceHistory />
     </div>
   );
 }
@@ -265,65 +263,6 @@ function InfoField({ label, value }: { label: string; value: string }) {
     <div>
       <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{label}</span>
       <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface mt-1">{value}</div>
-    </div>
-  );
-}
-
-function ConvergenceHistory() {
-  const { t } = useTranslation();
-  const { data, isLoading } = useConvergenceHistory();
-
-  if (isLoading) return null;
-
-  const entries = data?.by_scam_type ?? {};
-  const hasData = Object.values(entries).some((v) => v.length > 0);
-
-  if (!hasData) {
-    return (
-      <div className="bg-surface-low rounded-lg p-6">
-        <h2 className="text-base font-medium text-on-surface mb-2">{t('personas.convergenceHistory')}</h2>
-        <p className="text-sm text-on-surface-dim">{t('personas.noConvergenceData')}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-surface-low rounded-lg p-6">
-      <h2 className="text-base font-medium text-on-surface mb-4">{t('personas.convergenceHistory')}</h2>
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-outline-variant text-left text-xs text-on-surface-dim uppercase tracking-widest">
-              <th className="pb-2 font-medium">{t('personas.date')}</th>
-              <th className="pb-2 font-medium">{t('monitoring.scamType')}</th>
-              <th className="pb-2 font-medium">{t('personas.dominantPersona')}</th>
-              <th className="pb-2 font-medium">{t('personas.dominance')}</th>
-              <th className="pb-2 font-medium">{t('personas.sessions')}</th>
-              <th className="pb-2 font-medium">{t('common.status.converged')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(entries).flatMap(([scamType, logs]) =>
-              logs.map((log, i) => (
-                <tr key={`${scamType}-${i}`} className="border-b border-outline-variant/50">
-                  <td className="py-2 text-on-surface-variant">{log.date}</td>
-                  <td className="py-2">
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-surface-high text-on-surface">{scamType}</span>
-                  </td>
-                  <td className="py-2 text-on-surface">{log.dominant_persona}</td>
-                  <td className="py-2 font-mono text-on-surface">{(log.dominant_pct * 100).toFixed(1)}%</td>
-                  <td className="py-2 font-mono text-on-surface-variant">{log.sessions_count}</td>
-                  <td className="py-2">
-                    {log.converged
-                      ? <span className="text-success text-xs font-medium">CONVERGED</span>
-                      : <span className="text-on-surface-dim text-xs">exploring</span>}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }

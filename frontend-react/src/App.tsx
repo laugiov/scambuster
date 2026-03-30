@@ -13,12 +13,14 @@ const ConversationDetail = lazy(() => import('@/pages/ConversationDetail'));
 const IocExplorer = lazy(() => import('@/pages/IocExplorer'));
 const StixExport = lazy(() => import('@/pages/StixExport'));
 const Personas = lazy(() => import('@/pages/Personas'));
+const ConvergenceHistory = lazy(() => import('@/pages/ConvergenceHistory'));
 const Campaigns = lazy(() => import('@/pages/Campaigns'));
 const LlmCosts = lazy(() => import('@/pages/LlmCosts'));
 const CampaignDetail = lazy(() => import('@/pages/CampaignDetail'));
 const ConversationMonitoring = lazy(() => import('@/pages/ConversationMonitoring'));
 const PipelineMonitor = lazy(() => import('@/pages/PipelineMonitor'));
 const InjectionMonitoring = lazy(() => import('@/pages/InjectionMonitoring'));
+const Analytics = lazy(() => import('@/pages/Analytics'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 const queryClient = new QueryClient({
@@ -52,10 +54,12 @@ export default function App() {
               <Route path="ioc-explorer" element={<IocExplorer />} />
               <Route path="stix-export" element={<StixExport />} />
               <Route path="personas" element={<Personas />} />
+              <Route path="convergence" element={<ConvergenceHistory />} />
               <Route path="llm-costs" element={<LlmCosts />} />
               <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
               <Route path="monitoring/pipeline" element={<PipelineMonitor />} />
               <Route path="monitoring/injection" element={<InjectionMonitoring />} />
+              <Route path="monitoring/analytics" element={<Analytics />} />
               <Route path="campaigns" element={<Campaigns />} />
               <Route path="campaigns/:id" element={<CampaignDetail />} />
               <Route path="settings" element={<Settings />} />

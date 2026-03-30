@@ -123,6 +123,7 @@ final class ExportCampaignSTIXController
             'message' => 'STIX export completed',
             'file_path' => $result['file_path'],
             'bundle_id' => $result['bundle_id'],
+            'bundle' => $result['bundle'],
         ]);
     }
 }

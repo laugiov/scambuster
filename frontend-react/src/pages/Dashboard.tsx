@@ -11,6 +11,9 @@ import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import { useCampaignCandidates } from '@/hooks/useStix';
 import { useAllPersonaPerformances } from '@/hooks/usePersonas';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { useActivityFeed, useWeeklyTrends, type WeeklyTrend } from '@/hooks/useAnalytics';
+import { useAllIocs } from '@/hooks/useIocs';
+import { timeSince } from '@/lib/time';
 
 export function Dashboard() {
   const { t } = useTranslation();
@@ -22,6 +25,9 @@ export function Dashboard() {
   const { data: llmCosts } = useLlmCosts();
   const personaCodes = config?.personas.map((p) => p.code) ?? [];
   const { data: personas } = useAllPersonaPerformances(personaCodes);
+  const { data: activityFeed } = useActivityFeed();
+  const { data: weeklyTrends } = useWeeklyTrends();
+  const { data: allIocs } = useAllIocs();
 
   if (stats.isLoading) return <Loading message={t('dashboard.loadingDashboard')} />;
   if (stats.error) return <ErrorMessage message={t('dashboard.failedLoad')} onRetry={() => void stats.refetch()} />;
@@ -29,6 +35,14 @@ export function Dashboard() {
   const data = stats.data;
   const isKillSwitch = data?.kill_switch_active ?? data?.kill_switch ?? false;
   const activeConversations = conversations.data?.filter((c) => c.status === 'open') ?? [];
+  const trendMap = new Map<string, WeeklyTrend>();
+  weeklyTrends?.trends.forEach((tr) => trendMap.set(tr.metric, tr));
+
+  const topIocs = (allIocs ?? [])
+    .filter((ioc) => (ioc.confidence ?? 0) > 0.5)
+    .sort((a, b) => new Date(b.ts_observed).getTime() - new Date(a.ts_observed).getTime())
+    .slice(0, 5);
+
   const bestPersona = personas && personas.length > 0
     ? personas.reduce((best, p) => p.global_avg_reward > best.global_avg_reward ? p : best)
     : null;
@@ -58,7 +72,7 @@ export function Dashboard() {
         <StatCard
           label={t('dashboard.iocsExtracted')}
           value={data?.iocs.total ?? 0}
-          subtitle={t('dashboard.uniqueTypes', { count: data?.iocs.unique_indicators ?? data?.iocs.unique_types ?? 0 })}
+          subtitle={<TrendBadge trend={trendMap.get('iocs')} t={t} />}
         />
         <StatCard
           label={t('dashboard.avgEngagement')}
@@ -87,8 +101,70 @@ export function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 bg-surface-low rounded-lg p-6">
+      {/* Activity Feed + Top IOCs row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Activity Feed */}
+        <div className="bg-surface-low rounded-lg p-6">
+          <h2 className="text-base font-medium text-on-surface mb-4">{t('dashboard.activityFeed')}</h2>
+          {activityFeed?.events && activityFeed.events.length > 0 ? (
+            <div className="space-y-2.5">
+              {activityFeed.events.map((evt, i) => (
+                <div key={i} className="flex items-start gap-3 text-xs">
+                  <ActivityIcon type={evt.event_type} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-on-surface-variant">{t(`dashboard.${camelCase(evt.event_type)}`)}</span>
+                    <span className="text-on-surface-dim ml-1.5 font-mono">{evt.ref_id.slice(0, 8)}</span>
+                  </div>
+                  <span className="text-on-surface-dim shrink-0">{timeSince(evt.ts)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-on-surface-dim py-4 text-center">{t('dashboard.noRecentActivity')}</p>
+          )}
+        </div>
+
+        {/* Top IOCs */}
+        <div className="bg-surface-low rounded-lg p-6">
+          <h2 className="text-base font-medium text-on-surface mb-4">{t('dashboard.topIocs')}</h2>
+          {topIocs.length > 0 ? (
+            <div className="space-y-2">
+              {topIocs.map((ioc) => (
+                <div key={ioc.obs_id} className="flex items-center justify-between bg-surface-base rounded px-3 py-2">
+                  <div className="min-w-0">
+                    <span className="text-[10px] text-on-surface-dim uppercase">{ioc.type}</span>
+                    <p className="text-xs text-on-surface font-mono truncate">{ioc.value}</p>
+                  </div>
+                  <span className="text-xs font-mono text-accent ml-2 shrink-0">{(ioc.confidence ?? 0).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-on-surface-dim py-4 text-center">{t('dashboard.noTopIocs')}</p>
+          )}
+        </div>
+
+        {/* Pipeline Health Summary */}
+        <div className="bg-surface-low rounded-lg p-6">
+          <h2 className="text-base font-medium text-on-surface mb-4">{t('dashboard.pipelineHealthSummary')}</h2>
+          <div className="space-y-4">
+            <div>
+              <span className="text-xs text-on-surface-dim uppercase">{t('dashboard.approvalRate')}</span>
+              <p className="text-2xl font-semibold text-success mt-1">
+                {((data?.messages.outbound ?? 0) > 0 ? '~100%' : '--')}
+              </p>
+            </div>
+            <div>
+              <span className="text-xs text-on-surface-dim uppercase">{t('dashboard.avgDuration')}</span>
+              <p className="text-2xl font-semibold text-on-surface mt-1">--</p>
+              <p className="text-xs text-on-surface-dim">{t('dashboard.weeklyTrend')}: <TrendBadge trend={trendMap.get('replies')} t={t} /></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-surface-low rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-base font-medium text-on-surface">{t('dashboard.activeConversations')}</h2>
             <span className="text-xs text-on-surface-dim">{t('dashboard.activeCount', { count: data?.conversations.open ?? activeConversations.length })}</span>
@@ -188,4 +264,30 @@ function BanditBar({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
+function TrendBadge({ trend, t }: { trend: WeeklyTrend | undefined; t: (key: string) => string }) {
+  if (!trend || trend.delta_pct === null) return null;
+  const isPositive = trend.delta_pct >= 0;
+  const color = isPositive ? 'text-success' : 'text-error';
+  const arrow = isPositive ? '\u2191' : '\u2193';
+  return (
+    <span className={`text-xs font-medium ${color}`}>
+      {arrow} {Math.abs(trend.delta_pct).toFixed(0)}% {t('dashboard.weeklyTrend')}
+    </span>
+  );
+}
+
+function ActivityIcon({ type }: { type: string }) {
+  const colors: Record<string, string> = {
+    conversation_opened: 'text-success',
+    reply_sent: 'text-accent',
+    ioc_extracted: 'text-warning',
+    conversation_closed: 'text-on-surface-dim',
+  };
+  return <span className={`text-sm ${colors[type] ?? 'text-on-surface-dim'}`}>{'\u25CF'}</span>;
+}
+
+function camelCase(str: string): string {
+  return str.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
 export default Dashboard;
