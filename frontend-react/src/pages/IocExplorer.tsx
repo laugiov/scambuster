@@ -4,8 +4,12 @@ import { useAllIocs } from '@/hooks/useIocs';
 import { useMetaConfig } from '@/hooks/useMetaConfig';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { SearchBar } from '@/components/ui/SearchBar';
+import { Pagination } from '@/components/ui/Pagination';
 import type { Ioc } from '@/types/api';
 import { timeSince } from '@/lib/time';
+
+const IOC_PAGE_SIZE = 30;
 
 const CATEGORY_MAP: Record<string, string> = {
   ipv4: 'IP', ipv6: 'IP',
@@ -58,6 +62,7 @@ export function IocExplorer() {
   const [typeFilter, setTypeFilter] = useState<string>('All');
   const [search, setSearch] = useState('');
   const [selectedIoc, setSelectedIoc] = useState<Ioc | null>(null);
+  const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
     if (!iocs) return [];
@@ -80,27 +85,20 @@ export function IocExplorer() {
         </div>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-light text-on-surface tracking-tight">{t('iocExplorer.title')}</h1>
-          <div className="relative max-w-md flex-1 ml-8">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-on-surface-dim" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t('iocExplorer.searchPlaceholder')}
-              className="w-full bg-surface-low pl-10 pr-4 py-2.5 rounded-lg text-sm text-on-surface placeholder-on-surface-dim focus:outline-none focus:ring-2 focus:ring-accent"
-              aria-label="Search IOCs"
-            />
+          <div className="ml-8">
+            <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('iocExplorer.searchPlaceholder')} ariaLabel="Search IOCs" />
           </div>
         </div>
       </header>
 
       <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={filtered.length} typeFilters={typeFilters} />
 
+      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
+
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
-          <IocTable iocs={filtered} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
+          <IocTable iocs={filtered.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
+          <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
         </div>
         {selectedIoc && (
           <div className="sticky top-0 shrink-0">
