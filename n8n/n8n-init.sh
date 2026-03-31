@@ -132,18 +132,32 @@ AUTH_HDR=""
 if [ -n "${N8N_DEFAULT_USER_EMAIL:-}" ] && [ -n "${N8N_DEFAULT_USER_PASSWORD:-}" ]; then
   log "Authenticating with n8n REST API..."
 
+  # Wait a bit for n8n auth service to fully initialize after healthcheck
+  sleep 3
+
   # Build JSON payload safely with printf (avoids shell quoting issues)
   AUTH_JSON=$(printf '{"emailOrLdapLoginId":"%s","password":"%s"}' "$N8N_DEFAULT_USER_EMAIL" "$N8N_DEFAULT_USER_PASSWORD")
   AUTH_HEADERS_FILE="/tmp/n8n-auth-headers.txt"
 
-  if command -v wget > /dev/null 2>&1; then
-    wget -qO /dev/null -S --header="Content-Type: application/json" \
-      --post-data="$AUTH_JSON" "$N8N_URL/rest/login" 2>"$AUTH_HEADERS_FILE" || true
-    N8N_COOKIE=$(grep -i "set-cookie.*n8n-auth=" "$AUTH_HEADERS_FILE" | sed 's/.*n8n-auth=//;s/;.*//' | head -1)
-  elif command -v curl > /dev/null 2>&1; then
-    N8N_COOKIE=$(curl -s -v -X POST -H "Content-Type: application/json" \
-      -d "$AUTH_JSON" "$N8N_URL/rest/login" 2>&1 | grep -i "set-cookie.*n8n-auth=" | sed 's/.*n8n-auth=//;s/;.*//' | head -1)
-  fi
+  # Retry auth up to 3 times (auth service may take a moment after healthcheck)
+  auth_attempt=0
+  while [ $auth_attempt -lt 3 ]; do
+    if command -v wget > /dev/null 2>&1; then
+      wget -qO /dev/null -S --header="Content-Type: application/json" \
+        --post-data="$AUTH_JSON" "$N8N_URL/rest/login" 2>"$AUTH_HEADERS_FILE" || true
+      N8N_COOKIE=$(grep -i "set-cookie.*n8n-auth=" "$AUTH_HEADERS_FILE" | sed 's/.*n8n-auth=//;s/;.*//' | head -1)
+    elif command -v curl > /dev/null 2>&1; then
+      N8N_COOKIE=$(curl -s -v -X POST -H "Content-Type: application/json" \
+        -d "$AUTH_JSON" "$N8N_URL/rest/login" 2>&1 | grep -i "set-cookie.*n8n-auth=" | sed 's/.*n8n-auth=//;s/;.*//' | head -1)
+    fi
+
+    if [ -n "$N8N_COOKIE" ]; then
+      break
+    fi
+    auth_attempt=$((auth_attempt + 1))
+    log "  Auth attempt $auth_attempt failed, retrying in 3s..."
+    sleep 3
+  done
   rm -f "$AUTH_HEADERS_FILE"
 
   if [ -n "$N8N_COOKIE" ]; then
