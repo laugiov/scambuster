@@ -169,17 +169,26 @@ else
 fi
 
 # ─── 4. Import workflows (idempotent) ───
+# Use REST API if authenticated (workflows belong to the admin user and are visible in UI).
+# Fall back to CLI if no auth (workflows import but may not be visible to the admin user).
 if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt 0 ]; then
-  # Get existing workflow names
-  EXISTING_WORKFLOWS=""
-  if n8n list:workflow > /dev/null 2>&1; then
-    EXISTING_WORKFLOWS=$(n8n list:workflow 2>/dev/null || echo "")
+
+  # Get existing workflow names via API or CLI
+  EXISTING_NAMES=""
+  if [ -n "$AUTH_HDR" ]; then
+    ALL_WF_RESPONSE=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
+    if [ -n "$ALL_WF_RESPONSE" ] && command -v jq > /dev/null 2>&1; then
+      EXISTING_NAMES=$(echo "$ALL_WF_RESPONSE" | jq -r '.data[].name' 2>/dev/null || echo "")
+    fi
+  fi
+  if [ -z "$EXISTING_NAMES" ]; then
+    EXISTING_NAMES=$(su -s /bin/sh node -c "n8n list:workflow" 2>/dev/null || echo "")
   fi
 
   IMPORTED=0
   SKIPPED=0
   for wf_file in "$INIT_DIR"/*.json; do
-    # Extract workflow name — try jq, fall back to grep
+    # Extract workflow name
     if command -v jq > /dev/null 2>&1; then
       wf_name=$(jq -r '.name // empty' "$wf_file" 2>/dev/null || echo "")
     else
@@ -192,15 +201,28 @@ if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt
     fi
 
     # Check if workflow already exists (by name)
-    if echo "$EXISTING_WORKFLOWS" | grep -qF "$wf_name"; then
+    if echo "$EXISTING_NAMES" | grep -qF "$wf_name"; then
       log "  Skip (exists): $wf_name"
       SKIPPED=$((SKIPPED + 1))
     else
-      if n8n import:workflow --input="$wf_file" 2>/dev/null; then
-        log "  Imported: $wf_name"
-        IMPORTED=$((IMPORTED + 1))
+      # Import via REST API (preferred — workflows belong to admin user)
+      if [ -n "$AUTH_HDR" ]; then
+        WF_DATA=$(cat "$wf_file")
+        IMPORT_RESULT=$(http_post "$N8N_URL/rest/workflows" "$WF_DATA" "$AUTH_HDR" || echo "")
+        if [ -n "$IMPORT_RESULT" ] && echo "$IMPORT_RESULT" | grep -q '"id"'; then
+          log "  Imported (API): $wf_name"
+          IMPORTED=$((IMPORTED + 1))
+        else
+          err "  Failed to import (API): $wf_name"
+        fi
       else
-        err "  Failed to import: $wf_name"
+        # Fallback: CLI import (works without auth but workflows may not be visible to admin)
+        if su -s /bin/sh node -c "n8n import:workflow --input='$wf_file'" 2>/dev/null; then
+          log "  Imported (CLI): $wf_name"
+          IMPORTED=$((IMPORTED + 1))
+        else
+          err "  Failed to import (CLI): $wf_name"
+        fi
       fi
     fi
   done
