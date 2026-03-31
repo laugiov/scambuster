@@ -211,9 +211,14 @@ else
   warn "No workflow files found in $INIT_DIR"
 fi
 
-# ─── 5. Activate production workflows (by name, not --all) ───
+# ─── 5. Activate production workflows ───
+# NOTE: Activation may fail if workflows reference credentials that haven't been
+# linked yet in the n8n UI. In that case, the user must:
+# 1. Open each workflow in n8n UI
+# 2. Click on the IMAP Email Trigger node → select "ScamBuster IMAP" credential
+# 3. Save and activate the workflow
 if [ -n "$AUTH_HDR" ]; then
-  log "Activating production workflows..."
+  log "Attempting to activate production workflows..."
   ALL_WORKFLOWS=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
 
   if [ -n "$ALL_WORKFLOWS" ] && command -v jq > /dev/null 2>&1; then
