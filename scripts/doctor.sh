@@ -51,18 +51,16 @@ check_var() {
   fi
 }
 
-check_var "POSTGRES_PASSWORD" ""
+check_var "POSTGRES_PASSWORD" "scambuster-dev-2026"
 check_var "JWT_PASSPHRASE" ""
-check_var "JWT_SECRET" ""
 check_var "LLM_API_KEY" "sk-your-api-key-here"
 check_var "HONEYPOT_IMAP_HOST" ""
-check_var "HONEYPOT_IMAP_USER" ""
-check_var "HONEYPOT_IMAP_PASSWORD" ""
+check_var "HONEYPOT_IMAP_USER" "your-honeypot@gmail.com"
+check_var "HONEYPOT_IMAP_PASSWORD" "your-app-password-here"
 check_var "MAILER_DSN" "null://null"
-check_var "N8N_ENCRYPTION_KEY" "change-me"
+check_var "N8N_ENCRYPTION_KEY" "dev-only-change-in-production-openssl-rand-hex-32"
 check_var "SCAMBUSTER_API_URL" ""
 check_var "INGEST_LOGIN" "user@example.com"
-check_var "INGEST_PASSWORD" "change-me"
 
 echo ""
 
