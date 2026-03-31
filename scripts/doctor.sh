@@ -51,7 +51,7 @@ check_var() {
   fi
 }
 
-check_var "POSTGRES_PASSWORD" "scambuster-dev-2026"
+check_var "POSTGRES_PASSWORD" ""
 check_var "JWT_PASSPHRASE" ""
 check_var "LLM_API_KEY" "sk-your-api-key-here"
 check_var "HONEYPOT_IMAP_HOST" ""
