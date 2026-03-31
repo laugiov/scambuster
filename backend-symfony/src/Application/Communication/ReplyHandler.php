@@ -851,8 +851,17 @@ class ReplyHandler
             throw new \RuntimeException('Cannot compose headers for message');
         }
 
-        if (!$compose['safe_to_send']) {
-            throw new \RuntimeException('Safety checks failed: ' . json_encode($compose['checks']));
+        // Check safety — but skip cadence check (n8n human delay already handles timing)
+        /** @var array{safelist_ok: bool, kill_switch_off: bool, cadence_ok: bool, conversation_open: bool} $checks */
+        $checks = $compose['checks'];
+        if (!$checks['safelist_ok']) {
+            throw new \RuntimeException('Safety checks failed: recipient not in safelist');
+        }
+        if (!$checks['kill_switch_off']) {
+            throw new \RuntimeException('Safety checks failed: kill switch is active');
+        }
+        if (!$checks['conversation_open']) {
+            throw new \RuntimeException('Safety checks failed: conversation is not open');
         }
 
         // Generate a local Message-ID
