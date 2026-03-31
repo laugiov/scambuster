@@ -262,6 +262,50 @@ validate-n8n: ##@docker Validate n8n workflow JSON files (no hardcoded values)
 doctor: ##@docker Check environment, connectivity, and n8n workflow status
 	bash scripts/doctor.sh
 
+quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8n init
+	@echo ""
+	@echo "╔══════════════════════════════════════════════╗"
+	@echo "║       ScamBuster — Quickstart                ║"
+	@echo "╚══════════════════════════════════════════════╝"
+	@echo ""
+	@echo "Step 1/6: Building and starting containers..."
+	$(DC) up -d --build
+	@echo ""
+	@echo "Step 2/6: Waiting for databases to be healthy..."
+	$(MAKE) wait-healthy
+	@echo ""
+	@echo "Step 3/6: Running database migrations..."
+	$(MAKE) migration
+	@echo ""
+	@echo "Step 4/6: Loading fixtures (users, personas, scam types)..."
+	$(MAKE) fixtures-dev
+	@echo ""
+	@echo "Step 5/6: Generating JWT keys..."
+	@bash scripts/generate-jwt-keys.sh 2>/dev/null || echo "  JWT keys already exist or script not found — skipping."
+	@echo ""
+	@echo "Step 6/6: Waiting for n8n to initialize workflows..."
+	@sleep 15
+	@echo ""
+	@echo "╔══════════════════════════════════════════════╗"
+	@echo "║       Setup complete!                         ║"
+	@echo "╚══════════════════════════════════════════════╝"
+	@echo ""
+	@echo "Next steps:"
+	@echo "  1. Create your n8n admin account:  http://localhost:5678"
+	@echo "  2. Add your n8n credentials to .env:"
+	@echo "     N8N_DEFAULT_USER_EMAIL=your-email"
+	@echo "     N8N_DEFAULT_USER_PASSWORD=your-password"
+	@echo "  3. Restart n8n to activate workflows:"
+	@echo "     docker compose up -d --force-recreate n8n"
+	@echo "  4. Check everything:"
+	@echo "     make doctor"
+	@echo ""
+	@echo "Interfaces:"
+	@echo "  Dashboard:  http://localhost:3002"
+	@echo "  Backend:    http://localhost:8081/api/doc"
+	@echo "  n8n:        http://localhost:5678"
+	@echo ""
+
 wait-healthy: ##@docker Wait for PostgreSQL and Redis to be healthy
 	@echo "Waiting for PostgreSQL..."
 	@until $(DC) exec postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done
