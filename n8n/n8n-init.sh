@@ -3,13 +3,14 @@
 # ScamBuster — n8n Init Script (Architecture B)
 # Auto-imports workflows, seeds IMAP credentials, activates production workflows.
 # Runs as Docker entrypoint: starts n8n in background, then configures via REST API.
+# Uses wget (not curl) — Alpine-based n8n images don't include curl.
 # ═══════════════════════════════════════════════════════════════
 
 set -eu
 
 INIT_DIR="/home/node/init-workflows"
 LOG_PREFIX="[n8n-init]"
-MAX_RETRIES=20
+MAX_RETRIES=30
 RETRY_INTERVAL=3
 N8N_URL="http://localhost:5678"
 
@@ -18,6 +19,75 @@ PRODUCTION_WORKFLOWS="WF-INTAKE-EMAIL-V2 WF-REPLY-GENERATE-V2 WF-REPLY-SEND-v1 W
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_PREFIX $1"; }
 warn() { echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_PREFIX WARNING: $1"; }
 err() { echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_PREFIX ERROR: $1" >&2; }
+
+# HTTP helper — uses wget (available in Alpine), falls back to curl
+http_get() {
+  local url="$1"
+  local headers="${2:-}"
+  if command -v wget > /dev/null 2>&1; then
+    if [ -n "$headers" ]; then
+      wget -qO- --header="$headers" "$url" 2>/dev/null
+    else
+      wget -qO- "$url" 2>/dev/null
+    fi
+  elif command -v curl > /dev/null 2>&1; then
+    if [ -n "$headers" ]; then
+      curl -sf -H "$headers" "$url" 2>/dev/null
+    else
+      curl -sf "$url" 2>/dev/null
+    fi
+  else
+    return 1
+  fi
+}
+
+http_post() {
+  local url="$1"
+  local data="$2"
+  local headers="${3:-}"
+  if command -v wget > /dev/null 2>&1; then
+    if [ -n "$headers" ]; then
+      wget -qO- --header="Content-Type: application/json" --header="$headers" \
+        --post-data="$data" "$url" 2>/dev/null
+    else
+      wget -qO- --header="Content-Type: application/json" \
+        --post-data="$data" "$url" 2>/dev/null
+    fi
+  elif command -v curl > /dev/null 2>&1; then
+    if [ -n "$headers" ]; then
+      curl -sf -X POST -H "Content-Type: application/json" -H "$headers" -d "$data" "$url" 2>/dev/null
+    else
+      curl -sf -X POST -H "Content-Type: application/json" -d "$data" "$url" 2>/dev/null
+    fi
+  else
+    return 1
+  fi
+}
+
+http_patch() {
+  local url="$1"
+  local data="$2"
+  local auth_header="$3"
+  if command -v wget > /dev/null 2>&1; then
+    wget -qO- --method=PATCH --header="Content-Type: application/json" \
+      --header="$auth_header" --body-data="$data" "$url" 2>/dev/null
+  elif command -v curl > /dev/null 2>&1; then
+    curl -sf -X PATCH -H "Content-Type: application/json" -H "$auth_header" -d "$data" "$url" 2>/dev/null
+  else
+    return 1
+  fi
+}
+
+http_check() {
+  local url="$1"
+  if command -v wget > /dev/null 2>&1; then
+    wget -q --spider "$url" 2>/dev/null
+  elif command -v curl > /dev/null 2>&1; then
+    curl -sf -o /dev/null "$url" 2>/dev/null
+  else
+    return 1
+  fi
+}
 
 # ─── 1. Start n8n in background ───
 log "Starting n8n in background..."
@@ -31,7 +101,7 @@ trap "log 'Shutting down n8n...'; kill $N8N_PID; wait $N8N_PID" SIGTERM SIGINT
 log "Waiting for n8n to be ready..."
 retries=0
 while [ $retries -lt $MAX_RETRIES ]; do
-  if curl -sf "$N8N_URL/healthz" > /dev/null 2>&1; then
+  if http_check "$N8N_URL/healthz"; then
     log "n8n is ready."
     break
   fi
@@ -50,12 +120,16 @@ fi
 N8N_TOKEN=""
 if [ -n "${N8N_DEFAULT_USER_EMAIL:-}" ] && [ -n "${N8N_DEFAULT_USER_PASSWORD:-}" ]; then
   log "Authenticating with n8n REST API..."
-  AUTH_RESPONSE=$(curl -sf -X POST "$N8N_URL/rest/login" \
-    -H "Content-Type: application/json" \
-    -d "{\"email\":\"${N8N_DEFAULT_USER_EMAIL}\",\"password\":\"${N8N_DEFAULT_USER_PASSWORD}\"}" 2>/dev/null || echo "")
+  AUTH_RESPONSE=$(http_post "$N8N_URL/rest/login" \
+    "{\"email\":\"${N8N_DEFAULT_USER_EMAIL}\",\"password\":\"${N8N_DEFAULT_USER_PASSWORD}\"}" || echo "")
 
   if [ -n "$AUTH_RESPONSE" ]; then
-    N8N_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.data.token // empty' 2>/dev/null || echo "")
+    # Extract token — try jq first, fall back to grep
+    if command -v jq > /dev/null 2>&1; then
+      N8N_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.data.token // empty' 2>/dev/null || echo "")
+    else
+      N8N_TOKEN=$(echo "$AUTH_RESPONSE" | grep -o '"token":"[^"]*"' | head -1 | sed 's/"token":"//;s/"//' || echo "")
+    fi
     if [ -n "$N8N_TOKEN" ]; then
       log "Authenticated successfully."
     else
@@ -79,9 +153,15 @@ if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt
   IMPORTED=0
   SKIPPED=0
   for wf_file in "$INIT_DIR"/*.json; do
-    wf_name=$(jq -r '.name // empty' "$wf_file" 2>/dev/null || echo "")
+    # Extract workflow name — try jq, fall back to grep
+    if command -v jq > /dev/null 2>&1; then
+      wf_name=$(jq -r '.name // empty' "$wf_file" 2>/dev/null || echo "")
+    else
+      wf_name=$(grep -o '"name":"[^"]*"' "$wf_file" | head -1 | sed 's/"name":"//;s/"//' || echo "")
+    fi
+
     if [ -z "$wf_name" ]; then
-      warn "Could not read name from $wf_file, skipping."
+      warn "Could not read name from $(basename "$wf_file"), skipping."
       continue
     fi
 
@@ -104,26 +184,30 @@ else
 fi
 
 # ─── 5. Activate production workflows (by name, not --all) ───
-log "Activating production workflows..."
 if [ -n "$N8N_TOKEN" ]; then
-  # Use REST API (more reliable, returns JSON)
-  ALL_WORKFLOWS=$(curl -sf -H "Authorization: Bearer $N8N_TOKEN" "$N8N_URL/rest/workflows" 2>/dev/null || echo "")
+  log "Activating production workflows..."
+  AUTH_HDR="Authorization: Bearer $N8N_TOKEN"
+  ALL_WORKFLOWS=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
 
-  for wf_name in $PRODUCTION_WORKFLOWS; do
-    wf_id=$(echo "$ALL_WORKFLOWS" | jq -r ".data[] | select(.name == \"$wf_name\") | .id" 2>/dev/null || echo "")
-    if [ -n "$wf_id" ]; then
-      if echo "$ALL_WORKFLOWS" | jq -e ".data[] | select(.id == \"$wf_id\" and .active == true)" > /dev/null 2>&1; then
-        log "  Already active: $wf_name"
+  if [ -n "$ALL_WORKFLOWS" ] && command -v jq > /dev/null 2>&1; then
+    for wf_name in $PRODUCTION_WORKFLOWS; do
+      wf_id=$(echo "$ALL_WORKFLOWS" | jq -r ".data[] | select(.name == \"$wf_name\") | .id" 2>/dev/null || echo "")
+      if [ -n "$wf_id" ]; then
+        is_active=$(echo "$ALL_WORKFLOWS" | jq -r ".data[] | select(.id == \"$wf_id\") | .active" 2>/dev/null || echo "false")
+        if [ "$is_active" = "true" ]; then
+          log "  Already active: $wf_name"
+        else
+          http_patch "$N8N_URL/rest/workflows/$wf_id" '{"active":true}' "$AUTH_HDR" > /dev/null 2>&1 \
+            && log "  Activated: $wf_name" \
+            || warn "  Failed to activate: $wf_name"
+        fi
       else
-        curl -sf -X PATCH -H "Authorization: Bearer $N8N_TOKEN" -H "Content-Type: application/json" \
-          "$N8N_URL/rest/workflows/$wf_id" -d '{"active":true}' > /dev/null 2>&1 \
-          && log "  Activated: $wf_name" \
-          || warn "  Failed to activate: $wf_name"
+        warn "  Workflow not found: $wf_name"
       fi
-    else
-      warn "  Workflow not found: $wf_name"
-    fi
-  done
+    done
+  else
+    warn "Could not list workflows via API. Activate manually in n8n UI."
+  fi
 else
   warn "No auth token — skipping workflow activation. Activate manually in n8n UI."
 fi
@@ -131,38 +215,36 @@ fi
 # ─── 6. Seed IMAP credential (if env vars set) ───
 if [ -n "$N8N_TOKEN" ] && [ -n "${HONEYPOT_IMAP_HOST:-}" ] && [ -n "${HONEYPOT_IMAP_USER:-}" ]; then
   CRED_NAME="ScamBuster IMAP"
+  AUTH_HDR="Authorization: Bearer $N8N_TOKEN"
 
   # Check if credential already exists
-  EXISTING_CREDS=$(curl -sf -H "Authorization: Bearer $N8N_TOKEN" "$N8N_URL/rest/credentials" 2>/dev/null || echo "")
-  CRED_EXISTS=$(echo "$EXISTING_CREDS" | jq -e ".data[] | select(.name == \"$CRED_NAME\")" 2>/dev/null || echo "")
+  EXISTING_CREDS=$(http_get "$N8N_URL/rest/credentials" "$AUTH_HDR" || echo "")
+  CRED_EXISTS=""
+  if [ -n "$EXISTING_CREDS" ] && command -v jq > /dev/null 2>&1; then
+    CRED_EXISTS=$(echo "$EXISTING_CREDS" | jq -e ".data[] | select(.name == \"$CRED_NAME\")" 2>/dev/null || echo "")
+  fi
 
   if [ -n "$CRED_EXISTS" ]; then
     log "IMAP credential '$CRED_NAME' already exists. Skipping."
   else
     log "Creating IMAP credential '$CRED_NAME'..."
-    CRED_PAYLOAD=$(jq -n \
-      --arg name "$CRED_NAME" \
-      --arg host "${HONEYPOT_IMAP_HOST}" \
-      --arg port "${HONEYPOT_IMAP_PORT:-993}" \
-      --arg user "${HONEYPOT_IMAP_USER}" \
-      --arg pass "${HONEYPOT_IMAP_PASSWORD:-}" \
-      --argjson secure "${HONEYPOT_IMAP_SECURE:-true}" \
-      '{
-        name: $name,
-        type: "imap",
-        data: {
-          host: $host,
-          port: ($port | tonumber),
-          user: $user,
-          password: $pass,
-          secure: $secure
-        }
-      }')
+    if command -v jq > /dev/null 2>&1; then
+      CRED_PAYLOAD=$(jq -n \
+        --arg name "$CRED_NAME" \
+        --arg host "${HONEYPOT_IMAP_HOST}" \
+        --arg port "${HONEYPOT_IMAP_PORT:-993}" \
+        --arg user "${HONEYPOT_IMAP_USER}" \
+        --arg pass "${HONEYPOT_IMAP_PASSWORD:-}" \
+        --argjson secure "${HONEYPOT_IMAP_SECURE:-true}" \
+        '{name: $name, type: "imap", data: {host: $host, port: ($port | tonumber), user: $user, password: $pass, secure: $secure}}')
+    else
+      # Fallback without jq — simple JSON (no special chars in password supported)
+      CRED_PAYLOAD="{\"name\":\"$CRED_NAME\",\"type\":\"imap\",\"data\":{\"host\":\"${HONEYPOT_IMAP_HOST}\",\"port\":${HONEYPOT_IMAP_PORT:-993},\"user\":\"${HONEYPOT_IMAP_USER}\",\"password\":\"${HONEYPOT_IMAP_PASSWORD:-}\",\"secure\":${HONEYPOT_IMAP_SECURE:-true}}}"
+    fi
 
-    CRED_RESULT=$(curl -sf -X POST -H "Authorization: Bearer $N8N_TOKEN" -H "Content-Type: application/json" \
-      "$N8N_URL/rest/credentials" -d "$CRED_PAYLOAD" 2>/dev/null || echo "")
+    CRED_RESULT=$(http_post "$N8N_URL/rest/credentials" "$CRED_PAYLOAD" "$AUTH_HDR" || echo "")
 
-    if echo "$CRED_RESULT" | jq -e '.data.id' > /dev/null 2>&1; then
+    if [ -n "$CRED_RESULT" ] && echo "$CRED_RESULT" | grep -q '"id"'; then
       log "IMAP credential created successfully."
     else
       warn "Failed to create IMAP credential. Create manually in n8n UI."
