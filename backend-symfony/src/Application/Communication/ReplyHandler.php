@@ -643,8 +643,16 @@ class ReplyHandler
      */
     private function checkSafelist(string $email): bool
     {
-        // Load safe domains from env var (comma-separated), with defaults for dev/test
+        // Load safe domains from env var (comma-separated)
+        // Use "*" to allow ALL domains (production mode — ScamBuster only receives from scammers)
+        // Use specific domains to restrict during testing
         $envDomains = $_ENV['SCAMBUSTER_SAFE_DOMAINS'] ?? $_SERVER['SCAMBUSTER_SAFE_DOMAINS'] ?? '';
+
+        // Wildcard: allow all domains in production
+        if (trim($envDomains) === '*') {
+            return true;
+        }
+
         $safeDomains = ['example.test', 'mailinator.com', 'guerrillamail.com'];
 
         if ($envDomains !== '') {
@@ -656,7 +664,6 @@ class ReplyHandler
         $atPos = strrchr($email, '@');
 
         if ($atPos === false) {
-            // No @ sign found - invalid email
             return false;
         }
 
