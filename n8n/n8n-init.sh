@@ -181,7 +181,49 @@ else
   warn "N8N_DEFAULT_USER_EMAIL/PASSWORD not set. Credential seeding will be skipped."
 fi
 
-# ─── 4. Import workflows (idempotent) ───
+# ─── 4. Seed IMAP credential FIRST (needed before workflow import for activation) ───
+IMAP_CRED_ID=""
+if [ -n "$AUTH_HDR" ] && [ -n "${HONEYPOT_IMAP_HOST:-}" ] && [ -n "${HONEYPOT_IMAP_USER:-}" ]; then
+  CRED_NAME="ScamBuster IMAP"
+
+  EXISTING_CREDS=$(http_get "$N8N_URL/rest/credentials" "$AUTH_HDR" || echo "")
+  CRED_EXISTS=""
+  if [ -n "$EXISTING_CREDS" ] && command -v jq > /dev/null 2>&1; then
+    IMAP_CRED_ID=$(echo "$EXISTING_CREDS" | jq -r ".data[] | select(.name == \"$CRED_NAME\") | .id" 2>/dev/null || echo "")
+  fi
+
+  if [ -n "$IMAP_CRED_ID" ]; then
+    log "IMAP credential '$CRED_NAME' already exists (ID: $IMAP_CRED_ID). Skipping."
+  else
+    log "Creating IMAP credential '$CRED_NAME'..."
+    if command -v jq > /dev/null 2>&1; then
+      CRED_PAYLOAD=$(jq -n \
+        --arg name "$CRED_NAME" \
+        --arg host "${HONEYPOT_IMAP_HOST}" \
+        --arg port "${HONEYPOT_IMAP_PORT:-993}" \
+        --arg user "${HONEYPOT_IMAP_USER}" \
+        --arg pass "${HONEYPOT_IMAP_PASSWORD:-}" \
+        --argjson secure "${HONEYPOT_IMAP_SECURE:-true}" \
+        '{name: $name, type: "imap", data: {host: $host, port: ($port | tonumber), user: $user, password: $pass, secure: $secure}}')
+    else
+      CRED_PAYLOAD="{\"name\":\"$CRED_NAME\",\"type\":\"imap\",\"data\":{\"host\":\"${HONEYPOT_IMAP_HOST}\",\"port\":${HONEYPOT_IMAP_PORT:-993},\"user\":\"${HONEYPOT_IMAP_USER}\",\"password\":\"${HONEYPOT_IMAP_PASSWORD:-}\",\"secure\":${HONEYPOT_IMAP_SECURE:-true}}}"
+    fi
+
+    CRED_RESULT=$(http_post "$N8N_URL/rest/credentials" "$CRED_PAYLOAD" "$AUTH_HDR" || echo "")
+    if [ -n "$CRED_RESULT" ] && command -v jq > /dev/null 2>&1; then
+      IMAP_CRED_ID=$(echo "$CRED_RESULT" | jq -r '.data.id // empty' 2>/dev/null || echo "")
+    fi
+    if [ -n "$IMAP_CRED_ID" ]; then
+      log "IMAP credential created (ID: $IMAP_CRED_ID)."
+    else
+      warn "Failed to create IMAP credential."
+    fi
+  fi
+elif [ -z "${HONEYPOT_IMAP_HOST:-}" ]; then
+  warn "HONEYPOT_IMAP_HOST not set. IMAP credential not created."
+fi
+
+# ─── 5. Import workflows (idempotent) ───
 # Use REST API if authenticated (workflows belong to the admin user and are visible in UI).
 # Fall back to CLI if no auth (workflows import but may not be visible to the admin user).
 if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt 0 ]; then
@@ -224,6 +266,15 @@ if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt
       # Import via REST API (preferred — workflows belong to admin user)
       if [ -n "$AUTH_HDR" ]; then
         WF_DATA=$(cat "$wf_file")
+        # Replace placeholder credential ID with the real IMAP credential ID
+        if [ -n "$IMAP_CRED_ID" ] && command -v jq > /dev/null 2>&1; then
+          WF_DATA=$(echo "$WF_DATA" | jq --arg cid "$IMAP_CRED_ID" '
+            .nodes |= map(
+              if .credentials?.imap?.id == "ScamBuster-IMAP" then
+                .credentials.imap.id = $cid
+              else . end
+            )' 2>/dev/null || echo "$WF_DATA")
+        fi
         IMPORT_RESULT=$(http_post "$N8N_URL/rest/workflows" "$WF_DATA" "$AUTH_HDR" || echo "")
         if [ -n "$IMPORT_RESULT" ] && echo "$IMPORT_RESULT" | grep -q '"id"'; then
           log "  Imported (API): $wf_name"
@@ -280,46 +331,7 @@ else
   warn "No auth token — skipping workflow activation. Activate manually in n8n UI."
 fi
 
-# ─── 6. Seed IMAP credential (if env vars set) ───
-if [ -n "$AUTH_HDR" ] && [ -n "${HONEYPOT_IMAP_HOST:-}" ] && [ -n "${HONEYPOT_IMAP_USER:-}" ]; then
-  CRED_NAME="ScamBuster IMAP"
-
-  # Check if credential already exists
-  EXISTING_CREDS=$(http_get "$N8N_URL/rest/credentials" "$AUTH_HDR" || echo "")
-  CRED_EXISTS=""
-  if [ -n "$EXISTING_CREDS" ] && command -v jq > /dev/null 2>&1; then
-    CRED_EXISTS=$(echo "$EXISTING_CREDS" | jq -e ".data[] | select(.name == \"$CRED_NAME\")" 2>/dev/null || echo "")
-  fi
-
-  if [ -n "$CRED_EXISTS" ]; then
-    log "IMAP credential '$CRED_NAME' already exists. Skipping."
-  else
-    log "Creating IMAP credential '$CRED_NAME'..."
-    if command -v jq > /dev/null 2>&1; then
-      CRED_PAYLOAD=$(jq -n \
-        --arg name "$CRED_NAME" \
-        --arg host "${HONEYPOT_IMAP_HOST}" \
-        --arg port "${HONEYPOT_IMAP_PORT:-993}" \
-        --arg user "${HONEYPOT_IMAP_USER}" \
-        --arg pass "${HONEYPOT_IMAP_PASSWORD:-}" \
-        --argjson secure "${HONEYPOT_IMAP_SECURE:-true}" \
-        '{name: $name, type: "imap", data: {host: $host, port: ($port | tonumber), user: $user, password: $pass, secure: $secure}}')
-    else
-      # Fallback without jq — simple JSON (no special chars in password supported)
-      CRED_PAYLOAD="{\"name\":\"$CRED_NAME\",\"type\":\"imap\",\"data\":{\"host\":\"${HONEYPOT_IMAP_HOST}\",\"port\":${HONEYPOT_IMAP_PORT:-993},\"user\":\"${HONEYPOT_IMAP_USER}\",\"password\":\"${HONEYPOT_IMAP_PASSWORD:-}\",\"secure\":${HONEYPOT_IMAP_SECURE:-true}}}"
-    fi
-
-    CRED_RESULT=$(http_post "$N8N_URL/rest/credentials" "$CRED_PAYLOAD" "$AUTH_HDR" || echo "")
-
-    if [ -n "$CRED_RESULT" ] && echo "$CRED_RESULT" | grep -q '"id"'; then
-      log "IMAP credential created successfully."
-    else
-      warn "Failed to create IMAP credential. Create manually in n8n UI."
-    fi
-  fi
-elif [ -z "${HONEYPOT_IMAP_HOST:-}" ]; then
-  warn "HONEYPOT_IMAP_HOST not set. IMAP credential not created. Email workflows will fail."
-fi
+# (Credential seeding moved to step 4, before workflow import)
 
 log "═══ Init complete ═══"
 
