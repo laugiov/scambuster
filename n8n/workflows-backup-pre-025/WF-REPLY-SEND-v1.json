@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/compose",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/compose",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -49,31 +49,56 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/send-email",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "=Bearer {{$('00_auth_login').item.json.access_token}}"
-            }
-          ]
-        },
-        "options": {}
+        "operation": "reply",
+        "messageId": "={{$('10_fetch_reply').item.json.meta.parent_gmail_msg_id}}",
+        "message": "={{$('10_fetch_reply').item.json.draft.html || $('10_fetch_reply').item.json.draft.text}}",
+        "options": {
+          "appendAttribution": false,
+          "replyToSenderOnly": false
+        }
       },
       "id": "a0f0a97e-45b1-4e23-8560-096f6a344f5c",
-      "name": "20_backend_send",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "name": "20_gmail_send",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
       "position": [
         432,
         0
-      ]
+      ],
+      "webhookId": "e43cb258-89ec-4dc1-a3e8-a9bfd5257276",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bxq5Cj1I9zO37PlB",
+          "name": "Gmail account Valeris"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Extract Message-ID from /send-email backend response\nconst sendResult = $input.first().json;\n\n// /send-email returns: { success: true, message_id: \"<uuid@scambuster.local>\", ts_sent: \"...\" }\nlet messageId = sendResult.message_id || '';\n\n// Clean Message-ID (remove chevrons if present)\nmessageId = messageId.replace(/^<|>$/g, '').trim();\n\nreturn {\n  json: {\n    message_id: messageId,\n    thread_id: null,  // No thread concept with SMTP (Gmail-specific)\n    provider_msg_id: messageId,\n    ts_sent: sendResult.ts_sent || new Date().toISOString()\n  }\n};"
+        "operation": "get",
+        "messageId": "={{$('20_gmail_send').item.json.id}}",
+        "simple": false,
+        "options": {}
+      },
+      "id": "21_retrieve_message_metadata",
+      "name": "21_retrieve_message_metadata",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        656,
+        0
+      ],
+      "webhookId": "e77fc436-3f31-44e9-aa5b-132c1f5db58f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "bxq5Cj1I9zO37PlB",
+          "name": "Gmail account Valeris"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Récupérer les headers depuis le nœud précédent\nconst headers = $input.first().json.headers;\n\n// Vérifier que headers existe\nif (!headers) {\n  throw new Error('No headers found in Gmail response');\n}\n\n// Les headers sont un objet, pas un tableau\n// Accéder directement au message-id\nlet messageId = headers['message-id'];\n\nif (!messageId) {\n  throw new Error('Message-ID header not found in Gmail response');\n}\n\n// Nettoyer le Message-ID :\n// 1. Retirer le préfixe \"Message-Id: \" si présent\nmessageId = messageId.replace(/^Message-Id:\\s*/i, '');\n// 2. Retirer les chevrons < > si présents\nmessageId = messageId.replace(/^<|>$/g, '');\n// 3. Trim les espaces\nmessageId = messageId.trim();\n\n// Retourner le Message-ID nettoyé\nreturn {\n  json: {\n    message_id: messageId,\n    thread_id: $input.first().json.threadId,\n    provider_msg_id: $input.first().json.id\n  }\n};"
       },
       "id": "22_extract_message_id",
       "name": "22_extract_message_id",
@@ -87,7 +112,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/sent",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/{{$('Execute Workflow Trigger').item.json.msg_id}}/sent",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -103,7 +128,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ {\n  \"conv_id\": $(\"Execute Workflow Trigger\").item.json.conv_id,\n  \"provider\": \"smtp\",\n  \"provider_msg_id\": $(\"22_extract_message_id\").item.json.message_id,\n  \"ts_sent\": $(\"22_extract_message_id\").item.json.ts_sent,\n  \"sent_headers\": {\n    \"thread_id\": null,\n    \"message-id\": $(\"22_extract_message_id\").item.json.message_id\n  }\n} }}",
+        "jsonBody": "={{ {\n  \"conv_id\": $('Execute Workflow Trigger').item.json.conv_id,\n  \"provider\": \"gmail\",\n  \"provider_msg_id\": $('20_gmail_send').item.json.id,\n  \"ts_sent\": new Date().toISOString(),\n  \"sent_headers\": {\n    \"thread_id\": $('20_gmail_send').item.json.threadId,\n    \"message-id\": $('22_extract_message_id').item.json.message_id\n  }\n} }}",
         "options": {}
       },
       "id": "1ab9f435-b7c5-4311-ae26-00f081c35512",
@@ -129,7 +154,7 @@
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { \"success\": true, \"msg_id\": $('Execute Workflow Trigger').item.json.msg_id, \"provider_msg_id\": $('22_extract_message_id').item.json.message_id, \"sent_at\": $('30_confirm').item.json.ts_sent } }}",
+        "responseBody": "={{ { \"success\": true, \"msg_id\": $('Execute Workflow Trigger').item.json.msg_id, \"provider_msg_id\": $('20_gmail_send').item.json.id, \"sent_at\": $('30_confirm').item.json.ts_sent } }}",
         "options": {}
       },
       "id": "43325119-4d14-4569-8360-dafed557c5d8",
@@ -144,7 +169,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/auth/login",
+        "url": "http://backend-dev:8080/api/v1/auth/login",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -156,7 +181,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { \"email\": $env.INGEST_LOGIN, \"password\": $env.INGEST_PASSWORD } }}",
+        "jsonBody": "={{ { \"email\": \"user@example.com\", \"password\": \"Un1que$trongPassword2024\" } }}",
         "options": {}
       },
       "id": "b7fa4522-6b5e-4958-aa46-f1ce979b0e3f",
@@ -228,7 +253,29 @@
       "main": [
         [
           {
-            "node": "20_backend_send",
+            "node": "20_gmail_send",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "20_gmail_send": {
+      "main": [
+        [
+          {
+            "node": "21_retrieve_message_metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "21_retrieve_message_metadata": {
+      "main": [
+        [
+          {
+            "node": "22_extract_message_id",
             "type": "main",
             "index": 0
           }
@@ -306,17 +353,6 @@
         [
           {
             "node": "00_auth_login",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "20_backend_send": {
-      "main": [
-        [
-          {
-            "node": "22_extract_message_id",
             "type": "main",
             "index": 0
           }
