@@ -189,8 +189,8 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "WF-REPLY-GENERATE-V2",
-          "mode": "name"
+          "value": "PLACEHOLDER_REPLY_GENERATE",
+          "mode": "id"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
@@ -248,8 +248,8 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "WF-EXTRACT-AND-ENRICH-IOC",
-          "mode": "name"
+          "value": "PLACEHOLDER_EXTRACT_IOC",
+          "mode": "id"
         },
         "options": {}
       },
