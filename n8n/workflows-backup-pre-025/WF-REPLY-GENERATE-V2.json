@@ -17,7 +17,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/auth/login",
+        "url": "http://backend-dev:8080/api/v1/auth/login",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -43,7 +43,7 @@
     },
     {
       "parameters": {
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/conversation/{{$('Execute Workflow Trigger').item.json.conv_id}}/context",
+        "url": "=http://backend-dev:8080/api/v1/communication/conversation/{{$('Execute Workflow Trigger').item.json.conv_id}}/context",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -67,7 +67,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/generate",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/generate",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -98,7 +98,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/reply/draft",
+        "url": "=http://backend-dev:8080/api/v1/communication/reply/draft",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -163,8 +163,10 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "WF-REPLY-SEND-v1",
-          "mode": "name"
+          "value": "your-wf-reply-send-id",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/your-wf-reply-send-id",
+          "cachedResultName": "WF-REPLY-SEND-v1"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",

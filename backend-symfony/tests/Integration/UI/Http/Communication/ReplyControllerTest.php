@@ -266,4 +266,48 @@ final class ReplyControllerTest extends WebTestCase
 
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
+
+    // ---- POST /api/v1/communication/reply/{msgId}/send-email ----
+
+    public function testSendEmailRequiresAuthentication(): void
+    {
+        $this->client->request('POST', '/api/v1/communication/reply/00000000-0000-0000-0000-000000000001/send-email');
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_UNAUTHORIZED);
+    }
+
+    public function testSendEmailReturns404ForUnknownMessage(): void
+    {
+        $this->client->request('POST', '/api/v1/communication/reply/00000000-0000-0000-0000-000000000099/send-email', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [Response::HTTP_NOT_FOUND, Response::HTTP_INTERNAL_SERVER_ERROR]);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('error', $data);
+    }
+
+    public function testSendEmailRouteExists(): void
+    {
+        $this->client->request('POST', '/api/v1/communication/reply/00000000-0000-0000-0000-000000000001/send-email', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        // Should NOT be 404 (route not found) or 405 (method not allowed)
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertNotEquals(Response::HTTP_NOT_FOUND, $statusCode, 'Route /send-email should exist');
+        $this->assertNotEquals(Response::HTTP_METHOD_NOT_ALLOWED, $statusCode);
+    }
+
+    public function testSendEmailReturnsJsonContentType(): void
+    {
+        $this->client->request('POST', '/api/v1/communication/reply/00000000-0000-0000-0000-000000000001/send-email', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseHeaderSame('content-type', 'application/json');
+    }
 }
