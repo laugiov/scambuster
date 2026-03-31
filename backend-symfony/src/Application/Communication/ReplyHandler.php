@@ -884,12 +884,15 @@ class ReplyHandler
 
         // Set threading headers
         if (!empty($compose['in_reply_to'])) {
-            $email->getHeaders()->addTextHeader('In-Reply-To', $compose['in_reply_to']);
+            $email->getHeaders()->addIdHeader('In-Reply-To', $compose['in_reply_to']);
         }
         if (!empty($compose['references'])) {
             $email->getHeaders()->addTextHeader('References', $compose['references']);
         }
-        $email->getHeaders()->addTextHeader('Message-ID', $generatedMessageId);
+        // Message-ID must use addIdHeader (IdentificationHeader), not addTextHeader
+        // Strip chevrons — Symfony adds them automatically
+        $cleanMessageId = trim($generatedMessageId, '<>');
+        $email->getHeaders()->addIdHeader('Message-ID', $cleanMessageId);
 
         // Set body
         $bodyHtml = $message->getBodyHtml();
