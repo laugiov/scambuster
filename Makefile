@@ -268,7 +268,8 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 	@echo "║       ScamBuster — Quickstart                ║"
 	@echo "╚══════════════════════════════════════════════╝"
 	@echo ""
-	@echo "Step 1/7: Building and starting containers..."
+	@echo "Step 1/7: Cleaning previous state and starting containers..."
+	@$(DC) down -v 2>/dev/null || true
 	$(DC) up -d --build
 	@echo ""
 	@echo "Step 2/7: Installing backend dependencies..."
