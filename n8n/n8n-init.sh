@@ -70,20 +70,25 @@ http_patch() {
   local url="$1"
   local data="$2"
   local auth_header="$3"
-  # BusyBox wget doesn't support PATCH — use Node.js (always available in n8n container)
+  # BusyBox wget doesn't support PATCH — use Node.js with temp file (avoids shell quoting issues)
   if command -v node > /dev/null 2>&1; then
     local cookie_val=$(echo "$auth_header" | sed 's/Cookie: //')
+    local tmp_file="/tmp/n8n-patch-$$.json"
+    echo "$data" > "$tmp_file"
     node -e "
       const http = require('http');
+      const fs = require('fs');
+      const data = fs.readFileSync('$tmp_file', 'utf8');
       const u = new URL('$url');
       const req = http.request({
         hostname: u.hostname, port: u.port, path: u.pathname,
         method: 'PATCH',
-        headers: {'Content-Type':'application/json','Cookie':'$cookie_val'}
+        headers: {'Content-Type':'application/json','Cookie':'$cookie_val','Content-Length':Buffer.byteLength(data)}
       }, res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>process.stdout.write(d)); });
-      req.write('$data');
+      req.write(data);
       req.end();
     " 2>/dev/null
+    rm -f "$tmp_file"
   elif command -v curl > /dev/null 2>&1; then
     curl -sf -X PATCH -H "Content-Type: application/json" -H "$auth_header" -d "$data" "$url" 2>/dev/null
   else
@@ -312,18 +317,22 @@ if [ -n "$AUTH_HDR" ]; then
           log "  Already active: $wf_name"
         else
           # Get the full workflow, fix the credential ID, set active=true, and PATCH it back
-          FULL_WF=$(http_get "$N8N_URL/rest/workflows/$wf_id" "$AUTH_HDR" || echo "")
-          if [ -n "$FULL_WF" ] && [ -n "$IMAP_CRED_ID" ]; then
-            # Replace placeholder credential ID + set active
-            PATCHED_WF=$(echo "$FULL_WF" | jq --arg cid "$IMAP_CRED_ID" '
+          # Use temp files to avoid shell quoting issues with large JSON
+          FULL_WF_FILE="/tmp/n8n-wf-full-$$.json"
+          PATCHED_WF_FILE="/tmp/n8n-wf-patched-$$.json"
+          http_get "$N8N_URL/rest/workflows/$wf_id" "$AUTH_HDR" > "$FULL_WF_FILE" 2>/dev/null || true
+
+          if [ -s "$FULL_WF_FILE" ] && [ -n "$IMAP_CRED_ID" ]; then
+            jq --arg cid "$IMAP_CRED_ID" '
               .data.active = true |
               .data.nodes |= map(
                 if .credentials?.imap?.id then
                   .credentials.imap.id = $cid
                 else . end
-              ) | .data' 2>/dev/null || echo "")
-            if [ -n "$PATCHED_WF" ]; then
-              PATCH_RESULT=$(http_patch "$N8N_URL/rest/workflows/$wf_id" "$PATCHED_WF" "$AUTH_HDR" 2>/dev/null || echo "")
+              ) | .data' "$FULL_WF_FILE" > "$PATCHED_WF_FILE" 2>/dev/null
+
+            if [ -s "$PATCHED_WF_FILE" ]; then
+              PATCH_RESULT=$(http_patch "$N8N_URL/rest/workflows/$wf_id" "$(cat "$PATCHED_WF_FILE")" "$AUTH_HDR" 2>/dev/null || echo "")
               if echo "$PATCH_RESULT" | grep -q '"active":true' 2>/dev/null; then
                 log "  Activated: $wf_name (credential ID updated)"
               else
