@@ -643,8 +643,14 @@ class ReplyHandler
      */
     private function checkSafelist(string $email): bool
     {
-        // TODO: Load from config/env
+        // Load safe domains from env var (comma-separated), with defaults for dev/test
+        $envDomains = $_ENV['SCAMBUSTER_SAFE_DOMAINS'] ?? $_SERVER['SCAMBUSTER_SAFE_DOMAINS'] ?? '';
         $safeDomains = ['example.test', 'mailinator.com', 'guerrillamail.com'];
+
+        if ($envDomains !== '') {
+            $extraDomains = array_map('trim', explode(',', $envDomains));
+            $safeDomains = array_merge($safeDomains, array_filter($extraDomains));
+        }
 
         // Extract domain - handle invalid emails gracefully
         $atPos = strrchr($email, '@');
@@ -654,7 +660,7 @@ class ReplyHandler
             return false;
         }
 
-        $domain = substr($atPos, 1);
+        $domain = strtolower(substr($atPos, 1));
 
         return in_array($domain, $safeDomains, true);
     }
