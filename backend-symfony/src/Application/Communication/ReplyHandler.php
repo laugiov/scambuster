@@ -481,6 +481,14 @@ class ReplyHandler
         $to = $message->getHeaders()['to'] ?? null;
         $from = $message->getHeaders()['from'] ?? null;
 
+        // Fix: if "from" is not a valid email (e.g., IMAP hostname stored during ingestion),
+        // resolve it from the parent inbound message's "to" (= the honeypot address)
+        $fromStr = \is_string($from) ? $from : '';
+        if ($fromStr === '' || !str_contains($fromStr, '@')) {
+            $parentHeaders = $parent->getHeaders();
+            $from = $parentHeaders['to'] ?? $parentHeaders['delivered-to'] ?? $from;
+        }
+
         if (!$to || !$from) {
             throw new \RuntimeException('Missing to/from headers');
         }
@@ -868,23 +876,9 @@ class ReplyHandler
         $generatedMessageId = '<' . bin2hex(random_bytes(16)) . '@scambuster.local>';
         $tsSent = new \DateTimeImmutable();
 
-        // Determine From address:
-        // 1. HONEYPOT_FROM_ADDRESS env var (explicit override)
-        // 2. HONEYPOT_IMAP_USER env var (the honeypot mailbox)
-        // 3. Fallback to compose header (may be wrong with IMAP — stored as hostname)
-        $fromAddress = $_ENV['HONEYPOT_FROM_ADDRESS']
-            ?? $_SERVER['HONEYPOT_FROM_ADDRESS']
-            ?? $_ENV['HONEYPOT_IMAP_USER']
-            ?? $_SERVER['HONEYPOT_IMAP_USER']
-            ?? null;
-
-        $from = (!empty($fromAddress) && str_contains($fromAddress, '@'))
-            ? $fromAddress
-            : $compose['from'];
-
-        // Build the email
+        // Build the email — composeHeaders() already resolves correct from/to
         $email = (new Email())
-            ->from($from)
+            ->from($compose['from'])
             ->to($compose['to'])
             ->subject($compose['subject']);
 
