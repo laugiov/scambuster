@@ -272,7 +272,8 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 	$(DC) up -d --build
 	@echo ""
 	@echo "Step 2/7: Installing backend dependencies..."
-	@mkdir -p backend-symfony/vendor backend-symfony/var
+	@mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/config/jwt
+	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt 2>/dev/null || true
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
 	@echo ""
 	@echo "Step 3/7: Waiting for databases to be healthy..."
@@ -285,10 +286,21 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 	$(MAKE) fixtures-dev
 	@echo ""
 	@echo "Step 6/7: Generating JWT keys..."
-	@bash scripts/generate-jwt-keys.sh 2>/dev/null || echo "  JWT keys already exist or script not found — skipping."
+	@if [ ! -f backend-symfony/config/jwt/private.pem ]; then \
+		$(DC) exec backend-dev sh -c ' \
+			mkdir -p /app/config/jwt && \
+			openssl genpkey -algorithm RSA -out /app/config/jwt/private.pem \
+				-aes-256-cbc -pass "pass:$$JWT_PASSPHRASE" -pkeyopt rsa_keygen_bits:2048 2>/dev/null && \
+			openssl rsa -in /app/config/jwt/private.pem -pubout -out /app/config/jwt/public.pem \
+				-passin "pass:$$JWT_PASSPHRASE" 2>/dev/null && \
+			chmod 600 /app/config/jwt/private.pem && \
+			echo "  JWT keys generated."' ; \
+	else \
+		echo "  JWT keys already exist — skipping." ; \
+	fi
 	@echo ""
 	@echo "Step 7/7: Waiting for n8n to initialize workflows..."
-	@sleep 15
+	@sleep 20
 	@echo ""
 	@echo "╔══════════════════════════════════════════════╗"
 	@echo "║       Setup complete!                         ║"
