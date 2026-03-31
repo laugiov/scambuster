@@ -307,6 +307,65 @@ if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt
   done
   log "Workflow import done: $IMPORTED imported, $SKIPPED skipped."
 
+  # ─── 5b. Inject real workflow IDs into executeWorkflow nodes ───
+  # n8n mode "name" doesn't work reliably — use mode "id" with real IDs
+  if [ -n "$AUTH_HDR" ] && [ "$IMPORTED" -gt 0 ] && command -v jq > /dev/null 2>&1; then
+    log "Injecting real workflow IDs into cross-workflow references..."
+    ALL_WF=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
+
+    if [ -n "$ALL_WF" ]; then
+      ID_GENERATE=$(echo "$ALL_WF" | jq -r '.data[] | select(.name=="WF-REPLY-GENERATE-V2") | .id' 2>/dev/null || echo "")
+      ID_EXTRACT=$(echo "$ALL_WF" | jq -r '.data[] | select(.name=="WF-EXTRACT-AND-ENRICH-IOC") | .id' 2>/dev/null || echo "")
+      ID_SEND=$(echo "$ALL_WF" | jq -r '.data[] | select(.name=="WF-REPLY-SEND-v1") | .id' 2>/dev/null || echo "")
+
+      log "  IDs: GENERATE=$ID_GENERATE, EXTRACT=$ID_EXTRACT, SEND=$ID_SEND"
+
+      # Patch WF-INTAKE-EMAIL-V2: replace placeholder IDs
+      INTAKE_ID=$(echo "$ALL_WF" | jq -r '.data[] | select(.name=="WF-INTAKE-EMAIL-V2") | .id' 2>/dev/null || echo "")
+      if [ -n "$INTAKE_ID" ] && [ -n "$ID_GENERATE" ] && [ -n "$ID_EXTRACT" ]; then
+        INTAKE_FULL=$(http_get "$N8N_URL/rest/workflows/$INTAKE_ID" "$AUTH_HDR" || echo "")
+        if [ -n "$INTAKE_FULL" ]; then
+          echo "$INTAKE_FULL" | jq --arg gid "$ID_GENERATE" --arg eid "$ID_EXTRACT" '
+            .data.nodes |= map(
+              if .parameters?.workflowId?.value == "PLACEHOLDER_REPLY_GENERATE" then
+                .parameters.workflowId.value = $gid
+              elif .parameters?.workflowId?.value == "PLACEHOLDER_EXTRACT_IOC" then
+                .parameters.workflowId.value = $eid
+              else . end
+            ) | .data' > /tmp/n8n-intake-patched.json 2>/dev/null
+
+          if [ -s /tmp/n8n-intake-patched.json ]; then
+            http_patch "$N8N_URL/rest/workflows/$INTAKE_ID" "$(cat /tmp/n8n-intake-patched.json)" "$AUTH_HDR" > /dev/null 2>&1 \
+              && log "  Patched WF-INTAKE-EMAIL-V2 with real IDs" \
+              || warn "  Failed to patch WF-INTAKE-EMAIL-V2"
+            rm -f /tmp/n8n-intake-patched.json
+          fi
+        fi
+      fi
+
+      # Patch WF-REPLY-GENERATE-V2: replace placeholder ID for SEND
+      GENERATE_ID=$(echo "$ALL_WF" | jq -r '.data[] | select(.name=="WF-REPLY-GENERATE-V2") | .id' 2>/dev/null || echo "")
+      if [ -n "$GENERATE_ID" ] && [ -n "$ID_SEND" ]; then
+        GENERATE_FULL=$(http_get "$N8N_URL/rest/workflows/$GENERATE_ID" "$AUTH_HDR" || echo "")
+        if [ -n "$GENERATE_FULL" ]; then
+          echo "$GENERATE_FULL" | jq --arg sid "$ID_SEND" '
+            .data.nodes |= map(
+              if .parameters?.workflowId?.value == "PLACEHOLDER_REPLY_SEND" then
+                .parameters.workflowId.value = $sid
+              else . end
+            ) | .data' > /tmp/n8n-generate-patched.json 2>/dev/null
+
+          if [ -s /tmp/n8n-generate-patched.json ]; then
+            http_patch "$N8N_URL/rest/workflows/$GENERATE_ID" "$(cat /tmp/n8n-generate-patched.json)" "$AUTH_HDR" > /dev/null 2>&1 \
+              && log "  Patched WF-REPLY-GENERATE-V2 with real ID" \
+              || warn "  Failed to patch WF-REPLY-GENERATE-V2"
+            rm -f /tmp/n8n-generate-patched.json
+          fi
+        fi
+      fi
+    fi
+  fi
+
   fi  # end of SKIP_ALL check
 else
   warn "No workflow files found in $INIT_DIR"
