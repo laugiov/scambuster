@@ -244,9 +244,14 @@ if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt
       EXISTING_NAMES=$(echo "$ALL_WF_RESPONSE" | jq -r '.data[].name' 2>/dev/null || echo "")
     fi
   else
-    # No auth — use CLI (best effort, workflows may not be visible to future admin)
-    EXISTING_NAMES=$(su -s /bin/sh node -c "n8n list:workflow" 2>/dev/null || echo "")
+    # No auth — skip import entirely. Workflows will be imported on next run with auth.
+    log "No auth — skipping workflow import. Workflows will be imported after n8n account creation."
+    EXISTING_NAMES="SKIP_ALL"
   fi
+
+  if [ "$EXISTING_NAMES" = "SKIP_ALL" ]; then
+    log "Workflow import deferred — create n8n admin account first, then restart."
+  else
 
   IMPORTED=0
   SKIPPED=0
@@ -299,6 +304,8 @@ if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt
     fi
   done
   log "Workflow import done: $IMPORTED imported, $SKIPPED skipped."
+
+  fi  # end of SKIP_ALL check
 else
   warn "No workflow files found in $INIT_DIR"
 fi
