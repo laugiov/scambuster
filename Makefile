@@ -259,6 +259,9 @@ validate: ##@docker Validate installation (check all services)
 validate-n8n: ##@docker Validate n8n workflow JSON files (no hardcoded values)
 	bash scripts/validate-n8n-workflows.sh
 
+doctor: ##@docker Check environment, connectivity, and n8n workflow status
+	bash scripts/doctor.sh
+
 wait-healthy: ##@docker Wait for PostgreSQL and Redis to be healthy
 	@echo "Waiting for PostgreSQL..."
 	@until $(DC) exec postgres pg_isready -U postgres > /dev/null 2>&1; do sleep 1; done

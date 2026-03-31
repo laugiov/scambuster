@@ -182,10 +182,15 @@ services:
       - HONEYPOT_IMAP_USER=${HONEYPOT_IMAP_USER}
       - HONEYPOT_IMAP_PASSWORD=${HONEYPOT_IMAP_PASSWORD}
       - HONEYPOT_IMAP_SECURE=${HONEYPOT_IMAP_SECURE:-true}
+      - N8N_DEFAULT_USER_EMAIL=${N8N_DEFAULT_USER_EMAIL:-admin@scambuster.local}
+      - N8N_DEFAULT_USER_PASSWORD=${N8N_DEFAULT_USER_PASSWORD:-}
+    entrypoint: ["/bin/sh", "/home/node/n8n-init.sh"]
     ports:
       - "${N8N_HTTP_PORT:-5678}:${N8N_PORT:-5678}"
     volumes:
       - ./data/n8n:/home/node/.n8n
+      - ./n8n/n8n-init.sh:/home/node/n8n-init.sh:ro
+      - ./n8n/workflows:/home/node/init-workflows:ro
     networks:
       - scambuster
     restart: unless-stopped
