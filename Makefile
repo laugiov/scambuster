@@ -268,22 +268,25 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 	@echo "║       ScamBuster — Quickstart                ║"
 	@echo "╚══════════════════════════════════════════════╝"
 	@echo ""
-	@echo "Step 1/6: Building and starting containers..."
+	@echo "Step 1/7: Building and starting containers..."
 	$(DC) up -d --build
 	@echo ""
-	@echo "Step 2/6: Waiting for databases to be healthy..."
+	@echo "Step 2/7: Installing backend dependencies..."
+	$(DC) exec backend-dev composer install --no-interaction --no-progress
+	@echo ""
+	@echo "Step 3/7: Waiting for databases to be healthy..."
 	$(MAKE) wait-healthy
 	@echo ""
-	@echo "Step 3/6: Running database migrations..."
+	@echo "Step 4/7: Running database migrations..."
 	$(MAKE) migration
 	@echo ""
-	@echo "Step 4/6: Loading fixtures (users, personas, scam types)..."
+	@echo "Step 5/7: Loading fixtures (users, personas, scam types)..."
 	$(MAKE) fixtures-dev
 	@echo ""
-	@echo "Step 5/6: Generating JWT keys..."
+	@echo "Step 6/7: Generating JWT keys..."
 	@bash scripts/generate-jwt-keys.sh 2>/dev/null || echo "  JWT keys already exist or script not found — skipping."
 	@echo ""
-	@echo "Step 6/6: Waiting for n8n to initialize workflows..."
+	@echo "Step 7/7: Waiting for n8n to initialize workflows..."
 	@sleep 15
 	@echo ""
 	@echo "╔══════════════════════════════════════════════╗"
