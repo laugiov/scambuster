@@ -298,14 +298,9 @@ else
   warn "No workflow files found in $INIT_DIR"
 fi
 
-# ─── 5. Activate production workflows ───
-# NOTE: Activation may fail if workflows reference credentials that haven't been
-# linked yet in the n8n UI. In that case, the user must:
-# 1. Open each workflow in n8n UI
-# 2. Click on the IMAP Email Trigger node → select "ScamBuster IMAP" credential
-# 3. Save and activate the workflow
+# ─── 6. Fix credential IDs + Activate production workflows ───
 if [ -n "$AUTH_HDR" ]; then
-  log "Attempting to activate production workflows..."
+  log "Fixing credentials and activating production workflows..."
   ALL_WORKFLOWS=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
 
   if [ -n "$ALL_WORKFLOWS" ] && command -v jq > /dev/null 2>&1; then
@@ -316,9 +311,33 @@ if [ -n "$AUTH_HDR" ]; then
         if [ "$is_active" = "true" ]; then
           log "  Already active: $wf_name"
         else
-          http_patch "$N8N_URL/rest/workflows/$wf_id" '{"active":true}' "$AUTH_HDR" > /dev/null 2>&1 \
-            && log "  Activated: $wf_name" \
-            || warn "  Failed to activate: $wf_name"
+          # Get the full workflow, fix the credential ID, set active=true, and PATCH it back
+          FULL_WF=$(http_get "$N8N_URL/rest/workflows/$wf_id" "$AUTH_HDR" || echo "")
+          if [ -n "$FULL_WF" ] && [ -n "$IMAP_CRED_ID" ]; then
+            # Replace placeholder credential ID + set active
+            PATCHED_WF=$(echo "$FULL_WF" | jq --arg cid "$IMAP_CRED_ID" '
+              .data.active = true |
+              .data.nodes |= map(
+                if .credentials?.imap?.id then
+                  .credentials.imap.id = $cid
+                else . end
+              ) | .data' 2>/dev/null || echo "")
+            if [ -n "$PATCHED_WF" ]; then
+              PATCH_RESULT=$(http_patch "$N8N_URL/rest/workflows/$wf_id" "$PATCHED_WF" "$AUTH_HDR" 2>/dev/null || echo "")
+              if echo "$PATCH_RESULT" | grep -q '"active":true' 2>/dev/null; then
+                log "  Activated: $wf_name (credential ID updated)"
+              else
+                warn "  Failed to activate: $wf_name"
+              fi
+            else
+              warn "  Failed to patch workflow JSON: $wf_name"
+            fi
+          else
+            # No credential to fix — just activate
+            http_patch "$N8N_URL/rest/workflows/$wf_id" '{"active":true}' "$AUTH_HDR" > /dev/null 2>&1 \
+              && log "  Activated: $wf_name" \
+              || warn "  Failed to activate: $wf_name"
+          fi
         fi
       else
         warn "  Workflow not found: $wf_name"
