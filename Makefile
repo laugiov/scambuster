@@ -262,32 +262,27 @@ validate-n8n: ##@docker Validate n8n workflow JSON files (no hardcoded values)
 doctor: ##@docker Check environment, connectivity, and n8n workflow status
 	bash scripts/doctor.sh
 
-quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8n init
+quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8n
 	@echo ""
 	@echo "╔══════════════════════════════════════════════╗"
 	@echo "║       ScamBuster — Quickstart                ║"
 	@echo "╚══════════════════════════════════════════════╝"
 	@echo ""
-	@echo "Step 1/7: Cleaning previous state and starting containers..."
+	@echo "Step 1/5: Cleaning previous state..."
 	@$(DC) down -v 2>/dev/null || true
-	$(DC) up -d --build
 	@echo ""
-	@echo "Step 2/7: Waiting for databases to be healthy..."
-	$(MAKE) wait-healthy
-	@echo ""
-	@echo "Step 3/7: Installing backend dependencies..."
+	@echo "Step 2/5: Preparing directories (permissions)..."
 	@mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/config/jwt backend-symfony/public/bundles
 	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt backend-symfony/public/bundles 2>/dev/null || true
+	@echo ""
+	@echo "Step 3/5: Building, starting, installing dependencies, DB setup..."
+	$(DC) up -d --build
+	$(MAKE) wait-healthy
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
-	@echo ""
-	@echo "Step 4/7: Creating database and running migrations..."
-	$(DC) exec backend-dev php bin/console doctrine:database:create --if-not-exists --no-interaction 2>/dev/null || true
-	$(MAKE) migration
-	@echo ""
-	@echo "Step 5/7: Loading fixtures (users, personas, scam types)..."
+	$(MAKE) reset-db
 	$(MAKE) fixtures-dev
 	@echo ""
-	@echo "Step 6/7: Generating JWT keys..."
+	@echo "Step 4/5: Generating JWT keys..."
 	@if [ ! -f backend-symfony/config/jwt/private.pem ]; then \
 		$(DC) exec backend-dev sh -c ' \
 			mkdir -p /app/config/jwt && \
@@ -301,7 +296,7 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 		echo "  JWT keys already exist — skipping." ; \
 	fi
 	@echo ""
-	@echo "Step 7/7: Waiting for n8n to initialize workflows..."
+	@echo "Step 5/5: Waiting for n8n to initialize workflows..."
 	@sleep 20
 	@echo ""
 	@echo "╔══════════════════════════════════════════════╗"
