@@ -325,7 +325,9 @@
     }
   },
   "active": false,
-  "settings": {},
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner"
+  },
   "versionId": "6b9a7218-eb76-4b8d-aa0f-6d99a980ba61",
   "meta": {
     "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"

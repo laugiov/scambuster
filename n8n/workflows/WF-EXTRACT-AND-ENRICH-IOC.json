@@ -472,7 +472,9 @@
     }
   },
   "active": true,
-  "settings": {},
+  "settings": {
+    "callerPolicy": "workflowsFromSameOwner"
+  },
   "versionId": "00000000-0000-0000-0000-000000000000",
   "meta": {
     "instanceId": "your-n8n-instance-id"
