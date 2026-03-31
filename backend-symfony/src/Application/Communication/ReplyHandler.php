@@ -868,9 +868,23 @@ class ReplyHandler
         $generatedMessageId = '<' . bin2hex(random_bytes(16)) . '@scambuster.local>';
         $tsSent = new \DateTimeImmutable();
 
+        // Determine From address:
+        // 1. HONEYPOT_FROM_ADDRESS env var (explicit override)
+        // 2. HONEYPOT_IMAP_USER env var (the honeypot mailbox)
+        // 3. Fallback to compose header (may be wrong with IMAP — stored as hostname)
+        $fromAddress = $_ENV['HONEYPOT_FROM_ADDRESS']
+            ?? $_SERVER['HONEYPOT_FROM_ADDRESS']
+            ?? $_ENV['HONEYPOT_IMAP_USER']
+            ?? $_SERVER['HONEYPOT_IMAP_USER']
+            ?? null;
+
+        $from = (!empty($fromAddress) && str_contains($fromAddress, '@'))
+            ? $fromAddress
+            : $compose['from'];
+
         // Build the email
         $email = (new Email())
-            ->from($compose['from'])
+            ->from($from)
             ->to($compose['to'])
             ->subject($compose['subject']);
 
