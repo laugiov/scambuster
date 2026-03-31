@@ -79,17 +79,13 @@ else
   fail "Backend API — unreachable (tried ${BACKEND_URL})"
 fi
 
-# PostgreSQL
-if command -v pg_isready > /dev/null 2>&1; then
-  if pg_isready -h "${POSTGRES_HOST:-localhost}" -p "${POSTGRES_PORT:-5432}" -U postgres > /dev/null 2>&1; then
-    ok "PostgreSQL — connected"
-  else
-    fail "PostgreSQL — unreachable"
-  fi
-elif docker compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
-  ok "PostgreSQL — connected (via docker)"
+# PostgreSQL (try Docker first, then local)
+if docker compose exec -T postgres pg_isready -U postgres 2>/dev/null | grep -q "accepting connections"; then
+  ok "PostgreSQL — connected"
+elif command -v pg_isready > /dev/null 2>&1 && pg_isready -h "${POSTGRES_HOST:-localhost}" -p "${POSTGRES_PORT:-5432}" -U postgres > /dev/null 2>&1; then
+  ok "PostgreSQL — connected (local)"
 else
-  warn "PostgreSQL — cannot check (pg_isready not available)"
+  fail "PostgreSQL — unreachable"
 fi
 
 # Redis
