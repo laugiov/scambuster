@@ -68,9 +68,20 @@ http_patch() {
   local url="$1"
   local data="$2"
   local auth_header="$3"
-  if command -v wget > /dev/null 2>&1; then
-    wget -qO- --method=PATCH --header="Content-Type: application/json" \
-      --header="$auth_header" --body-data="$data" "$url" 2>/dev/null
+  # BusyBox wget doesn't support PATCH — use Node.js (always available in n8n container)
+  if command -v node > /dev/null 2>&1; then
+    local cookie_val=$(echo "$auth_header" | sed 's/Cookie: //')
+    node -e "
+      const http = require('http');
+      const u = new URL('$url');
+      const req = http.request({
+        hostname: u.hostname, port: u.port, path: u.pathname,
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json','Cookie':'$cookie_val'}
+      }, res => { let d=''; res.on('data',c=>d+=c); res.on('end',()=>process.stdout.write(d)); });
+      req.write('$data');
+      req.end();
+    " 2>/dev/null
   elif command -v curl > /dev/null 2>&1; then
     curl -sf -X PATCH -H "Content-Type: application/json" -H "$auth_header" -d "$data" "$url" 2>/dev/null
   else
