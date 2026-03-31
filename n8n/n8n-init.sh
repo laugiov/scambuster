@@ -14,9 +14,11 @@ MAX_RETRIES=30
 RETRY_INTERVAL=3
 N8N_URL="http://localhost:5678"
 
-# Only the intake workflow needs activation (IMAP trigger polling).
-# The others are sub-workflows called via executeWorkflow — they run when invoked.
-ACTIVATE_WORKFLOWS="WF-INTAKE-EMAIL-V2"
+# ALL production workflows must be activated:
+# - WF-INTAKE-EMAIL-V2: IMAP trigger (polling)
+# - Sub-workflows MUST be active for executeWorkflow mode:"name" to find them
+#   (n8n returns "Workflow does not exist" for inactive sub-workflows in auto-trigger mode)
+ACTIVATE_WORKFLOWS="WF-INTAKE-EMAIL-V2 WF-REPLY-GENERATE-V2 WF-REPLY-SEND-v1 WF-EXTRACT-AND-ENRICH-IOC"
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_PREFIX $1"; }
 warn() { echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_PREFIX WARNING: $1"; }
