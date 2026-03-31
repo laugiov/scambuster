@@ -90,17 +90,15 @@ http_check() {
 }
 
 # ─── 0. Ensure data directory is writable ───
-# On fresh installs, Docker creates the volume as root but n8n runs as user "node"
-if [ ! -w "/home/node/.n8n" ]; then
-  log "Fixing permissions on /home/node/.n8n..."
-  mkdir -p /home/node/.n8n
-  # Try to fix ownership (works if running as root or if dir is ours)
-  chown -R node:node /home/node/.n8n 2>/dev/null || chmod -R 777 /home/node/.n8n 2>/dev/null || true
-fi
+# The container runs as root (for permission fixes), then drops to user "node" for n8n.
+# On fresh installs, Docker creates the bind mount dir as root — n8n (node) can't write.
+log "Ensuring /home/node/.n8n is writable by node user..."
+mkdir -p /home/node/.n8n
+chown -R 1000:1000 /home/node/.n8n
 
-# ─── 1. Start n8n in background ───
-log "Starting n8n in background..."
-n8n start &
+# ─── 1. Start n8n in background as user "node" ───
+log "Starting n8n in background (as user node)..."
+su -s /bin/sh node -c "n8n start" &
 N8N_PID=$!
 
 # Relay Docker shutdown signals to n8n
