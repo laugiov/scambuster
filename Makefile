@@ -276,8 +276,8 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 	$(MAKE) wait-healthy
 	@echo ""
 	@echo "Step 3/7: Installing backend dependencies..."
-	@mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/config/jwt
-	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt 2>/dev/null || true
+	@mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/config/jwt backend-symfony/public/bundles
+	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt backend-symfony/public/bundles 2>/dev/null || true
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
 	@echo ""
 	@echo "Step 4/7: Running database migrations..."
