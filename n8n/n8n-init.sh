@@ -186,15 +186,18 @@ fi
 # Fall back to CLI if no auth (workflows import but may not be visible to the admin user).
 if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt 0 ]; then
 
-  # Get existing workflow names via API or CLI
+  # Get existing workflow names
+  # IMPORTANT: When authenticated, check ONLY via API (not CLI).
+  # CLI-imported workflows belong to no user and are invisible to the admin.
+  # We must re-import them via API so they belong to the admin.
   EXISTING_NAMES=""
   if [ -n "$AUTH_HDR" ]; then
     ALL_WF_RESPONSE=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
     if [ -n "$ALL_WF_RESPONSE" ] && command -v jq > /dev/null 2>&1; then
       EXISTING_NAMES=$(echo "$ALL_WF_RESPONSE" | jq -r '.data[].name' 2>/dev/null || echo "")
     fi
-  fi
-  if [ -z "$EXISTING_NAMES" ]; then
+  else
+    # No auth — use CLI (best effort, workflows may not be visible to future admin)
     EXISTING_NAMES=$(su -s /bin/sh node -c "n8n list:workflow" 2>/dev/null || echo "")
   fi
 
