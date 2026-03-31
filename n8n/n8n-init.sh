@@ -132,17 +132,17 @@ AUTH_HDR=""
 if [ -n "${N8N_DEFAULT_USER_EMAIL:-}" ] && [ -n "${N8N_DEFAULT_USER_PASSWORD:-}" ]; then
   log "Authenticating with n8n REST API..."
 
-  # Use wget -S to capture headers (cookies) — save headers to a temp file
+  # Build JSON payload safely with printf (avoids shell quoting issues)
+  AUTH_JSON=$(printf '{"emailOrLdapLoginId":"%s","password":"%s"}' "$N8N_DEFAULT_USER_EMAIL" "$N8N_DEFAULT_USER_PASSWORD")
   AUTH_HEADERS_FILE="/tmp/n8n-auth-headers.txt"
+
   if command -v wget > /dev/null 2>&1; then
     wget -qO /dev/null -S --header="Content-Type: application/json" \
-      --post-data="{\"emailOrLdapLoginId\":\"${N8N_DEFAULT_USER_EMAIL}\",\"password\":\"${N8N_DEFAULT_USER_PASSWORD}\"}" \
-      "$N8N_URL/rest/login" 2>"$AUTH_HEADERS_FILE" || true
+      --post-data="$AUTH_JSON" "$N8N_URL/rest/login" 2>"$AUTH_HEADERS_FILE" || true
     N8N_COOKIE=$(grep -i "set-cookie.*n8n-auth=" "$AUTH_HEADERS_FILE" | sed 's/.*n8n-auth=//;s/;.*//' | head -1)
   elif command -v curl > /dev/null 2>&1; then
-    N8N_COOKIE=$(curl -s -X POST -H "Content-Type: application/json" \
-      -d "{\"emailOrLdapLoginId\":\"${N8N_DEFAULT_USER_EMAIL}\",\"password\":\"${N8N_DEFAULT_USER_PASSWORD}\"}" \
-      -c - "$N8N_URL/rest/login" 2>/dev/null | grep "n8n-auth" | awk '{print $NF}')
+    N8N_COOKIE=$(curl -s -v -X POST -H "Content-Type: application/json" \
+      -d "$AUTH_JSON" "$N8N_URL/rest/login" 2>&1 | grep -i "set-cookie.*n8n-auth=" | sed 's/.*n8n-auth=//;s/;.*//' | head -1)
   fi
   rm -f "$AUTH_HEADERS_FILE"
 
