@@ -296,27 +296,33 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 		echo "  JWT keys already exist — skipping." ; \
 	fi
 	@echo ""
-	@echo "Step 5/5: Waiting for n8n to initialize workflows..."
-	@sleep 20
+	@echo "Step 5/7: Waiting for n8n to start..."
+	@sleep 15
+	@echo ""
+	@echo "Step 6/7: Creating n8n admin account..."
+	@curl -sf -X POST http://localhost:5678/rest/owner/setup \
+		-H "Content-Type: application/json" \
+		-d "{\"email\":\"$${N8N_DEFAULT_USER_EMAIL:-admin@scambuster.local}\",\"password\":\"$${N8N_DEFAULT_USER_PASSWORD:-Scambuster2026!}\",\"firstName\":\"ScamBuster\",\"lastName\":\"Admin\"}" \
+		> /dev/null 2>&1 && echo "  n8n admin account created." || echo "  n8n admin account already exists — skipping."
+	@echo ""
+	@echo "Step 7/7: Importing workflows, credentials, and activating..."
+	$(DC) up -d --force-recreate n8n
+	@sleep 25
+	@$(DC) logs n8n 2>/dev/null | grep "n8n-init" | tail -10
 	@echo ""
 	@echo "╔══════════════════════════════════════════════╗"
-	@echo "║       Setup complete!                         ║"
+	@echo "║       ScamBuster is ready!                    ║"
 	@echo "╚══════════════════════════════════════════════╝"
-	@echo ""
-	@echo "Next steps:"
-	@echo "  1. Create your n8n admin account:  http://localhost:5678"
-	@echo "  2. Add your n8n credentials to .env:"
-	@echo "     N8N_DEFAULT_USER_EMAIL=your-email"
-	@echo "     N8N_DEFAULT_USER_PASSWORD=your-password"
-	@echo "  3. Restart n8n to activate workflows:"
-	@echo "     docker compose up -d --force-recreate n8n"
-	@echo "  4. Check everything:"
-	@echo "     make doctor"
 	@echo ""
 	@echo "Interfaces:"
 	@echo "  Dashboard:  http://localhost:3002"
 	@echo "  Backend:    http://localhost:8081/api/doc"
 	@echo "  n8n:        http://localhost:5678"
+	@echo "    Login:    $${N8N_DEFAULT_USER_EMAIL:-admin@scambuster.local} / (see .env)"
+	@echo ""
+	@echo "Verify:  make doctor"
+	@echo ""
+	@echo "Send a test email to your honeypot address to start!"
 	@echo ""
 
 wait-healthy: ##@docker Wait for PostgreSQL and Redis to be healthy
