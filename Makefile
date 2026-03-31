@@ -272,6 +272,7 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 	$(DC) up -d --build
 	@echo ""
 	@echo "Step 2/7: Installing backend dependencies..."
+	@mkdir -p backend-symfony/vendor backend-symfony/var
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
 	@echo ""
 	@echo "Step 3/7: Waiting for databases to be healthy..."
