@@ -280,7 +280,8 @@ quickstart: ##@docker Full first-time setup: build, start, migrate, fixtures, n8
 	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt backend-symfony/public/bundles 2>/dev/null || true
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
 	@echo ""
-	@echo "Step 4/7: Running database migrations..."
+	@echo "Step 4/7: Creating database and running migrations..."
+	$(DC) exec backend-dev php bin/console doctrine:database:create --if-not-exists --no-interaction 2>/dev/null || true
 	$(MAKE) migration
 	@echo ""
 	@echo "Step 5/7: Loading fixtures (users, personas, scam types)..."
