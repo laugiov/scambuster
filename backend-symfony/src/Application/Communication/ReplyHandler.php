@@ -364,8 +364,13 @@ class ReplyHandler
         $msgId = uuid_create(UUID_TYPE_RANDOM);
         $now = new \DateTimeImmutable();
 
+        // Determine "from" = honeypot address (the "to" of the inbound message)
+        $honeypotAddress = $parentMessage->getHeaders()['to']
+            ?? $parentMessage->getHeaders()['delivered-to']
+            ?? $conversation->getAccount()->getEndpoint();
+
         $headers = [
-            'from' => $conversation->getAccount()->getEndpoint(), // Use mail account endpoint as sender
+            'from' => $honeypotAddress,
             'to' => $to,
             'send_status' => 'draft',
             // LLM metadata for traceability and metrics
