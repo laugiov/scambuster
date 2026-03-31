@@ -14,6 +14,8 @@ use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 class ReplyHandler
@@ -37,6 +39,7 @@ class ReplyHandler
         private ?RateLimiterFactory $activeConversationsPerDayLimiter = null,
         private ?AuditLogger $auditLogger = null,
         private ?LanguageDetector $languageDetector = null,
+        private ?MailerInterface $mailer = null,
     ) {
     }
 
@@ -361,8 +364,13 @@ class ReplyHandler
         $msgId = uuid_create(UUID_TYPE_RANDOM);
         $now = new \DateTimeImmutable();
 
+        // Determine "from" = honeypot address (the "to" of the inbound message)
+        $honeypotAddress = $parentMessage->getHeaders()['to']
+            ?? $parentMessage->getHeaders()['delivered-to']
+            ?? $conversation->getAccount()->getEndpoint();
+
         $headers = [
-            'from' => $conversation->getAccount()->getEndpoint(), // Use mail account endpoint as sender
+            'from' => $honeypotAddress,
             'to' => $to,
             'send_status' => 'draft',
             // LLM metadata for traceability and metrics
@@ -477,6 +485,14 @@ class ReplyHandler
 
         $to = $message->getHeaders()['to'] ?? null;
         $from = $message->getHeaders()['from'] ?? null;
+
+        // Fix: if "from" is not a valid email (e.g., IMAP hostname stored during ingestion),
+        // resolve it from the parent inbound message's "to" (= the honeypot address)
+        $fromStr = \is_string($from) ? $from : '';
+        if ($fromStr === '' || !str_contains($fromStr, '@')) {
+            $parentHeaders = $parent->getHeaders();
+            $from = $parentHeaders['to'] ?? $parentHeaders['delivered-to'] ?? $from;
+        }
 
         if (!$to || !$from) {
             throw new \RuntimeException('Missing to/from headers');
@@ -640,18 +656,31 @@ class ReplyHandler
      */
     private function checkSafelist(string $email): bool
     {
-        // TODO: Load from config/env
+        // Load safe domains from env var (comma-separated)
+        // Use "*" to allow ALL domains (production mode — ScamBuster only receives from scammers)
+        // Use specific domains to restrict during testing
+        $envDomains = $_ENV['SCAMBUSTER_SAFE_DOMAINS'] ?? $_SERVER['SCAMBUSTER_SAFE_DOMAINS'] ?? '';
+
+        // Wildcard: allow all domains in production
+        if (trim($envDomains) === '*') {
+            return true;
+        }
+
         $safeDomains = ['example.test', 'mailinator.com', 'guerrillamail.com'];
+
+        if ($envDomains !== '') {
+            $extraDomains = array_map('trim', explode(',', $envDomains));
+            $safeDomains = array_merge($safeDomains, array_filter($extraDomains));
+        }
 
         // Extract domain - handle invalid emails gracefully
         $atPos = strrchr($email, '@');
 
         if ($atPos === false) {
-            // No @ sign found - invalid email
             return false;
         }
 
-        $domain = substr($atPos, 1);
+        $domain = strtolower(substr($atPos, 1));
 
         return in_array($domain, $safeDomains, true);
     }
@@ -803,5 +832,97 @@ class ReplyHandler
             details: ['limit_type' => $limitType],
             actorType: 'system'
         );
+    }
+
+    /**
+     * Send a reply email via Symfony Mailer (SMTP).
+     * Stateless: reads draft from DB, sends, returns Message-ID. Does NOT modify message state.
+     *
+     * @return array{success: bool, message_id: string, ts_sent: string}
+     */
+    public function sendEmail(string $msgId): array
+    {
+        if (!$this->mailer) {
+            throw new \RuntimeException('Mailer not configured (MAILER_DSN missing or symfony/mailer not installed)');
+        }
+
+        $message = $this->messageHandler->getMessage($msgId);
+
+        if (!$message) {
+            throw new \RuntimeException('Message not found');
+        }
+
+        // Verify it's an outbound reply
+        if ($message->getDirection()->getCode() !== 'out') {
+            throw new \RuntimeException('Cannot send a non-outbound message');
+        }
+
+        // Get compose/threading data
+        $compose = $this->composeHeaders($msgId);
+
+        if (!$compose) {
+            throw new \RuntimeException('Cannot compose headers for message');
+        }
+
+        // Check safety — but skip cadence check (n8n human delay already handles timing)
+        /** @var array{safelist_ok: bool, kill_switch_off: bool, cadence_ok: bool, conversation_open: bool} $checks */
+        $checks = $compose['checks'];
+        if (!$checks['safelist_ok']) {
+            throw new \RuntimeException('Safety checks failed: recipient not in safelist');
+        }
+        if (!$checks['kill_switch_off']) {
+            throw new \RuntimeException('Safety checks failed: kill switch is active');
+        }
+        if (!$checks['conversation_open']) {
+            throw new \RuntimeException('Safety checks failed: conversation is not open');
+        }
+
+        // Generate a local Message-ID
+        $generatedMessageId = '<' . bin2hex(random_bytes(16)) . '@scambuster.local>';
+        $tsSent = new \DateTimeImmutable();
+
+        // Build the email — composeHeaders() already resolves correct from/to
+        $email = (new Email())
+            ->from($compose['from'])
+            ->to($compose['to'])
+            ->subject($compose['subject']);
+
+        // Set threading headers
+        if (!empty($compose['in_reply_to'])) {
+            $email->getHeaders()->addIdHeader('In-Reply-To', $compose['in_reply_to']);
+        }
+        if (!empty($compose['references'])) {
+            $email->getHeaders()->addTextHeader('References', $compose['references']);
+        }
+        // Message-ID must use addIdHeader (IdentificationHeader), not addTextHeader
+        // Strip chevrons — Symfony adds them automatically
+        $cleanMessageId = trim($generatedMessageId, '<>');
+        $email->getHeaders()->addIdHeader('Message-ID', $cleanMessageId);
+
+        // Set body
+        $bodyHtml = $message->getBodyHtml();
+        $bodyText = $message->getBodyText();
+
+        if ($bodyHtml) {
+            $email->html($bodyHtml);
+        }
+        if ($bodyText) {
+            $email->text($bodyText);
+        }
+
+        // Send
+        $this->mailer->send($email);
+
+        $this->logger->info('[ReplyHandler] Email sent via SMTP', [
+            'msg_id' => $msgId,
+            'to' => $compose['to'],
+            'message_id' => $generatedMessageId,
+        ]);
+
+        return [
+            'success' => true,
+            'message_id' => $generatedMessageId,
+            'ts_sent' => $tsSent->format(\DateTimeInterface::ATOM),
+        ];
     }
 }

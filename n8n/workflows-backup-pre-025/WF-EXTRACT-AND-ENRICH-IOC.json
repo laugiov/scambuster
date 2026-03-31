@@ -15,7 +15,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/auth/login",
+        "url": "http://backend-dev:8080/api/v1/auth/login",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -48,7 +48,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/message/{{ $('Execute Workflow Trigger').item.json.msg_id }}/extract-iocs",
+        "url": "=http://backend-dev:8080/api/v1/communication/message/{{ $('Execute Workflow Trigger').item.json.msg_id }}/extract-iocs",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -284,7 +284,7 @@
     {
       "parameters": {
         "method": "PATCH",
-        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/iocs/{{ $json.obs_id }}/enrich",
+        "url": "=http://backend-dev:8080/api/v1/iocs/{{ $json.obs_id }}/enrich",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
