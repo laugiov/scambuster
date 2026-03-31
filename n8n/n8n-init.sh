@@ -126,24 +126,29 @@ if [ $retries -eq $MAX_RETRIES ]; then
 fi
 
 # ─── 3. Authenticate via REST API ───
-N8N_TOKEN=""
+# n8n returns auth token as a cookie (n8n-auth=...), not in the response body
+N8N_COOKIE=""
+AUTH_HDR=""
 if [ -n "${N8N_DEFAULT_USER_EMAIL:-}" ] && [ -n "${N8N_DEFAULT_USER_PASSWORD:-}" ]; then
   log "Authenticating with n8n REST API..."
-  AUTH_RESPONSE=$(http_post "$N8N_URL/rest/login" \
-    "{\"email\":\"${N8N_DEFAULT_USER_EMAIL}\",\"password\":\"${N8N_DEFAULT_USER_PASSWORD}\"}" || echo "")
 
-  if [ -n "$AUTH_RESPONSE" ]; then
-    # Extract token — try jq first, fall back to grep
-    if command -v jq > /dev/null 2>&1; then
-      N8N_TOKEN=$(echo "$AUTH_RESPONSE" | jq -r '.data.token // empty' 2>/dev/null || echo "")
-    else
-      N8N_TOKEN=$(echo "$AUTH_RESPONSE" | grep -o '"token":"[^"]*"' | head -1 | sed 's/"token":"//;s/"//' || echo "")
-    fi
-    if [ -n "$N8N_TOKEN" ]; then
-      log "Authenticated successfully."
-    else
-      warn "Could not extract token from auth response. Credential seeding will be skipped."
-    fi
+  # Use wget -S to capture headers (cookies) — save headers to a temp file
+  AUTH_HEADERS_FILE="/tmp/n8n-auth-headers.txt"
+  if command -v wget > /dev/null 2>&1; then
+    wget -qO /dev/null -S --header="Content-Type: application/json" \
+      --post-data="{\"emailOrLdapLoginId\":\"${N8N_DEFAULT_USER_EMAIL}\",\"password\":\"${N8N_DEFAULT_USER_PASSWORD}\"}" \
+      "$N8N_URL/rest/login" 2>"$AUTH_HEADERS_FILE" || true
+    N8N_COOKIE=$(grep -i "set-cookie.*n8n-auth=" "$AUTH_HEADERS_FILE" | sed 's/.*n8n-auth=//;s/;.*//' | head -1)
+  elif command -v curl > /dev/null 2>&1; then
+    N8N_COOKIE=$(curl -s -X POST -H "Content-Type: application/json" \
+      -d "{\"emailOrLdapLoginId\":\"${N8N_DEFAULT_USER_EMAIL}\",\"password\":\"${N8N_DEFAULT_USER_PASSWORD}\"}" \
+      -c - "$N8N_URL/rest/login" 2>/dev/null | grep "n8n-auth" | awk '{print $NF}')
+  fi
+  rm -f "$AUTH_HEADERS_FILE"
+
+  if [ -n "$N8N_COOKIE" ]; then
+    AUTH_HDR="Cookie: n8n-auth=$N8N_COOKIE"
+    log "Authenticated successfully."
   else
     warn "Authentication failed. Is this a fresh instance? Create admin user first at $N8N_URL"
   fi
@@ -193,9 +198,8 @@ else
 fi
 
 # ─── 5. Activate production workflows (by name, not --all) ───
-if [ -n "$N8N_TOKEN" ]; then
+if [ -n "$AUTH_HDR" ]; then
   log "Activating production workflows..."
-  AUTH_HDR="Authorization: Bearer $N8N_TOKEN"
   ALL_WORKFLOWS=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
 
   if [ -n "$ALL_WORKFLOWS" ] && command -v jq > /dev/null 2>&1; then
@@ -222,9 +226,8 @@ else
 fi
 
 # ─── 6. Seed IMAP credential (if env vars set) ───
-if [ -n "$N8N_TOKEN" ] && [ -n "${HONEYPOT_IMAP_HOST:-}" ] && [ -n "${HONEYPOT_IMAP_USER:-}" ]; then
+if [ -n "$AUTH_HDR" ] && [ -n "${HONEYPOT_IMAP_HOST:-}" ] && [ -n "${HONEYPOT_IMAP_USER:-}" ]; then
   CRED_NAME="ScamBuster IMAP"
-  AUTH_HDR="Authorization: Bearer $N8N_TOKEN"
 
   # Check if credential already exists
   EXISTING_CREDS=$(http_get "$N8N_URL/rest/credentials" "$AUTH_HDR" || echo "")
