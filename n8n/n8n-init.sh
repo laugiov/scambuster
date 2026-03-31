@@ -14,7 +14,9 @@ MAX_RETRIES=30
 RETRY_INTERVAL=3
 N8N_URL="http://localhost:5678"
 
-PRODUCTION_WORKFLOWS="WF-INTAKE-EMAIL-V2 WF-REPLY-GENERATE-V2 WF-REPLY-SEND-v1 WF-EXTRACT-AND-ENRICH-IOC"
+# Only the intake workflow needs activation (IMAP trigger polling).
+# The others are sub-workflows called via executeWorkflow — they run when invoked.
+ACTIVATE_WORKFLOWS="WF-INTAKE-EMAIL-V2"
 
 log() { echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_PREFIX $1"; }
 warn() { echo "$(date '+%Y-%m-%d %H:%M:%S') $LOG_PREFIX WARNING: $1"; }
@@ -253,7 +255,7 @@ if [ -n "$AUTH_HDR" ]; then
   ALL_WORKFLOWS=$(http_get "$N8N_URL/rest/workflows" "$AUTH_HDR" || echo "")
 
   if [ -n "$ALL_WORKFLOWS" ] && command -v jq > /dev/null 2>&1; then
-    for wf_name in $PRODUCTION_WORKFLOWS; do
+    for wf_name in $ACTIVATE_WORKFLOWS; do
       wf_id=$(echo "$ALL_WORKFLOWS" | jq -r ".data[] | select(.name == \"$wf_name\") | .id" 2>/dev/null || echo "")
       if [ -n "$wf_id" ]; then
         is_active=$(echo "$ALL_WORKFLOWS" | jq -r ".data[] | select(.id == \"$wf_id\") | .active" 2>/dev/null || echo "false")
