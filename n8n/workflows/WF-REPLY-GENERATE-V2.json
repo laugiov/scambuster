@@ -163,8 +163,8 @@
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "WF-REPLY-SEND-v1",
-          "mode": "name"
+          "value": "PLACEHOLDER_REPLY_SEND",
+          "mode": "id"
         },
         "workflowInputs": {
           "mappingMode": "defineBelow",
