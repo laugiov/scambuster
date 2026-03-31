@@ -89,6 +89,15 @@ http_check() {
   fi
 }
 
+# ─── 0. Ensure data directory is writable ───
+# On fresh installs, Docker creates the volume as root but n8n runs as user "node"
+if [ ! -w "/home/node/.n8n" ]; then
+  log "Fixing permissions on /home/node/.n8n..."
+  mkdir -p /home/node/.n8n
+  # Try to fix ownership (works if running as root or if dir is ours)
+  chown -R node:node /home/node/.n8n 2>/dev/null || chmod -R 777 /home/node/.n8n 2>/dev/null || true
+fi
+
 # ─── 1. Start n8n in background ───
 log "Starting n8n in background..."
 n8n start &
