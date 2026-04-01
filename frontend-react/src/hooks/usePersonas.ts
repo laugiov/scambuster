@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
-import type { PersonaSummary } from '@/types/api';
+import type { PersonaSummary, PersonaDetail } from '@/types/api';
 
 export function usePersonaPerformance(code: string) {
   return useQuery<PersonaSummary>({
@@ -35,5 +35,62 @@ export function useAllPersonaPerformances(personaCodes: string[]) {
       return results.filter((r): r is PersonaSummary => r !== null);
     },
     enabled: personaCodes.length > 0,
+  });
+}
+
+export function usePersonaDetail(code: string | null) {
+  return useQuery<PersonaDetail>({
+    queryKey: ['persona-detail', code],
+    queryFn: async () => {
+      const { data } = await client.get<{ success: boolean; data: PersonaDetail }>(
+        ENDPOINTS.personas.detail(code!),
+      );
+      return data.data;
+    },
+    enabled: !!code,
+  });
+}
+
+export function useUpdatePersona() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      code,
+      updates,
+    }: {
+      code: string;
+      updates: { persona_label?: string; persona_tone?: string; system_prompt?: string };
+    }) => {
+      const { data } = await client.put<{ success: boolean; data: PersonaDetail }>(
+        ENDPOINTS.personas.update(code),
+        updates,
+      );
+      return data.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['persona-detail', variables.code] });
+      queryClient.invalidateQueries({ queryKey: ['all-persona-performances'] });
+      queryClient.invalidateQueries({ queryKey: ['meta-config'] });
+    },
+  });
+}
+
+export function useTogglePersonaActive() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ code, active }: { code: string; active: boolean }) => {
+      const { data } = await client.patch<{ success: boolean; data: { persona_code: string; is_active: boolean } }>(
+        ENDPOINTS.personas.toggleActive(code),
+        { active },
+      );
+      return data.data;
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['persona-detail', variables.code] });
+      queryClient.invalidateQueries({ queryKey: ['all-persona-performances'] });
+      queryClient.invalidateQueries({ queryKey: ['meta-config'] });
+    },
   });
 }

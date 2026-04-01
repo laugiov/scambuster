@@ -189,6 +189,16 @@ export interface PersonaSummary {
   performance_by_scam_type: PersonaScamTypePerf[];
 }
 
+export interface PersonaDetail {
+  persona_code: string;
+  persona_label: string;
+  persona_tone: string;
+  system_prompt: string;
+  is_active: boolean;
+  created_by: string;
+  created_at: string;
+}
+
 export interface ScambaitingStats {
   scam_type: string;
   total_conversations: number;

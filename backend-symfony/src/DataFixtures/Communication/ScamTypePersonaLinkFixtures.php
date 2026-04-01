@@ -105,7 +105,7 @@ class ScamTypePersonaLinkFixtures extends Fixture implements DependentFixtureInt
             'lottery_believer',
             'lonely_person',
         ],
-        'unknown' => [
+        'UNKNOWN' => [
             'generic_user',
         ],
     ];

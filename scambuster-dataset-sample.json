@@ -18,7 +18,7 @@
             "ROMANCE": 33,
             "PHISHING": 17,
             "INVOICE_FRAUD": 16,
-            "unknown": 14
+            "UNKNOWN": 14
         },
         "personas": {
             "generic_user": 24,
@@ -41,8 +41,8 @@
     "conversations": [
         {
             "conversation_id": "c666c3f9-5baf-483c-8901-65778e49816e",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "generic_user",
             "risk_score": 51,
             "turns": 4,
@@ -302,8 +302,8 @@
         },
         {
             "conversation_id": "d2b11237-78df-4ce0-a549-51bf427f3156",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "bank_customer",
             "risk_score": 70,
             "turns": 4,
@@ -394,8 +394,8 @@
         },
         {
             "conversation_id": "d694b996-8311-4938-b39e-9d755f2bbe45",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "generic_user",
             "risk_score": 50,
             "turns": 2,
@@ -2513,8 +2513,8 @@
         },
         {
             "conversation_id": "05926534-46eb-45c2-a7eb-7b9cd0929e26",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "elderly_person",
             "risk_score": 65,
             "turns": 2,
@@ -3338,8 +3338,8 @@
         },
         {
             "conversation_id": "52e392a2-bd37-4325-92f6-9e04756aaa85",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "confused_user",
             "risk_score": 64,
             "turns": 1,
@@ -3945,8 +3945,8 @@
         },
         {
             "conversation_id": "29aa2f7b-75b7-4359-a3b7-e3c33bd1feda",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "small_business_owner",
             "risk_score": 71,
             "turns": 5,
@@ -4474,8 +4474,8 @@
         },
         {
             "conversation_id": "cf1fee79-8128-4272-b6a0-86c388e74c1f",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "lonely_person",
             "risk_score": 88,
             "turns": 4,
@@ -4670,8 +4670,8 @@
         },
         {
             "conversation_id": "55457b19-43d8-4895-a334-7d00d649e0fd",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "elderly_person",
             "risk_score": 81,
             "turns": 2,
@@ -6517,8 +6517,8 @@
         },
         {
             "conversation_id": "5480775e-0c1f-418e-a0b0-e7e610be9ba2",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "confused_user",
             "risk_score": 77,
             "turns": 1,
@@ -6559,8 +6559,8 @@
         },
         {
             "conversation_id": "5afd7e64-013b-4e32-b170-88f549ef40dd",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "bank_customer",
             "risk_score": 94,
             "turns": 6,
@@ -7776,8 +7776,8 @@
         },
         {
             "conversation_id": "6f67aa96-d0ea-499b-9a54-93c5deaa1ac5",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "small_business_owner",
             "risk_score": 98,
             "turns": 4,
@@ -8980,8 +8980,8 @@
         },
         {
             "conversation_id": "022ff297-ff5f-4732-81c1-16615f8e700e",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "generic_user",
             "risk_score": 70,
             "turns": 3,
@@ -9213,8 +9213,8 @@
         },
         {
             "conversation_id": "4a48beda-d3f4-4c37-aa07-e5c50bd5bade",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "elderly_person",
             "risk_score": 52,
             "turns": 3,
@@ -10314,8 +10314,8 @@
         },
         {
             "conversation_id": "97a499a3-e24a-410d-8ddf-024ebe42931e",
-            "scam_type": "unknown",
-            "scam_label": "Non classifié",
+            "scam_type": "UNKNOWN",
+            "scam_label": "Unclassified",
             "persona": "confused_user",
             "risk_score": 100,
             "turns": 3,

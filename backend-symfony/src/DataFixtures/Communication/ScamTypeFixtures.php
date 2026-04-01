@@ -21,9 +21,9 @@ class ScamTypeFixtures extends Fixture
         // Create scam types with Sprint 3 structure
         $scamTypes = [
             [
-                'code' => 'unknown',
-                'label' => 'Non classifié',
-                'description' => 'Type de scam non identifié',
+                'code' => 'UNKNOWN',
+                'label' => 'Unclassified',
+                'description' => 'Unidentified scam type',
                 'misp_taxonomy' => 'rsit:fraud="other"',
                 'attck_technique' => null,
                 'active' => true,
