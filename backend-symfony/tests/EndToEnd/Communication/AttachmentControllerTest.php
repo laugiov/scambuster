@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\EndToEnd\Communication;
 
+use App\Domain\Communication\Attachment;
+use App\Domain\Communication\Message;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 class AttachmentControllerTest extends WebTestCase
@@ -18,13 +20,42 @@ class AttachmentControllerTest extends WebTestCase
         return $data['access_token'] ?? '';
     }
 
+    /**
+     * Create a fresh test attachment to avoid cross-test pollution.
+     */
+    private function createTestAttachment($em): Attachment
+    {
+        $msg = $em->getRepository(Message::class)->findOneBy([]);
+        $this->assertNotNull($msg, 'At least one message must exist in fixtures');
+
+        $att = new Attachment(
+            sprintf('%08x-%04x-%04x-%04x-%012x', random_int(0, 0xFFFFFFFF), random_int(0, 0xFFFF), random_int(0, 0x0FFF) | 0x4000, random_int(0, 0x3FFF) | 0x8000, random_int(0, 0xFFFFFFFFFFFF)),
+            $msg,
+            'e2e-test-file.pdf',
+            'application/pdf',
+            1234,
+            bin2hex(random_bytes(32)),
+            'attachments/e2e-test-file.pdf',
+            null,
+            'pending',
+            null,
+            null,
+            new \DateTimeImmutable(),
+            null
+        );
+        $em->persist($att);
+        $em->flush();
+
+        return $att;
+    }
+
     public function testDeleteAttachment(): void
     {
         $client = static::createClient();
         $jwt = $this->getValidJwt($client);
         $em = $client->getContainer()->get('doctrine')->getManager();
-        $att = $em->getRepository('App\\Domain\\Communication\\Attachment')->findOneBy([]);
-        $this->assertNotNull($att);
+        $att = $this->createTestAttachment($em);
+
         $client->request('DELETE', '/api/v1/communication/attachment/' . $att->getAttachmentId(), [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt
         ]);
@@ -48,8 +79,8 @@ class AttachmentControllerTest extends WebTestCase
         $client = static::createClient();
         $jwt = $this->getValidJwt($client);
         $em = $client->getContainer()->get('doctrine')->getManager();
-        $att = $em->getRepository('App\\Domain\\Communication\\Attachment')->findOneBy([]);
-        $this->assertNotNull($att);
+        $att = $this->createTestAttachment($em);
+
         $client->request('GET', '/api/v1/communication/attachment/' . $att->getAttachmentId() . '/download', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt
         ]);
@@ -73,14 +104,15 @@ class AttachmentControllerTest extends WebTestCase
         $client = static::createClient();
         $jwt = $this->getValidJwt($client);
         $em = $client->getContainer()->get('doctrine')->getManager();
-        $att = $em->getRepository('App\\Domain\\Communication\\Attachment')->findOneBy([]);
-        $this->assertNotNull($att);
-        // Soft-delete l'attachment
+        $att = $this->createTestAttachment($em);
+
+        // Soft-delete the attachment
         $reflection = new \ReflectionObject($att);
         $prop = $reflection->getProperty('deletedAt');
         $prop->setAccessible(true);
         $prop->setValue($att, new \DateTimeImmutable('-1 minute'));
         $em->flush();
+
         $client->request('GET', '/api/v1/communication/attachment/' . $att->getAttachmentId() . '/download', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt
         ]);
@@ -120,7 +152,6 @@ class AttachmentControllerTest extends WebTestCase
         $msg = $em->getRepository('App\\Domain\\Communication\\Message')->findOneBy([]);
         $this->assertNotNull($msg);
         $conv = $msg->getConversation();
-        // Upload 2 attachments
         for ($i = 1; $i <= 2; $i++) {
             $tmpFile = tempnam(sys_get_temp_dir(), 'att');
             file_put_contents($tmpFile, 'file' . $i);
@@ -138,7 +169,6 @@ class AttachmentControllerTest extends WebTestCase
                 'Expected 201 or 200 for attachment upload.'
             );
         }
-        // Vérifie qu'elles sont listées
         $client->request('GET', '/api/v1/communication/attachment/conversation/' . $conv->getConvId() . '/attachments', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt
         ]);
@@ -148,4 +178,4 @@ class AttachmentControllerTest extends WebTestCase
         $this->assertContains('test1.txt', $filenames);
         $this->assertContains('test2.txt', $filenames);
     }
-} 
+}
