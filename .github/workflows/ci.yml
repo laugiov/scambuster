@@ -52,6 +52,14 @@ jobs:
           CONVERSATION_HISTORY_EXCLUDED_EMAILS=noreply@example.com
           APP_API_BASE_URL=http://localhost:8080
           N8N_ENCRYPTION_KEY=ci-test-n8n-key
+          MAILER_DSN=null://null
+          SCAMBUSTER_SAFE_DOMAINS=*
+          SCAMBUSTER_API_URL=http://backend-dev:8080
+          HONEYPOT_IMAP_HOST=imap.gmail.com
+          HONEYPOT_IMAP_USER=test@example.com
+          HONEYPOT_IMAP_PASSWORD=testpass
+          REPLY_HISTORY_LAST_N=5
+          SIEM_PROVIDER=none
           EOF
           sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
@@ -113,6 +121,14 @@ jobs:
           CONVERSATION_HISTORY_EXCLUDED_EMAILS=noreply@example.com
           APP_API_BASE_URL=http://localhost:8080
           N8N_ENCRYPTION_KEY=ci-test-n8n-key
+          MAILER_DSN=null://null
+          SCAMBUSTER_SAFE_DOMAINS=*
+          SCAMBUSTER_API_URL=http://backend-dev:8080
+          HONEYPOT_IMAP_HOST=imap.gmail.com
+          HONEYPOT_IMAP_USER=test@example.com
+          HONEYPOT_IMAP_PASSWORD=testpass
+          REPLY_HISTORY_LAST_N=5
+          SIEM_PROVIDER=none
           EOF
           sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
@@ -174,6 +190,14 @@ jobs:
           CONVERSATION_HISTORY_EXCLUDED_EMAILS=noreply@example.com
           APP_API_BASE_URL=http://localhost:8080
           N8N_ENCRYPTION_KEY=ci-test-n8n-key
+          MAILER_DSN=null://null
+          SCAMBUSTER_SAFE_DOMAINS=*
+          SCAMBUSTER_API_URL=http://backend-dev:8080
+          HONEYPOT_IMAP_HOST=imap.gmail.com
+          HONEYPOT_IMAP_USER=test@example.com
+          HONEYPOT_IMAP_PASSWORD=testpass
+          REPLY_HISTORY_LAST_N=5
+          SIEM_PROVIDER=none
           ENVEOF
           sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
@@ -317,6 +341,14 @@ jobs:
           CONVERSATION_HISTORY_EXCLUDED_EMAILS=noreply@example.com
           APP_API_BASE_URL=http://localhost:8080
           N8N_ENCRYPTION_KEY=ci-test-n8n-key
+          MAILER_DSN=null://null
+          SCAMBUSTER_SAFE_DOMAINS=*
+          SCAMBUSTER_API_URL=http://backend-dev:8080
+          HONEYPOT_IMAP_HOST=imap.gmail.com
+          HONEYPOT_IMAP_USER=test@example.com
+          HONEYPOT_IMAP_PASSWORD=testpass
+          REPLY_HISTORY_LAST_N=5
+          SIEM_PROVIDER=none
           ENVEOF
           sed -i 's/^[[:space:]]*//' .env
 
