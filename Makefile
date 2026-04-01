@@ -282,19 +282,15 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 	$(MAKE) reset-db
 	$(MAKE) fixtures-dev
 	@echo ""
-	@echo "Step 4/5: Generating JWT keys..."
-	@if [ ! -f backend-symfony/config/jwt/private.pem ]; then \
-		$(DC) exec backend-dev sh -c ' \
-			mkdir -p /app/config/jwt && \
-			openssl genpkey -algorithm RSA -out /app/config/jwt/private.pem \
-				-aes-256-cbc -pass "pass:$$JWT_PASSPHRASE" -pkeyopt rsa_keygen_bits:2048 2>/dev/null && \
-			openssl rsa -in /app/config/jwt/private.pem -pubout -out /app/config/jwt/public.pem \
-				-passin "pass:$$JWT_PASSPHRASE" 2>/dev/null && \
-			chmod 600 /app/config/jwt/private.pem && \
-			echo "  JWT keys generated."' ; \
-	else \
-		echo "  JWT keys already exist — skipping." ; \
-	fi
+	@echo "Step 4/5: Generating JWT keys (always regenerated to match current passphrase)..."
+	@chmod -f 777 backend-symfony/config/jwt/*.pem 2>/dev/null || true
+	@$(DC) exec backend-dev sh -c ' \
+		mkdir -p /app/config/jwt && \
+		openssl genpkey -algorithm RSA -out /app/config/jwt/private.pem \
+			-aes-256-cbc -pass "pass:$$JWT_PASSPHRASE" -pkeyopt rsa_keygen_bits:2048 2>/dev/null && \
+		openssl rsa -in /app/config/jwt/private.pem -pubout -out /app/config/jwt/public.pem \
+			-passin "pass:$$JWT_PASSPHRASE" 2>/dev/null && \
+		echo "  JWT keys generated."'
 	@echo ""
 	@echo "Step 5/5: Configuring n8n (admin account, workflows, credentials)..."
 	$(DC) up -d --force-recreate n8n
