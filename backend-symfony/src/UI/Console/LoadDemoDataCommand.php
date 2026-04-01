@@ -203,6 +203,7 @@ class LoadDemoDataCommand extends Command
                     // IOCs (inbound only)
                     /** @var list<array<string, mixed>> $iocsExtracted */
                     $iocsExtracted = (array) ($msg['iocs_extracted'] ?? []);
+
                     foreach ($iocsExtracted as $j => $ioc) {
                         /** @var array<string, mixed> $ioc */
                         $obsId = $this->generateUuid();
@@ -232,6 +233,7 @@ class LoadDemoDataCommand extends Command
             // ─── 2. LLM Usage ───
             /** @var list<array<string, mixed>> $llmRecords */
             $llmRecords = (array) ($dataset['llm_usage'] ?? []);
+
             foreach ($llmRecords as $usage) {
                 /** @var array<string, mixed> $usage */
                 $this->connection->insert('llm_usage', [
@@ -250,6 +252,7 @@ class LoadDemoDataCommand extends Command
             // ─── 3. Persona Performance Stats (UPSERT) ───
             /** @var list<array<string, mixed>> $perfRecords */
             $perfRecords = (array) ($dataset['persona_performance_stats'] ?? []);
+
             foreach ($perfRecords as $stat) {
                 /** @var array<string, mixed> $stat */
                 $personaId = $personas[(string) ($stat['persona_code'] ?? '')] ?? null;
@@ -277,6 +280,7 @@ class LoadDemoDataCommand extends Command
             // ─── 4. Convergence Logs ───
             /** @var list<array<string, mixed>> $convLogs */
             $convLogs = (array) ($dataset['convergence_logs'] ?? []);
+
             foreach ($convLogs as $log) {
                 /** @var array<string, mixed> $log */
                 $this->connection->insert('bandit_convergence_log', [
@@ -293,6 +297,7 @@ class LoadDemoDataCommand extends Command
             // ─── 5. Campaigns ───
             /** @var list<array<string, mixed>> $campaigns */
             $campaigns = (array) ($dataset['campaigns'] ?? []);
+
             foreach ($campaigns as $campaign) {
                 /** @var array<string, mixed> $campaign */
                 /** @var list<array<string, mixed>> $matchedMsgs */
@@ -318,6 +323,7 @@ class LoadDemoDataCommand extends Command
                 $campaignId = (string) ($campaign['campaign_id'] ?? '');
                 /** @var list<array<string, mixed>> $rules */
                 $rules = (array) ($campaign['rules'] ?? []);
+
                 foreach ($rules as $rule) {
                     /** @var array<string, mixed> $rule */
                     $this->connection->insert('campaign_rule', [
