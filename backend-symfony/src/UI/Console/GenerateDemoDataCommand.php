@@ -809,7 +809,7 @@ class GenerateDemoDataCommand extends Command
                 $logs[] = [
                     'scam_type_code' => $scamType,
                     'dominant_persona_code' => $dominant['persona_code'],
-                    'dominant_pct' => round($pct, 2),
+                    'dominant_pct' => round($pct / 100, 4),
                     'sessions_count' => $sessions,
                     'converged' => $converged,
                     'logged_at' => date('Y-m-d H:i:s', $ts),
