@@ -527,7 +527,7 @@ class ConversationServiceTest extends KernelTestCase
     public function testUpdateConversationScamType(): void
     {
         $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
-        $scamTypeUnknown = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'unknown']);
+        $scamTypeUnknown = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'UNKNOWN']);
         // Sprint 3: Scam type codes are uppercase
         $scamTypeRomance = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'ROMANCE']);
         $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
@@ -549,7 +549,7 @@ class ConversationServiceTest extends KernelTestCase
             'stix-scam-type-update-test'
         );
 
-        $this->assertSame('unknown', $conv->getScamType()->getCode());
+        $this->assertSame('UNKNOWN', $conv->getScamType()->getCode());
 
         // Update to 'romance' scam type
         $result = $this->service->patchConversation($conv->getConvId(), [

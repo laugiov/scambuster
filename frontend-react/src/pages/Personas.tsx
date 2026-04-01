@@ -17,6 +17,15 @@ export function Personas() {
   const { data: stats } = useAutonomyStats();
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
 
+  // Close panel on Escape key — must be before any early return (rules of hooks)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedCode(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   if (isLoading) return <Loading message={t('personas.loading')} />;
   if (error) return <ErrorMessage message={t('personas.failedLoad')} onRetry={() => void refetch()} />;
 
@@ -29,15 +38,6 @@ export function Personas() {
     : null;
 
   const selectedPersona = safePersonas.find((p) => p.persona_code === selectedCode) ?? null;
-
-  // Close panel on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSelectedCode(null);
-    };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   return (
     <div className="space-y-6">

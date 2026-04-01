@@ -410,6 +410,7 @@ final class ReplyController
             if (str_contains($message, 'not found')) {
                 return new JsonResponse(['error' => $message], Response::HTTP_NOT_FOUND);
             }
+
             if (str_contains($message, 'Safety checks') || str_contains($message, 'non-outbound')) {
                 return new JsonResponse(['error' => $message], Response::HTTP_UNPROCESSABLE_ENTITY);
             }

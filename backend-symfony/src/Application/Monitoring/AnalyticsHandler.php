@@ -70,11 +70,13 @@ final class AnalyticsHandler
         $closedRows = $this->connection->fetchAllAssociative($sqlClosed);
 
         $openedByDate = [];
+
         foreach ($openedRows as $row) {
             $openedByDate[self::rowStr($row, 'date')] = self::rowInt($row, 'opened');
         }
 
         $closedByDate = [];
+
         foreach ($closedRows as $row) {
             $closedByDate[self::rowStr($row, 'date')] = self::rowInt($row, 'closed');
         }
@@ -179,6 +181,7 @@ final class AnalyticsHandler
         $endDate = new \DateTimeImmutable('today');
 
         $costByDate = [];
+
         foreach ($rows as $row) {
             $costByDate[self::rowStr($row, 'date')] = round(self::rowFloat($row, 'cost_usd'), 6);
         }
@@ -224,6 +227,7 @@ final class AnalyticsHandler
         $rows = $this->connection->fetchAllAssociative($sql);
 
         $byDate = [];
+
         foreach ($rows as $row) {
             $byDate[self::rowStr($row, 'date')] = [
                 'approved' => self::rowInt($row, 'approved'),
@@ -313,33 +317,33 @@ final class AnalyticsHandler
 
         // Conversations
         $currentConvs = $this->fetchInt(
-            "SELECT COUNT(*) FROM conversation WHERE ts_first >= :start AND deleted_at IS NULL",
+            'SELECT COUNT(*) FROM conversation WHERE ts_first >= :start AND deleted_at IS NULL',
             ['start' => $thisWeekStart],
         );
         $previousConvs = $this->fetchInt(
-            "SELECT COUNT(*) FROM conversation WHERE ts_first >= :start AND ts_first < :end AND deleted_at IS NULL",
+            'SELECT COUNT(*) FROM conversation WHERE ts_first >= :start AND ts_first < :end AND deleted_at IS NULL',
             ['start' => $lastWeekStart, 'end' => $thisWeekStart],
         );
         $trends[] = $this->buildTrend('conversations', $currentConvs, $previousConvs);
 
         // IOCs
         $currentIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM observed_ioc WHERE ts_observed >= :start",
+            'SELECT COUNT(*) FROM observed_ioc WHERE ts_observed >= :start',
             ['start' => $thisWeekStart],
         );
         $previousIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM observed_ioc WHERE ts_observed >= :start AND ts_observed < :end",
+            'SELECT COUNT(*) FROM observed_ioc WHERE ts_observed >= :start AND ts_observed < :end',
             ['start' => $lastWeekStart, 'end' => $thisWeekStart],
         );
         $trends[] = $this->buildTrend('iocs', $currentIocs, $previousIocs);
 
         // Replies
         $currentReplies = $this->fetchInt(
-            "SELECT COUNT(*) FROM message WHERE direction = 4 AND ts_msg >= :start",
+            'SELECT COUNT(*) FROM message WHERE direction = 4 AND ts_msg >= :start',
             ['start' => $thisWeekStart],
         );
         $previousReplies = $this->fetchInt(
-            "SELECT COUNT(*) FROM message WHERE direction = 4 AND ts_msg >= :start AND ts_msg < :end",
+            'SELECT COUNT(*) FROM message WHERE direction = 4 AND ts_msg >= :start AND ts_msg < :end',
             ['start' => $lastWeekStart, 'end' => $thisWeekStart],
         );
         $trends[] = $this->buildTrend('replies', $currentReplies, $previousReplies);
@@ -367,6 +371,7 @@ final class AnalyticsHandler
     private function fillMissingDays(array $rows, int $days, array $defaults): array
     {
         $byDate = [];
+
         foreach ($rows as $row) {
             $byDate[self::rowStr($row, 'date')] = $row;
         }
@@ -380,6 +385,7 @@ final class AnalyticsHandler
 
             if (isset($byDate[$dateStr])) {
                 $entry = ['date' => $dateStr];
+
                 foreach ($defaults as $key => $default) {
                     $entry[$key] = isset($byDate[$dateStr][$key]) ? self::rowInt($byDate[$dateStr], $key) : $default;
                 }
@@ -444,6 +450,7 @@ final class AnalyticsHandler
     private function buildTrend(string $metric, float|int $current, float|int $previous): array
     {
         $deltaPct = null;
+
         if ($previous > 0) {
             $deltaPct = round(($current - $previous) / $previous * 100, 1);
         }

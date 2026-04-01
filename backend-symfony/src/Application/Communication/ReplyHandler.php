@@ -489,6 +489,7 @@ class ReplyHandler
         // Fix: if "from" is not a valid email (e.g., IMAP hostname stored during ingestion),
         // resolve it from the parent inbound message's "to" (= the honeypot address)
         $fromStr = \is_string($from) ? $from : '';
+
         if ($fromStr === '' || !str_contains($fromStr, '@')) {
             $parentHeaders = $parent->getHeaders();
             $from = $parentHeaders['to'] ?? $parentHeaders['delivered-to'] ?? $from;
@@ -867,12 +868,15 @@ class ReplyHandler
         // Check safety — but skip cadence check (n8n human delay already handles timing)
         /** @var array{safelist_ok: bool, kill_switch_off: bool, cadence_ok: bool, conversation_open: bool} $checks */
         $checks = $compose['checks'];
+
         if (!$checks['safelist_ok']) {
             throw new \RuntimeException('Safety checks failed: recipient not in safelist');
         }
+
         if (!$checks['kill_switch_off']) {
             throw new \RuntimeException('Safety checks failed: kill switch is active');
         }
+
         if (!$checks['conversation_open']) {
             throw new \RuntimeException('Safety checks failed: conversation is not open');
         }
@@ -891,6 +895,7 @@ class ReplyHandler
         if (!empty($compose['in_reply_to'])) {
             $email->getHeaders()->addIdHeader('In-Reply-To', $compose['in_reply_to']);
         }
+
         if (!empty($compose['references'])) {
             $email->getHeaders()->addTextHeader('References', $compose['references']);
         }
@@ -906,6 +911,7 @@ class ReplyHandler
         if ($bodyHtml) {
             $email->html($bodyHtml);
         }
+
         if ($bodyText) {
             $email->text($bodyText);
         }
