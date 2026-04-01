@@ -30,7 +30,7 @@ class MessageIocExtractionTest extends WebTestCase
 
         // Get required entities
         $channel = $em->getRepository(\App\Domain\Communication\Channel::class)->findOneBy([]);
-        $scamType = $em->getRepository(\App\Domain\Communication\ScamType::class)->findOneBy(['code' => 'unknown']);
+        $scamType = $em->getRepository(\App\Domain\Communication\ScamType::class)->findOneBy(['code' => 'UNKNOWN']);
         $account = $em->getRepository(\App\Domain\Communication\MailAccount::class)->findOneBy([]);
 
         // Create conversation first

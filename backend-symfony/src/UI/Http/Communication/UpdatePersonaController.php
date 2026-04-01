@@ -112,6 +112,7 @@ final class UpdatePersonaController extends AbstractController
             if (mb_strlen($prompt) < self::MIN_PROMPT_LENGTH) {
                 $errors[] = 'system_prompt must be at least ' . self::MIN_PROMPT_LENGTH . ' characters';
             }
+
             if (mb_strlen($prompt) > self::MAX_PROMPT_LENGTH) {
                 $errors[] = 'system_prompt must be at most ' . self::MAX_PROMPT_LENGTH . ' characters';
             }
