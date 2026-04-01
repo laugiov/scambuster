@@ -82,6 +82,7 @@ This single command:
 - Installs backend dependencies
 - Creates and migrates the database
 - Loads fixture data (users, personas, scam types)
+- Loads demo dataset (150 conversations, 876 IOCs, 5 campaigns — all screens populated)
 - Generates JWT authentication keys
 - Creates the n8n admin account automatically
 - Imports and configures all n8n workflows

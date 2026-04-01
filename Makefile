@@ -230,9 +230,9 @@ fixtures-dev: ##@fixtures Load Doctrine fixtures in DEV env
 close-stale: ##@scambaiting Close stale conversations (default: 7 days, use d= to override)
 	$(CONSOLE_DEV) app:close-stale-conversations $(if $(d),--days=$(d),)
 
-demo-load: ##@demo Load demo dataset (123 conversations, no API key needed)
+demo-load: ##@demo Load demo dataset (150 conversations, all screens populated, no API key needed)
 	cp scambuster-dataset-sample.json backend-symfony/scambuster-dataset-sample.json
-	$(CONSOLE_DEV) scambuster:demo:load
+	$(CONSOLE_DEV) scambuster:demo:load --purge
 	rm -f backend-symfony/scambuster-dataset-sample.json
 
 misp-test: ##@misp Test MISP connection
@@ -268,21 +268,24 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 	@echo "║       ScamBuster — Quickstart                ║"
 	@echo "╚══════════════════════════════════════════════╝"
 	@echo ""
-	@echo "Step 1/5: Cleaning previous state..."
+	@echo "Step 1/6: Cleaning previous state..."
 	@$(DC) down -v 2>/dev/null || true
 	@echo ""
-	@echo "Step 2/5: Preparing directories (permissions)..."
+	@echo "Step 2/6: Preparing directories (permissions)..."
 	@mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/config/jwt backend-symfony/public/bundles
 	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt backend-symfony/public/bundles 2>/dev/null || true
 	@echo ""
-	@echo "Step 3/5: Building, starting, installing dependencies, DB setup..."
+	@echo "Step 3/6: Building, starting, installing dependencies, DB setup..."
 	$(DC) up -d --build
 	$(MAKE) wait-healthy
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
 	$(MAKE) reset-db
 	$(MAKE) fixtures-dev
 	@echo ""
-	@echo "Step 4/5: Generating JWT keys and restarting backend..."
+	@echo "Step 4/6: Loading demo dataset (150 conversations, all screens)..."
+	$(MAKE) demo-load
+	@echo ""
+	@echo "Step 5/6: Generating JWT keys and restarting backend..."
 	@chmod -f 777 backend-symfony/config/jwt/*.pem 2>/dev/null || true
 	@$(DC) exec backend-dev sh -c ' \
 		mkdir -p /app/config/jwt && \
@@ -295,7 +298,7 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 	@$(DC) restart backend-dev > /dev/null 2>&1
 	@echo "  Backend restarted."
 	@echo ""
-	@echo "Step 5/5: Configuring n8n (admin account, workflows, credentials)..."
+	@echo "Step 6/6: Configuring n8n (admin account, workflows, credentials)..."
 	$(DC) up -d --force-recreate n8n
 	@echo "  Waiting for n8n init to complete (this takes ~30s)..."
 	@sleep 30

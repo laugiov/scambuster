@@ -167,7 +167,7 @@ final class AnalyticsHandler
                 DATE(m.ts_msg) as date,
                 COALESCE(SUM((m.headers->'pipeline_trace'->>'total_cost')::numeric), 0) as cost_usd
             FROM message m
-            WHERE m.direction = 4
+            WHERE m.direction = 2
               AND m.ts_msg > NOW() - INTERVAL '{$days} days'
               AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')
             GROUP BY DATE(m.ts_msg)
@@ -217,7 +217,7 @@ final class AnalyticsHandler
                 COUNT(*) FILTER (WHERE (m.headers->'pipeline_trace'->>'approved')::boolean = false
                     AND (m.headers->'pipeline_trace'->>'fallback_used')::boolean = false) as rejected
             FROM message m
-            WHERE m.direction = 4
+            WHERE m.direction = 2
               AND m.ts_msg > NOW() - INTERVAL '{$days} days'
               AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')
             GROUP BY DATE(m.ts_msg)
@@ -277,7 +277,7 @@ final class AnalyticsHandler
             (
                 SELECT 'reply_sent' as event_type, m.msg_id::text as ref_id, m.ts_msg as ts
                 FROM message m
-                WHERE m.direction = 4
+                WHERE m.direction = 2
                 ORDER BY m.ts_msg DESC
                 LIMIT {$limit}
             )
@@ -339,22 +339,22 @@ final class AnalyticsHandler
 
         // Replies
         $currentReplies = $this->fetchInt(
-            'SELECT COUNT(*) FROM message WHERE direction = 4 AND ts_msg >= :start',
+            'SELECT COUNT(*) FROM message WHERE direction = 2 AND ts_msg >= :start',
             ['start' => $thisWeekStart],
         );
         $previousReplies = $this->fetchInt(
-            'SELECT COUNT(*) FROM message WHERE direction = 4 AND ts_msg >= :start AND ts_msg < :end',
+            'SELECT COUNT(*) FROM message WHERE direction = 2 AND ts_msg >= :start AND ts_msg < :end',
             ['start' => $lastWeekStart, 'end' => $thisWeekStart],
         );
         $trends[] = $this->buildTrend('replies', $currentReplies, $previousReplies);
 
         // Cost
         $currentCost = $this->fetchFloat(
-            "SELECT COALESCE(SUM((headers->'pipeline_trace'->>'total_cost')::numeric), 0) FROM message WHERE direction = 4 AND ts_msg >= :start AND jsonb_exists(headers::jsonb, 'pipeline_trace')",
+            "SELECT COALESCE(SUM((headers->'pipeline_trace'->>'total_cost')::numeric), 0) FROM message WHERE direction = 2 AND ts_msg >= :start AND jsonb_exists(headers::jsonb, 'pipeline_trace')",
             ['start' => $thisWeekStart],
         );
         $previousCost = $this->fetchFloat(
-            "SELECT COALESCE(SUM((headers->'pipeline_trace'->>'total_cost')::numeric), 0) FROM message WHERE direction = 4 AND ts_msg >= :start AND ts_msg < :end AND jsonb_exists(headers::jsonb, 'pipeline_trace')",
+            "SELECT COALESCE(SUM((headers->'pipeline_trace'->>'total_cost')::numeric), 0) FROM message WHERE direction = 2 AND ts_msg >= :start AND ts_msg < :end AND jsonb_exists(headers::jsonb, 'pipeline_trace')",
             ['start' => $lastWeekStart, 'end' => $thisWeekStart],
         );
         $trends[] = $this->buildTrend('cost', round($currentCost, 4), round($previousCost, 4));

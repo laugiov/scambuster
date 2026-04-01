@@ -32,7 +32,7 @@ final class InjectionMonitoringHandler
                 COUNT(*) FILTER (WHERE injection_analysis IS NOT NULL AND (injection_analysis->>'risk_score')::numeric BETWEEN 20 AND 50) as medium_risk,
                 COUNT(*) FILTER (WHERE injection_analysis IS NOT NULL AND (injection_analysis->>'risk_score')::numeric < 20) as low_risk
             FROM message
-            WHERE direction = 3 AND ts_msg > NOW() - INTERVAL '{$days} days'
+            WHERE direction = 1 AND ts_msg > NOW() - INTERVAL '{$days} days'
         ");
 
         // Recent high-risk detections
@@ -45,7 +45,7 @@ final class InjectionMonitoringHandler
                 m.injection_analysis->>'risk_level' as risk_level,
                 m.injection_analysis->'patterns' as patterns
             FROM message m
-            WHERE m.direction = 3
+            WHERE m.direction = 1
               AND m.injection_analysis IS NOT NULL
               AND (m.injection_analysis->>'risk_score')::numeric > 30
               AND m.ts_msg > NOW() - INTERVAL '{$days} days'
