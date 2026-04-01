@@ -21,6 +21,8 @@
 
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
 
+> **Get started in 5 minutes**: [Quickstart Guide](docs/QUICKSTART.md) — `cp .env.dist .env` → edit 3 values → `make quickstart` → done.
+
 The project serves defensive security, fraud prevention, and applied research purposes (not offensive use). It extracts IOCs, maps campaigns, measures engagement effectiveness, and exports intelligence in STIX/MISP formats. All workflows are safety-gated, cost-aware, and fully auditable.
 
 This is an academic research project (Master's thesis, E-MSc Cybersecurity) exploring a novel intersection of conversational AI, game theory, and cyber threat intelligence.
