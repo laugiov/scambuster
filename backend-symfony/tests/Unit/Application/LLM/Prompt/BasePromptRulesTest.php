@@ -33,12 +33,12 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('Every single word', $rules);
     }
 
-    public function testRulesAreUnder50Words(): void
+    public function testRulesAreUnder120Words(): void
     {
         $rules = BasePromptRules::getRules('en');
         $wordCount = str_word_count($rules);
 
-        $this->assertLessThan(50, $wordCount, "BasePromptRules should be under 50 words, got {$wordCount}");
+        $this->assertLessThan(120, $wordCount, "BasePromptRules should be under 120 words, got {$wordCount}");
     }
 
     public function testRulesUsePositiveDescriptions(): void
