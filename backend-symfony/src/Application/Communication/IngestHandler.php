@@ -326,7 +326,8 @@ class IngestHandler
         if (!$conversation) {
             $this->logger->info('[IngestHandler] Creating new conversation');
 
-            $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'unknown']);
+            $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'unknown'])
+                ?? $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'UNKNOWN']);
 
             if (!$scamType) {
                 throw new \RuntimeException('Unknown scam_type');

@@ -42,8 +42,8 @@ class ScamTypeControllerTest extends WebTestCase
         $this->assertArrayHasKey('label', $data[0]);
 
         // Check that we have the expected scam types (Sprint 3 codes)
-        $codes = array_column($data, 'code');
-        $this->assertContains('unknown', $codes);
+        $codes = array_map('strtoupper', array_column($data, 'code'));
+        $this->assertContains('UNKNOWN', $codes);
         $this->assertContains('PHISH_CREDENTIALS', $codes);
         $this->assertContains('INVOICE_FRAUD', $codes);
     }
