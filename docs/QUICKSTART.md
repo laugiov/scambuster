@@ -91,11 +91,11 @@ This single command:
 **Expected output** (last lines):
 
 ```
-Step 7/7: Importing workflows, credentials, and activating...
-  [n8n-init] Imported (API): WF-INTAKE-EMAIL-V2
-  [n8n-init] Imported (API): WF-REPLY-GENERATE-V2
-  [n8n-init] Imported (API): WF-REPLY-SEND-v1
-  [n8n-init] Imported (API): WF-EXTRACT-AND-ENRICH-IOC
+Step 5/5: Configuring n8n (admin account, workflows, credentials)...
+  [n8n-init] Admin account created.
+  [n8n-init] Authenticated successfully.
+  [n8n-init] IMAP credential created.
+  [n8n-init] Workflow import done: 4 imported, 0 skipped.
   [n8n-init] ═══ Init complete ═══
 
 ╔══════════════════════════════════════════════╗
