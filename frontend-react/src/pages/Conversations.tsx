@@ -50,7 +50,7 @@ export function Conversations() {
         <div className="flex items-center gap-4">
           <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search by ID, scam type, persona..." ariaLabel="Search conversations" />
           <ExportCsvButton
-            data={filtered as Record<string, unknown>[]}
+            data={filtered as unknown as Record<string, unknown>[]}
             columns={[
               { key: 'conv_id', header: 'Conversation ID' },
               { key: 'status', header: 'Status' },
