@@ -32,19 +32,29 @@ cd scambuster
 cp .env.dist .env
 ```
 
-Open `.env` in your editor and fill in **only these 3 values**:
+Open `.env` in your editor and fill in these **4 values**:
 
 ```env
-# Your OpenAI API key
+# 1. Your OpenAI API key (https://platform.openai.com/api-keys)
 LLM_API_KEY=sk-proj-your-key-here
 
-# Your honeypot email (IMAP)
+# 2. Your honeypot email (IMAP — for receiving scam emails)
 HONEYPOT_IMAP_USER=your-honeypot@gmail.com
+
+# 3. Your email App Password (NOT your regular password)
 HONEYPOT_IMAP_PASSWORD=your-16-char-app-password
 
-# Your SMTP sending config (same email, same app password)
-# Note: @ in email must be written as %40
+# 4. Your SMTP sending config (same email, same App Password)
+#    Note: @ in email must be written as %40
 MAILER_DSN=smtps://your-honeypot%40gmail.com:your-app-password@smtp.gmail.com:465
+```
+
+**Example** (Gmail with App Password `abcdefghijklmnop`):
+```env
+LLM_API_KEY=sk-proj-abc123...
+HONEYPOT_IMAP_USER=my-honeypot@gmail.com
+HONEYPOT_IMAP_PASSWORD=abcdefghijklmnop
+MAILER_DSN=smtps://my-honeypot%40gmail.com:abcdefghijklmnop@smtp.gmail.com:465
 ```
 
 **Provider-specific IMAP settings** (if not using Gmail):
@@ -55,9 +65,11 @@ MAILER_DSN=smtps://your-honeypot%40gmail.com:your-app-password@smtp.gmail.com:46
 | Outlook | `outlook.office365.com` | `smtp://user%40outlook.com:pass@smtp.office365.com:587` |
 | Yahoo | `imap.mail.yahoo.com` | `smtps://user%40yahoo.com:apppass@smtp.mail.yahoo.com:465` |
 
-For Outlook/Yahoo, also change `HONEYPOT_IMAP_HOST` in `.env`.
+For Outlook/Yahoo, also update `HONEYPOT_IMAP_HOST` in `.env` (default is `imap.gmail.com`).
 
 Everything else works out of the box with sensible defaults.
+
+> **No OpenAI key?** Set `LLM_PROVIDER=mock` in `.env` to run without an API key (replies will be synthetic). You can load sample data with `make demo-load` after setup.
 
 ### 3. Launch ScamBuster
 
@@ -79,6 +91,13 @@ This single command:
 **Expected output** (last lines):
 
 ```
+Step 7/7: Importing workflows, credentials, and activating...
+  [n8n-init] Imported (API): WF-INTAKE-EMAIL-V2
+  [n8n-init] Imported (API): WF-REPLY-GENERATE-V2
+  [n8n-init] Imported (API): WF-REPLY-SEND-v1
+  [n8n-init] Imported (API): WF-EXTRACT-AND-ENRICH-IOC
+  [n8n-init] ═══ Init complete ═══
+
 ╔══════════════════════════════════════════════╗
 ║       ScamBuster is ready!                    ║
 ╚══════════════════════════════════════════════╝
@@ -88,6 +107,8 @@ Interfaces:
   Backend:    http://localhost:8081/api/doc
   n8n:        http://localhost:5678
     Login:    admin@scambuster.local / (see .env)
+
+Verify:  make doctor
 ```
 
 **Typical duration**: ~90 seconds (first run with Docker image cache).
