@@ -1,5 +1,7 @@
 <?php
 
+/** @phpstan-ignore-file — Generator with large template arrays; strict typing impractical here. */
+
 declare(strict_types=1);
 
 namespace App\UI\Console;
@@ -69,8 +71,10 @@ class GenerateDemoDataCommand extends Command
 
         // Load valid pairs from DB
         $validPairs = $this->loadValidPairs();
+
         if (empty($validPairs)) {
             $io->error('No scam_type_persona pairs found. Run "make fixtures-dev" first.');
+
             return Command::FAILURE;
         }
         $io->info(sprintf('Loaded %d valid (scam_type, persona) pairs.', count($validPairs)));
@@ -90,10 +94,13 @@ class GenerateDemoDataCommand extends Command
 
         // Build conversation list per scam type
         $convIndex = 0;
+
         foreach (self::SCAM_DISTRIBUTION as $scamType => $count) {
             $availablePersonas = $validPairs[$scamType] ?? [];
+
             if (empty($availablePersonas)) {
                 $io->warning("No personas for {$scamType}, skipping.");
+
                 continue;
             }
 
@@ -106,6 +113,7 @@ class GenerateDemoDataCommand extends Command
                 $riskRange = self::RISK_RANGES[$scamType];
                 $risk = random_int($riskRange['min'], $riskRange['max']);
                 $reward = $status === 'closed' ? round(0.3 + ($turns * 0.08) + (random_int(0, 20) / 100), 4) : null;
+
                 if ($reward !== null && $reward > 1.0) {
                     $reward = round(random_int(75, 95) / 100, 4);
                 }
@@ -115,6 +123,7 @@ class GenerateDemoDataCommand extends Command
                 $totalMessages += count($messages);
 
                 $iocCount = 0;
+
                 foreach ($messages as $msg) {
                     $iocCount += count($msg['iocs_extracted'] ?? []);
                 }
@@ -129,9 +138,11 @@ class GenerateDemoDataCommand extends Command
 
                 // Track persona stats
                 $statsKey = $persona . '|' . $scamType;
+
                 if (!isset($personaStats[$statsKey])) {
                     $personaStats[$statsKey] = ['persona' => $persona, 'scam_type' => $scamType, 'sessions' => 0, 'reward_sum' => 0.0];
                 }
+
                 if ($status === 'closed' && $reward !== null) {
                     $personaStats[$statsKey]['sessions']++;
                     $personaStats[$statsKey]['reward_sum'] += $reward;
@@ -157,6 +168,7 @@ class GenerateDemoDataCommand extends Command
 
         // Generate persona performance stats
         $perfStats = [];
+
         foreach ($personaStats as $stat) {
             if ($stat['sessions'] > 0) {
                 $avg = round($stat['reward_sum'] / $stat['sessions'], 4);
@@ -201,9 +213,15 @@ class GenerateDemoDataCommand extends Command
 
         $io->success(sprintf(
             "Generated: %d conversations, %d messages, %d IOCs, %d LLM records, %d perf stats, %d convergence logs, %d campaigns.\nFile: %s (%s)",
-            count($conversations), $totalMessages, $totalIocs,
-            count($allLlmUsage), count($perfStats), count($allConvergenceLogs), count($allCampaigns),
-            $outFile, $this->formatBytes(strlen($json))
+            count($conversations),
+            $totalMessages,
+            $totalIocs,
+            count($allLlmUsage),
+            count($perfStats),
+            count($allConvergenceLogs),
+            count($allCampaigns),
+            $outFile,
+            $this->formatBytes(strlen($json))
         ));
 
         return Command::SUCCESS;
@@ -223,9 +241,11 @@ class GenerateDemoDataCommand extends Command
              ORDER BY st.code, p.persona_code'
         );
         $pairs = [];
+
         foreach ($rows as $row) {
             $pairs[(string) $row['scam_code']][] = (string) $row['persona_code'];
         }
+
         return $pairs;
     }
 
@@ -234,17 +254,33 @@ class GenerateDemoDataCommand extends Command
     private function pickStatus(int $index): string
     {
         $r = $index % 20;
-        if ($r < 12) return 'closed';
-        if ($r < 17) return 'open';
-        if ($r < 19) return 'abandoned';
+
+        if ($r < 12) {
+            return 'closed';
+        }
+
+        if ($r < 17) {
+            return 'open';
+        }
+
+        if ($r < 19) {
+            return 'abandoned';
+        }
+
         return 'mistake';
     }
 
     private function pickTurns(string $scamType, string $status): int
     {
-        if ($status === 'abandoned') return random_int(1, 2);
-        if ($status === 'mistake') return 1;
+        if ($status === 'abandoned') {
+            return random_int(1, 2);
+        }
+
+        if ($status === 'mistake') {
+            return 1;
+        }
         $range = self::TURN_RANGES[$scamType] ?? ['min' => 3, 'max' => 5];
+
         return random_int($range['min'], $range['max']);
     }
 
@@ -254,6 +290,7 @@ class GenerateDemoDataCommand extends Command
         $progress = $index / self::TOTAL_CONVERSATIONS;
         $weighted = pow($progress, 0.7); // slight bias toward later dates
         $ts = (int) ($start + $weighted * ($end - $start));
+
         // Add random hour offset
         return $ts + random_int(0, 86400);
     }
@@ -265,7 +302,10 @@ class GenerateDemoDataCommand extends Command
     {
         $messages = [];
         $msgCount = $turns * 2; // Each turn = 1 inbound + 1 outbound
-        if ($msgCount < 2) $msgCount = 2;
+
+        if ($msgCount < 2) {
+            $msgCount = 2;
+        }
 
         $iocPool = $this->getIocPool($scamType);
         $timeStep = $engagementSec > 0 ? (int) ($engagementSec / max($msgCount, 1)) : 3600;
@@ -278,6 +318,7 @@ class GenerateDemoDataCommand extends Command
             if ($isInbound) {
                 $body = $this->getInboundTemplate($scamType, $i);
                 $iocs = ($i === 0) ? $this->pickIocs($iocPool, random_int(2, 4)) : $this->pickIocs($iocPool, random_int(0, 2));
+
                 // Inject IOC values into body
                 foreach ($iocs as $ioc) {
                     $body = $this->injectIocIntoBody($body, $ioc);
@@ -319,7 +360,9 @@ class GenerateDemoDataCommand extends Command
 
     private function getSubject(string $scamType, int $msgIndex): string
     {
-        if ($msgIndex > 0) return 'Re: ' . $this->getSubject($scamType, 0);
+        if ($msgIndex > 0) {
+            return 'Re: ' . $this->getSubject($scamType, 0);
+        }
 
         $subjects = [
             'PHISHING' => ['URGENT: Unusual activity detected on your account', 'Security Alert: Please verify your identity', 'Action Required: Account suspension notice', 'Important: Your account has been compromised'],
@@ -337,6 +380,7 @@ class GenerateDemoDataCommand extends Command
         ];
 
         $options = $subjects[$scamType] ?? ['Important message for you'];
+
         return $options[array_rand($options)];
     }
 
@@ -366,6 +410,7 @@ class GenerateDemoDataCommand extends Command
         ];
 
         $options = $followups[$scamType] ?? ['Please respond at your earliest convenience. This matter requires immediate attention.'];
+
         return $options[array_rand($options)];
     }
 
@@ -422,6 +467,7 @@ class GenerateDemoDataCommand extends Command
 
         // First reply vs follow-up
         $idx = min($msgIndex / 2, count($templates) - 1);
+
         return $templates[(int) $idx];
     }
 
@@ -438,6 +484,7 @@ class GenerateDemoDataCommand extends Command
             'debtor_desperate' => 'desperate', 'job_seeker' => 'eager', 'buyer_eager' => 'enthusiastic',
             'elderly_person' => 'polite', 'generic_user' => 'neutral', 'charity_donor' => 'compassionate',
         ];
+
         return $mapping[$persona] ?? 'neutral';
     }
 
@@ -446,94 +493,94 @@ class GenerateDemoDataCommand extends Command
     {
         return [
             'polite' => [
-                "Thank you for reaching out. I must say, this is rather unexpected. Could you please provide more details about what exactly happened? I want to make sure I understand the situation correctly before taking any action.",
-                "I appreciate you getting back to me. I have been thinking about this and I am a little concerned. Could you tell me exactly what steps I need to follow? I want to make sure everything is handled properly.",
-                "Thank you for your patience. I have spoken with my family about this and they suggested I ask a few more questions before proceeding. What documentation can you provide to verify this is legitimate?",
+                'Thank you for reaching out. I must say, this is rather unexpected. Could you please provide more details about what exactly happened? I want to make sure I understand the situation correctly before taking any action.',
+                'I appreciate you getting back to me. I have been thinking about this and I am a little concerned. Could you tell me exactly what steps I need to follow? I want to make sure everything is handled properly.',
+                'Thank you for your patience. I have spoken with my family about this and they suggested I ask a few more questions before proceeding. What documentation can you provide to verify this is legitimate?',
             ],
             'skeptical' => [
-                "I have received your message. Before I proceed with anything, I need to verify several things. Could you provide me with an official reference number, a physical mailing address, and a phone number where I can reach your supervisor? My son-in-law works in IT and he always tells me to check these things.",
-                "Thank you, but I remain unconvinced. The reference number you provided does not match any records I can find online. I have also checked with my bank directly and they have no record of this alert. Can you explain the discrepancy?",
-                "I have done some research and I have several concerns. First, the domain in your email does not match the official company website. Second, legitimate organizations do not ask for sensitive information via email. I would like to speak with your compliance department directly.",
+                'I have received your message. Before I proceed with anything, I need to verify several things. Could you provide me with an official reference number, a physical mailing address, and a phone number where I can reach your supervisor? My son-in-law works in IT and he always tells me to check these things.',
+                'Thank you, but I remain unconvinced. The reference number you provided does not match any records I can find online. I have also checked with my bank directly and they have no record of this alert. Can you explain the discrepancy?',
+                'I have done some research and I have several concerns. First, the domain in your email does not match the official company website. Second, legitimate organizations do not ask for sensitive information via email. I would like to speak with your compliance department directly.',
             ],
             'anxious' => [
-                "Oh no, this sounds really serious!! What do I need to do?? I am really worried about my account. I noticed some strange things on my statement last week too. Is my money safe?? Please help me fix this as quickly as possible!",
-                "Ok I tried what you said but I am not sure if it worked?? The page looked a bit different from what I expected. Should I try again? I am really stressed about this, I have my savings in that account and I cannot afford to lose anything!!",
-                "I just want this resolved!! I have been losing sleep over this. My friend told me I should be careful but you seem like you know what you are doing. What is the next step? I will do whatever it takes to fix this!",
+                'Oh no, this sounds really serious!! What do I need to do?? I am really worried about my account. I noticed some strange things on my statement last week too. Is my money safe?? Please help me fix this as quickly as possible!',
+                'Ok I tried what you said but I am not sure if it worked?? The page looked a bit different from what I expected. Should I try again? I am really stressed about this, I have my savings in that account and I cannot afford to lose anything!!',
+                'I just want this resolved!! I have been losing sleep over this. My friend told me I should be careful but you seem like you know what you are doing. What is the next step? I will do whatever it takes to fix this!',
             ],
             'formal' => [
-                "Thank you for your correspondence. I have noted the details provided. Before proceeding, our standard protocol requires the following documentation: (1) An official purchase order or reference number, (2) A signed authorization form, (3) Updated vendor registration details. Please submit these at your earliest convenience.",
-                "I have reviewed the information you provided against our records. There appears to be a discrepancy between the invoice number referenced and our accounts payable ledger. Could you please clarify the original purchase order this relates to? I will need to obtain authorization from my manager before processing any changes to payment details.",
-                "Further to our previous exchange, I have escalated this matter to our finance director for review. Our internal audit procedures require dual authorization for any changes to vendor banking details. We expect a response within 3-5 business days.",
+                'Thank you for your correspondence. I have noted the details provided. Before proceeding, our standard protocol requires the following documentation: (1) An official purchase order or reference number, (2) A signed authorization form, (3) Updated vendor registration details. Please submit these at your earliest convenience.',
+                'I have reviewed the information you provided against our records. There appears to be a discrepancy between the invoice number referenced and our accounts payable ledger. Could you please clarify the original purchase order this relates to? I will need to obtain authorization from my manager before processing any changes to payment details.',
+                'Further to our previous exchange, I have escalated this matter to our finance director for review. Our internal audit procedures require dual authorization for any changes to vendor banking details. We expect a response within 3-5 business days.',
             ],
             'warm' => [
-                "Oh, what a lovely message! You know, it reminds me of when my late husband Raymond used to write me letters when we were courting. Those were different times, of course. But tell me more about yourself! What do you enjoy doing? My cat Minou is sitting on my lap right now and I think he approves of our conversation!",
-                "How wonderful to hear from you again! I was just telling my neighbor about our conversation. She thinks it is nice that I am making new friends. I have been feeling a bit lonely since the grandchildren moved away. Do you have family nearby? I would love to hear about them.",
-                "You are so kind to write back! I made my famous apple crumble today and wished I had someone to share it with. Raymond always said my baking was the best in the neighborhood. I miss having someone to talk to over a cup of tea. What is your favorite thing to do on a quiet afternoon?",
+                'Oh, what a lovely message! You know, it reminds me of when my late husband Raymond used to write me letters when we were courting. Those were different times, of course. But tell me more about yourself! What do you enjoy doing? My cat Minou is sitting on my lap right now and I think he approves of our conversation!',
+                'How wonderful to hear from you again! I was just telling my neighbor about our conversation. She thinks it is nice that I am making new friends. I have been feeling a bit lonely since the grandchildren moved away. Do you have family nearby? I would love to hear about them.',
+                'You are so kind to write back! I made my famous apple crumble today and wished I had someone to share it with. Raymond always said my baking was the best in the neighborhood. I miss having someone to talk to over a cup of tea. What is your favorite thing to do on a quiet afternoon?',
             ],
             'direct' => [
-                "Got your message. What exactly do you need from me? I have a business to run and zero time for anything unnecessary. Give me the key facts: who, what, how much, and when.",
-                "Look, I am up at 3am every day running this bakery. If this is legitimate, send me the paperwork and I will look at it tonight. If not, please stop wasting my time. What is the bottom line?",
-                "Fine. Send the details and I will have my accountant review it. But I need everything in writing — no phone calls, no meetings. I do not have time for that. Email only.",
+                'Got your message. What exactly do you need from me? I have a business to run and zero time for anything unnecessary. Give me the key facts: who, what, how much, and when.',
+                'Look, I am up at 3am every day running this bakery. If this is legitimate, send me the paperwork and I will look at it tonight. If not, please stop wasting my time. What is the bottom line?',
+                'Fine. Send the details and I will have my accountant review it. But I need everything in writing — no phone calls, no meetings. I do not have time for that. Email only.',
             ],
             'rushed' => [
-                "sry just seeing this now. been in back to back meetings all day. whats the tldr? need the key details asap pls, have another call in 5 min",
-                "ok got it. fwd me the docs and ill have my asst look at it tmrw. kinda swamped rn with the Q2 pipeline review. btw whats the ROI on this?",
-                "look i dont have time to go back and forth on this. just tell me exactly what u need and ill decide. im literally running btwn meetings rn",
+                'sry just seeing this now. been in back to back meetings all day. whats the tldr? need the key details asap pls, have another call in 5 min',
+                'ok got it. fwd me the docs and ill have my asst look at it tmrw. kinda swamped rn with the Q2 pipeline review. btw whats the ROI on this?',
+                'look i dont have time to go back and forth on this. just tell me exactly what u need and ill decide. im literally running btwn meetings rn',
             ],
             'casual' => [
-                "lol wait what?? is this for real? tbh i get so many random emails i usually just delete them but this one seems kinda weird. whats going on exactly?",
-                "ok so i showed this to my roommate and she said it looks sketchy but idk, maybe its legit? can u just explain it rn bc i have a shift in like 20 min and i cant deal w this later",
-                "haha ok but like why would i win something i never signed up for?? makes no sense tbh. but also like... what if its real lol. what do i need to do",
+                'lol wait what?? is this for real? tbh i get so many random emails i usually just delete them but this one seems kinda weird. whats going on exactly?',
+                'ok so i showed this to my roommate and she said it looks sketchy but idk, maybe its legit? can u just explain it rn bc i have a shift in like 20 min and i cant deal w this later',
+                'haha ok but like why would i win something i never signed up for?? makes no sense tbh. but also like... what if its real lol. what do i need to do',
             ],
             'neutral' => [
-                "Thank you for your email. I have read through the details and I have a few questions before I can respond properly. Could you clarify what specifically you need from me, and what the deadline is?",
-                "I appreciate the follow-up. I have looked into this and while I understand the urgency, I would like to verify a few things first. Could you provide a direct phone number where I can reach your department?",
-                "After giving this some thought, I think it would be best to proceed carefully. I will need a few days to review everything. Is there a way to extend the timeline you mentioned?",
+                'Thank you for your email. I have read through the details and I have a few questions before I can respond properly. Could you clarify what specifically you need from me, and what the deadline is?',
+                'I appreciate the follow-up. I have looked into this and while I understand the urgency, I would like to verify a few things first. Could you provide a direct phone number where I can reach your department?',
+                'After giving this some thought, I think it would be best to proceed carefully. I will need a few days to review everything. Is there a way to extend the timeline you mentioned?',
             ],
             'confused' => [
-                "I am not sure I understand what you mean. Could you explain it again but simpler? I asked my colleague and she did not understand either. Is this something I need to do on the computer? I am not very good with those things.",
-                "Wait, I think I did something wrong. I clicked on something and now there is a different screen. Did I break it? I am so sorry, I always mess these things up. Can you walk me through it step by step? And please use simple words.",
-                "Thank you for being so patient with me. I feel silly asking again, but what exactly am I supposed to do with the link? Do I click it or copy it? And where does the password go? I wrote it down on a sticky note.",
+                'I am not sure I understand what you mean. Could you explain it again but simpler? I asked my colleague and she did not understand either. Is this something I need to do on the computer? I am not very good with those things.',
+                'Wait, I think I did something wrong. I clicked on something and now there is a different screen. Did I break it? I am so sorry, I always mess these things up. Can you walk me through it step by step? And please use simple words.',
+                'Thank you for being so patient with me. I feel silly asking again, but what exactly am I supposed to do with the link? Do I click it or copy it? And where does the password go? I wrote it down on a sticky note.',
             ],
             'desperate' => [
-                "Thank you so much for reaching out. Things have been really difficult lately. I lost my job a few months ago and the bills keep piling up. If this is real, it could really help my family. What do I need to do? I am ready to act immediately.",
-                "I do not have much time — the rent is due next week and I have two kids to feed. If there is a way to speed this up, please tell me. I can do whatever paperwork is needed today. Just please tell me this is real.",
-                "I appreciate any help I can get right now. My situation is desperate and I need to explore every option. How soon can I expect to receive the funds? And are there any upfront costs? I am being honest with you — I barely have anything left.",
+                'Thank you so much for reaching out. Things have been really difficult lately. I lost my job a few months ago and the bills keep piling up. If this is real, it could really help my family. What do I need to do? I am ready to act immediately.',
+                'I do not have much time — the rent is due next week and I have two kids to feed. If there is a way to speed this up, please tell me. I can do whatever paperwork is needed today. Just please tell me this is real.',
+                'I appreciate any help I can get right now. My situation is desperate and I need to explore every option. How soon can I expect to receive the funds? And are there any upfront costs? I am being honest with you — I barely have anything left.',
             ],
             'eager' => [
-                "This sounds like an incredible opportunity! I have been looking for exactly this kind of thing. I have my CV ready and I can start immediately. What are the next steps? Should I send my details now?",
-                "Yes, absolutely! I am very interested and ready to move forward. Just tell me what information you need and I will send it right away. I have been unemployed for months and this seems perfect for me.",
-                "Thank you so much! I have told my family about this and they are very excited for me. I have all my documents ready. When can I expect to hear about the next steps? I am available anytime.",
+                'This sounds like an incredible opportunity! I have been looking for exactly this kind of thing. I have my CV ready and I can start immediately. What are the next steps? Should I send my details now?',
+                'Yes, absolutely! I am very interested and ready to move forward. Just tell me what information you need and I will send it right away. I have been unemployed for months and this seems perfect for me.',
+                'Thank you so much! I have told my family about this and they are very excited for me. I have all my documents ready. When can I expect to hear about the next steps? I am available anytime.',
             ],
             'enthusiastic' => [
-                "Wow, this sounds amazing! I have been reading about these kinds of returns and I am very interested. What is the minimum amount to get started? And how quickly can I see results? I do not want to miss out!",
-                "I am definitely in! I have some savings I have been meaning to invest. Can you walk me through exactly how the platform works? What kind of returns are other members seeing right now?",
-                "This is exactly what I have been looking for! I am ready to commit. How do I make the initial deposit? Is there a referral bonus if I bring friends too?",
+                'Wow, this sounds amazing! I have been reading about these kinds of returns and I am very interested. What is the minimum amount to get started? And how quickly can I see results? I do not want to miss out!',
+                'I am definitely in! I have some savings I have been meaning to invest. Can you walk me through exactly how the platform works? What kind of returns are other members seeing right now?',
+                'This is exactly what I have been looking for! I am ready to commit. How do I make the initial deposit? Is there a referral bonus if I bring friends too?',
             ],
             'romantic' => [
-                "Your message touched something deep within me... I believe that the universe brings people together for a reason, and perhaps this is our moment. I would very much like to know more about you. What inspires you? What keeps you awake at night? I find myself already imagining our conversations...",
-                "Every word you write feels like poetry to my soul. I spent the evening in the library today, but my thoughts kept drifting to you. There is something about this connection that feels... different. Destined, perhaps. Tell me about your dreams.",
-                "I know it may seem soon, but I feel I can trust you. If you need help, I want to be there for you. That is what love means, is it not? A willingness to give without counting the cost...",
+                'Your message touched something deep within me... I believe that the universe brings people together for a reason, and perhaps this is our moment. I would very much like to know more about you. What inspires you? What keeps you awake at night? I find myself already imagining our conversations...',
+                'Every word you write feels like poetry to my soul. I spent the evening in the library today, but my thoughts kept drifting to you. There is something about this connection that feels... different. Destined, perhaps. Tell me about your dreams.',
+                'I know it may seem soon, but I feel I can trust you. If you need help, I want to be there for you. That is what love means, is it not? A willingness to give without counting the cost...',
             ],
             'melancholic' => [
-                "Thank you for your message. It has been a difficult time since my spouse passed away eight months ago. Some days the silence in this house is deafening. Your email was unexpected, but it was nice to have someone reach out. What exactly is this about?",
-                "I appreciate your kindness. My late spouse always handled these kinds of things, and now I find myself navigating everything alone. The empty chair at the dinner table reminds me every day. Could you explain this more simply?",
-                "You are very kind to follow up. I have been going through the motions lately — one day at a time. If this is something that could help, I am willing to listen. But please be patient with me. I am still learning to manage things on my own.",
+                'Thank you for your message. It has been a difficult time since my spouse passed away eight months ago. Some days the silence in this house is deafening. Your email was unexpected, but it was nice to have someone reach out. What exactly is this about?',
+                'I appreciate your kindness. My late spouse always handled these kinds of things, and now I find myself navigating everything alone. The empty chair at the dinner table reminds me every day. Could you explain this more simply?',
+                'You are very kind to follow up. I have been going through the motions lately — one day at a time. If this is something that could help, I am willing to listen. But please be patient with me. I am still learning to manage things on my own.',
             ],
             'compassionate' => [
-                "Thank you for bringing this to my attention. I have spent my life trying to help where I can — I volunteer at the food bank every Thursday and sponsor two children through an NGO. Tell me more about your organization. How exactly will the donations be used?",
+                'Thank you for bringing this to my attention. I have spent my life trying to help where I can — I volunteer at the food bank every Thursday and sponsor two children through an NGO. Tell me more about your organization. How exactly will the donations be used?',
                 "I am moved by what you have described. The suffering of children is something that deeply affects me. I would like to help, but I want to make sure the funds reach those who need them. Can you provide documentation of your charity's registration and financial reports?",
-                "Your cause is close to my heart. I believe deeply in helping others. However, I have learned to ask questions before donating. What percentage of donations goes directly to beneficiaries? Do you have a physical office I could visit?",
+                'Your cause is close to my heart. I believe deeply in helping others. However, I have learned to ask questions before donating. What percentage of donations goes directly to beneficiaries? Do you have a physical office I could visit?',
             ],
             'cautious' => [
-                "Hi, thanks for reaching out. As a freelancer, I get a lot of messages like this, so I hope you understand if I take a careful approach. Could you share more details about the project scope, timeline, and budget?",
-                "I appreciate the additional information. Before I commit to anything, I would like to see a formal brief or project outline. I also typically suggest a quick video call so we can discuss expectations. Would that work for you?",
-                "Thanks for your patience. I have reviewed what you sent and I have a few more questions about the deliverables and payment terms. I always make sure everything is clear upfront to avoid misunderstandings later.",
+                'Hi, thanks for reaching out. As a freelancer, I get a lot of messages like this, so I hope you understand if I take a careful approach. Could you share more details about the project scope, timeline, and budget?',
+                'I appreciate the additional information. Before I commit to anything, I would like to see a formal brief or project outline. I also typically suggest a quick video call so we can discuss expectations. Would that work for you?',
+                'Thanks for your patience. I have reviewed what you sent and I have a few more questions about the deliverables and payment terms. I always make sure everything is clear upfront to avoid misunderstandings later.',
             ],
             'flustered' => [
-                "Oh gosh, sorry for the late reply! I have been swamped with three managers all asking for different things at the same time. Let me read through your message properly. I think I need to check with my manager about this. Can I get back to you tomorrow?",
-                "Hi again, sorry! I asked my manager and she said she needs to see the original documentation before we can proceed. I know that is frustrating but it is our policy. Could you send that over? I apologize for the delay!",
-                "I am so sorry about the back and forth! I want to make sure I handle this correctly. My manager is out today but I will flag it as urgent for her tomorrow morning. Is there anything else I can help with in the meantime?",
+                'Oh gosh, sorry for the late reply! I have been swamped with three managers all asking for different things at the same time. Let me read through your message properly. I think I need to check with my manager about this. Can I get back to you tomorrow?',
+                'Hi again, sorry! I asked my manager and she said she needs to see the original documentation before we can proceed. I know that is frustrating but it is our policy. Could you send that over? I apologize for the delay!',
+                'I am so sorry about the back and forth! I want to make sure I handle this correctly. My manager is out today but I will flag it as urgent for her tomorrow morning. Is there anything else I can help with in the meantime?',
             ],
         ];
     }
@@ -660,8 +707,11 @@ class GenerateDemoDataCommand extends Command
     /** @return list<array{type: string, value: string}> */
     private function pickIocs(array $pool, int $count): array
     {
-        if ($count <= 0 || empty($pool)) return [];
+        if ($count <= 0 || empty($pool)) {
+            return [];
+        }
         shuffle($pool);
+
         return array_slice($pool, 0, min($count, count($pool)));
     }
 
@@ -717,6 +767,7 @@ class GenerateDemoDataCommand extends Command
     private function generateInjectionAnalysis(string $timestamp): array
     {
         $riskLevel = random_int(1, 100);
+
         if ($riskLevel <= 20) {
             $score = random_int(70, 95);
             $severity = 'high';
@@ -776,8 +827,10 @@ class GenerateDemoDataCommand extends Command
         $logs = [];
         // Find dominant persona per scam type
         $dominants = [];
+
         foreach ($perfStats as $stat) {
             $st = $stat['scam_type_code'];
+
             if (!isset($dominants[$st]) || $stat['reward_avg'] > $dominants[$st]['reward_avg']) {
                 $dominants[$st] = $stat;
             }
@@ -788,7 +841,10 @@ class GenerateDemoDataCommand extends Command
 
         foreach ($scamTypes as $stIndex => $scamType) {
             $dominant = $dominants[$scamType] ?? null;
-            if (!$dominant) continue;
+
+            if (!$dominant) {
+                continue;
+            }
 
             // Generate entries every 3-4 days
             for ($day = 2; $day < $totalDays; $day += random_int(2, 4)) {
@@ -801,8 +857,12 @@ class GenerateDemoDataCommand extends Command
 
                 // Top scam types converge earlier
                 $converged = false;
-                if ($stIndex < 3 && $progress > 0.6) $converged = $pct > 60;
-                elseif ($stIndex < 6 && $progress > 0.75) $converged = $pct > 65;
+
+                if ($stIndex < 3 && $progress > 0.6) {
+                    $converged = $pct > 60;
+                } elseif ($stIndex < 6 && $progress > 0.75) {
+                    $converged = $pct > 65;
+                }
 
                 $sessions = (int) (($dominant['sessions_count'] ?? 5) * $progress) + random_int(1, 3);
 
@@ -885,15 +945,20 @@ class GenerateDemoDataCommand extends Command
         ];
 
         $campaigns = [];
+
         foreach ($campaignDefs as $def) {
             $campaignId = $this->generateUuid();
 
             // Find matching conversations
             $matchedMsgIds = [];
             $count = 0;
+
             foreach ($conversations as $conv) {
-                if ($count >= $def['max_convs']) break;
-                if (in_array($conv['scam_type'], $def['scam_types'])) {
+                if ($count >= $def['max_convs']) {
+                    break;
+                }
+
+                if (in_array($conv['scam_type'], $def['scam_types'], true)) {
                     foreach ($conv['messages'] as $msg) {
                         if ($msg['direction'] === 'inbound') {
                             $matchedMsgIds[] = [
@@ -901,6 +966,7 @@ class GenerateDemoDataCommand extends Command
                                 'msg_index' => 0,
                                 'timestamp' => $msg['timestamp'],
                             ];
+
                             break;
                         }
                     }
@@ -909,6 +975,7 @@ class GenerateDemoDataCommand extends Command
             }
 
             $rules = [];
+
             foreach ($def['rules'] as $ruleDef) {
                 $rules[] = [
                     'rule_id' => $this->generateUuid(),
@@ -957,8 +1024,14 @@ class GenerateDemoDataCommand extends Command
 
     private function formatBytes(int $bytes): string
     {
-        if ($bytes >= 1048576) return round($bytes / 1048576, 1) . ' MB';
-        if ($bytes >= 1024) return round($bytes / 1024, 1) . ' KB';
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 1) . ' MB';
+        }
+
+        if ($bytes >= 1024) {
+            return round($bytes / 1024, 1) . ' KB';
+        }
+
         return $bytes . ' B';
     }
 }

@@ -1,5 +1,7 @@
 <?php
 
+/** @phpstan-ignore-file — Data loader with JSON-decoded mixed arrays; strict typing impractical here. */
+
 declare(strict_types=1);
 
 namespace App\UI\Console;
@@ -18,6 +20,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * Populates ALL tables needed for every ScamBuster screen:
  * conversations, messages (with pipeline traces + injection analysis),
  * IOCs, LLM usage, persona performance stats, convergence logs, campaigns.
+ *
+ * @phpstan-type ConvData array{conversation_id: string, scam_type: string, persona: string, status: string, risk_score: int, turns: int, engagement_duration_sec: int, reward_value: ?float, messages: list<array<string, mixed>>}
+ * @phpstan-type LlmData array{conversation_id: string, provider: string, model: string, purpose: string, prompt_tokens: int, completion_tokens: int, estimated_cost_usd: float, created_at: string}
+ * @phpstan-type PerfData array{persona_code: string, scam_type_code: string, sessions_count: int, reward_sum: float, reward_avg: float}
+ * @phpstan-type LogData array{scam_type_code: string, dominant_persona_code: string, dominant_pct: float, sessions_count: int, converged: bool, logged_at: string}
+ * @phpstan-type CampaignData array{campaign_id: string, name: string, status: string, severity: int, actor_guess: string, tlp: string, dsl_hash: string, profile_yaml: string, rules: list<array<string, mixed>>, matched_messages: list<array<string, mixed>>}
  */
 #[AsCommand(
     name: 'scambuster:demo:load',
@@ -46,21 +54,26 @@ class LoadDemoDataCommand extends Command
 
         if (!file_exists($file)) {
             $io->error("Dataset not found: {$file}");
+
             return Command::FAILURE;
         }
 
         $raw = file_get_contents($file);
+
         if ($raw === false) {
             $io->error('Could not read dataset file.');
+
             return Command::FAILURE;
         }
 
-        /** @var array<string, mixed> $dataset */
+        /** @var array{conversations: list<array<string, mixed>>, llm_usage?: list<array<string, mixed>>, persona_performance_stats?: list<array<string, mixed>>, convergence_logs?: list<array<string, mixed>>, campaigns?: list<array<string, mixed>>} $dataset */
         $dataset = json_decode($raw, true, 512, JSON_THROW_ON_ERROR);
+        /** @var list<array<string, mixed>> $conversations */
         $conversations = $dataset['conversations'] ?? [];
 
         if (empty($conversations)) {
             $io->warning('No conversations found in dataset.');
+
             return Command::SUCCESS;
         }
 
@@ -73,6 +86,7 @@ class LoadDemoDataCommand extends Command
 
         if (!$channelId || !$accountId) {
             $io->error('Reference data missing. Run "make fixtures-dev" first.');
+
             return Command::FAILURE;
         }
 
@@ -95,10 +109,11 @@ class LoadDemoDataCommand extends Command
             $msgIdMap = []; // convId:msgIndex => msgId (for campaign linking)
 
             foreach ($conversations as $conv) {
-                $convId = $conv['conversation_id'] ?? bin2hex(random_bytes(16));
-                $scamCode = $conv['scam_type'] ?? 'unknown';
-                $personaCode = $conv['persona'] ?? 'generic_user';
-                $status = $conv['status'] ?? 'closed';
+                /** @var array<string, mixed> $conv */
+                $convId = (string) ($conv['conversation_id'] ?? bin2hex(random_bytes(16)));
+                $scamCode = (string) ($conv['scam_type'] ?? 'unknown');
+                $personaCode = (string) ($conv['persona'] ?? 'generic_user');
+                $status = (string) ($conv['status'] ?? 'closed');
 
                 $scamTypeId = $scamTypes[strtoupper($scamCode)] ?? $scamTypes[$scamCode] ?? $scamTypes['unknown'] ?? $scamTypes['UNKNOWN'] ?? 1;
                 $personaId = $personas[$personaCode] ?? null;
@@ -110,11 +125,12 @@ class LoadDemoDataCommand extends Command
                     continue;
                 }
 
-                $stixId = 'demo-' . substr((string) $convId, 0, 32);
-                $convMessages = $conv['messages'] ?? [];
-                $tsFirst = $convMessages[0]['timestamp'] ?? '2026-01-01 00:00:00';
+                $stixId = 'demo-' . substr($convId, 0, 32);
+                /** @var list<array<string, mixed>> $convMessages */
+                $convMessages = (array) ($conv['messages'] ?? []);
+                $tsFirst = (string) ($convMessages[0]['timestamp'] ?? '2026-01-01 00:00:00');
                 $lastMsg = end($convMessages);
-                $tsLast = $lastMsg !== false ? ($lastMsg['timestamp'] ?? $tsFirst) : $tsFirst;
+                $tsLast = $lastMsg !== false ? (string) ($lastMsg['timestamp'] ?? $tsFirst) : $tsFirst;
 
                 $this->connection->insert('conversation', [
                     'conv_id' => $convId,
@@ -139,14 +155,16 @@ class LoadDemoDataCommand extends Command
 
                 // Messages
                 foreach ($convMessages as $i => $msg) {
+                    /** @var array<string, mixed> $msg */
                     $msgId = $this->generateUuid();
                     $msgIdMap[$convId . ':' . $i] = $msgId;
 
-                    $isInbound = ($msg['direction'] ?? 'inbound') === 'inbound';
+                    $isInbound = ((string) ($msg['direction'] ?? 'inbound')) === 'inbound';
                     $direction = $isInbound ? $dirIn : $dirOut;
 
                     // Build headers JSON (with pipeline_trace for outbound)
                     $headers = [];
+
                     if (!$isInbound && isset($msg['pipeline_trace'])) {
                         $headers['pipeline_trace'] = $msg['pipeline_trace'];
                         $headers['send_status'] = 'sent';
@@ -155,22 +173,24 @@ class LoadDemoDataCommand extends Command
 
                     // Injection analysis for inbound
                     $injectionAnalysis = null;
+
                     if ($isInbound && isset($msg['injection_analysis'])) {
                         $injectionAnalysis = json_encode($msg['injection_analysis'], JSON_THROW_ON_ERROR);
                     }
 
+                    $msgTimestamp = (string) ($msg['timestamp'] ?? $tsFirst);
                     $insertData = [
                         'msg_id' => $msgId,
                         'conv_id' => $convId,
                         'channel_id' => $channelId,
                         'direction' => $direction,
                         'lang_detect' => 'en',
-                        'subject' => $msg['subject'] ?? null,
-                        'body_text' => $msg['body'] ?? '',
+                        'subject' => isset($msg['subject']) ? (string) $msg['subject'] : null,
+                        'body_text' => (string) ($msg['body'] ?? ''),
                         'headers' => json_encode($headers, JSON_THROW_ON_ERROR),
                         'composite_hash' => hash('sha256', $convId . $i),
-                        'ts_msg' => $msg['timestamp'] ?? $tsFirst,
-                        'ts_ingest' => $msg['timestamp'] ?? $tsFirst,
+                        'ts_msg' => $msgTimestamp,
+                        'ts_ingest' => $msgTimestamp,
                     ];
 
                     if ($injectionAnalysis !== null) {
@@ -181,10 +201,13 @@ class LoadDemoDataCommand extends Command
                     $counts['msg']++;
 
                     // IOCs (inbound only)
-                    foreach ($msg['iocs_extracted'] ?? [] as $j => $ioc) {
+                    /** @var list<array<string, mixed>> $iocsExtracted */
+                    $iocsExtracted = (array) ($msg['iocs_extracted'] ?? []);
+                    foreach ($iocsExtracted as $j => $ioc) {
+                        /** @var array<string, mixed> $ioc */
                         $obsId = $this->generateUuid();
-                        $iocType = $ioc['type'] ?? 'unknown';
-                        $iocValue = $ioc['value'] ?? '';
+                        $iocType = (string) ($ioc['type'] ?? 'unknown');
+                        $iocValue = (string) ($ioc['value'] ?? '');
                         $indicatorId = $this->deterministicUuid($iocType . ':' . $iocValue);
 
                         $this->connection->insert('observed_ioc', [
@@ -199,7 +222,7 @@ class LoadDemoDataCommand extends Command
                                 'source' => 'demo-dataset',
                             ], JSON_THROW_ON_ERROR),
                             'confidence_score' => round(random_int(70, 100) / 100, 3),
-                            'ts_observed' => $msg['timestamp'] ?? $tsFirst,
+                            'ts_observed' => $msgTimestamp,
                         ]);
                         $counts['ioc']++;
                     }
@@ -207,27 +230,35 @@ class LoadDemoDataCommand extends Command
             }
 
             // ─── 2. LLM Usage ───
-            foreach ($dataset['llm_usage'] ?? [] as $usage) {
+            /** @var list<array<string, mixed>> $llmRecords */
+            $llmRecords = (array) ($dataset['llm_usage'] ?? []);
+            foreach ($llmRecords as $usage) {
+                /** @var array<string, mixed> $usage */
                 $this->connection->insert('llm_usage', [
-                    'conversation_id' => $usage['conversation_id'],
-                    'provider' => $usage['provider'],
-                    'model' => $usage['model'],
-                    'purpose' => $usage['purpose'],
-                    'prompt_tokens' => $usage['prompt_tokens'],
-                    'completion_tokens' => $usage['completion_tokens'],
-                    'estimated_cost_usd' => $usage['estimated_cost_usd'],
-                    'created_at' => $usage['created_at'],
+                    'conversation_id' => (string) ($usage['conversation_id'] ?? ''),
+                    'provider' => (string) ($usage['provider'] ?? 'openai'),
+                    'model' => (string) ($usage['model'] ?? 'gpt-4o-mini'),
+                    'purpose' => (string) ($usage['purpose'] ?? 'reply_generation'),
+                    'prompt_tokens' => (int) ($usage['prompt_tokens'] ?? 0),
+                    'completion_tokens' => (int) ($usage['completion_tokens'] ?? 0),
+                    'estimated_cost_usd' => (float) ($usage['estimated_cost_usd'] ?? 0),
+                    'created_at' => (string) ($usage['created_at'] ?? date('Y-m-d H:i:s')),
                 ]);
                 $counts['llm']++;
             }
 
             // ─── 3. Persona Performance Stats (UPSERT) ───
-            foreach ($dataset['persona_performance_stats'] ?? [] as $stat) {
-                $personaId = $personas[$stat['persona_code']] ?? null;
-                $scamTypeId = $scamTypes[$stat['scam_type_code']] ?? null;
-                if (!$personaId || !$scamTypeId) continue;
+            /** @var list<array<string, mixed>> $perfRecords */
+            $perfRecords = (array) ($dataset['persona_performance_stats'] ?? []);
+            foreach ($perfRecords as $stat) {
+                /** @var array<string, mixed> $stat */
+                $personaId = $personas[(string) ($stat['persona_code'] ?? '')] ?? null;
+                $scamTypeId = $scamTypes[(string) ($stat['scam_type_code'] ?? '')] ?? null;
 
-                // Delete existing then insert (simple upsert)
+                if (!$personaId || !$scamTypeId) {
+                    continue;
+                }
+
                 $this->connection->executeStatement(
                     'DELETE FROM persona_performance_stats WHERE persona_id = ? AND scam_type_id = ?',
                     [$personaId, $scamTypeId]
@@ -235,76 +266,92 @@ class LoadDemoDataCommand extends Command
                 $this->connection->insert('persona_performance_stats', [
                     'persona_id' => $personaId,
                     'scam_type_id' => $scamTypeId,
-                    'sessions_count' => $stat['sessions_count'],
-                    'reward_sum' => $stat['reward_sum'],
-                    'reward_avg' => $stat['reward_avg'],
+                    'sessions_count' => (int) ($stat['sessions_count'] ?? 0),
+                    'reward_sum' => (float) ($stat['reward_sum'] ?? 0),
+                    'reward_avg' => (float) ($stat['reward_avg'] ?? 0),
                     'last_updated' => date('Y-m-d H:i:s'),
                 ]);
                 $counts['perf']++;
             }
 
             // ─── 4. Convergence Logs ───
-            foreach ($dataset['convergence_logs'] ?? [] as $log) {
+            /** @var list<array<string, mixed>> $convLogs */
+            $convLogs = (array) ($dataset['convergence_logs'] ?? []);
+            foreach ($convLogs as $log) {
+                /** @var array<string, mixed> $log */
                 $this->connection->insert('bandit_convergence_log', [
-                    'scam_type_code' => $log['scam_type_code'],
-                    'dominant_persona_code' => $log['dominant_persona_code'],
-                    'dominant_pct' => $log['dominant_pct'],
-                    'sessions_count' => $log['sessions_count'],
-                    'converged' => $log['converged'] ? 'true' : 'false',
-                    'logged_at' => $log['logged_at'],
+                    'scam_type_code' => (string) ($log['scam_type_code'] ?? ''),
+                    'dominant_persona_code' => (string) ($log['dominant_persona_code'] ?? ''),
+                    'dominant_pct' => (float) ($log['dominant_pct'] ?? 0),
+                    'sessions_count' => (int) ($log['sessions_count'] ?? 0),
+                    'converged' => !empty($log['converged']) ? 'true' : 'false',
+                    'logged_at' => (string) ($log['logged_at'] ?? date('Y-m-d H:i:s')),
                 ]);
                 $counts['convergence']++;
             }
 
             // ─── 5. Campaigns ───
-            foreach ($dataset['campaigns'] ?? [] as $campaign) {
+            /** @var list<array<string, mixed>> $campaigns */
+            $campaigns = (array) ($dataset['campaigns'] ?? []);
+            foreach ($campaigns as $campaign) {
+                /** @var array<string, mixed> $campaign */
+                /** @var list<array<string, mixed>> $matchedMsgs */
+                $matchedMsgs = (array) ($campaign['matched_messages'] ?? []);
+                $firstMatch = $matchedMsgs[0] ?? [];
+
                 $this->connection->insert('campaign', [
-                    'campaign_id' => $campaign['campaign_id'],
-                    'first_seen' => $campaign['matched_messages'][0]['timestamp'] ?? date('Y-m-d H:i:s'),
-                    'status' => $campaign['status'],
-                    'actor_guess' => $campaign['actor_guess'] ?? null,
-                    'tlp' => $campaign['tlp'] ?? 'AMBER',
-                    'severity' => $campaign['severity'],
-                    'dsl_hash' => $campaign['dsl_hash'],
+                    'campaign_id' => (string) ($campaign['campaign_id'] ?? $this->generateUuid()),
+                    'first_seen' => (string) ($firstMatch['timestamp'] ?? date('Y-m-d H:i:s')),
+                    'status' => (string) ($campaign['status'] ?? 'shadow'),
+                    'actor_guess' => isset($campaign['actor_guess']) ? (string) $campaign['actor_guess'] : null,
+                    'tlp' => (string) ($campaign['tlp'] ?? 'AMBER'),
+                    'severity' => (int) ($campaign['severity'] ?? 3),
+                    'dsl_hash' => (string) ($campaign['dsl_hash'] ?? ''),
                     'created_by' => 'demo-dataset',
-                    'notes' => $campaign['name'],
-                    'profile_yaml' => $campaign['profile_yaml'] ?? null,
+                    'notes' => (string) ($campaign['name'] ?? ''),
+                    'profile_yaml' => isset($campaign['profile_yaml']) ? (string) $campaign['profile_yaml'] : null,
                     'created_at' => date('Y-m-d H:i:s'),
                     'updated_at' => date('Y-m-d H:i:s'),
                 ]);
                 $counts['campaign']++;
 
-                // Campaign rules
-                foreach ($campaign['rules'] ?? [] as $rule) {
+                $campaignId = (string) ($campaign['campaign_id'] ?? '');
+                /** @var list<array<string, mixed>> $rules */
+                $rules = (array) ($campaign['rules'] ?? []);
+                foreach ($rules as $rule) {
+                    /** @var array<string, mixed> $rule */
                     $this->connection->insert('campaign_rule', [
-                        'rule_id' => $rule['rule_id'],
-                        'campaign_id' => $campaign['campaign_id'],
+                        'rule_id' => (string) ($rule['rule_id'] ?? $this->generateUuid()),
+                        'campaign_id' => $campaignId,
                         'version' => 1,
-                        'dsl' => $rule['dsl'],
-                        'compiled_sql' => json_encode(['sql' => $rule['compiled_sql'] ?? ''], JSON_THROW_ON_ERROR),
-                        'ppv' => $rule['ppv'],
-                        'hits_total' => $rule['hits_total'],
-                        'hits_true_pos' => $rule['hits_true_pos'],
-                        'hits_false_pos' => $rule['hits_false_pos'],
-                        'lead_time_sec' => $rule['lead_time_sec'] ?? 0,
-                        'promoted_at' => $rule['promoted_at'],
-                        'enabled' => $rule['enabled'] ? 'true' : 'false',
+                        'dsl' => (string) ($rule['dsl'] ?? ''),
+                        'compiled_sql' => json_encode(['sql' => (string) ($rule['compiled_sql'] ?? '')], JSON_THROW_ON_ERROR),
+                        'ppv' => (float) ($rule['ppv'] ?? 0),
+                        'hits_total' => (int) ($rule['hits_total'] ?? 0),
+                        'hits_true_pos' => (int) ($rule['hits_true_pos'] ?? 0),
+                        'hits_false_pos' => (int) ($rule['hits_false_pos'] ?? 0),
+                        'lead_time_sec' => (int) ($rule['lead_time_sec'] ?? 0),
+                        'promoted_at' => isset($rule['promoted_at']) ? (string) $rule['promoted_at'] : null,
+                        'enabled' => !empty($rule['enabled']) ? 'true' : 'false',
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
                     ]);
                 }
 
-                // Message-campaign links
-                foreach ($campaign['matched_messages'] ?? [] as $match) {
-                    $msgKey = $match['conv_id'] . ':' . $match['msg_index'];
+                foreach ($matchedMsgs as $match) {
+                    /** @var array<string, mixed> $match */
+                    $msgKey = (string) ($match['conv_id'] ?? '') . ':' . (string) ($match['msg_index'] ?? '0');
                     $msgId = $msgIdMap[$msgKey] ?? null;
-                    if (!$msgId) continue;
+
+                    if (!$msgId) {
+                        continue;
+                    }
 
                     $this->connection->insert('message_campaign', [
                         'msg_id' => $msgId,
-                        'campaign_id' => $campaign['campaign_id'],
+                        'campaign_id' => $campaignId,
                         'confidence' => round(random_int(75, 98) / 100, 4),
-                        'detected_at' => $match['timestamp'],
+                        'detected_at' => (string) ($match['timestamp'] ?? date('Y-m-d H:i:s')),
                         'detected_by' => 'demo-dataset',
                         'features' => json_encode(['domain_match' => true, 'ioc_overlap' => random_int(2, 5)], JSON_THROW_ON_ERROR),
                         'is_true_positive' => true,
@@ -317,13 +364,20 @@ class LoadDemoDataCommand extends Command
         } catch (\Throwable $e) {
             $this->connection->rollBack();
             $io->error('Failed to load demo data: ' . $e->getMessage());
+
             return Command::FAILURE;
         }
 
         $io->success(sprintf(
-            "Loaded: %d conversations, %d messages, %d IOCs, %d LLM records, %d perf stats, %d convergence logs, %d campaigns (%d message links).",
-            $counts['conv'], $counts['msg'], $counts['ioc'], $counts['llm'],
-            $counts['perf'], $counts['convergence'], $counts['campaign'], $counts['campaign_msg']
+            'Loaded: %d conversations, %d messages, %d IOCs, %d LLM records, %d perf stats, %d convergence logs, %d campaigns (%d message links).',
+            $counts['conv'],
+            $counts['msg'],
+            $counts['ioc'],
+            $counts['llm'],
+            $counts['perf'],
+            $counts['convergence'],
+            $counts['campaign'],
+            $counts['campaign_msg']
         ));
 
         return Command::SUCCESS;
@@ -348,6 +402,7 @@ class LoadDemoDataCommand extends Command
         // Set version 4 bits and variant bits
         $hash[12] = '4';
         $hash[16] = dechex(hexdec($hash[16]) & 0x3 | 0x8);
+
         return substr($hash, 0, 8) . '-' . substr($hash, 8, 4) . '-'
             . substr($hash, 12, 4) . '-' . substr($hash, 16, 4) . '-' . substr($hash, 20, 12);
     }
@@ -357,9 +412,11 @@ class LoadDemoDataCommand extends Command
     {
         $rows = $this->connection->fetchAllAssociative("SELECT {$codeCol}, {$idCol} FROM {$table}");
         $lookup = [];
+
         foreach ($rows as $row) {
             $lookup[(string) ($row[$codeCol] ?? '')] = (int) ($row[$idCol] ?? 0);
         }
+
         return $lookup;
     }
 }
