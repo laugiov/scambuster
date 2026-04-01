@@ -35,7 +35,7 @@ final class PipelineTraceHandler
         $days = min($days, 30);
         $limit = min($limit, 100);
 
-        $where = "m.direction = 4 AND m.ts_msg > NOW() - INTERVAL '{$days} days' AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')";
+        $where = "m.direction = 2 AND m.ts_msg > NOW() - INTERVAL '{$days} days' AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')";
         $params = [];
 
         if ($persona !== null) {
@@ -102,7 +102,7 @@ final class PipelineTraceHandler
         $sql = <<<'SQL'
             SELECT m.headers->'pipeline_trace' as pipeline_trace
             FROM message m
-            WHERE m.msg_id = :msgId AND m.direction = 4
+            WHERE m.msg_id = :msgId AND m.direction = 2
             SQL;
 
         $result = $this->connection->fetchOne($sql, ['msgId' => $msgId]);
@@ -128,7 +128,7 @@ final class PipelineTraceHandler
         $sql = <<<SQL
             SELECT m.headers->'pipeline_trace' as pipeline_trace
             FROM message m
-            WHERE m.direction = 4
+            WHERE m.direction = 2
               AND m.ts_msg > NOW() - INTERVAL '{$hours} hours'
               AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')
             ORDER BY m.ts_msg DESC
@@ -225,7 +225,7 @@ final class PipelineTraceHandler
         $sql = <<<SQL
             SELECT COALESCE(SUM((m.headers->'pipeline_trace'->>'total_cost')::numeric), 0)
             FROM message m
-            WHERE m.direction = 4
+            WHERE m.direction = 2
               AND m.ts_msg::date = {$dateExpr}
               AND jsonb_exists(m.headers::jsonb, 'pipeline_trace')
             SQL;
