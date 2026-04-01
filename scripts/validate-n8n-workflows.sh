@@ -41,7 +41,8 @@ else
 fi
 echo ""
 
-# Check 4: All executeWorkflow nodes use mode=name
+# Check 4: All executeWorkflow nodes use mode=id with PLACEHOLDER_* values
+# (n8n-init.sh replaces placeholders with real IDs at startup)
 echo "=== Workflow ID References ==="
 if command -v python3 &>/dev/null; then
   RESULT=$(python3 -c "
@@ -52,12 +53,17 @@ for f in sorted(glob.glob('$WORKFLOW_DIR/WF-*.json')):
         wf = json.load(fh)
     for node in wf.get('nodes', []):
         if node.get('type') == 'n8n-nodes-base.executeWorkflow':
-            mode = node['parameters']['workflowId'].get('mode', 'UNKNOWN')
-            if mode != 'name':
-                print(f'  ❌ {node[\"name\"]} in {f}: mode={mode} (expected name)')
+            wf_id = node['parameters']['workflowId']
+            mode = wf_id.get('mode', 'UNKNOWN')
+            value = wf_id.get('value', '')
+            if mode == 'id' and value.startswith('PLACEHOLDER_'):
+                print(f'  ✅ {node[\"name\"]}: mode=id, placeholder={value}')
+            elif mode == 'id':
+                print(f'  ❌ {node[\"name\"]} in {f}: mode=id but value={value} (expected PLACEHOLDER_*)')
                 errors += 1
             else:
-                print(f'  ✅ {node[\"name\"]}: mode=name')
+                print(f'  ❌ {node[\"name\"]} in {f}: mode={mode} (expected id)')
+                errors += 1
 sys.exit(errors)
 " 2>&1) || ERRORS=$((ERRORS + $?))
   echo "$RESULT"

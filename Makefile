@@ -268,21 +268,21 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 	@echo "║       ScamBuster — Quickstart                ║"
 	@echo "╚══════════════════════════════════════════════╝"
 	@echo ""
-	@echo "Step 1/5: Cleaning previous state..."
+	@echo "Step 1/7: Cleaning previous state..."
 	@$(DC) down -v 2>/dev/null || true
 	@echo ""
-	@echo "Step 2/5: Preparing directories (permissions)..."
+	@echo "Step 2/7: Preparing directories (permissions)..."
 	@mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/config/jwt backend-symfony/public/bundles
 	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt backend-symfony/public/bundles 2>/dev/null || true
 	@echo ""
-	@echo "Step 3/5: Building, starting, installing dependencies, DB setup..."
+	@echo "Step 3/7: Building, starting, installing dependencies, DB setup..."
 	$(DC) up -d --build
 	$(MAKE) wait-healthy
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
 	$(MAKE) reset-db
 	$(MAKE) fixtures-dev
 	@echo ""
-	@echo "Step 4/5: Generating JWT keys..."
+	@echo "Step 4/7: Generating JWT keys..."
 	@if [ ! -f backend-symfony/config/jwt/private.pem ]; then \
 		$(DC) exec backend-dev sh -c ' \
 			mkdir -p /app/config/jwt && \
