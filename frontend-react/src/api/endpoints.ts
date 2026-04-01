@@ -48,6 +48,11 @@ export const ENDPOINTS = {
     exportStix: (id: string) => `/campaign/${id}/export/stix`,
     promoteRule: (ruleId: string) => `/campaign/rule/${ruleId}/promote`,
   },
+  personas: {
+    detail: (code: string) => `/personas/${code}`,
+    update: (code: string) => `/personas/${code}`,
+    toggleActive: (code: string) => `/personas/${code}/active`,
+  },
   scamTypes: '/communication/scam-types',
   meta: {
     config: '/meta/config',

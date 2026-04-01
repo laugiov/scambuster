@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAllPersonaPerformances } from '@/hooks/usePersonas';
 import { useAutonomyStats } from '@/hooks/useStats';
@@ -6,6 +6,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
+import { PersonaDetailPanel } from '@/components/personas/PersonaDetailPanel';
 import type { PersonaSummary, MetaConfig } from '@/types/api';
 
 export function Personas() {
@@ -28,6 +29,15 @@ export function Personas() {
     : null;
 
   const selectedPersona = safePersonas.find((p) => p.persona_code === selectedCode) ?? null;
+
+  // Close panel on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSelectedCode(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -56,7 +66,13 @@ export function Personas() {
             onSelect={setSelectedCode}
             config={config}
           />
-          {selectedPersona && <PersonaDetail persona={selectedPersona} config={config} />}
+          {selectedCode && (
+            <PersonaDetailPanel
+              personaCode={selectedCode}
+              performance={selectedPersona}
+              onClose={() => setSelectedCode(null)}
+            />
+          )}
         </div>
 
         <BanditSettings epsilon={epsilon} config={config} />
@@ -150,44 +166,6 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
   );
 }
 
-function PersonaDetail({ persona, config }: { persona: PersonaSummary; config: MetaConfig | undefined }) {
-  const { t } = useTranslation();
-
-  return (
-    <div className="bg-surface-low rounded-lg p-6">
-      <h2 className="text-base font-medium text-accent mb-4">
-        {t('personas.personaDetail', { name: personaDisplayName(config, persona.persona_code) })}
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <InfoField label={t('personas.code')} value={persona.persona_code} />
-        <InfoField label={t('personas.totalSessions')} value={String(persona.total_sessions)} />
-        <InfoField label={t('personas.avgReward')} value={persona.global_avg_reward.toFixed(4)} />
-      </div>
-      {persona.performance_by_scam_type.length > 0 ? (
-        <div className="mt-4">
-          <span className="text-xs text-on-surface-dim uppercase tracking-widest font-medium block mb-2">
-            {t('personas.performanceByScamType')}
-          </span>
-          <div className="space-y-2">
-            {persona.performance_by_scam_type.map((st) => (
-              <div key={st.scam_type_code} className="flex items-center justify-between bg-surface-base rounded p-2">
-                <span className="text-xs text-on-surface-variant">{st.scam_type_code}</span>
-                <div className="flex items-center gap-4">
-                  <span className="text-xs text-on-surface-dim">{t('personas.pullsCount', { count: st.sessions_count ?? st.total_pulls ?? 0 })}</span>
-                  <span className="text-xs font-mono font-bold text-accent">{(st.reward_avg ?? st.avg_reward ?? 0).toFixed(2)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <p className="mt-4 text-sm text-on-surface-dim bg-surface-base rounded p-3">
-          {t('personas.noPerformanceData')}
-        </p>
-      )}
-    </div>
-  );
-}
 
 function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConfig | undefined }) {
   const { t } = useTranslation();

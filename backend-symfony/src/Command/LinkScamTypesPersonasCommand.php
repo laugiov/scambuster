@@ -28,7 +28,7 @@ class LinkScamTypesPersonasCommand extends Command
         'lottery' => ['lottery_skeptic', 'lottery_believer', 'elderly_person', 'investor_greedy', 'debtor_desperate'],
         'romance' => ['lonely_person', 'lonely_divorcee', 'hopeless_romantic', 'widow_grieving', 'senior_isolated'],
         'techsupport' => ['confused_user', 'tech_newbie', 'tech_intermediate', 'senior_trusting', 'senior_suspicious'],
-        'unknown' => ['generic_user'],
+        'UNKNOWN' => ['generic_user'],
     ];
 
     public function __construct(
