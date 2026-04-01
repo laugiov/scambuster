@@ -282,7 +282,7 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 	$(MAKE) reset-db
 	$(MAKE) fixtures-dev
 	@echo ""
-	@echo "Step 4/5: Generating JWT keys (always regenerated to match current passphrase)..."
+	@echo "Step 4/5: Generating JWT keys and restarting backend..."
 	@chmod -f 777 backend-symfony/config/jwt/*.pem 2>/dev/null || true
 	@$(DC) exec backend-dev sh -c ' \
 		mkdir -p /app/config/jwt && \
@@ -290,7 +290,10 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 			-aes-256-cbc -pass "pass:$$JWT_PASSPHRASE" -pkeyopt rsa_keygen_bits:2048 2>/dev/null && \
 		openssl rsa -in /app/config/jwt/private.pem -pubout -out /app/config/jwt/public.pem \
 			-passin "pass:$$JWT_PASSPHRASE" 2>/dev/null && \
-		echo "  JWT keys generated."'
+		php bin/console cache:clear --no-warmup -q && \
+		echo "  JWT keys generated + cache cleared."'
+	@$(DC) restart backend-dev > /dev/null 2>&1
+	@echo "  Backend restarted."
 	@echo ""
 	@echo "Step 5/5: Configuring n8n (admin account, workflows, credentials)..."
 	$(DC) up -d --force-recreate n8n
