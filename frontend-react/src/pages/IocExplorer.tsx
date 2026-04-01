@@ -89,7 +89,7 @@ export function IocExplorer() {
           <div className="ml-8 flex items-center gap-3">
             <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('iocExplorer.searchPlaceholder')} ariaLabel="Search IOCs" />
             <ExportCsvButton
-              data={filtered as Record<string, unknown>[]}
+              data={filtered as unknown as Record<string, unknown>[]}
               columns={[
                 { key: 'type', header: 'Type' },
                 { key: 'value', header: 'Value' },

@@ -140,8 +140,8 @@ export function Analytics() {
                   innerRadius={50}
                   outerRadius={90}
                   paddingAngle={2}
-                  label={({ label, percent }) => percent >= 0.02 ? `${label} ${(percent * 100).toFixed(0)}%` : ''}
-                  labelLine={({ percent }: { percent: number }) => percent >= 0.02}
+                  label={({ name, percent }: { name?: string; percent?: number }) => (percent ?? 0) >= 0.02 ? `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%` : ''}
+                  labelLine={false}
                   fontSize={10}
                 >
                   {iocDist.data?.data.map((_, i) => (
