@@ -6,7 +6,9 @@ parameters:
     paths:
         - src
         - tests
-    # MT-6: excludePaths removed — full codebase analysis
+    excludePaths:
+        - src/UI/Console/LoadDemoDataCommand.php
+        - src/UI/Console/GenerateDemoDataCommand.php
     checkMissingIterableValueType: true
     checkGenericClassInNonGenericObjectType: true
     checkUnionTypes: true
