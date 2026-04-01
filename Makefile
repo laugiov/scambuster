@@ -268,21 +268,21 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 	@echo "║       ScamBuster — Quickstart                ║"
 	@echo "╚══════════════════════════════════════════════╝"
 	@echo ""
-	@echo "Step 1/7: Cleaning previous state..."
+	@echo "Step 1/5: Cleaning previous state..."
 	@$(DC) down -v 2>/dev/null || true
 	@echo ""
-	@echo "Step 2/7: Preparing directories (permissions)..."
+	@echo "Step 2/5: Preparing directories (permissions)..."
 	@mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/config/jwt backend-symfony/public/bundles
 	@chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/config/jwt backend-symfony/public/bundles 2>/dev/null || true
 	@echo ""
-	@echo "Step 3/7: Building, starting, installing dependencies, DB setup..."
+	@echo "Step 3/5: Building, starting, installing dependencies, DB setup..."
 	$(DC) up -d --build
 	$(MAKE) wait-healthy
 	$(DC) exec backend-dev composer install --no-interaction --no-progress
 	$(MAKE) reset-db
 	$(MAKE) fixtures-dev
 	@echo ""
-	@echo "Step 4/7: Generating JWT keys..."
+	@echo "Step 4/5: Generating JWT keys..."
 	@if [ ! -f backend-symfony/config/jwt/private.pem ]; then \
 		$(DC) exec backend-dev sh -c ' \
 			mkdir -p /app/config/jwt && \
@@ -296,18 +296,10 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 		echo "  JWT keys already exist — skipping." ; \
 	fi
 	@echo ""
-	@echo "Step 5/7: Waiting for n8n to start..."
-	@sleep 15
-	@echo ""
-	@echo "Step 6/7: Creating n8n admin account..."
-	@curl -sf -X POST http://localhost:5678/rest/owner/setup \
-		-H "Content-Type: application/json" \
-		-d "{\"email\":\"$${N8N_DEFAULT_USER_EMAIL:-admin@scambuster.local}\",\"password\":\"$${N8N_DEFAULT_USER_PASSWORD:-Scambuster2026!}\",\"firstName\":\"ScamBuster\",\"lastName\":\"Admin\"}" \
-		> /dev/null 2>&1 && echo "  n8n admin account created." || echo "  n8n admin account already exists — skipping."
-	@echo ""
-	@echo "Step 7/7: Importing workflows, credentials, and activating..."
+	@echo "Step 5/5: Configuring n8n (admin account, workflows, credentials)..."
 	$(DC) up -d --force-recreate n8n
-	@sleep 25
+	@echo "  Waiting for n8n init to complete (this takes ~30s)..."
+	@sleep 30
 	@$(DC) logs n8n 2>/dev/null | grep "n8n-init" | tail -10
 	@echo ""
 	@echo "╔══════════════════════════════════════════════╗"

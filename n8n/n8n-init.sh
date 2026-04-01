@@ -145,21 +145,30 @@ if [ $retries -eq $MAX_RETRIES ]; then
   exit 1
 fi
 
-# ─── 3. Authenticate via REST API ───
-# n8n returns auth token as a cookie (n8n-auth=...), not in the response body
+# ─── 3. Create admin account + Authenticate via REST API ───
 N8N_COOKIE=""
 AUTH_HDR=""
 if [ -n "${N8N_DEFAULT_USER_EMAIL:-}" ] && [ -n "${N8N_DEFAULT_USER_PASSWORD:-}" ]; then
-  log "Authenticating with n8n REST API..."
-
   # Wait a bit for n8n auth service to fully initialize after healthcheck
   sleep 3
 
-  # Build JSON payload safely with printf (avoids shell quoting issues)
+  # 3a. Try to create admin account (idempotent — fails silently if already exists)
+  log "Creating n8n admin account (if needed)..."
+  SETUP_JSON=$(printf '{"email":"%s","password":"%s","firstName":"ScamBuster","lastName":"Admin"}' \
+    "$N8N_DEFAULT_USER_EMAIL" "$N8N_DEFAULT_USER_PASSWORD")
+  SETUP_RESULT=$(http_post "$N8N_URL/rest/owner/setup" "$SETUP_JSON" "" 2>/dev/null || echo "")
+  if [ -n "$SETUP_RESULT" ] && echo "$SETUP_RESULT" | grep -q '"id"' 2>/dev/null; then
+    log "Admin account created."
+  else
+    log "Admin account already exists — skipping creation."
+  fi
+
+  # 3b. Authenticate
+  log "Authenticating with n8n REST API..."
   AUTH_JSON=$(printf '{"emailOrLdapLoginId":"%s","password":"%s"}' "$N8N_DEFAULT_USER_EMAIL" "$N8N_DEFAULT_USER_PASSWORD")
   AUTH_HEADERS_FILE="/tmp/n8n-auth-headers.txt"
 
-  # Retry auth up to 3 times (auth service may take a moment after healthcheck)
+  # Retry auth up to 3 times (auth service may take a moment)
   auth_attempt=0
   while [ $auth_attempt -lt 3 ]; do
     if command -v wget > /dev/null 2>&1; then
@@ -184,7 +193,7 @@ if [ -n "${N8N_DEFAULT_USER_EMAIL:-}" ] && [ -n "${N8N_DEFAULT_USER_PASSWORD:-}"
     AUTH_HDR="Cookie: n8n-auth=$N8N_COOKIE"
     log "Authenticated successfully."
   else
-    warn "Authentication failed. Is this a fresh instance? Create admin user first at $N8N_URL"
+    warn "Authentication failed. Check N8N_DEFAULT_USER_EMAIL/PASSWORD in .env"
   fi
 else
   warn "N8N_DEFAULT_USER_EMAIL/PASSWORD not set. Credential seeding will be skipped."
