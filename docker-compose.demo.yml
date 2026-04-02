@@ -1,0 +1,108 @@
+# ═══════════════════════════════════════════════════════════════
+# ScamBuster Demo — Self-contained demo environment
+#
+# Usage:
+#   docker compose -f docker-compose.demo.yml up --build
+#   → Dashboard: http://localhost:3002
+#   → Login: user@example.com / Un1que$trongPassword2024
+#
+# No API key, no email account, no configuration needed.
+# 150 demo conversations loaded automatically on first start.
+# ═══════════════════════════════════════════════════════════════
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: scambuster_demo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: demo-password
+    volumes:
+      - demo-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - demo
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - demo
+
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/demo/Dockerfile.backend
+    environment:
+      DATABASE_URL: postgresql://postgres:demo-password@postgres:5432/scambuster_demo
+      REDIS_URL: redis://redis:6379
+      APP_ENV: dev
+      APP_SECRET: demo-secret-change-in-production-abc123
+      JWT_PASSPHRASE: demo-jwt-passphrase-2026
+      LLM_PROVIDER: mock
+      LLM_MODEL: mock
+      LLM_API_KEY: not-needed-in-demo-mode
+      LLM_API_URL: https://api.openai.com/v1
+      LLM_VALIDATION_ENABLED: "true"
+      MAILER_DSN: "null://null"
+      SCAMBUSTER_KILL_SWITCH: "false"
+      SCAMBUSTER_SAFE_DOMAINS: "*"
+      SCAMBUSTER_API_URL: http://backend:8080
+      LOGIN_HASH_SALT: demo-salt-2026
+      VAULT_ADDR: http://localhost:8200
+      VAULT_TOKEN: root
+      VAULT_IMAP_PATH: secret/scambuster/imap/
+      LOCK_DSN: redis://redis:6379
+      PROMPT_INJECTION_ENABLED: "false"
+      PROMPT_INJECTION_MODEL: gpt-4o-mini
+      PROMPT_INJECTION_TEMPERATURE: "0.2"
+      STIX_EXPORT_PATH: /tmp/stix-demo
+      SCORE_RISK_MIN: "30"
+      CAMPAIGN_PROMOTION_PPV_THRESHOLD: "0.85"
+      CAMPAIGN_PROMOTION_MIN_HITS: "5"
+      CAMPAIGN_PROMOTION_MIN_LEAD_TIME_SEC: "10800"
+      REPLY_MIN_WORDS: "50"
+      REPLY_MAX_WORDS: "150"
+      REPLY_MAX_LINKS: "1"
+      REPLY_HISTORY_LAST_N: "5"
+      CONVERSATION_HISTORY_EXCLUDED_EMAILS: noreply@example.com
+      SIEM_PROVIDER: none
+      INGEST_LOGIN: user@example.com
+      INGEST_PASSWORD: "Un1que$$trongPassword2024"
+      APP_API_BASE_URL: http://localhost:8080
+      N8N_ENCRYPTION_KEY: demo-n8n-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - demo
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/demo/Dockerfile.frontend
+    environment:
+      BACKEND_URL: http://backend:8080
+    depends_on:
+      - backend
+    ports:
+      - "3002:80"
+    networks:
+      - demo
+
+volumes:
+  demo-pgdata:
+
+networks:
+  demo:
+    driver: bridge

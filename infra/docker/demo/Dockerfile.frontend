@@ -1,0 +1,36 @@
+# ═══════════════════════════════════════════════════════════════
+# ScamBuster Demo — Frontend Dockerfile
+# Vite production build served by nginx with /api proxy to backend.
+# ═══════════════════════════════════════════════════════════════
+
+# --- Build stage ---
+FROM node:20-alpine AS build
+
+WORKDIR /app
+
+COPY frontend-react/package*.json ./
+RUN npm ci
+
+COPY frontend-react/ ./
+
+# Build for production — no API URL needed (nginx proxies /api)
+RUN npm run build
+
+# --- Serve stage ---
+FROM nginx:alpine
+
+# Copy built assets
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Copy nginx config template
+COPY infra/docker/demo/nginx-demo.conf.template /etc/nginx/templates/default.conf.template
+
+# nginx:alpine auto-runs envsubst on /etc/nginx/templates/*.template
+# and outputs to /etc/nginx/conf.d/ — this replaces ${BACKEND_URL}
+
+# Default backend URL (overridden by docker-compose or Railway)
+ENV BACKEND_URL=http://backend:8080
+
+EXPOSE 80
+
+# nginx:alpine default CMD handles envsubst + start

@@ -235,6 +235,19 @@ demo-load: ##@demo Load demo dataset (150 conversations, all screens populated, 
 	$(CONSOLE_DEV) scambuster:demo:load --purge
 	rm -f backend-symfony/scambuster-dataset-sample.json
 
+demo-up: ##@demo Start self-contained demo (no API key, no config needed)
+	docker compose -f docker-compose.demo.yml up -d --build
+
+demo-down: ##@demo Stop demo containers
+	docker compose -f docker-compose.demo.yml down
+
+demo-reset: ##@demo Reset demo (wipe DB + rebuild)
+	docker compose -f docker-compose.demo.yml down -v
+	docker compose -f docker-compose.demo.yml up -d --build
+
+demo-logs: ##@demo Show demo logs
+	docker compose -f docker-compose.demo.yml logs -f
+
 misp-test: ##@misp Test MISP connection
 	$(CONSOLE_DEV) scambuster:misp:test
 
