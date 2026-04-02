@@ -5,9 +5,12 @@ echo "╔═══════════════════════�
 echo "║       ScamBuster Demo — Starting...           ║"
 echo "╚══════════════════════════════════════════════╝"
 
-# ─── 0. Remove embedded .env to let Railway env vars take precedence ───
-rm -f /app/.env /app/.env.local 2>/dev/null || true
-echo "[demo] Using environment variables (Railway mode)."
+# ─── 0. Write .env from actual environment variables ───
+# Railway injects env vars but Symfony needs a .env file to bootstrap.
+# We generate one from the current environment so Doctrine can connect.
+echo "[demo] Writing .env from environment variables..."
+env | grep -E '^(DATABASE_URL|REDIS_URL|APP_|JWT_|LLM_|MAILER_|SCAMBUSTER_|VAULT_|LOGIN_|LOCK_|PROMPT_|STIX_|SCORE_|CAMPAIGN_|REPLY_|CONVERSATION_|SIEM_|INGEST_|N8N_|PORT)' > /app/.env
+echo "[demo] .env written with $(wc -l < /app/.env) variables."
 
 # ─── 1. Wait for PostgreSQL ───
 echo "[demo] Waiting for database..."
