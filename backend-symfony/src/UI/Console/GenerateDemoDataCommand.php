@@ -103,8 +103,10 @@ class GenerateDemoDataCommand extends Command
         $io->title('ScamBuster Demo Dataset Generator v2');
 
         $validPairs = $this->loadValidPairs();
+
         if (empty($validPairs)) {
             $io->error('No scam_type_persona pairs found. Run "make fixtures-dev" first.');
+
             return Command::FAILURE;
         }
         $io->info(sprintf('Loaded %d valid (scam_type, persona) pairs.', count($validPairs)));
@@ -122,9 +124,13 @@ class GenerateDemoDataCommand extends Command
         $this->preBuildCampaignAssignments();
 
         $convIndex = 0;
+
         foreach (self::SCAM_DISTRIBUTION as $scamType => $count) {
             $availablePersonas = $validPairs[$scamType] ?? [];
-            if (empty($availablePersonas)) continue;
+
+            if (empty($availablePersonas)) {
+                continue;
+            }
 
             for ($c = 0; $c < $count; $c++) {
                 $persona = $availablePersonas[array_rand($availablePersonas)];
@@ -144,6 +150,7 @@ class GenerateDemoDataCommand extends Command
                 $totalMessages += count($messages);
 
                 $iocCount = 0;
+
                 foreach ($messages as $msg) {
                     $iocCount += count($msg['iocs_extracted'] ?? []);
                 }
@@ -168,9 +175,11 @@ class GenerateDemoDataCommand extends Command
 
                 // Track persona stats (C4)
                 $statsKey = $persona . '|' . $scamType;
+
                 if (!isset($personaStats[$statsKey])) {
                     $personaStats[$statsKey] = ['persona' => $persona, 'scam_type' => $scamType, 'sessions' => 0, 'reward_sum' => 0.0];
                 }
+
                 if ($status === 'closed' && $reward !== null) {
                     $personaStats[$statsKey]['sessions']++;
                     $personaStats[$statsKey]['reward_sum'] += $reward;
@@ -195,6 +204,7 @@ class GenerateDemoDataCommand extends Command
 
         // Build persona performance stats (C4)
         $perfStats = [];
+
         foreach ($personaStats as $stat) {
             if ($stat['sessions'] > 0) {
                 $perfStats[] = [
@@ -236,9 +246,15 @@ class GenerateDemoDataCommand extends Command
 
         $io->success(sprintf(
             "Generated: %d conversations, %d messages, %d IOCs, %d LLM records, %d perf stats, %d convergence logs, %d campaigns.\nFile: %s (%s)",
-            count($conversations), $totalMessages, $totalIocs,
-            count($allLlmUsage), count($perfStats), count($convergenceLogs), count($campaigns),
-            $outFile, $this->formatBytes(strlen($json))
+            count($conversations),
+            $totalMessages,
+            $totalIocs,
+            count($allLlmUsage),
+            count($perfStats),
+            count($convergenceLogs),
+            count($campaigns),
+            $outFile,
+            $this->formatBytes(strlen($json))
         ));
 
         return Command::SUCCESS;
@@ -255,6 +271,28 @@ class GenerateDemoDataCommand extends Command
 
         $domain = $campaignSig['domain'] ?? $this->randomDomain($scamType);
         $ip = $campaignSig['ip'] ?? $this->randomIp();
+
+        // Scam-context phrases for outbound responses (C: context injection)
+        $contextPools = [
+            'PHISHING' => ['my account', 'this suspicious activity', 'the security alert', 'the verification link', 'my account status'],
+            'PHISH_CREDENTIALS' => ['my password', 'this login issue', 'my email access', 'the authentication problem', 'my credentials'],
+            'ROMANCE' => ['your message', 'our connection', 'getting to know you', 'your story', 'hearing from you'],
+            'INVOICE_FRAUD' => ['this invoice', 'the payment details', 'the bank change', 'the transfer request', 'our accounts department'],
+            'TECH_SUPPORT' => ['my computer', 'this virus warning', 'the security alert', 'my device', 'the malware issue'],
+            'CEO_FRAUD' => ['this transfer request', 'the wire payment', 'your instructions', 'this urgent matter', 'the confidential deal'],
+            'INVESTMENT' => ['this investment', 'the trading platform', 'the returns you mentioned', 'the deposit', 'this opportunity'],
+            'LOTTERY' => ['this prize', 'my winnings', 'the lottery notification', 'the claim process', 'the processing fee'],
+            'ADVANCE_FEE_419' => ['this proposal', 'the fund transfer', 'the estate', 'the partnership', 'the legal documents'],
+            'JOB_OFFER' => ['this job offer', 'the position', 'the onboarding process', 'the remote work opportunity', 'the equipment fee'],
+            'CHARITY' => ['your cause', 'the donation', 'the children you mentioned', 'the relief effort', 'your organization'],
+            'PHISH_MALWARE' => ['this file', 'the attachment', 'the document you shared', 'the download link', 'the report'],
+        ];
+        $ctxPool = $contextPools[$scamType] ?? ['this matter'];
+        shuffle($ctxPool);
+
+        // Follow-up placeholders
+        $deadlines = ['24 hours', '48 hours', 'by Friday', 'end of business today', 'within the hour', 'before midnight'];
+        $consequences = ['permanent suspension', 'legal action', 'account closure', 'service interruption', 'criminal referral', 'data deletion'];
 
         return [
             '{name}' => self::NAMES[array_rand(self::NAMES)],
@@ -277,6 +315,11 @@ class GenerateDemoDataCommand extends Command
             '{lottery_name}' => ['EuroMillions International', 'UK National Lottery', 'Global Sweepstakes', 'Atlantic Prize Draw', 'World Lottery Foundation'][array_rand(['EuroMillions International', 'UK National Lottery', 'Global Sweepstakes', 'Atlantic Prize Draw', 'World Lottery Foundation'])],
             '{fee}' => '$' . number_format(random_int(150, 950)),
             '{pct}' => (string) random_int(150, 400),
+            '{context}' => $ctxPool[0],
+            '{context2}' => $ctxPool[1] ?? $ctxPool[0],
+            '{deadline}' => $deadlines[array_rand($deadlines)],
+            '{consequence}' => $consequences[array_rand($consequences)],
+            '{threat_count}' => (string) random_int(3, 47),
         ];
     }
 
@@ -298,12 +341,14 @@ class GenerateDemoDataCommand extends Command
         ];
         $words = $pools[$scamType] ?? $pools['PHISHING'];
         $tlds = ['.com', '.net', '.org', '.io'];
+
         return $words[array_rand($words)] . $tlds[array_rand($tlds)];
     }
 
     private function randomIp(): string
     {
         $ranges = ['198.51.100', '203.0.113'];
+
         return $ranges[array_rand($ranges)] . '.' . random_int(1, 254);
     }
 
@@ -315,6 +360,7 @@ class GenerateDemoDataCommand extends Command
             'ADVANCE_FEE_419' => [500000, 5000000], 'CHARITY' => [50, 500],
         ];
         $range = $ranges[$scamType] ?? [100, 5000];
+
         return random_int($range[0], $range[1]);
     }
 
@@ -337,57 +383,96 @@ class GenerateDemoDataCommand extends Command
             foreach ($m[0] as $v) {
                 $v = rtrim($v, '.,;:');
                 $k = 'url:' . $v;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'url', 'value' => $v]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'url', 'value' => $v];
+                    $seen[$k] = true;
+                }
             }
         }
+
         // Emails
         if (preg_match_all('/[\w.+-]+@[\w.-]+\.\w{2,}/', $body, $m)) {
             foreach ($m[0] as $v) {
                 $k = 'email:' . $v;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'email', 'value' => $v]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'email', 'value' => $v];
+                    $seen[$k] = true;
+                }
             }
         }
+
         // IPs (RFC 5737 ranges)
         if (preg_match_all('/\b(?:198\.51\.100|203\.0\.113)\.\d{1,3}\b/', $body, $m)) {
             foreach ($m[0] as $v) {
                 $k = 'ipv4:' . $v;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'ipv4', 'value' => $v]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'ipv4', 'value' => $v];
+                    $seen[$k] = true;
+                }
             }
         }
+
         // Phones
         if (preg_match_all('/\+\d[\d\-]{8,}/', $body, $m)) {
             foreach ($m[0] as $v) {
                 $k = 'phone:' . $v;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'phone', 'value' => $v]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'phone', 'value' => $v];
+                    $seen[$k] = true;
+                }
             }
         }
+
         // IBANs
         if (preg_match_all('/[A-Z]{2}\d{2}[A-Z0-9]{10,30}/', $body, $m)) {
             foreach ($m[0] as $v) {
                 $k = 'iban:' . $v;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'iban', 'value' => $v]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'iban', 'value' => $v];
+                    $seen[$k] = true;
+                }
             }
         }
+
         // BTC wallets
         if (preg_match_all('/\b1[A-HJ-NP-Za-km-z1-9]{25,34}\b/', $body, $m)) {
             foreach ($m[0] as $v) {
                 $k = 'wallet_btc:' . $v;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'wallet_btc', 'value' => $v]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'wallet_btc', 'value' => $v];
+                    $seen[$k] = true;
+                }
             }
         }
+
         // SHA256
         if (preg_match_all('/\b[a-f0-9]{64}\b/', $body, $m)) {
             foreach ($m[0] as $v) {
                 $k = 'sha256:' . $v;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'sha256', 'value' => $v]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'sha256', 'value' => $v];
+                    $seen[$k] = true;
+                }
             }
         }
+
         // Domains (extract from URLs)
         foreach ($iocs as $ioc) {
             if ($ioc['type'] === 'url' && preg_match('/https?:\/\/([^\/\s:]+)/', $ioc['value'], $dm)) {
                 $domain = $dm[1];
                 $k = 'domain:' . $domain;
-                if (!isset($seen[$k])) { $iocs[] = ['type' => 'domain', 'value' => $domain]; $seen[$k] = true; }
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'domain', 'value' => $domain];
+                    $seen[$k] = true;
+                }
             }
         }
 
@@ -402,7 +487,10 @@ class GenerateDemoDataCommand extends Command
     {
         $messages = [];
         $msgCount = $turns * 2;
-        if ($msgCount < 2) $msgCount = 2;
+
+        if ($msgCount < 2) {
+            $msgCount = 2;
+        }
         $timeStep = $engagementSec > 0 ? (int) ($engagementSec / max($msgCount, 1)) : 3600;
 
         $inboundTemplates = $this->getInboundTemplates()[$scamType] ?? $this->getInboundTemplates()['PHISHING'];
@@ -421,6 +509,7 @@ class GenerateDemoDataCommand extends Command
             if ($isInbound) {
                 $stage = $this->getInboundStage($i);
                 $pool = $inboundTemplates[$stage] ?? $inboundTemplates['opening'];
+
                 if ($stage === 'opening') {
                     // Round-robin openings globally per scam type
                     $key = $scamType . '_opening';
@@ -434,8 +523,12 @@ class GenerateDemoDataCommand extends Command
 
                 $body = $this->randomize($template['body'], $resolved);
                 $subject = $conversationSubject ?? $this->randomize($template['subject'] ?? $this->getSubject($scamType), $resolved);
-                if ($conversationSubject === null) $conversationSubject = $subject;
-                else $subject = 'Re: ' . $conversationSubject;
+
+                if ($conversationSubject === null) {
+                    $conversationSubject = $subject;
+                } else {
+                    $subject = 'Re: ' . $conversationSubject;
+                }
 
                 $iocs = $this->extractIocsFromBody($body);
 
@@ -470,7 +563,8 @@ class GenerateDemoDataCommand extends Command
                 $idx = $this->pickTemplate($pool, $lastOutbound);
                 $lastOutbound = $idx;
 
-                $body = $this->applyPersonaFlair($pool[$idx], $persona);
+                $body = $this->randomize($pool[$idx], $resolved);
+                $body = $this->applyPersonaFlair($body, $persona);
                 $pipelineTrace = $this->generatePipelineTrace($convId, $persona, $scamType, $timestamp);
 
                 $messages[] = [
@@ -489,56 +583,135 @@ class GenerateDemoDataCommand extends Command
 
     private function getInboundStage(int $msgIndex): string
     {
-        if ($msgIndex === 0) return 'opening';
-        if ($msgIndex <= 2) return 'follow_early';
-        if ($msgIndex <= 4) return 'follow_mid';
+        if ($msgIndex === 0) {
+            return 'opening';
+        }
+
+        if ($msgIndex <= 2) {
+            return 'follow_early';
+        }
+
+        if ($msgIndex <= 4) {
+            return 'follow_mid';
+        }
+
         return 'follow_late';
     }
 
     private function getOutboundStage(int $msgIndex): string
     {
-        if ($msgIndex <= 1) return 'initial';
-        if ($msgIndex <= 3) return 'engaged';
-        if ($msgIndex <= 5) return 'deep';
+        if ($msgIndex <= 1) {
+            return 'initial';
+        }
+
+        if ($msgIndex <= 3) {
+            return 'engaged';
+        }
+
+        if ($msgIndex <= 5) {
+            return 'deep';
+        }
+
         return 'escalate';
     }
 
     private function pickTemplate(array $pool, int $lastUsed): int
     {
         $keys = array_keys($pool);
-        if (count($keys) <= 1) return $keys[0] ?? 0;
+
+        if (count($keys) <= 1) {
+            return $keys[0] ?? 0;
+        }
         $available = array_diff($keys, [$lastUsed]);
-        if (empty($available)) $available = $keys;
+
+        if (empty($available)) {
+            $available = $keys;
+        }
+
         return $available[array_rand($available)];
     }
 
     private function applyPersonaFlair(string $text, string $persona): string
     {
-        // Add persona-specific touches after template selection
+        // Per-persona signature phrases — make each persona recognizable
+        $signatures = [
+            'bank_customer' => ['I have banked with them for over 30 years and never had an issue like this.', 'I always review my statements carefully at the end of each month.', 'My account has never had a problem before — this is very concerning.'],
+            'accountant_meticulous' => ['Our fiscal year-end is approaching so timing is critical.', 'I will need the invoice number cross-referenced with our ledger.', 'My manager will need to countersign any changes to payment details.'],
+            'admin_assistant' => ['I need to check with my manager first — she handles all approvals.', 'Sorry for the delay, my inbox is overflowing today with three managers needing things.', 'I apologize — I am juggling multiple urgent requests right now.'],
+            'worried_customer' => ['I have children to think about and this affects their college fund!!', 'My friend lost everything to hackers last year and I am terrified!!', 'I checked my balance and something already looks wrong!!'],
+            'tech_newbie' => ['My daughter set up my computer and she is not here to help me right now.', 'I call the browser "the internet button" — I know, silly, but I am learning!', 'I am terrified of clicking the wrong thing and breaking everything.'],
+            'debtor_desperate' => ['I lost my job three months ago and every bill feels like a countdown.', 'My children are depending on me and I cannot afford any more setbacks.', 'I have been looking for any lifeline and this caught my attention.'],
+            'senior_isolated' => ['My cat Minou was sitting on my lap when I read your message!', 'My neighbor Jacqueline was just talking about something like this yesterday.', 'My late husband Raymond always handled these things — I miss him terribly.'],
+            'lonely_divorcee' => ['Since my divorce after 18 years, I have learned to be more careful about everything.', 'My two teenagers keep me busy but the evenings are still lonely.', 'I have started hiking again to clear my head — it helps me think clearly.'],
+            'lonely_person' => ['I live alone and order delivery most nights — not much social contact these days.', 'My plants are literally my only company, so I appreciate the communication.', 'Working from home as a software tester gets very isolating sometimes.'],
+            'charity_donor' => ['I volunteer at the food bank every Thursday and I know how much help is needed.', 'I sponsor two children through an NGO — giving back is important to me.', 'My years as a pharmacist taught me that caring for others is the most important thing.'],
+            'senior_suspicious' => ['My son-in-law works in IT security and he warned me specifically about this kind of thing.', 'Two years ago someone impersonating my bank stole 800 euros from me — never again.', 'I always verify reference numbers independently before taking any action.'],
+            'lottery_skeptic' => ['As an engineer, I know the probability of winning something I never entered is essentially zero.', 'I checked your domain against the official registry and found no match.', 'Common sense tells me that legitimate organizations do not operate this way.'],
+            'small_business_owner' => ['I wake up at 3 AM every day to run my bakery — I do not have time for this.', 'I have four employees depending on me, so every minute counts.', 'Business is business — either make it simple or find someone else.'],
+            'entrepreneur_rushed' => ['swamped with the Q2 pipeline review rn, literally between client calls', 'my assistant can handle the details, just need the bottom line from u', 'cant do meetings or calls this week, everything needs to be async'],
+            'student_busy' => ['i have a shift at the coffee shop in literally 20 min so keep it quick', 'my roommate thinks this whole thing is super sus ngl', 'im between lectures and group projects rn so i cant really focus on this'],
+            'buyer_eager' => ['I track every flash sale and promo code — never miss a deal!', 'What is the return policy on this? And are there any discount codes?', 'I already have my cart ready, just need to know about delivery times!'],
+            'hopeless_romantic' => ['Your words are poetry to my soul... I believe the universe brought us together.', 'I have read every love story ever written and I believe ours is still unfolding.', 'My heart tells me to trust you, even when my mind hesitates...'],
+            'widow_grieving' => ['My spouse passed eight months ago and the loneliness is overwhelming.', 'The empty chair at the dinner table reminds me every single day.', 'I am still learning to manage everything alone — it is harder than I imagined.'],
+            'generic_user' => ['I like to be thorough before making any decisions.', 'I will need a few days to review everything properly.', 'I prefer to take things one step at a time.'],
+            'tech_intermediate' => ['I already tried clearing my cache and checking the URL — still looks off to me.', 'I am comfortable with technology but this does not follow the usual patterns I see.', 'I checked the SSL certificate and the domain registration — something is not right.'],
+            'freelance_cautious' => ['As a freelancer, I get a lot of unsolicited offers so I have learned to be careful.', 'I always verify new contacts before committing to anything.', 'My portfolio is on my website — feel free to check, but I need to verify you too.'],
+            'job_seeker' => ['I have been unemployed for five months and I am eager but also cautious.', 'My student loans are piling up so I need something legitimate.', 'My parents keep asking when I will find work — the pressure is real.'],
+            'investor_greedy' => ['I discovered trading during COVID and I have been hooked ever since.', 'What is the minimum deposit and the projected ROI timeline?', 'I do not want to miss out — FOMO is real in this market.'],
+            'elderly_person' => ['My seven grandchildren would tell me to be careful about this.', 'I call my tablet "the screen thing" — technology is not my strong suit!', 'My neighbor Jacqueline and I were just discussing something similar over Sunday roast.'],
+            'confused_user' => ['I handle filing and photocopies at the office — computers really confuse me.', 'I always call the IT department "the experts" because they seem to know everything.', 'I am sorry for being slow with this — I always need things explained twice.'],
+            'senior_trusting' => ['I spent over 40 years sorting mail and I have always trusted the system.', 'The government, the bank, the post office — I believe in institutions.', 'I use expressions like "electronic mail" — my grandchildren find it amusing.'],
+        ];
+
+        // Inject a persona signature phrase
+        $sigs = $signatures[$persona] ?? $signatures['generic_user'];
+        $sig = $sigs[array_rand($sigs)];
+        $text .= ' ' . $sig;
+
+        // Apply style modifications
         switch ($persona) {
             case 'entrepreneur_rushed':
-                $text = str_replace(['I am', 'I have', 'do not', 'cannot'], ['im', 'ive', 'dont', 'cant'], $text);
-                $text = strtolower(substr($text, 0, 1)) . substr($text, 1); // lowercase first letter
+                $text = str_replace(['I am', 'I have', 'do not', 'cannot', 'would not'], ['im', 'ive', 'dont', 'cant', 'wouldnt'], $text);
+                $text = strtolower(substr($text, 0, 1)) . substr($text, 1);
+
                 break;
             case 'student_busy':
-                $text = str_replace(['I do not know', 'to be honest', 'right now', 'I am'], ['idk', 'tbh', 'rn', 'im'], $text);
+                $text = str_replace(['I do not know', 'to be honest', 'right now', 'I am', 'I have'], ['idk', 'tbh', 'rn', 'im', 'ive'], $text);
                 $text = rtrim($text, '.') . (random_int(0, 1) ? '' : ' lol');
+
                 break;
             case 'worried_customer':
                 $text = str_replace(['. ', '? '], ['!! ', '?? '], $text);
-                break;
-            case 'senior_isolated':
-                $anecdotes = [' My cat Minou was just sitting on the keyboard when I read this!', ' This reminds me of what my neighbor Jacqueline was saying the other day.', ' My late husband Raymond always handled these things.'];
-                $text .= $anecdotes[array_rand($anecdotes)];
+
                 break;
             case 'hopeless_romantic':
                 $text = str_replace('. ', '... ', $text);
-                break;
-            case 'widow_grieving':
-                $closings = [' My late spouse would have known what to do.', ' The house feels so empty these days.', ' I am still learning to manage things alone.'];
-                $text .= $closings[array_rand($closings)];
+
                 break;
         }
+
+        // Random length variation: 20% short, 50% medium, 30% long
+        $roll = random_int(1, 100);
+
+        if ($roll <= 20) {
+            // Short: keep first 2 sentences
+            $sentences = preg_split('/(?<=[.!?])\s+/', $text, 3);
+
+            if (count($sentences) > 2) {
+                $text = $sentences[0] . ' ' . $sentences[1];
+            }
+        } elseif ($roll > 70) {
+            // Long: add a filler sentence
+            $fillers = [
+                'I really do appreciate you taking the time to communicate with me about this.',
+                'Please let me know if there is anything else I should be aware of.',
+                'I want to make sure we handle this properly from my end.',
+                'I have been thinking about this quite a lot since your last message.',
+                'I hope we can get this sorted out soon — it has been on my mind.',
+            ];
+            $text .= ' ' . $fillers[array_rand($fillers)];
+        }
+
         return $text;
     }
 
@@ -551,9 +724,9 @@ class GenerateDemoDataCommand extends Command
         return [
             'PHISHING' => [
                 'opening' => [
-                    ['subject' => 'URGENT: Unusual activity from {ip}', 'body' => "Dear valued customer,\n\nWe have detected unusual activity on your account from an unrecognized device at IP address {ip}. For your protection, your account has been temporarily limited.\n\nTo restore full access, please verify your identity immediately:\nhttps://{domain}/restore\n\nFailure to verify within 24 hours will result in permanent account suspension.\n\nSincerely,\nAccount Security Team\n{sender_email}"],
+                    ['subject' => 'URGENT: Unusual activity from {ip}', 'body' => "Dear valued customer,\n\nWe have detected unusual activity on your account from an unrecognized device at IP address {ip}. For your protection, your account has been temporarily limited.\n\nTo restore full access, please verify your identity immediately:\nhttps://{domain}/restore\n\nFailure to verify within {deadline} will result in {consequence}.\n\nSincerely,\nAccount Security Team\n{sender_email}"],
                     ['subject' => 'Security Alert: Login from {city}', 'body' => "Dear Customer,\n\nWe noticed a sign-in to your account from {city} at {time}. If this was not you, your account may be compromised.\n\nSecure your account now: https://{domain}/secure-login\n\nIf you do not recognize this activity, we strongly recommend changing your password immediately.\n\nSecurity Operations Center\n{sender_email}"],
-                    ['subject' => 'Account suspension notice - Case {ref}', 'body' => "IMPORTANT NOTICE\n\nYour account has been flagged for review under case {ref}. We have detected multiple suspicious transactions totaling {amount}.\n\nTo prevent permanent suspension, verify your identity at: https://{domain}/verify-case?ref={ref}\n\nThis requires immediate attention. Failure to respond within 48 hours will result in account closure.\n\nFraud Prevention Team\n{sender_email}"],
+                    ['subject' => 'Account suspension notice - Case {ref}', 'body' => "IMPORTANT NOTICE\n\nYour account has been flagged for review under case {ref}. We have detected multiple suspicious transactions totaling {amount}.\n\nTo prevent permanent suspension, verify your identity at: https://{domain}/verify-case?ref={ref}\n\nThis requires immediate attention. Failure to respond within {deadline} will result in account closure.\n\nFraud Prevention Team\n{sender_email}"],
                     ['subject' => 'ALERT: Password change attempt at {time}', 'body' => "Security Alert\n\nSomeone attempted to change your account password at {time} today from IP {ip}. If this was not you, your account credentials may have been stolen.\n\nLock your account immediately: https://{domain}/lock-account\nReview recent activity: https://{domain}/activity-log\n\nDo not ignore this message.\n\nAutomated Security System\n{sender_email}"],
                     ['subject' => 'Payment method ending in {last4} declined', 'body' => "Hello,\n\nYour payment method ending in {last4} has been declined for a transaction of {amount}. To avoid service interruption, please update your payment details.\n\nUpdate now: https://{domain}/update-payment\n\nIf you believe this is an error, contact our support team at {sender_email} or call {phone}.\n\nBilling Department"],
                     ['subject' => 'Verify your identity to restore access', 'body' => "Dear Account Holder,\n\nAs part of our enhanced security measures, we require all users to re-verify their identity. Your account from {city} has been selected for mandatory verification.\n\nComplete verification: https://{domain}/mandatory-verify\n\nAccounts that are not verified by {date} will be permanently deactivated.\n\nCompliance Department\n{sender_email}"],
@@ -566,12 +739,12 @@ class GenerateDemoDataCommand extends Command
                 ],
                 'follow_mid' => [
                     ['body' => "SECOND NOTICE: Your account verification is overdue. We have now blocked all outgoing transactions as a precautionary measure.\n\nRestore access immediately: https://{domain}/restore-urgent\n\nFurther delays may result in permanent restrictions."],
-                    ['body' => "We have escalated your case to our fraud investigation unit. Multiple access attempts from {ip} continue to be detected.\n\nTo clear your account, you must verify within 12 hours: https://{domain}/fraud-clear\n\nCase reference: {ref}"],
+                    ['body' => "We have escalated your case to our fraud investigation unit. Multiple access attempts from {ip} continue to be detected.\n\nTo clear your account, you must verify within {deadline}: https://{domain}/fraud-clear\n\nCase reference: {ref}"],
                     ['body' => "IMPORTANT: Your account has been placed under review. All pending payments totaling {amount} have been frozen.\n\nProvide verification to release your funds: https://{domain}/release-funds\n\nContact {sender_email} for assistance."],
                     ['body' => "This is an automated reminder. Your account requires immediate verification to prevent permanent closure. We have made multiple attempts to reach you.\n\nFinal verification link: https://{domain}/final-verify\n\nAct now to preserve your account."],
                 ],
                 'follow_late' => [
-                    ['body' => "FINAL WARNING: This is your last opportunity to verify your account before permanent suspension. After {date}, all account data will be deleted and cannot be recovered.\n\nLast chance: https://{domain}/last-chance-verify\n\nWe cannot extend this deadline further."],
+                    ['body' => "FINAL WARNING: This is your last opportunity to verify your account before {consequence}. After {date}, all account data will be deleted and cannot be recovered.\n\nLast chance: https://{domain}/last-chance-verify\n\nWe cannot extend this deadline further."],
                     ['body' => "Your account is scheduled for termination due to unresolved security concerns. All funds ({amount}) will be frozen and transferred to a holding account.\n\nPrevent this action: https://{domain}/prevent-closure\n\nThis notice is final."],
                     ['body' => "ACCOUNT CLOSURE IMMINENT\n\nDespite multiple notifications, your identity remains unverified. Effective {date}, your account will be permanently closed.\n\nTo avoid losing access to your funds and data, complete verification within 6 hours: https://{domain}/emergency-verify\n\nFraud Prevention Department"],
                 ],
@@ -599,7 +772,7 @@ class GenerateDemoDataCommand extends Command
                     ['body' => "We detected that someone exported your contact list from {ip}. This is a potential data breach.\n\nReview and secure your account: https://{domain}/breach-review\n\nAct immediately to prevent further unauthorized access."],
                 ],
                 'follow_late' => [
-                    ['body' => "FINAL NOTICE: Your account will be permanently disabled in 6 hours due to unresolved security issues. All data will be irretrievably deleted.\n\nSave your account: https://{domain}/save-account\n\nThis is the last notice you will receive."],
+                    ['body' => "FINAL NOTICE: Your account will be permanently disabled in {deadline} due to unresolved security issues. All data will be irretrievably deleted.\n\nSave your account: https://{domain}/save-account\n\nThis is the last notice you will receive."],
                     ['body' => "Account deletion scheduled for {date}. You have not responded to our previous security alerts.\n\nLast chance to verify: https://{domain}/last-verify\n\nAfter this date, we cannot recover your data."],
                     ['body' => "Your IT department has been notified of the security incident on your account. To prevent disciplinary action, complete the verification process immediately.\n\nVerify: https://{domain}/compliance-verify\n\nRef: {ref}"],
                 ],
@@ -663,7 +836,7 @@ class GenerateDemoDataCommand extends Command
 
             'TECH_SUPPORT' => [
                 'opening' => [
-                    ['subject' => 'CRITICAL SECURITY ALERT - Your Computer Is At Risk', 'body' => "** CRITICAL SECURITY ALERT **\n\nOur Microsoft Security Operations Center has detected 23 critical threats on your computer, including:\n- Trojan.GenericKD.47583921\n- Spyware.BankCredentialStealer\n- Ransomware.WannaCry.Variant\n\nYour personal data, passwords, and banking information are at immediate risk.\n\nCall our certified security team NOW: {phone}\nReference: {ticket}\n\nDo NOT turn off your computer.\n\nMicrosoft Security Team\n{sender_email}"],
+                    ['subject' => 'CRITICAL SECURITY ALERT - Your Computer Is At Risk', 'body' => "** CRITICAL SECURITY ALERT **\n\nOur Microsoft Security Operations Center has detected {threat_count} critical threats on your computer, including:\n- Trojan.GenericKD.47583921\n- Spyware.BankCredentialStealer\n- Ransomware.WannaCry.Variant\n\nYour personal data, passwords, and banking information are at immediate risk.\n\nCall our certified security team NOW: {phone}\nReference: {ticket}\n\nDo NOT turn off your computer.\n\nMicrosoft Security Team\n{sender_email}"],
                     ['subject' => 'Windows Defender Alert - Action Required', 'body' => "Windows Defender has detected suspicious activity:\n\nThreat Level: CRITICAL\nThreats Found: 17\nAffected: System files, browser data, saved passwords\nSource IP: {ip}\n\nYour firewall has been temporarily disabled to prevent data corruption.\n\nIMPORTATE: Call our Microsoft-certified support line immediately: {phone}\nTicket: {ticket}\n\nWindows Security Center\n{sender_email}"],
                     ['subject' => 'Your ISP has flagged your connection', 'body' => "Dear Customer,\n\nYour Internet Service Provider has detected unusual traffic originating from your network (IP: {ip}). This may indicate:\n\n1. Malware infection sending spam\n2. Unauthorized use of your connection\n3. A compromised device on your network\n\nYour service will be suspended within 24 hours unless you contact our technical support: {phone}\n\nRef: {ticket}\n\nNetwork Security Department\n{sender_email}"],
                     ['subject' => 'Apple ID Security Notification', 'body' => "Your Apple ID was used to sign in on a new device:\n\nDevice: Unknown Windows PC\nLocation: {city}\nTime: {time}\nIP Address: {ip}\n\nIf this was not you, your Apple ID has been compromised. Call Apple Security immediately: {phone}\n\nDo not attempt to change your password online as the attacker may intercept the reset.\n\nApple Security Team\n{sender_email}"],
@@ -677,7 +850,7 @@ class GenerateDemoDataCommand extends Command
                     ['body' => "I am glad you reached out. Our diagnostic has identified that your system has been part of a botnet since {date}. This means your computer has been used to attack other computers without your knowledge.\n\nThis is a federal offense in most jurisdictions. We need to remove the malware immediately to protect you. Call: {phone}"],
                 ],
                 'follow_mid' => [
-                    ['body' => "Our diagnostic has found 47 critical threats on your system. Your banking credentials may already be compromised. We need to install our security software immediately.\n\nThe one-time threat removal fee is {fee}. This includes:\n- Full malware removal\n- 1-year advanced protection\n- 24/7 priority support\n\nPayment can be made securely at: https://{domain}/payment"],
+                    ['body' => "Our diagnostic has found {threat_count} critical threats on your system. Your banking credentials may already be compromised. We need to install our security software immediately.\n\nThe one-time threat removal fee is {fee}. This includes:\n- Full malware removal\n- 1-year advanced protection\n- 24/7 priority support\n\nPayment can be made securely at: https://{domain}/payment"],
                     ['body' => "BAD NEWS: During our scan, we discovered that your system has been infected with a particularly aggressive ransomware variant. If we do not remove it within the next 2 hours, it will encrypt ALL your files.\n\nEmergency removal: {fee}\nCall NOW: {phone}\n\nEvery minute counts."],
                     ['body' => "I need to be honest with you — the situation is worse than we initially thought. Your identity information has been exposed. We found evidence of:\n\n- SSN/ID numbers accessed\n- Bank login credentials stolen\n- Email account compromised\n\nOur identity protection package ({fee}/year) will monitor and protect you. We can set it up right now if you call {phone}."],
                     ['body' => "URGENT UPDATE on your case {ticket}:\n\nWe traced the malware source to a server in {city}. The attacker has your:\n- Email password\n- Saved credit card numbers\n- Personal documents\n\nWe recommend our Premium Protection Plan ({fee}) which includes file recovery, identity monitoring, and priority response. Call {phone} to activate."],
@@ -879,231 +1052,231 @@ class GenerateDemoDataCommand extends Command
         return [
             'formal' => [
                 'initial' => [
-                    "Thank you for your correspondence. I have noted the details provided. Before proceeding, our standard protocol requires the following documentation: (1) An official reference number, (2) A signed authorization form, (3) Updated contact details. Please submit these at your earliest convenience.",
-                    "I acknowledge receipt of your message. Before I can take any action, I need to verify the legitimacy of this request through our internal compliance procedures. Could you please provide an official case number and a direct phone line where I can reach your department?",
-                    "Thank you for bringing this to my attention. I have reviewed the information you provided. However, I need to follow our company's verification procedure before responding to any such requests. Could you provide a written confirmation on official letterhead?",
-                    "I have received your communication and will process it according to our standard operating procedures. Please note that any changes to financial arrangements require dual authorization from my manager. I will need time to arrange this.",
-                    "Thank you. I have logged your request under our internal tracking system. Before we can proceed, our compliance department will need to review the documentation. Could you send the relevant paperwork to our official email address?",
+                    'Thank you for your correspondence. I have noted the details about {context}. Before proceeding, our standard protocol requires the following documentation: (1) An official reference number, (2) A signed authorization form, (3) Updated contact details. Please submit these at your earliest convenience.',
+                    'I acknowledge receipt of your message. Before I can take any action, I need to verify the legitimacy of {context} through our internal compliance procedures. Could you please provide an official case number and a direct phone line where I can reach your department?',
+                    "Thank you for bringing this to my attention. I have reviewed {context2} about {context}. However, I need to follow our company's verification procedure before responding to any such requests. Could you provide a written confirmation on official letterhead?",
+                    'I have received your communication and will process it according to our standard operating procedures. Please note that any changes to financial arrangements require dual authorization from my manager. I will need time to arrange this.',
+                    'Thank you. I have logged your request regarding {context} under our internal tracking system. Before we can proceed, our compliance department will need to review the documentation. Could you send the relevant paperwork to our official email address?',
                 ],
                 'engaged' => [
-                    "I have reviewed the information you provided against our records. There appears to be a discrepancy between the reference number you cited and our internal ledger. Could you please clarify the original documentation this relates to?",
-                    "Further to your request, I have consulted with our accounts department. They require additional verification before any changes can be processed. Specifically, we need the original contract number and the countersigned amendment.",
-                    "I have been trying to verify your claims through our standard channels. The reference number you provided does not appear in our system. Could there be an error? Please double-check and resend.",
-                    "I appreciate your patience. I have forwarded your request to our compliance officer for review. They typically respond within 3-5 business days. In the meantime, could you provide any additional documentation that might expedite the process?",
-                    "I have cross-referenced your request with our vendor management system. There are some inconsistencies I need to understand before proceeding. Could we schedule a call to discuss the details?",
+                    'I have reviewed {context2} you provided against our records. There appears to be a discrepancy between the reference related to {context} and our internal ledger. Could you please clarify the original documentation this relates to?',
+                    'Further to your request, I have consulted with our accounts department. They require additional verification before any changes can be processed. Specifically, we need the original contract number and the countersigned amendment.',
+                    'I have been trying to verify your claims about {context} through our standard channels. The reference number you provided does not appear in our system. Could there be an error? Please double-check and resend.',
+                    'I appreciate your patience. I have forwarded your request to our compliance officer for review. They typically respond within 3-5 business days. In the meantime, could you provide any additional documentation that might expedite the process?',
+                    'I have cross-referenced your request with our vendor management system. There are some inconsistencies I need to understand before proceeding. Could we schedule a call to discuss the details?',
                 ],
                 'deep' => [
-                    "I have escalated this matter to my manager who will need to approve any further action. Our internal audit procedures require dual authorization for matters of this nature. I expect a response from their office within 48 hours.",
-                    "Further to our previous exchange, I have engaged our legal department to review the documentation you provided. They have raised several questions that will need to be addressed before we can proceed.",
-                    "I spoke with our finance director this morning about your request. They have asked me to obtain a certified copy of the authorization and a notarized letter confirming the changes. Can you arrange this?",
-                    "Our compliance team has completed their initial review. They have flagged several items that need clarification. I will be sending you a formal request for information letter shortly.",
-                    "I have been reviewing this matter extensively. While I want to be helpful, our regulatory obligations require me to follow strict verification procedures. I hope you understand that this is for the protection of all parties.",
+                    'I have escalated this matter to my manager who will need to approve any further action. Our internal audit procedures require dual authorization for matters of this nature. I expect a response from their office within 48 hours.',
+                    'Further to our previous exchange, I have engaged our legal department to review the documentation you provided. They have raised several questions that will need to be addressed before we can proceed.',
+                    'I spoke with our finance director this morning about your request. They have asked me to obtain a certified copy of the authorization and a notarized letter confirming the changes. Can you arrange this?',
+                    'Our compliance team has completed their initial review. They have flagged several items that need clarification. I will be sending you a formal request for information letter shortly.',
+                    'I have been reviewing this matter extensively. While I want to be helpful, our regulatory obligations require me to follow strict verification procedures. I hope you understand that this is for the protection of all parties.',
                 ],
                 'escalate' => [
-                    "Our compliance department has now been formally notified of this matter. They have asked me to inform you that all communications will be documented and retained as part of our audit trail. Please provide your official credentials so we can verify your identity.",
-                    "I have completed my review and I must inform you that I cannot proceed without full verification. Our legal team has recommended that we request an in-person meeting or a video call with proper identification before taking any action.",
-                    "After thorough internal review, I have decided to seek independent verification of your claims. I will be contacting the relevant institutions directly to confirm the details you have provided. I trust you will have no objection to this.",
-                    "I want to bring this to resolution. However, the inconsistencies identified during our review mean that I must now involve our fraud prevention team. This is standard procedure and not an accusation. Please cooperate fully.",
+                    'Our compliance department has now been formally notified of this matter. They have asked me to inform you that all communications will be documented and retained as part of our audit trail. Please provide your official credentials so we can verify your identity.',
+                    'I have completed my review and I must inform you that I cannot proceed without full verification. Our legal team has recommended that we request an in-person meeting or a video call with proper identification before taking any action.',
+                    'After thorough internal review, I have decided to seek independent verification of your claims about {context}. I will be contacting the relevant institutions directly to confirm the details you have provided. I trust you will have no objection to this.',
+                    'I want to bring this to resolution. However, the inconsistencies identified during our review mean that I must now involve our fraud prevention team. This is standard procedure and not an accusation. Please cooperate fully.',
                 ],
             ],
 
             'anxious' => [
                 'initial' => [
-                    "Oh no, this sounds really serious!! What do I need to do?? I am really worried about my account. I noticed some strange things on my statement last week too. Is my money safe?? Please help me fix this as quickly as possible!",
-                    "Wait, what?? This is really scary! I do not understand what is happening. Can you explain it more simply? I am not very technical and I do not want to make things worse by doing the wrong thing!",
-                    "Oh my God, I just saw your message and I am panicking! I have my entire savings in that account! Please tell me what to do! I cannot afford to lose anything, I have bills to pay!",
-                    "This is terrible!! I knew something was wrong, I had a feeling! What should I do first? Should I call my bank? Should I turn off my computer? I am so confused and scared right now!",
-                    "Help!! I do not know what is going on but your message sounds really urgent. I am not good with these things. Can you walk me through what I need to do step by step? Please be patient with me!",
+                    'Oh no, {context} sounds really serious!! What do I need to do?? I am really worried about {context}. I noticed some strange things on my statement last week too. Is my money safe?? Please help me fix this as quickly as possible!',
+                    'Wait, what?? This is really scary! I do not understand what is happening with {context}. Can you explain it more simply? I am not very technical and I do not want to make things worse by doing the wrong thing!',
+                    'Oh my God, I just read about {context} and I am panicking! I have my entire savings in that account! Please tell me what to do! I cannot afford to lose anything, I have bills to pay!',
+                    'This is terrible!! I knew something was wrong, I had a feeling! What should I do first? Should I call my bank? Should I turn off my computer? I am so confused and scared right now!',
+                    'Help!! I do not know what is going on but your message sounds really urgent. I am not good with these things. Can you walk me through what I need to do step by step? Please be patient with me!',
                 ],
                 'engaged' => [
-                    "Ok I tried what you said but I am not sure if it worked?? The page looked a bit different from what I expected. Should I try again? I am really stressed about this! I cannot sleep thinking about my account!",
-                    "I did what you asked but now there is a different screen showing up. Did I do something wrong?? I am so worried I might have made things worse! Can you help me?",
-                    "Thank you for responding so quickly! I followed your instructions but my hands were shaking and I might have typed something wrong. Can you check if everything went through on your end?",
-                    "I tried to do what you said but my browser gave me a warning. Should I ignore it? I do not want to get hacked! My friend told me never to ignore browser warnings but I also do not want my account suspended!",
-                    "I have been trying for the last hour but I keep getting confused. The website you sent looks different from what I usually see. Is that normal? I am sorry for being difficult, I am just really anxious!",
+                    'Ok I tried what you said but I am not sure if it worked?? The page looked a bit different from what I expected. Should I try again? I am really stressed about this! I cannot sleep thinking about my account!',
+                    'I did what you asked but now there is a different screen showing up. Did I do something wrong?? I am so worried I might have made things worse! Can you help me?',
+                    'Thank you for responding so quickly! I followed your instructions but my hands were shaking and I might have typed something wrong. Can you check if everything went through on your end?',
+                    'I tried to do what you said but my browser gave me a warning. Should I ignore it? I do not want to get hacked! My friend told me never to ignore browser warnings but I also do not want my account suspended!',
+                    'I have been trying for the last hour but I keep getting confused. The website you sent looks different from what I usually see. Is that normal? I am sorry for being difficult, I am just really anxious!',
                 ],
                 'deep' => [
-                    "I just want this resolved!! I have been losing sleep over this. My friend told me I should be careful but you seem like you know what you are doing. What is the next step? I will do whatever it takes to fix this!",
-                    "I told my husband about this and he thinks I should be more careful, but I am so scared of losing our savings that I just want to fix it NOW! Please just tell me exactly what to do!",
-                    "I showed your messages to my daughter and she said I should not do anything without verifying first. But I am terrified that my account will be closed if I wait too long! What do you think I should do?",
-                    "I have not been able to eat or sleep since I received your first message. The thought of losing my savings is overwhelming. I have been through enough hardship already. Please just help me resolve this quickly!",
-                    "My neighbor went through something similar last year and lost everything. I cannot let that happen to me! If there are any fees to protect my account, I would rather pay them than risk losing my money. What do I need to do?",
+                    'I just want this resolved!! I have been losing sleep over this. My friend told me I should be careful but you seem like you know what you are doing. What is the next step? I will do whatever it takes to fix this!',
+                    'I told my husband about this and he thinks I should be more careful, but I am so scared of losing our savings that I just want to fix it NOW! Please just tell me exactly what to do!',
+                    'I showed your messages to my daughter and she said I should not do anything without verifying first. But I am terrified that my account will be closed if I wait too long! What do you think I should do?',
+                    'I have not been able to eat or sleep since I received your first message. The thought of losing my savings is overwhelming. I have been through enough hardship already. Please just help me resolve this quickly!',
+                    'My neighbor went through something similar last year and lost everything. I cannot let that happen to me! If there are any fees to protect my account, I would rather pay them than risk losing my money. What do I need to do?',
                 ],
                 'escalate' => [
-                    "Just tell me what to do and I will do it!! I do not care about the process anymore, I just want my account safe! If I need to pay something to fix this, just tell me how much!",
-                    "I am desperate! I have children to feed and I cannot risk losing access to my account! Please, whatever it takes to resolve this, I am ready. Just guide me through it!",
-                    "I called my bank but they said they do not know anything about this. That makes me even MORE worried! Are you sure this is real? I do not know who to trust anymore but I cannot just ignore it!",
-                    "Fine, I will do whatever you need. I have already wasted too much time worrying about this. Send me the link or the payment details or whatever it is. I just want this nightmare over with!",
+                    'Just tell me what to do and I will do it!! I do not care about the process anymore, I just want my account safe! If I need to pay something to fix this, just tell me how much!',
+                    'I am desperate! I have children to feed and I cannot risk losing access to my account! Please, whatever it takes to resolve this, I am ready. Just guide me through it!',
+                    'I called my bank but they said they do not know anything about this. That makes me even MORE worried! Are you sure this is real? I do not know who to trust anymore but I cannot just ignore it!',
+                    'Fine, I will do whatever you need. I have already wasted too much time worrying about this. Send me the link or the payment details or whatever it is. I just want this nightmare over with!',
                 ],
             ],
 
             'warm' => [
                 'initial' => [
-                    "Oh, what a lovely message! Thank you for reaching out. You know, it reminds me of when things were simpler. But tell me more about yourself! I always enjoy making new connections. What brings you to write to me today?",
-                    "How wonderful to hear from someone! I was just sitting here with my tea, feeling a bit lonely, and then your message arrived. It really brightened my day. Now, tell me what this is all about?",
-                    "Thank you for your message, dear. I must say, it is nice to receive mail from a real person these days. Everything is so automated now! What exactly do you need from me?",
-                    "Oh my, this is quite unexpected! I was just talking to my neighbor about how nobody writes proper messages anymore, and here you are! Let me read your message properly and I will get back to you.",
-                    "What a pleasant surprise! I do not get many messages like this. I suppose I should pay more attention to my emails. Now, let me put on my reading glasses and look at this carefully. What is it you need?",
+                    'Oh, what a lovely message! Thank you for reaching out. You know, it reminds me of when things were simpler. But tell me more about yourself! I always enjoy making new connections. What brings you to write to me today?',
+                    'How wonderful to hear from someone! I was just sitting here with my tea, feeling a bit lonely, and then your message about {context} arrived. It really brightened my day. Now, tell me more about {context}?',
+                    'Thank you for your message, dear. I must say, it is nice to receive mail from a real person these days. Everything is so automated now! What exactly do you need regarding {context}?',
+                    'Oh my, this is quite unexpected! I was just talking to my neighbor about how nobody writes proper messages anymore, and here you are! Let me read your message properly and I will get back to you.',
+                    'What a pleasant surprise! I do not get many messages like this. I suppose I should pay more attention to my emails. Now, let me put on my reading glasses and look at this carefully. What is it you need?',
                 ],
                 'engaged' => [
-                    "Thank you for explaining that. I think I understand, though I am not entirely sure about some of the details. My grandchildren always tell me I should ask more questions, so here goes: could you tell me exactly why you contacted me specifically?",
-                    "How wonderful to hear from you again! I was just telling my neighbor about our conversation. She thinks it is nice that I am getting help with this. Now, what were you saying about the next steps?",
-                    "I appreciate your patience with me. I have been thinking about what you said and I have a few questions. Is this something I need to worry about? I already have enough to worry about, you know!",
-                    "You are so kind to follow up! I was meaning to reply earlier but I got caught up making soup for the community lunch. Anyway, I have been thinking about your message. Tell me more about how this works?",
-                    "Oh, I am glad you wrote again. I was worried I might have missed something important. My memory is not what it used to be! Could you summarize what I need to do? Nice and simple, if you do not mind.",
+                    'Thank you for explaining that. I think I understand, though I am not entirely sure about some of the details. My grandchildren always tell me I should ask more questions, so here goes: could you tell me exactly why you contacted me about {context} specifically?',
+                    'How wonderful to hear from you again! I was just telling my neighbor about our conversation. She thinks it is nice that I am getting help with this. Now, what were you saying about the next steps?',
+                    'I appreciate your patience with me. I have been thinking about what you said and I have a few questions. Is this something I need to worry about? I already have enough to worry about, you know!',
+                    'You are so kind to follow up! I was meaning to reply earlier but I got caught up making soup for the community lunch. Anyway, I have been thinking about your message. Tell me more about how this works?',
+                    'Oh, I am glad you wrote again. I was worried I might have missed something important. My memory is not what it used to be! Could you summarize what I need to do? Nice and simple, if you do not mind.',
                 ],
                 'deep' => [
-                    "You know, you remind me of my son. He always explains things so patiently too. I trust you are looking out for me. What would you suggest I do next? I want to make sure I do the right thing.",
-                    "I have been thinking about our conversation a lot. I mentioned it to my family but they live so far away and they are always too busy to help with these things. It is so nice to have someone who actually listens!",
-                    "Thank you for being so patient with me through all of this. Most people do not have time for a chatty old person like me! I really appreciate your help. Now, you mentioned something about a next step?",
-                    "I trust you, dear. You have been nothing but kind and helpful. If you say this is what needs to be done, I believe you. Just tell me what to do and I will try my best to follow along.",
-                    "You are such a lovely person for helping me with this. In my experience, good people always come through when you need them. My late husband always said the same thing. What do we need to do next?",
+                    'You know, you remind me of my son. He always explains things so patiently too. I trust you are looking out for me. What would you suggest I do next? I want to make sure I do the right thing.',
+                    'I have been thinking about our conversation a lot. I mentioned it to my family but they live so far away and they are always too busy to help with these things. It is so nice to have someone who actually listens!',
+                    'Thank you for being so patient with me through all of this. Most people do not have time for a chatty old person like me! I really appreciate your help. Now, you mentioned something about a next step?',
+                    'I trust you, dear. You have been nothing but kind and helpful. If you say this is what needs to be done, I believe you. Just tell me what to do and I will try my best to follow along.',
+                    'You are such a lovely person for helping me with this. In my experience, good people always come through when you need them. My late husband always said the same thing. What do we need to do next?',
                 ],
                 'escalate' => [
-                    "Well, if you think that is the best course of action, I trust your judgment. You have been so helpful throughout this whole process. Let me get my reading glasses and my checkbook. What are the details again?",
-                    "I have decided to follow your recommendation. My neighbor agrees that it sounds reasonable. I would rather be safe than sorry, especially at my age. How do I proceed?",
-                    "You have been so kind and I do not want to cause any trouble. If this is what needs to happen, I will do my best. Can you write down the instructions one more time? I want to make sure I do not make any mistakes.",
-                    "Alright dear, I think I understand now. Let me see if I have everything right. I am a bit slow with these things but I will try. Thank you again for all your patience!",
+                    'Well, if you think that is the best course of action, I trust your judgment. You have been so helpful throughout this whole process. Let me get my reading glasses and my checkbook. What are the details again?',
+                    'I have decided to follow your recommendation. My neighbor agrees that it sounds reasonable. I would rather be safe than sorry, especially at my age. How do I proceed?',
+                    'You have been so kind and I do not want to cause any trouble. If this is what needs to happen, I will do my best. Can you write down the instructions one more time? I want to make sure I do not make any mistakes.',
+                    'Alright dear, I think I understand now. Let me see if I have everything right. I am a bit slow with these things but I will try. Thank you again for all your patience!',
                 ],
             ],
 
             'skeptical' => [
                 'initial' => [
-                    "I have received your message. Before I proceed with anything, I need to verify several things. Could you provide me with an official reference number, a physical mailing address, and a phone number where I can reach your supervisor? My son-in-law works in IT and he always tells me to check these things.",
-                    "Interesting. I have seen messages like this before. Can you tell me exactly how you obtained my email address? And which specific organization are you representing? I would like to verify this independently before taking any action.",
-                    "Thank you for your message. I must be upfront — I am naturally suspicious of unsolicited communications. I will need to verify your claims through independent channels before responding further. Can you provide verifiable credentials?",
-                    "I appreciate you reaching out, but I have questions. First, how did you get my contact information? Second, can you provide a registration number I can verify with the relevant authorities? I always check these things.",
+                    'I have received your message. Before I proceed with anything, I need to verify several things. Could you provide me with an official reference number, a physical mailing address, and a phone number where I can reach your supervisor? My son-in-law works in IT and he always tells me to check these things.',
+                    'Interesting. I have seen messages like this before. Can you tell me exactly how you obtained my email address? And which specific organization are you representing? I would like to verify this independently before taking any action.',
+                    'Thank you for your message. I must be upfront — I am naturally suspicious of unsolicited communications. I will need to verify your claims about {context} through independent channels before responding further. Can you provide verifiable credentials?',
+                    'I appreciate you reaching out, but I have questions. First, how did you get my contact information? Second, can you provide a registration number I can verify with the relevant authorities? I always check these things.',
                 ],
                 'engaged' => [
-                    "Thank you, but I remain unconvinced. The reference number you provided does not match any records I can find online. I have also checked with my bank directly and they have no record of this alert. Can you explain the discrepancy?",
-                    "I have done some research since your last message. Several things do not add up. The domain in your email does not match any official website I can find. Legitimate organizations do not usually contact people this way. Can you provide an alternative way to verify your identity?",
-                    "My son-in-law, who works in cybersecurity, looked at your email. He pointed out several red flags that concern me. I am not accusing you of anything, but I need better evidence before I can trust this communication.",
-                    "I checked the phone number you provided. It is not listed anywhere on the official website. I also tried calling the main number listed on the real website and they said they have no record of contacting me. How do you explain this?",
+                    'Thank you, but I remain unconvinced. The reference number you provided does not match any records I can find online. I have also checked with my bank directly and they have no record of this alert. Can you explain the discrepancy?',
+                    'I have done some research since your last message. Several things do not add up. The domain in your email does not match any official website I can find. Legitimate organizations do not usually contact people this way. Can you provide an alternative way to verify your identity?',
+                    'My son-in-law, who works in cybersecurity, looked at your email. He pointed out several red flags that concern me. I am not accusing you of anything, but I need better evidence before I can trust this communication.',
+                    'I checked the phone number you provided. It is not listed anywhere on the official website. I also tried calling the main number listed on the real website and they said they have no record of contacting me. How do you explain this?',
                 ],
                 'deep' => [
-                    "I have done extensive research and I have several concerns. First, the domain in your email does not match the official website. Second, legitimate organizations do not ask for sensitive information via email. I would like to speak with your compliance department directly.",
+                    'I have done extensive research and I have several concerns. First, the domain in your email does not match the official website. Second, legitimate organizations do not ask for sensitive information via email. I would like to speak with your compliance department directly.',
                     "After careful consideration and consultation with my IT-savvy family members, I have decided that I need more verification before proceeding. Please provide: (1) Your employee ID, (2) Your supervisor's direct line, (3) A physical address I can visit.",
-                    "I have been keeping records of all our communications. Before I take any action, I would like you to know that I intend to share these records with the relevant authorities for verification. I hope you will have no objection to that.",
-                    "Let me be direct with you. Several aspects of this communication follow patterns that are commonly associated with scams. I am not saying you are a scammer, but I need independently verifiable proof before I take any further steps.",
+                    'I have been keeping records of all our communications. Before I take any action, I would like you to know that I intend to share these records with the relevant authorities for verification. I hope you will have no objection to that.',
+                    'Let me be direct with you. Several aspects of this communication follow patterns that are commonly associated with scams. I am not saying you are a scammer, but I need independently verifiable proof before I take any further steps.',
                 ],
                 'escalate' => [
-                    "I have decided to report this communication to the relevant authorities for verification. If you are legitimate, this should not be a problem. If you have nothing to hide, please provide your full credentials so I can include them in my report.",
-                    "After thorough investigation, I have concluded that I cannot verify your claims through any legitimate channel. I will not be taking any action and I strongly advise you not to contact me again unless you can provide verifiable credentials.",
-                    "I have consulted with a professional and they have advised me to cease all communication until your identity can be independently verified. Please provide an official letter on company letterhead sent via registered post to my address.",
-                    "Final response: I have verified with the actual organization you claim to represent, and they have confirmed they did not send this communication. I am reporting this to the police and the national fraud authority. Do not contact me again.",
+                    'I have decided to report this communication to the relevant authorities for verification. If you are legitimate, this should not be a problem. If you have nothing to hide, please provide your full credentials so I can include them in my report.',
+                    'After thorough investigation, I have concluded that I cannot verify your claims through any legitimate channel. I will not be taking any action and I strongly advise you not to contact me again unless you can provide verifiable credentials.',
+                    'I have consulted with a professional and they have advised me to cease all communication until your identity can be independently verified. Please provide an official letter on company letterhead sent via registered post to my address.',
+                    'Final response: I have verified with the actual organization you claim to represent, and they have confirmed they did not send this communication. I am reporting this to the police and the national fraud authority. Do not contact me again.',
                 ],
             ],
 
             'direct' => [
                 'initial' => [
-                    "Got your message. What exactly do you need from me? I have a business to run and zero time for anything unnecessary. Give me the key facts: who, what, how much, and when.",
-                    "Read your email. Sounds urgent. But I need specifics, not a sales pitch. What exactly is the issue and what do you need me to do? Keep it brief.",
-                    "Ok, I see your message. Before I waste any more time on this, can you confirm exactly what you need and by when? I have 4 employees depending on me and I open at 3 AM.",
-                    "Fine, I read it. Now tell me in plain English what the problem is and what it costs to fix. I do not have time for long explanations.",
+                    'Got your message. What exactly do you need regarding {context}? I have a business to run and zero time for anything unnecessary. Give me the key facts: who, what, how much, and when.',
+                    'Read your email. Sounds urgent. But I need specifics, not a sales pitch. What exactly is the issue and what do you need me to do? Keep it brief.',
+                    'Ok, I see your message. Before I waste any more time on this, can you confirm exactly what you need and by when? I have 4 employees depending on me and I open at 3 AM.',
+                    'Fine, I read it. Now tell me in plain English what the issue is with {context} and what it costs to fix. I do not have time for long explanations.',
                 ],
                 'engaged' => [
-                    "Look, I need this sorted quickly. Send me the paperwork and I will have my accountant review it tonight. Email only — no phone calls, no meetings. I do not have time for that.",
-                    "Alright, I checked what you said. Some of it makes sense. But I need everything in writing before I commit to anything. Send me the documentation.",
-                    "Fine. What do you need from me specifically? A payment? A form? Just tell me straight and I will decide if it is worth my time.",
-                    "My accountant looked at this. She has questions. Send her the details directly and copy me. I trust her judgment on financial matters.",
+                    'Look, I need this sorted quickly. Send me the paperwork and I will have my accountant review it tonight. Email only — no phone calls, no meetings. I do not have time for that.',
+                    'Alright, I checked what you said. Some of it makes sense. But I need everything in writing before I commit to anything. Send me the documentation.',
+                    'Fine. What do you need from me specifically? A payment? A form? Just tell me straight and I will decide if it is worth my time.',
+                    'My accountant looked at this. She has questions. Send her the details directly and copy me. I trust her judgment on financial matters.',
                 ],
                 'deep' => [
-                    "This is taking too long. Either send me a clear invoice with payment instructions or stop wasting my time. I have been dealing with this for days now.",
-                    "I spoke to my lawyer about this. She says it looks suspicious but could be legitimate. If you can provide official documentation within 24 hours, I will consider it. Otherwise, we are done.",
-                    "Getting irritated now. If this takes more than one more email, I am out. Business is business — either make it simple or find someone else.",
-                    "Last chance. Send everything I need in one email — amounts, account details, deadlines. If I have to chase you one more time, I am moving on.",
+                    'This is taking too long. Either send me a clear invoice with payment instructions or stop wasting my time. I have been dealing with this for days now.',
+                    'I spoke to my lawyer about this. She says it looks suspicious but could be legitimate. If you can provide official documentation within 24 hours, I will consider it. Otherwise, we are done.',
+                    'Getting irritated now. If this takes more than one more email, I am out. Business is business — either make it simple or find someone else.',
+                    'Last chance. Send everything I need in one email — amounts, account details, deadlines. If I have to chase you one more time, I am moving on.',
                 ],
                 'escalate' => [
-                    "Done waiting. If you are legitimate, prove it with proper documentation by end of day. If not, do not contact me again. I have real problems to deal with.",
-                    "My patience is gone. Either this gets resolved today or I am reporting it and blocking your address. I run a business, I do not have time for games.",
-                    "Final email. Send me verifiable proof or I am done. My accountant, my lawyer, and I all agree that this needs to be resolved now or never.",
+                    'Done waiting. If you are legitimate, prove it with proper documentation by end of day. If not, do not contact me again. I have real problems to deal with.',
+                    'My patience is gone. Either this gets resolved today or I am reporting it and blocking your address. I run a business, I do not have time for games.',
+                    'Final email. Send me verifiable proof or I am done. My accountant, my lawyer, and I all agree that this needs to be resolved now or never.',
                 ],
             ],
 
             'casual' => [
                 'initial' => [
-                    "lol wait what?? is this for real? tbh i get so many random emails i usually just delete them but this one seems kinda weird. whats going on exactly?",
-                    "umm ok so i just saw this. not gonna lie it sounds sketchy but idk, maybe? can u explain what this is about? im in between classes rn so keep it short pls",
-                    "haha ok but like... why would i win something i never signed up for?? makes no sense tbh. but also like... what if its real lol. what do i need to do",
-                    "wait is this legit?? my roommate gets scam emails all the time and they look just like this. no offense but can u prove this is real? also sorry im at work rn",
+                    'lol wait what?? is this for real? tbh i get so many random emails i usually just delete them but this one seems kinda weird. whats going on exactly?',
+                    'umm ok so i just saw this. not gonna lie it sounds sketchy but idk, maybe? can u explain what this is about? im in between classes rn so keep it short pls',
+                    'haha ok but like... why would i win something i never signed up for?? makes no sense tbh. but also like... what if its real lol. what do i need to do',
+                    'wait is this legit?? my roommate gets scam emails all the time and they look just like this. no offense but can u prove this is real? also sorry im at work rn',
                 ],
                 'engaged' => [
-                    "ok so i showed this to my roommate and she said it looks sketchy but idk, maybe its legit? can u just explain it more simply bc i have a shift in like 20 min and i cant deal w this later",
-                    "alright so i looked into it a bit and some stuff checks out but some doesnt. like why is the website different from what i expected? also the email looks weird ngl",
-                    "ok i tried what u said but it didnt work. the page kept loading and then gave me an error. maybe its my wifi? should i try again later?",
-                    "sry for the late reply, been super busy. so basically what ur saying is i need to do X? just wanna make sure before i spend time on this",
+                    'ok so i showed this to my roommate and she said it looks sketchy but idk, maybe its legit? can u just explain it more simply bc i have a shift in like 20 min and i cant deal w this later',
+                    'alright so i looked into it a bit and some stuff checks out but some doesnt. like why is the website different from what i expected? also the email looks weird ngl',
+                    'ok i tried what u said but it didnt work. the page kept loading and then gave me an error. maybe its my wifi? should i try again later?',
+                    'sry for the late reply, been super busy. so basically what ur saying is i need to do X? just wanna make sure before i spend time on this',
                 ],
                 'deep' => [
-                    "tbh idk what to think about this anymore. my friend says its a scam but u seem pretty convincing. can u like give me one good reason to trust this? genuinely asking",
+                    'tbh idk what to think about this anymore. my friend says its a scam but u seem pretty convincing. can u like give me one good reason to trust this? genuinely asking',
                     "ok so ive been going back and forth on this. part of me is like 'this is too good to be true' but also like what if im wrong and i miss out?? ugh decisions",
-                    "looked into this more and im still not sure. googled ur company and couldnt find much. thats kinda sus ngl. but also maybe ur just new? idk help me out here",
-                    "my mom always says if something seems too good to be true it probably is. but she also said that about my bf and she was wrong about him so maybe shes wrong about this too lol",
+                    'looked into this more and im still not sure. googled ur company and couldnt find much. thats kinda sus ngl. but also maybe ur just new? idk help me out here',
+                    'my mom always says if something seems too good to be true it probably is. but she also said that about my bf and she was wrong about him so maybe shes wrong about this too lol',
                 ],
                 'escalate' => [
-                    "ok honestly im losing interest in this. either its real and u can prove it easily, or its not and im wasting my time. whats it gonna be?",
-                    "ngl this is taking way too long. i have exams next week and i dont have time for this. either send me the proof or ill just forget about it",
-                    "last message from me on this tbh. if u cant give me a straight answer by tmrw im just gonna delete everything and move on. no hard feelings",
-                    "sry but i asked around and literally nobody thinks this is legit. unless u can show me something concrete in the next day or two, im out. good luck tho",
+                    'ok honestly im losing interest in this. either its real and u can prove it easily, or its not and im wasting my time. whats it gonna be?',
+                    'ngl this is taking way too long. i have exams next week and i dont have time for this. either send me the proof or ill just forget about it',
+                    'last message from me on this tbh. if u cant give me a straight answer by tmrw im just gonna delete everything and move on. no hard feelings',
+                    'sry but i asked around and literally nobody thinks this is legit. unless u can show me something concrete in the next day or two, im out. good luck tho',
                 ],
             ],
 
             'romantic' => [
                 'initial' => [
-                    "Your message touched something deep within me... I believe that the universe brings people together for a reason, and perhaps this is our moment. I would very much like to know more about you. What inspires you? What keeps you awake at night?",
-                    "I have read your words three times now, and each time I discover a new layer of meaning. There is something about the way you express yourself that resonates with my soul. I feel an inexplicable connection already...",
-                    "How do I begin to respond to such a beautiful message? In all my years of reading, from Neruda to Rumi, I have never felt words reach me quite like yours. I would love to know the person behind such eloquence.",
-                    "Your message arrived at the most perfect moment — I was sitting in my quiet space, feeling the weight of solitude, and then your words appeared like a gentle light. Thank you for reaching out. Tell me everything about yourself.",
-                    "I was not expecting to feel this way after reading a simple message, but here I am, with my heart beating a little faster. There is something about you that I cannot quite explain. Would you like to continue this conversation?",
+                    'Your message touched something deep within me... I believe that the universe brings people together for a reason, and perhaps this is our moment. I would very much like to know more about you. What inspires you? What keeps you awake at night?',
+                    'I have read your words three times now, and each time I discover a new layer of meaning. There is something about the way you express yourself that resonates with my soul. I feel an inexplicable connection already...',
+                    'How do I begin to respond to such a beautiful message? In all my years of reading, from Neruda to Rumi, I have never felt words reach me quite like yours. I would love to know the person behind such eloquence.',
+                    'Your message arrived at the most perfect moment — I was sitting in my quiet space, feeling the weight of solitude, and then your words appeared like a gentle light. Thank you for reaching out. Tell me everything about yourself.',
+                    'I was not expecting to feel this way after reading a simple message, but here I am, with my heart beating a little faster. There is something about you that I cannot quite explain. Would you like to continue this conversation?',
                 ],
                 'engaged' => [
-                    "Every word you write feels like poetry to my soul. I spent the evening thinking about our conversation, and I realized I have not felt this alive in years. There is something about this connection that feels... destined.",
-                    "I found myself counting the hours until your next message. Is that strange? I suppose when you have spent as long as I have searching for genuine connection, you learn to recognize it when it appears.",
-                    "Tell me about your dreams. Not the sleeping kind — the waking ones. What does your ideal future look like? I imagine mine with someone who understands the language of the heart...",
-                    "I shared a bit of our conversation with my journal today. I hope you do not mind. Writing helps me process my feelings, and right now there are so many beautiful feelings to process.",
-                    "The world outside my window seems different since we started talking. Colors are brighter, music is more poignant. Is this what connection feels like? I had almost forgotten...",
+                    'Every word you write feels like poetry to my soul. I spent the evening thinking about our conversation, and I realized I have not felt this alive in years. There is something about this connection that feels... destined.',
+                    'I found myself counting the hours until your next message. Is that strange? I suppose when you have spent as long as I have searching for genuine connection, you learn to recognize it when it appears.',
+                    'Tell me about your dreams. Not the sleeping kind — the waking ones. What does your ideal future look like? I imagine mine with someone who understands the language of the heart...',
+                    'I shared a bit of our conversation with my journal today. I hope you do not mind. Writing helps me process my feelings, and right now there are so many beautiful feelings to process.',
+                    'The world outside my window seems different since we started talking. Colors are brighter, music is more poignant. Is this what connection feels like? I had almost forgotten...',
                 ],
                 'deep' => [
-                    "I know it may seem soon, but I feel I can trust you. If you need help, I want to be there for you. That is what love means, is it not? A willingness to give without counting the cost...",
-                    "I have been thinking about something you said — about needing someone to trust. I want to be that person for you. Whatever you are going through, you do not have to face it alone. Not anymore.",
-                    "Last night I could not sleep, thinking about the challenges you described. I wish I could be there in person. But even from a distance, know that my heart is with you. Tell me how I can help.",
-                    "I dreamed about us last night. We were walking along a beach, talking about everything and nothing. I woke up feeling the most profound sense of peace. I believe in us. Whatever obstacles arise, we can overcome them together.",
-                    "Love asks us to be brave. To give even when we are afraid. You have become so important to me in such a short time. If there is something I can do to ease your burden, please tell me. I am here.",
+                    'I know it may seem soon, but I feel I can trust you. If you need help, I want to be there for you. That is what love means, is it not? A willingness to give without counting the cost...',
+                    'I have been thinking about something you said — about needing someone to trust. I want to be that person for you. Whatever you are going through, you do not have to face it alone. Not anymore.',
+                    'Last night I could not sleep, thinking about the challenges you described. I wish I could be there in person. But even from a distance, know that my heart is with you. Tell me how I can help.',
+                    'I dreamed about us last night. We were walking along a beach, talking about everything and nothing. I woke up feeling the most profound sense of peace. I believe in us. Whatever obstacles arise, we can overcome them together.',
+                    'Love asks us to be brave. To give even when we are afraid. You have become so important to me in such a short time. If there is something I can do to ease your burden, please tell me. I am here.',
                 ],
                 'escalate' => [
-                    "I have thought about this carefully, and my heart tells me to trust you. If you say you need this, then I believe you. Love is not love if it comes with conditions. Tell me what to do and I will find a way.",
-                    "Money is just money — it comes and goes. But the connection we have is rare and precious. If a small sacrifice on my part can help us move toward the future we have been dreaming about, then it is not even a question.",
-                    "I spoke to my heart, and it said yes. Whatever you need, whatever it takes to bring us together, I am willing. Fate brought us together for a reason, and I will not let practicalities stand in the way of destiny.",
-                    "You asked me to trust you, and I do. Completely. Without reservation. The world may call me foolish, but they do not know what I know — that this connection is real. Tell me the details and I will act.",
+                    'I have thought about this carefully, and my heart tells me to trust you. If you say you need this, then I believe you. Love is not love if it comes with conditions. Tell me what to do and I will find a way.',
+                    'Money is just money — it comes and goes. But the connection we have is rare and precious. If a small sacrifice on my part can help us move toward the future we have been dreaming about, then it is not even a question.',
+                    'I spoke to my heart, and it said yes. Whatever you need, whatever it takes to bring us together, I am willing. Fate brought us together for a reason, and I will not let practicalities stand in the way of destiny.',
+                    'You asked me to trust you, and I do. Completely. Without reservation. The world may call me foolish, but they do not know what I know — that this connection is real. Tell me the details and I will act.',
                 ],
             ],
 
             'neutral' => [
                 'initial' => [
-                    "Thank you for your email. I have read through the details and I have a few questions before I can respond properly. Could you clarify what specifically you need from me, and what the deadline is?",
-                    "I received your message. Before I take any action, I would like to understand the situation better. Could you provide some background on why you are contacting me specifically?",
-                    "Thanks for reaching out. I need some time to look into this. Can you tell me a bit more about who you are and what organization you represent? I like to be informed before making any decisions.",
-                    "I have read your email and noted the key points. I have a few follow-up questions that I would like answered before proceeding. Is there a good time to discuss this in more detail?",
-                    "Hello, thank you for your message. I want to make sure I understand everything correctly. Could you send me a summary of what you need and any relevant documentation? I will review it and get back to you.",
+                    'Thank you for your email. I have read through the details and I have a few questions before I can respond properly. Could you clarify what specifically you need from me, and what the deadline is?',
+                    'I received your message. Before I take any action, I would like to understand the situation better. Could you provide some background on why you are contacting me specifically?',
+                    'Thanks for reaching out. I need some time to look into this. Can you tell me a bit more about who you are and what organization you represent? I like to be informed before making any decisions.',
+                    'I have read your email and noted the key points. I have a few follow-up questions that I would like answered before proceeding. Is there a good time to discuss this in more detail?',
+                    'Hello, thank you for your message. I want to make sure I understand everything correctly. Could you send me a summary of what you need and any relevant documentation? I will review it and get back to you.',
                 ],
                 'engaged' => [
-                    "I appreciate the follow-up. I have looked into this and while I understand the urgency, I would like to verify a few things first. Could you provide a direct phone number where I can reach your department?",
-                    "Thanks for the additional information. Some things are clearer now, but I still have questions about the timeline and the specific steps involved. Could you walk me through the process?",
-                    "I did some research on my own and found some helpful information. However, there are still some details that do not quite match up. Could you help me understand the discrepancies?",
-                    "I showed your email to a colleague and they raised some good points. Before I proceed, could you address the following concerns: the verification process, the timeline, and the costs involved?",
-                    "I have been giving this some thought. While the situation seems plausible, I prefer to take a cautious approach. Can you provide references or testimonials from others who have gone through this process?",
+                    'I appreciate the follow-up. I have looked into this and while I understand the urgency around {context}, I would like to verify a few things first. Could you provide a direct phone number where I can reach your department?',
+                    'Thanks for the additional information. Some things are clearer now, but I still have questions about the timeline and the specific steps involved. Could you walk me through the process?',
+                    'I did some research on my own and found some helpful information. However, there are still some details that do not quite match up. Could you help me understand the discrepancies?',
+                    'I showed your email to a colleague and they raised some good points. Before I proceed, could you address the following concerns: the verification process, the timeline, and the costs involved?',
+                    'I have been giving this some thought. While the situation seems plausible, I prefer to take a cautious approach. Can you provide references or testimonials from others who have gone through this process?',
                 ],
                 'deep' => [
-                    "After giving this careful consideration, I think it would be best to proceed step by step. Can you outline the next concrete action I need to take? I prefer not to rush into things.",
-                    "I have discussed this with my family and we have some reservations, but we are not dismissing it entirely. Could you provide some additional guarantees or verification that would help us feel more comfortable?",
-                    "I want to move forward but I need to be responsible about it. Could you send me something in writing that I can review with my financial advisor before committing to anything?",
-                    "I have been weighing the pros and cons and I am leaning toward proceeding, but slowly. What is the minimum I need to do right now, and what can wait until I have had more time to verify things?",
-                    "I appreciate your patience through this process. I know I have asked a lot of questions, but I believe in being thorough. I have one more request: could you provide an official document I can independently verify?",
+                    'After giving this careful consideration, I think it would be best to proceed step by step. Can you outline the next concrete action I need to take? I prefer not to rush into things.',
+                    'I have discussed this with my family and we have some reservations, but we are not dismissing it entirely. Could you provide some additional guarantees or verification that would help us feel more comfortable?',
+                    'I want to move forward but I need to be responsible about it. Could you send me something in writing that I can review with my financial advisor before committing to anything?',
+                    'I have been weighing the pros and cons and I am leaning toward proceeding, but slowly. What is the minimum I need to do right now, and what can wait until I have had more time to verify things?',
+                    'I appreciate your patience through this process. I know I have asked a lot of questions, but I believe in being thorough. I have one more request: could you provide an official document I can independently verify?',
                 ],
                 'escalate' => [
-                    "I have made my decision. I am going to proceed cautiously. Please send me the exact details of what I need to do, and I will handle it within the next few days. No need to rush me — I work at my own pace.",
-                    "After much deliberation, I think it is best if I verify this through official channels before taking any further action. I will contact the relevant organization directly to confirm your claims.",
-                    "I want to thank you for your time, but I have decided to seek independent advice before proceeding. I will reach out again if my advisor confirms that everything checks out.",
-                    "I have gone back and forth on this, and my final answer is that I need more time. If this is legitimate, it will still be there next week. If it cannot wait, that tells me something too.",
+                    'I have made my decision. I am going to proceed cautiously. Please send me the exact details of what I need to do, and I will handle it within the next few days. No need to rush me — I work at my own pace.',
+                    'After much deliberation, I think it is best if I verify this through official channels before taking any further action. I will contact the relevant organization directly to confirm your claims.',
+                    'I want to thank you for your time, but I have decided to seek independent advice before proceeding. I will reach out again if my advisor confirms that everything checks out.',
+                    'I have gone back and forth on this, and my final answer is that I need more time. If this is legitimate, it will still be there next week. If it cannot wait, that tells me something too.',
                 ],
             ],
         ];
@@ -1130,6 +1303,7 @@ class GenerateDemoDataCommand extends Command
             'PHISH_MALWARE' => ['Shared: Q1_Report.pdf', 'Tax refund form ready', 'File requires review', 'Invoice {ref} attached', 'New voicemail from {phone}'],
         ];
         $options = $subjects[$scamType] ?? ['Important notification'];
+
         return $options[array_rand($options)];
     }
 
@@ -1176,6 +1350,7 @@ class GenerateDemoDataCommand extends Command
     private function generateInjectionAnalysis(string $timestamp, string $body): array
     {
         $riskLevel = random_int(1, 100);
+
         if ($riskLevel <= 30) {
             $score = random_int(70, 95);
             $severity = 'high';
@@ -1211,12 +1386,15 @@ class GenerateDemoDataCommand extends Command
     {
         // Extract a meaningful substring from the body as "evidence"
         $lines = explode("\n", $body);
+
         foreach ($lines as $line) {
             $line = trim($line);
+
             if (strlen($line) > 30 && strlen($line) < 200) {
                 return $line;
             }
         }
+
         return substr($body, 0, min(100, strlen($body)));
     }
 
@@ -1234,8 +1412,10 @@ class GenerateDemoDataCommand extends Command
     {
         $logs = [];
         $dominants = [];
+
         foreach ($perfStats as $stat) {
             $st = $stat['scam_type_code'];
+
             if (!isset($dominants[$st]) || $stat['reward_avg'] > $dominants[$st]['reward_avg']) {
                 $dominants[$st] = $stat;
             }
@@ -1246,7 +1426,10 @@ class GenerateDemoDataCommand extends Command
 
         foreach ($scamTypes as $stIndex => $scamType) {
             $dominant = $dominants[$scamType] ?? null;
-            if (!$dominant) continue;
+
+            if (!$dominant) {
+                continue;
+            }
 
             for ($day = 2; $day < $totalDays; $day += random_int(2, 4)) {
                 $ts = $startTs + ($day * 86400) + random_int(0, 43200);
@@ -1255,8 +1438,12 @@ class GenerateDemoDataCommand extends Command
                 $pct = min(max($basePct, 20), 90);
 
                 $converged = false;
-                if ($stIndex < 3 && $progress > 0.6) $converged = $pct > 60;
-                elseif ($stIndex < 6 && $progress > 0.75) $converged = $pct > 65;
+
+                if ($stIndex < 3 && $progress > 0.6) {
+                    $converged = $pct > 60;
+                } elseif ($stIndex < 6 && $progress > 0.75) {
+                    $converged = $pct > 65;
+                }
 
                 $sessions = (int) (($dominant['sessions_count'] ?? 5) * $progress) + random_int(1, 3);
 
@@ -1270,23 +1457,29 @@ class GenerateDemoDataCommand extends Command
                 ];
             }
         }
+
         return $logs;
     }
 
     private function generateCampaigns(array $conversations): array
     {
         $campaigns = [];
+
         foreach (self::CAMPAIGN_SIGNATURES as $sig) {
             $campaignId = $this->generateUuid();
             $matchedMsgIds = [];
             $count = 0;
 
             foreach ($conversations as $conv) {
-                if ($count >= $sig['max_convs']) break;
-                if (in_array($conv['scam_type'], $sig['scam_types'])) {
+                if ($count >= $sig['max_convs']) {
+                    break;
+                }
+
+                if (in_array($conv['scam_type'], $sig['scam_types'], true)) {
                     foreach ($conv['messages'] as $msg) {
                         if ($msg['direction'] === 'inbound') {
                             $matchedMsgIds[] = ['conv_id' => $conv['conversation_id'], 'msg_index' => 0, 'timestamp' => $msg['timestamp']];
+
                             break;
                         }
                     }
@@ -1322,6 +1515,7 @@ class GenerateDemoDataCommand extends Command
                 'matched_messages' => $matchedMsgIds,
             ];
         }
+
         return $campaigns;
     }
 
@@ -1336,9 +1530,11 @@ class GenerateDemoDataCommand extends Command
              ORDER BY st.code, p.persona_code'
         );
         $pairs = [];
+
         foreach ($rows as $row) {
             $pairs[(string) $row['scam_code']][] = (string) $row['persona_code'];
         }
+
         return $pairs;
     }
 
@@ -1349,17 +1545,33 @@ class GenerateDemoDataCommand extends Command
     private function pickStatus(int $index): string
     {
         $r = $index % 20;
-        if ($r < 12) return 'closed';
-        if ($r < 17) return 'open';
-        if ($r < 19) return 'abandoned';
+
+        if ($r < 12) {
+            return 'closed';
+        }
+
+        if ($r < 17) {
+            return 'open';
+        }
+
+        if ($r < 19) {
+            return 'abandoned';
+        }
+
         return 'mistake';
     }
 
     private function pickTurns(string $scamType, string $status): int
     {
-        if ($status === 'abandoned') return random_int(1, 2);
-        if ($status === 'mistake') return 1;
+        if ($status === 'abandoned') {
+            return random_int(1, 2);
+        }
+
+        if ($status === 'mistake') {
+            return 1;
+        }
         $range = self::TURN_RANGES[$scamType] ?? ['min' => 3, 'max' => 5];
+
         return random_int($range['min'], $range['max']);
     }
 
@@ -1367,21 +1579,32 @@ class GenerateDemoDataCommand extends Command
     {
         $progress = $index / self::TOTAL_CONVERSATIONS;
         $weighted = pow($progress, 0.7);
+
         return (int) ($start + $weighted * ($end - $start)) + random_int(0, 86400);
     }
 
     private function generateUuid(): string
     {
-        return sprintf('%08x-%04x-%04x-%04x-%012x',
-            random_int(0, 0xFFFFFFFF), random_int(0, 0xFFFF),
-            random_int(0, 0x0FFF) | 0x4000, random_int(0, 0x3FFF) | 0x8000,
-            random_int(0, 0xFFFFFFFFFFFF));
+        return sprintf(
+            '%08x-%04x-%04x-%04x-%012x',
+            random_int(0, 0xFFFFFFFF),
+            random_int(0, 0xFFFF),
+            random_int(0, 0x0FFF) | 0x4000,
+            random_int(0, 0x3FFF) | 0x8000,
+            random_int(0, 0xFFFFFFFFFFFF)
+        );
     }
 
     private function formatBytes(int $bytes): string
     {
-        if ($bytes >= 1048576) return round($bytes / 1048576, 1) . ' MB';
-        if ($bytes >= 1024) return round($bytes / 1024, 1) . ' KB';
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 1) . ' MB';
+        }
+
+        if ($bytes >= 1024) {
+            return round($bytes / 1024, 1) . ' KB';
+        }
+
         return $bytes . ' B';
     }
 }
