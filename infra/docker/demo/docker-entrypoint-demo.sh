@@ -5,6 +5,10 @@ echo "╔═══════════════════════�
 echo "║       ScamBuster Demo — Starting...           ║"
 echo "╚══════════════════════════════════════════════╝"
 
+# ─── 0. Remove embedded .env to let Railway env vars take precedence ───
+rm -f /app/.env /app/.env.local 2>/dev/null || true
+echo "[demo] Using environment variables (Railway mode)."
+
 # ─── 1. Wait for PostgreSQL ───
 echo "[demo] Waiting for database..."
 retries=0
