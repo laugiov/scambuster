@@ -41,6 +41,8 @@ The demo includes 150 pre-loaded conversations, 876 IOCs, 5 campaigns, pipeline 
 - **Email sending**: `MAILER_DSN=null://null` — no SMTP
 - **n8n workflows**: n8n is not included in the demo stack
 
+> **Want the full experience?** Follow the [Quickstart Guide](QUICKSTART.md) to deploy ScamBuster with live email ingestion, LLM-powered replies, and automated workflows.
+
 ## Useful commands
 
 ```bash
