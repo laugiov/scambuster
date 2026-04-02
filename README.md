@@ -21,7 +21,11 @@
 
 ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
 
-> **Get started in 5 minutes**: [Quickstart Guide](docs/QUICKSTART.md) — `cp .env.dist .env` → edit 3 values → `make quickstart` → done.
+> **Try the demo** (no install): [Live Demo](https://frontend-production-b836.up.railway.app) — login: `user@example.com` / `Un1que$trongPassword2024`
+>
+> **Install locally in 5 minutes**: [Quickstart Guide](docs/QUICKSTART.md) — `cp .env.dist .env` → edit 4 values → `make quickstart` → done.
+>
+> **Run demo locally** (no API key needed): [Demo Guide](docs/DEMO.md) — `make demo-up` → http://localhost:3002
 
 The project serves defensive security, fraud prevention, and applied research purposes (not offensive use). It extracts IOCs, maps campaigns, measures engagement effectiveness, and exports intelligence in STIX/MISP formats. All workflows are safety-gated, cost-aware, and fully auditable.
 
@@ -238,7 +242,7 @@ All other `change-me` values have safe defaults for local development. Run `bash
 
 ```bash
 # In .env, set LLM_PROVIDER=mock instead of openai
-make demo-load           # Load 123 synthetic conversations with IOCs
+make demo-load           # Load 150 synthetic conversations with IOCs
 ```
 
 **LLM providers**: ScamBuster supports OpenAI, Anthropic Claude, Ollama (local), and Mock. Set `LLM_PROVIDER` in `.env`. See [Getting Started](docs/08_getting_started.md) for details.
