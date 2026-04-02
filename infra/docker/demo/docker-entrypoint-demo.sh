@@ -59,9 +59,75 @@ if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
   echo "[demo] Cleaning fixture test data..."
   php bin/console doctrine:query:sql "DELETE FROM conversation WHERE stix_id NOT LIKE 'demo-%'" --no-interaction 2>/dev/null || true
 
+  # ─── Shift all dates to end "today" ───
+  echo "[demo] Shifting dates to current time..."
+  php bin/console doctrine:query:sql "
+    DO \$\$
+    DECLARE
+      max_ts TIMESTAMP;
+      shift_interval INTERVAL;
+    BEGIN
+      SELECT MAX(ts_last) INTO max_ts FROM conversation WHERE stix_id LIKE 'demo-%';
+      IF max_ts IS NOT NULL THEN
+        shift_interval := NOW() - max_ts;
+        UPDATE conversation SET
+          ts_first = ts_first + shift_interval,
+          ts_last = ts_last + shift_interval,
+          created_at = created_at + shift_interval,
+          updated_at = updated_at + shift_interval
+        WHERE stix_id LIKE 'demo-%';
+        UPDATE message SET
+          ts_msg = ts_msg + shift_interval,
+          ts_ingest = ts_ingest + shift_interval
+        WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%');
+        UPDATE observed_ioc SET
+          ts_observed = ts_observed + shift_interval
+        WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'));
+        UPDATE llm_usage SET
+          created_at = created_at + shift_interval;
+        UPDATE bandit_convergence_log SET
+          logged_at = logged_at + shift_interval;
+        RAISE NOTICE 'Shifted all dates by %', shift_interval;
+      END IF;
+    END \$\$;
+  " --no-interaction 2>/dev/null || true
+  echo "[demo] Dates shifted to current time."
+
   echo "[demo] Database seeded."
 else
-  echo "[demo] Database has $CONV_COUNT conversations — skipping seed."
+  # Still shift dates on restart to keep demo "fresh"
+  echo "[demo] Refreshing dates to current time..."
+  php bin/console doctrine:query:sql "
+    DO \$\$
+    DECLARE
+      max_ts TIMESTAMP;
+      shift_interval INTERVAL;
+    BEGIN
+      SELECT MAX(ts_last) INTO max_ts FROM conversation WHERE stix_id LIKE 'demo-%';
+      IF max_ts IS NOT NULL AND (NOW() - max_ts) > INTERVAL '1 hour' THEN
+        shift_interval := NOW() - max_ts;
+        UPDATE conversation SET
+          ts_first = ts_first + shift_interval,
+          ts_last = ts_last + shift_interval,
+          created_at = created_at + shift_interval,
+          updated_at = updated_at + shift_interval
+        WHERE stix_id LIKE 'demo-%';
+        UPDATE message SET
+          ts_msg = ts_msg + shift_interval,
+          ts_ingest = ts_ingest + shift_interval
+        WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%');
+        UPDATE observed_ioc SET
+          ts_observed = ts_observed + shift_interval
+        WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'));
+        UPDATE llm_usage SET
+          created_at = created_at + shift_interval;
+        UPDATE bandit_convergence_log SET
+          logged_at = logged_at + shift_interval;
+        RAISE NOTICE 'Shifted dates by %', shift_interval;
+      END IF;
+    END \$\$;
+  " --no-interaction 2>/dev/null || true
+  echo "[demo] Database has $CONV_COUNT conversations — dates refreshed."
 fi
 
 # ─── 5. Clear cache ───
