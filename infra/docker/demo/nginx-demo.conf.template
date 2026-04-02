@@ -4,6 +4,9 @@ server {
     root /usr/share/nginx/html;
     index index.html;
 
+    # DNS resolver for dynamic upstream resolution (required for HTTPS proxy to external hosts)
+    resolver 8.8.8.8 8.8.4.4 valid=30s ipv6=off;
+
     # Gzip compression
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml;
@@ -11,12 +14,16 @@ server {
 
     # API proxy to backend
     location /api/ {
-        proxy_pass ${BACKEND_URL}/api/;
-        proxy_set_header Host $host;
+        # Use variable to force runtime DNS resolution (not just at startup)
+        set $backend_upstream "${BACKEND_URL}";
+        proxy_pass $backend_upstream/api/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host $proxy_host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_read_timeout 60s;
+        proxy_connect_timeout 10s;
     }
 
     # Static assets with cache
