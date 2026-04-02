@@ -15,19 +15,22 @@ when@dev:
     monolog:
         handlers:
             main:
-                type: stream
+                type: rotating_file
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
+                max_files: 7
                 channels: ["!event", "!llm", "!scambaiting"]
             llm:
-                type: stream
+                type: rotating_file
                 path: "%kernel.logs_dir%/llm.log"
                 level: debug
+                max_files: 7
                 channels: ["llm"]
             scambaiting:
-                type: stream
+                type: rotating_file
                 path: "%kernel.logs_dir%/scambaiting.log"
                 level: info
+                max_files: 7
                 channels: ["scambaiting"]
             # uncomment to get logging in your browser
             # you may have to allow bigger header sizes in your Web server configuration
@@ -52,9 +55,10 @@ when@test:
                 excluded_http_codes: [404, 405]
                 channels: ["!event"]
             nested:
-                type: stream
+                type: rotating_file
                 path: "%kernel.logs_dir%/%kernel.environment%.log"
                 level: debug
+                max_files: 3
 
 when@prod:
     monolog:
