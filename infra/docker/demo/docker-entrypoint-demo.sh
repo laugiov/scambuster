@@ -143,4 +143,4 @@ echo "║  Pass:  Un1que\$trongPassword2024              ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-exec php -S 0.0.0.0:8080 -t public
+exec php -S 0.0.0.0:${PORT:-8080} -t public
