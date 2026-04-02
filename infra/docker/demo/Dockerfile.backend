@@ -1,0 +1,64 @@
+# ═══════════════════════════════════════════════════════════════
+# ScamBuster Demo — Backend Dockerfile
+# Self-contained: auto-seeds DB on first start, no manual setup.
+# ═══════════════════════════════════════════════════════════════
+
+# --- Build stage ---
+FROM php:8.3.27-cli AS build
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git unzip curl postgresql-client libpq-dev libzip-dev \
+    && pecl install mailparse redis \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer
+
+COPY backend-symfony/composer.* ./
+# Include dev dependencies (needed for fixtures)
+RUN composer install --no-interaction --no-scripts --no-progress
+
+COPY backend-symfony/ ./
+
+# --- Runtime stage ---
+FROM php:8.3.27-cli
+
+WORKDIR /app
+
+LABEL org.opencontainers.image.title="ScamBuster Demo Backend" \
+      org.opencontainers.image.description="Self-contained demo with auto-seeding"
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client curl libpq-dev git unzip libzip-dev openssl \
+    && pecl install mailparse redis \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer
+
+# Copy built application (with dev dependencies for fixtures)
+COPY --from=build /app /app
+
+# Copy demo dataset into image
+COPY scambuster-dataset-sample.json /app/scambuster-dataset-sample.json
+
+# Copy demo entrypoint
+COPY infra/docker/demo/docker-entrypoint-demo.sh /usr/local/bin/docker-entrypoint-demo.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint-demo.sh
+
+# Ensure writable directories and remove any stale JWT keys (entrypoint generates fresh ones)
+RUN mkdir -p /app/var /app/config/jwt \
+    && rm -f /app/config/jwt/private.pem /app/config/jwt/public.pem \
+    && chmod -R 777 /app/var /app/config/jwt
+
+EXPOSE 8080
+
+ENTRYPOINT ["docker-entrypoint-demo.sh"]
