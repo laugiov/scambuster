@@ -12,10 +12,12 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Export conversation IOCs as a STIX 2.1 bundle compatible with OpenCTI import.
  */
+#[IsGranted('ioc:export')]
 final class ExportConversationStixController
 {
     public function __construct(

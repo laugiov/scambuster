@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/communication')]
 final class ReplyController
@@ -45,6 +46,7 @@ final class ReplyController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/conversation/{convId}/context', name: 'get_conversation_context', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function getContext(string $convId): JsonResponse
     {
         $context = $this->handler->getConversationContext($convId);
@@ -98,6 +100,7 @@ final class ReplyController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/reply/generate', name: 'generate_reply', methods: ['POST'])]
+    #[IsGranted('reply:generate')]
     public function generate(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -170,6 +173,7 @@ final class ReplyController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/reply/draft', name: 'save_reply_draft', methods: ['POST'])]
+    #[IsGranted('reply:generate')]
     public function saveDraft(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -209,6 +213,7 @@ final class ReplyController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/reply/{msgId}', name: 'get_reply', methods: ['GET'])]
+    #[IsGranted('reply:generate')]
     public function getReply(string $msgId): JsonResponse
     {
         $message = $this->handler->getMessage($msgId);
@@ -264,6 +269,7 @@ final class ReplyController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/reply/{msgId}/compose', name: 'compose_reply', methods: ['GET'])]
+    #[IsGranted('reply:generate')]
     public function compose(string $msgId): JsonResponse
     {
         try {
@@ -337,6 +343,7 @@ final class ReplyController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/reply/{msgId}/sent', name: 'mark_reply_sent', methods: ['POST'])]
+    #[IsGranted('reply:generate')]
     public function markSent(string $msgId, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -398,6 +405,7 @@ final class ReplyController
         security: [['Bearer' => []]]
     )]
     #[Route('/reply/{msgId}/send-email', name: 'send_reply_email', methods: ['POST'])]
+    #[IsGranted('reply:generate')]
     public function sendEmail(string $msgId): JsonResponse
     {
         try {

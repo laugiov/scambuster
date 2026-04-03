@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Patch(
     path: '/api/v1/personas/{personaCode}/active',
@@ -35,6 +36,7 @@ use Symfony\Component\Routing\Annotation\Route;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/personas/{personaCode}/active', name: 'api_persona_toggle_active', methods: ['PATCH'])]
+#[IsGranted('config:write')]
 final class TogglePersonaActiveController extends AbstractController
 {
     public function __construct(

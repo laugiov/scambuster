@@ -10,6 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/personas/{personaCode}',
@@ -25,6 +26,7 @@ use Symfony\Component\Routing\Annotation\Route;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/personas/{personaCode}', name: 'api_persona_get', methods: ['GET'])]
+#[IsGranted('conversation:read')]
 final class GetPersonaController extends AbstractController
 {
     public function __construct(

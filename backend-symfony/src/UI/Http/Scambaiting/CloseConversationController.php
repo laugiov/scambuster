@@ -63,7 +63,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/scambaiting/conversation/{convId}/close', name: 'api_scambaiting_close_conversation', methods: ['POST'])]
-#[IsGranted('ROLE_USER')]
+#[IsGranted('conversation:close')]
 final class CloseConversationController extends AbstractController
 {
     public function __construct(

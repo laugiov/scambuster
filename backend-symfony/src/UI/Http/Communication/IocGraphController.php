@@ -10,10 +10,12 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Controller for IOC co-occurrence graph data.
  */
+#[IsGranted('ioc:read')]
 final class IocGraphController
 {
     public function __construct(

@@ -13,6 +13,7 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Serializer\SerializerInterface;
@@ -64,32 +65,52 @@ final class LoginController
     public function __construct(
         private readonly AuthServiceInterface $handler,
         private readonly AuditLogger $auditLogger,
+        private readonly RateLimiterFactory $loginIpLimiter,
         private ValidatorInterface $validator,
-        private SerializerInterface $serializer
+        private SerializerInterface $serializer,
     ) {
     }
 
     public function __invoke(Request $request): JsonResponse
     {
+        // Rate limit check (Redis-backed, persistent across requests)
+        $limiter = $this->loginIpLimiter->create($request->getClientIp() ?? 'unknown');
+        $limit = $limiter->consume(1);
+
+        if (!$limit->isAccepted()) {
+            $this->auditLogger->log(
+                eventType: AuditEventType::RATE_LIMIT_EXCEEDED,
+                actorId: 'unknown',
+                action: 'login',
+                outcome: 'blocked',
+                details: ['limiter' => 'login_ip', 'ip' => $request->getClientIp()],
+                ipAddress: $request->getClientIp()
+            );
+
+            $retryAfter = $limit->getRetryAfter();
+            $seconds = $retryAfter !== null ? max(1, $retryAfter->getTimestamp() - time()) : 60;
+
+            return new JsonResponse(
+                ['retry_after' => $seconds],
+                Response::HTTP_TOO_MANY_REQUESTS
+            );
+        }
+
         try {
             $dto = $this->serializer->deserialize($request->getContent(), LoginRequestDto::class, 'json');
         } catch (\Throwable $e) {
             return new JsonResponse(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
+
         $errors = $this->validator->validate($dto);
 
         if (count($errors) > 0) {
             return new JsonResponse(['message' => (string) $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-        static $attempts = [];
-        $key = $dto->email;
-        $attempts[$key] = $attempts[$key] ?? 0;
 
         try {
             $response = $this->handler->login($dto);
         } catch (AuthenticationException $e) {
-            $attempts[$key]++;
-
             $this->auditLogger->log(
                 eventType: AuditEventType::AUTH_FAILURE,
                 actorId: $dto->email,
@@ -99,13 +120,11 @@ final class LoginController
                 ipAddress: $request->getClientIp()
             );
 
-            if ($attempts[$key] > 5) {
-                return new JsonResponse(['retry_after' => 60], Response::HTTP_TOO_MANY_REQUESTS);
-            }
-
             return new JsonResponse(['message' => strtolower($e->getMessage())], Response::HTTP_UNAUTHORIZED);
         }
-        unset($attempts[$key]);
+
+        // Successful login: reset limiter
+        $limiter->reset();
 
         $this->auditLogger->log(
             eventType: AuditEventType::AUTH_SUCCESS,

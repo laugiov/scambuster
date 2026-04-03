@@ -9,11 +9,13 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Unified monitoring endpoint for autonomous operation status.
  */
 #[Route('/api/v1/monitoring/autonomy', name: 'api_monitoring_autonomy', methods: ['GET'])]
+#[IsGranted('monitoring:read')]
 final class AutonomyMonitoringController
 {
     public function __construct(

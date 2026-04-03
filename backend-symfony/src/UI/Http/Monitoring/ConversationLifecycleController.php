@@ -8,12 +8,14 @@ use App\Application\Monitoring\ConversationLifecycleHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Conversation lifecycle monitoring endpoint.
  *
  * Returns active, about-to-timeout, completed today, by scam type.
  */
+#[IsGranted('monitoring:read')]
 final class ConversationLifecycleController
 {
     public function __construct(
