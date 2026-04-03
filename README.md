@@ -141,6 +141,17 @@ Five specialized AI agents form the core pipeline, supported by one forensic mod
 |-----------------|------|-------|
 | **InjectionDetector** | Prompt injection analysis | Two-layer detection (pattern + LLM-as-judge), non-blocking |
 
+### Human Delay Simulation
+
+ScamBuster does not reply instantly — that would immediately reveal the bot. Every reply passes through a **human delay simulation** before being sent:
+
+- **Minimum 6 hours** between replies (configurable cadence per conversation)
+- **Randomized delay** calculated by the n8n workflow `WF-REPLY-SEND-v1`: the reply is drafted immediately but held in a Wait node until the computed send time
+- **Time-of-day awareness**: replies are scheduled during plausible waking hours, not at 3 AM
+- **Rate limiting**: maximum 20 replies per day across all conversations to prevent detection
+
+This makes ScamBuster's response pattern indistinguishable from a real human who checks email a few times per day. The 54% scammer response rate confirms that scammers cannot tell they are interacting with an automated system.
+
 ### Adaptive Strategy Selection
 
 ScamBuster does not rely on a single fixed "best" conversational approach. Instead, it uses **adaptive strategy selection** to learn, per scam category, which persona maximizes **intelligence yield** under strict safety constraints.
