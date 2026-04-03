@@ -164,14 +164,14 @@ final class ExportCampaignSTIXController
 
         // Get IOCs from messages linked to this campaign
         $rows = $conn->executeQuery(
-            "SELECT DISTINCT
+            'SELECT DISTINCT
                 oi.indicator_id,
                 oi.context_observation,
                 oi.confidence_score,
                 oi.ts_observed
             FROM message_campaign mc
             JOIN observed_ioc oi ON mc.msg_id = oi.msg_id
-            WHERE mc.campaign_id = :campaignId",
+            WHERE mc.campaign_id = :campaignId',
             ['campaignId' => $campaignId]
         )->fetchAllAssociative();
 
