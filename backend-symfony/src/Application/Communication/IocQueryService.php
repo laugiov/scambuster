@@ -1,0 +1,445 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Communication;
+
+use App\Domain\Communication\ObservedIoc;
+use Doctrine\ORM\EntityManagerInterface;
+
+/**
+ * Handles all read-only IOC queries: list, detail, co-occurrence, conversation IOCs.
+ *
+ * Extracted from IocHandler (CT-0 decomposition).
+ */
+class IocQueryService
+{
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly IocExportMapper $exportMapper,
+    ) {
+    }
+
+    /**
+     * Get deduplicated IOCs for a conversation.
+     *
+     * @return array<ObservedIoc>
+     */
+    public function getConversationIocs(string $convId): array
+    {
+        $qb = $this->em->createQueryBuilder();
+        $qb->select('ioc')
+            ->from(ObservedIoc::class, 'ioc')
+            ->join('ioc.message', 'm')
+            ->where('m.conversation = :convId')
+            ->setParameter('convId', $convId)
+            ->orderBy('ioc.tsObserved', 'DESC');
+
+        /** @var array<ObservedIoc> $allIocs */
+        $allIocs = $qb->getQuery()->getResult();
+
+        /** @var array<ObservedIoc> $unique */
+        $unique = [];
+        /** @var array<string, true> $seenIds */
+        $seenIds = [];
+
+        foreach ($allIocs as $ioc) {
+            $iocId = $ioc->getIndicatorId();
+
+            if (!isset($seenIds[$iocId])) {
+                $seenIds[$iocId] = true;
+                $unique[] = $ioc;
+            }
+        }
+
+        return $unique;
+    }
+
+    /**
+     * Get all IOCs with confidence scoring, optionally filtered by min_score.
+     *
+     * @param float|null $minScore Minimum effective_score to include (0.0-1.0)
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    public function getAllIocsWithConfidence(?float $minScore = null): array
+    {
+        $conn = $this->em->getConnection();
+
+        $sql = '
+            SELECT
+                oi.obs_id,
+                oi.indicator_id AS ioc_id,
+                oi.context_observation,
+                oi.ts_observed,
+                oi.confidence_score,
+                i.type AS indicator_type,
+                i.last_seen AS indicator_last_seen,
+                st.code AS scam_type_code
+            FROM observed_ioc oi
+            LEFT JOIN indicator i ON oi.indicator_id = i.indicator_id
+            LEFT JOIN message m ON oi.msg_id = m.msg_id
+            LEFT JOIN conversation c ON m.conv_id = c.conv_id
+            LEFT JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+            ORDER BY oi.ts_observed DESC
+        ';
+
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $conn->executeQuery($sql)->fetchAllAssociative();
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $contextRaw = $row['context_observation'];
+            $context = is_string($contextRaw) ? json_decode($contextRaw, true) : [];
+
+            if (!is_array($context)) {
+                $context = [];
+            }
+
+            $confScoreRaw = $row['confidence_score'];
+            $confidenceRaw = is_numeric($confScoreRaw) ? (float) $confScoreRaw : 0.80;
+            $iocType = is_string($row['indicator_type']) ? $row['indicator_type'] : (is_string($context['type'] ?? null) ? $context['type'] : 'unknown');
+            $tsObservedRaw = $row['ts_observed'];
+            $lastSeenStr = is_string($row['indicator_last_seen']) ? $row['indicator_last_seen'] : (is_string($tsObservedRaw) ? $tsObservedRaw : '');
+
+            try {
+                $lastSeen = new \DateTimeImmutable($lastSeenStr);
+            } catch (\Exception) {
+                $lastSeen = new \DateTimeImmutable();
+            }
+
+            $decayFactor = IocConfidenceCalculator::computeDecayFactor($iocType, $lastSeen);
+            $effectiveScore = round($confidenceRaw * $decayFactor, 4);
+
+            if ($minScore !== null && $effectiveScore < $minScore) {
+                continue;
+            }
+
+            $scamTypeCode = is_string($row['scam_type_code'] ?? null) ? $row['scam_type_code'] : null;
+            $displayCategory = $scamTypeCode ?? (is_string($context['category'] ?? null) ? $context['category'] : '');
+
+            $result[] = [
+                'obs_id' => $row['obs_id'],
+                'ioc_id' => $row['ioc_id'],
+                'type' => $context['type'] ?? '',
+                'value' => $context['value'] ?? '',
+                'value_norm' => $context['value_norm'] ?? '',
+                'score' => $context['score'] ?? [],
+                'category' => $displayCategory,
+                'ts_observed' => $row['ts_observed'],
+                'confidence' => round($confidenceRaw, 4),
+                'decay_factor' => round($decayFactor, 4),
+                'effective_score' => $effectiveScore,
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get detailed information for a single indicator.
+     *
+     * @param string $indicatorId Indicator UUID
+     *
+     * @throws \RuntimeException If indicator not found
+     *
+     * @return array<string, mixed>
+     */
+    public function getIocDetail(string $indicatorId): array
+    {
+        $conn = $this->em->getConnection();
+
+        // 1. Get indicator base data
+        $indicator = $conn->executeQuery(
+            'SELECT * FROM indicator WHERE indicator_id = :id',
+            ['id' => $indicatorId]
+        )->fetchAssociative();
+
+        if (!$indicator) {
+            throw new \RuntimeException("Indicator not found: {$indicatorId}");
+        }
+
+        $type = is_string($indicator['type']) ? $indicator['type'] : 'unknown';
+        $value = is_string($indicator['value']) ? $indicator['value'] : '';
+        $valueNorm = is_string($indicator['value_norm']) ? $indicator['value_norm'] : '';
+        $firstSeen = is_string($indicator['first_seen']) ? $indicator['first_seen'] : '';
+        $lastSeen = is_string($indicator['last_seen']) ? $indicator['last_seen'] : $firstSeen;
+        $occurrences = is_numeric($indicator['occurrences']) ? (int) $indicator['occurrences'] : 1;
+        $tlp = is_string($indicator['tlp']) ? $indicator['tlp'] : 'AMBER';
+        $enrichmentRaw = is_string($indicator['enrichment']) ? $indicator['enrichment'] : '{}';
+        $scoreRaw = is_string($indicator['score']) ? $indicator['score'] : '{}';
+
+        /** @var array<string, mixed> $enrichment */
+        $enrichment = json_decode($enrichmentRaw, true) ?: [];
+        /** @var array<string, mixed> $score */
+        $score = json_decode($scoreRaw, true) ?: [];
+
+        // 2. Compute confidence/decay
+        try {
+            $lastSeenDt = new \DateTimeImmutable($lastSeen);
+        } catch (\Exception) {
+            $lastSeenDt = new \DateTimeImmutable();
+        }
+
+        $baseConfidence = IocConfidenceCalculator::getBaseConfidence('unknown');
+        $confidence = IocConfidenceCalculator::boostConfidence($baseConfidence, $occurrences);
+        $decayFactor = IocConfidenceCalculator::computeDecayFactor($type, $lastSeenDt);
+        $effectiveScore = round($confidence * $decayFactor, 4);
+
+        // 3. Get MISP/STIX mappings
+        $exportContext = $this->exportMapper->enrichWithExportMetadata([
+            'type' => $type,
+            'value' => $value,
+            'value_norm' => $valueNorm,
+        ]);
+
+        // 4. Get category from parent conversation scam type
+        $scamTypeRow = $conn->executeQuery(
+            'SELECT st.code FROM observed_ioc oi
+             JOIN message m ON oi.msg_id = m.msg_id
+             JOIN conversation c ON m.conv_id = c.conv_id
+             LEFT JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+             WHERE oi.indicator_id = :id
+             ORDER BY oi.ts_observed DESC LIMIT 1',
+            ['id' => $indicatorId]
+        )->fetchOne();
+
+        $category = is_string($scamTypeRow) ? $scamTypeRow : 'Unknown';
+
+        // 5. Get observations with conversation context
+        $observations = $conn->executeQuery(
+            'SELECT
+                oi.obs_id,
+                oi.msg_id,
+                oi.ts_observed,
+                oi.confidence_score,
+                oi.context_observation,
+                m.subject AS msg_subject,
+                c.conv_id,
+                c.status AS conv_status,
+                st.code AS scam_type_code
+            FROM observed_ioc oi
+            JOIN message m ON oi.msg_id = m.msg_id
+            JOIN conversation c ON m.conv_id = c.conv_id
+            LEFT JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+            WHERE oi.indicator_id = :indicatorId
+            ORDER BY oi.ts_observed DESC',
+            ['indicatorId' => $indicatorId]
+        )->fetchAllAssociative();
+
+        $formattedObservations = [];
+
+        foreach ($observations as $obs) {
+            $obsContext = is_string($obs['context_observation']) ? json_decode($obs['context_observation'], true) : [];
+            $extractionMethod = 'unknown';
+
+            if (is_array($obsContext)) {
+                if (is_string($obsContext['extraction_method'] ?? null)) {
+                    $extractionMethod = $obsContext['extraction_method'];
+                } elseif (is_string($obsContext['source'] ?? null)) {
+                    $extractionMethod = $obsContext['source'];
+                }
+            }
+
+            $formattedObservations[] = [
+                'obs_id' => $obs['obs_id'],
+                'msg_id' => $obs['msg_id'],
+                'conv_id' => $obs['conv_id'],
+                'conv_subject' => is_string($obs['msg_subject']) ? $obs['msg_subject'] : null,
+                'conv_status' => is_string($obs['conv_status']) ? $obs['conv_status'] : 'unknown',
+                'conv_scam_type' => is_string($obs['scam_type_code']) ? $obs['scam_type_code'] : 'unknown',
+                'extraction_method' => $extractionMethod,
+                'ts_observed' => $obs['ts_observed'],
+            ];
+        }
+
+        // 6. Get related IOCs (co-occurring in same conversations)
+        $relatedIocs = $conn->executeQuery(
+            'SELECT
+                i.indicator_id,
+                i.type,
+                i.value_norm,
+                i.score::text AS score,
+                COUNT(DISTINCT c.conv_id) AS co_occurrence_count
+            FROM observed_ioc oi_other
+            JOIN indicator i ON oi_other.indicator_id = i.indicator_id
+            JOIN message m ON oi_other.msg_id = m.msg_id
+            JOIN conversation c ON m.conv_id = c.conv_id
+            WHERE c.conv_id IN (
+                SELECT DISTINCT c2.conv_id
+                FROM observed_ioc oi2
+                JOIN message m2 ON oi2.msg_id = m2.msg_id
+                JOIN conversation c2 ON m2.conv_id = c2.conv_id
+                WHERE oi2.indicator_id = :indicatorId
+            )
+            AND i.indicator_id != :indicatorId
+            GROUP BY i.indicator_id, i.type, i.value_norm, i.score::text
+            ORDER BY co_occurrence_count DESC
+            LIMIT 50',
+            ['indicatorId' => $indicatorId]
+        )->fetchAllAssociative();
+
+        $formattedRelated = [];
+
+        foreach ($relatedIocs as $rel) {
+            $relScore = is_string($rel['score']) ? json_decode($rel['score'], true) : [];
+
+            $formattedRelated[] = [
+                'indicator_id' => $rel['indicator_id'],
+                'type' => is_string($rel['type']) ? $rel['type'] : 'unknown',
+                'value_norm' => is_string($rel['value_norm']) ? $rel['value_norm'] : '',
+                'score' => is_array($relScore) ? $relScore : [],
+                'co_occurrence_count' => is_numeric($rel['co_occurrence_count']) ? (int) $rel['co_occurrence_count'] : 0,
+            ];
+        }
+
+        return [
+            'indicator_id' => $indicatorId,
+            'type' => $type,
+            'value' => $value,
+            'value_norm' => $valueNorm,
+            'first_seen' => $firstSeen,
+            'last_seen' => $lastSeen,
+            'occurrences' => $occurrences,
+            'tlp' => $tlp,
+            'enrichment' => $enrichment,
+            'score' => $score,
+            'confidence' => round($confidence, 4),
+            'decay_factor' => round($decayFactor, 4),
+            'effective_score' => $effectiveScore,
+            'category' => $category,
+            'misp' => $exportContext['misp'] ?? null,
+            'stix' => $exportContext['stix'] ?? null,
+            'observations' => $formattedObservations,
+            'related_iocs' => $formattedRelated,
+        ];
+    }
+
+    /**
+     * Get co-occurrence graph data for an indicator.
+     *
+     * @param string $indicatorId Center indicator UUID
+     * @param int    $maxNodes    Maximum related nodes to return
+     *
+     * @return array{nodes: array<int, array<string, mixed>>, edges: array<int, array<string, mixed>>}
+     */
+    public function getCoOccurrenceGraph(string $indicatorId, int $maxNodes = 30): array
+    {
+        $conn = $this->em->getConnection();
+
+        $center = $conn->executeQuery(
+            'SELECT indicator_id, type, value, value_norm, score::text AS score FROM indicator WHERE indicator_id = :id',
+            ['id' => $indicatorId]
+        )->fetchAssociative();
+
+        if (!$center) {
+            return ['nodes' => [], 'edges' => []];
+        }
+
+        $headerTypes = "'message_id','subject','spf_result','dkim_result','dmarc_result','x_mailer','return_path'";
+
+        $rows = $conn->executeQuery(
+            "SELECT
+                i.indicator_id,
+                i.type,
+                i.value_norm,
+                i.score::text AS score,
+                COUNT(DISTINCT c.conv_id) AS weight,
+                array_agg(DISTINCT c.conv_id::text) AS conv_ids
+            FROM observed_ioc oi
+            JOIN indicator i ON oi.indicator_id = i.indicator_id
+            JOIN message m ON oi.msg_id = m.msg_id
+            JOIN conversation c ON m.conv_id = c.conv_id
+            WHERE c.conv_id IN (
+                SELECT DISTINCT c2.conv_id
+                FROM observed_ioc oi2
+                JOIN message m2 ON oi2.msg_id = m2.msg_id
+                JOIN conversation c2 ON m2.conv_id = c2.conv_id
+                WHERE oi2.indicator_id = :indicatorId
+            )
+            AND i.indicator_id != :indicatorId
+            AND i.type NOT IN ({$headerTypes})
+            GROUP BY i.indicator_id, i.type, i.value_norm, i.score::text
+            ORDER BY weight DESC, i.type
+            LIMIT :maxNodes",
+            ['indicatorId' => $indicatorId, 'maxNodes' => $maxNodes],
+            ['indicatorId' => \Doctrine\DBAL\ParameterType::STRING, 'maxNodes' => \Doctrine\DBAL\ParameterType::INTEGER]
+        )->fetchAllAssociative();
+
+        $centerScore = is_string($center['score']) ? json_decode($center['score'], true) : [];
+        $nodes = [
+            [
+                'id' => $indicatorId,
+                'type' => is_string($center['type']) ? $center['type'] : 'unknown',
+                'value' => is_string($center['value_norm']) ? $center['value_norm'] : '',
+                'score' => is_array($centerScore) ? ($centerScore['agg'] ?? 0) : 0,
+                'center' => true,
+            ],
+        ];
+
+        $edges = [];
+
+        foreach ($rows as $row) {
+            $relScore = is_string($row['score']) ? json_decode($row['score'], true) : [];
+            $convIdsRaw = is_string($row['conv_ids']) ? $row['conv_ids'] : '{}';
+            $convIds = array_filter(explode(',', trim($convIdsRaw, '{}')));
+
+            $nodes[] = [
+                'id' => $row['indicator_id'],
+                'type' => is_string($row['type']) ? $row['type'] : 'unknown',
+                'value' => is_string($row['value_norm']) ? $row['value_norm'] : '',
+                'score' => is_array($relScore) ? ($relScore['agg'] ?? 0) : 0,
+                'center' => false,
+            ];
+
+            $edges[] = [
+                'source' => $indicatorId,
+                'target' => $row['indicator_id'],
+                'weight' => is_numeric($row['weight']) ? (int) $row['weight'] : 1,
+                'conversations' => $convIds,
+            ];
+        }
+
+        return ['nodes' => $nodes, 'edges' => $edges];
+    }
+
+    /**
+     * Compute confidence data for a single ObservedIoc.
+     *
+     * @return array{confidence: float, decay_factor: float, effective_score: float}
+     */
+    public function computeConfidenceData(string $indicatorId, ?float $confidenceScore, \DateTimeImmutable $tsObserved): array
+    {
+        $conn = $this->em->getConnection();
+        $confidence = $confidenceScore ?? 0.80;
+
+        $indicatorRow = $conn->executeQuery(
+            'SELECT type, last_seen FROM indicator WHERE indicator_id = :id',
+            ['id' => $indicatorId]
+        )->fetchAssociative();
+
+        if (is_array($indicatorRow) && is_string($indicatorRow['type'])) {
+            $iocType = $indicatorRow['type'];
+            $lastSeenStr = is_string($indicatorRow['last_seen']) ? $indicatorRow['last_seen'] : $tsObserved->format('Y-m-d H:i:s');
+        } else {
+            $iocType = 'unknown';
+            $lastSeenStr = $tsObserved->format('Y-m-d H:i:s');
+        }
+
+        try {
+            $lastSeen = new \DateTimeImmutable($lastSeenStr);
+        } catch (\Exception) {
+            $lastSeen = new \DateTimeImmutable();
+        }
+
+        $decayFactor = IocConfidenceCalculator::computeDecayFactor($iocType, $lastSeen);
+        $effectiveScore = round($confidence * $decayFactor, 4);
+
+        return [
+            'confidence' => round($confidence, 4),
+            'decay_factor' => round($decayFactor, 4),
+            'effective_score' => $effectiveScore,
+        ];
+    }
+}
