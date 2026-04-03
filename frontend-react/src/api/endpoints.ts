@@ -28,6 +28,7 @@ export const ENDPOINTS = {
     detail: (id: string) => `/communication/conversation/${id}`,
     messages: (id: string) => `/communication/conversation/${id}/messages`,
     iocs: (id: string) => `/communication/conversation/${id}/iocs`,
+    exportStix: (id: string) => `/conversations/${id}/export/stix`,
   },
   iocs: {
     list: '/iocs',

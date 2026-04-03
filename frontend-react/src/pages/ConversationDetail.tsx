@@ -75,7 +75,7 @@ export function ConversationDetail() {
         {/* Left: metadata + IOCs */}
         <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-1">
           <SessionMetadata conv={c} messageCount={messages.data?.length ?? 0} iocCount={iocs.data?.length ?? 0} />
-          <ExtractedIocs iocs={iocs.data ?? []} isLoading={iocs.isLoading} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
+          <ExtractedIocs convId={id ?? ''} iocs={iocs.data ?? []} isLoading={iocs.isLoading} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
         </div>
 
         {/* Center: email thread */}
@@ -173,7 +173,8 @@ function MetaRow({ label, value, highlight }: { label: string; value: string; hi
   );
 }
 
-function ExtractedIocs({ iocs, isLoading, selectedId, onSelect }: {
+function ExtractedIocs({ convId, iocs, isLoading, selectedId, onSelect }: {
+  convId: string;
   iocs: Ioc[];
   isLoading: boolean;
   selectedId: string | null;
@@ -181,13 +182,39 @@ function ExtractedIocs({ iocs, isLoading, selectedId, onSelect }: {
 }) {
   const { t } = useTranslation();
 
+  const handleExportStix = async () => {
+    const { default: client } = await import('@/api/client');
+    const { ENDPOINTS } = await import('@/api/endpoints');
+    const { data } = await client.get(ENDPOINTS.conversations.exportStix(convId));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `scambuster-stix-${convId.slice(0, 8)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (isLoading) return <Loading message={t('conversationDetail.loadingIocs')} />;
 
   return (
     <section className="bg-surface-low rounded-lg p-5 flex-1">
-      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">
-        {t('conversationDetail.extractedIocs')} <span className="text-on-surface-variant">({iocs.length})</span>
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium">
+          {t('conversationDetail.extractedIocs')} <span className="text-on-surface-variant">({iocs.length})</span>
+        </h3>
+        {iocs.length > 0 && (
+          <button
+            onClick={() => void handleExportStix()}
+            className="text-xs text-accent hover:text-accent-hover transition-colors flex items-center gap-1"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            STIX 2.1
+          </button>
+        )}
+      </div>
       <div className="space-y-2">
         {iocs.map((ioc) => {
           const sev = iocSeverity(ioc.score?.agg ?? 0);

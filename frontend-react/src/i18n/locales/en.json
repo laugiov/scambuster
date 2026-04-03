@@ -146,7 +146,8 @@
     "analysis": "Analysis",
     "noAnalysis": "No analysis available",
     "stixPattern": "STIX Pattern",
-    "viewFullDetail": "View full IOC detail"
+    "viewFullDetail": "View full IOC detail",
+    "exportStix": "Export STIX 2.1"
   },
   "iocExplorer": {
     "title": "IOC Explorer",
