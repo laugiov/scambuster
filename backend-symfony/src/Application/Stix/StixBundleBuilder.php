@@ -252,11 +252,14 @@ final class StixBundleBuilder
         // STIX pattern — use OpenCTI-compatible SCO types
         $pattern = $this->buildPattern($type, $valueNorm);
 
-        // Score
+        // OpenCTI score: prefer VT/URLScan aggregate, fallback to confidence
         $score = 0;
 
-        if (isset($ioc['score']) && is_array($ioc['score']) && isset($ioc['score']['agg'])) {
-            $score = is_numeric($ioc['score']['agg']) ? (int) $ioc['score']['agg'] : 0;
+        if (isset($ioc['score']) && is_array($ioc['score']) && isset($ioc['score']['agg']) && is_numeric($ioc['score']['agg']) && (int) $ioc['score']['agg'] > 0) {
+            $score = (int) $ioc['score']['agg'];
+        } else {
+            // No enrichment data — use confidence as score (best available signal)
+            $score = $confidence;
         }
 
         // Name
