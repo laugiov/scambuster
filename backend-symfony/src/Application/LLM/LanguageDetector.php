@@ -87,6 +87,10 @@ final class LanguageDetector
             return self::DEFAULT_LANGUAGE;
         }
 
+        // Note: no confidence threshold — Spanish/Portuguese share many trigrams
+        // and a threshold would reject valid detections. The main fix was removing
+        // the hardcoded 'fr' in IngestHandler, not making the detector stricter.
+
         $this->logger?->debug('[LanguageDetector] Detected language', [
             'text_length' => mb_strlen($text),
             'detected' => $bestLang,
