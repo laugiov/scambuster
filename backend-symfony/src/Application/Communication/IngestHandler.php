@@ -32,6 +32,7 @@ class IngestHandler
         private readonly ?SenderFloodDetector $senderFloodDetector = null,
         private readonly ?AuditLogger $auditLogger = null,
         private readonly ?LanguageDetector $languageDetector = null,
+        private readonly ?ScamClassificationHandler $scamClassifier = null,
     ) {
     }
 
@@ -682,6 +683,35 @@ class IngestHandler
             ]);
         }
 
+        // Auto-classify scam type (non-blocking — keeps UNKNOWN on failure)
+        if ($this->scamClassifier !== null && strtoupper($conversation->getScamType()->getCode()) === 'UNKNOWN') {
+            try {
+                $classificationResult = $this->scamClassifier->classifyConversation($conversation->getConvId());
+                $this->logger->info('[IngestHandler] Auto-classification complete', [
+                    'conv_id' => $conversation->getConvId(),
+                    'scam_type' => $classificationResult->scamTypeCode,
+                    'confidence' => $classificationResult->confidence,
+                ]);
+            } catch (\Throwable $e) {
+                $this->logger->warning('[IngestHandler] Auto-classification failed, keeping UNKNOWN', [
+                    'conv_id' => $conversation->getConvId(),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Compute initial risk score from extracted IOCs and scam type
+        $initialRisk = $this->computeInitialRisk($conversation, $messageEntity);
+
+        if ($initialRisk > $conversation->getScoreRisk()) {
+            $conversation->updateRiskScore($initialRisk);
+            $this->em->flush();
+            $this->logger->info('[IngestHandler] Risk score updated', [
+                'conv_id' => $conversation->getConvId(),
+                'risk' => $initialRisk,
+            ]);
+        }
+
         // Prompt injection forensic analysis (non-blocking, inbound messages only)
         if ($this->promptInjectionDetector !== null) {
             try {
@@ -796,5 +826,53 @@ class IngestHandler
             details: ['limit_type' => $limitType],
             actorType: 'sender'
         );
+    }
+
+    /**
+     * Compute initial risk score from scam type and extracted IOC types.
+     */
+    private function computeInitialRisk(Conversation $conversation, Message $message): int
+    {
+        $baseScores = [
+            'PHISHING' => 40, 'PHISH_CREDENTIALS' => 45, 'PHISH_MALWARE' => 65,
+            'INVOICE_FRAUD' => 60, 'CEO_FRAUD' => 70, 'ROMANCE' => 30,
+            'TECH_SUPPORT' => 35, 'INVESTMENT' => 50, 'LOTTERY' => 30,
+            'ADVANCE_FEE_419' => 40, 'JOB_OFFER' => 35, 'CHARITY' => 25,
+            'UNKNOWN' => 30,
+        ];
+
+        $scamCode = $conversation->getScamType()->getCode();
+        $score = $baseScores[$scamCode] ?? 30;
+
+        // Get IOCs for this message
+        $iocs = $this->em->getRepository(\App\Domain\Communication\ObservedIoc::class)
+            ->findBy(['message' => $message]);
+
+        $iocTypes = [];
+
+        foreach ($iocs as $ioc) {
+            $context = $ioc->getContext();
+            $type = $context['type'] ?? '';
+            $iocTypes[$type] = true;
+        }
+
+        // Bonus for high-value IOC types
+        if (isset($iocTypes['iban']) || isset($iocTypes['wallet_btc']) || isset($iocTypes['wallet_eth'])) {
+            $score += 20;
+        }
+
+        if (isset($iocTypes['phone'])) {
+            $score += 10;
+        }
+
+        if (isset($iocTypes['url'])) {
+            $urlCount = \count(array_filter($iocs, fn ($i) => ($i->getContext()['type'] ?? '') === 'url'));
+            $score += min($urlCount * 5, 15);
+        }
+
+        // Bonus for IOC diversity
+        $score += min(\count($iocTypes) * 3, 15);
+
+        return min($score, 100);
     }
 }
