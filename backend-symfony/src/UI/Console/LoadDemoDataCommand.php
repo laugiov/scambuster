@@ -95,6 +95,8 @@ class LoadDemoDataCommand extends Command
             $this->connection->executeStatement("DELETE FROM message_campaign WHERE detected_by = 'demo-dataset'");
             $this->connection->executeStatement("DELETE FROM campaign_rule WHERE campaign_id IN (SELECT campaign_id FROM campaign WHERE created_by = 'demo-dataset')");
             $this->connection->executeStatement("DELETE FROM campaign WHERE created_by = 'demo-dataset'");
+            $this->connection->executeStatement("DELETE FROM observed_ioc WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'))");
+            $this->connection->executeStatement("DELETE FROM indicator WHERE indicator_id NOT IN (SELECT DISTINCT indicator_id FROM observed_ioc)");
             $this->connection->executeStatement("DELETE FROM llm_usage WHERE conversation_id IN (SELECT conv_id::text FROM conversation WHERE stix_id LIKE 'demo-%')");
             $this->connection->executeStatement("DELETE FROM bandit_convergence_log WHERE scam_type_code LIKE '%'");
             $this->connection->executeStatement("DELETE FROM conversation WHERE stix_id LIKE 'demo-%'");
@@ -210,21 +212,72 @@ class LoadDemoDataCommand extends Command
                         $iocType = (string) ($ioc['type'] ?? 'unknown');
                         $iocValue = (string) ($ioc['value'] ?? '');
                         $indicatorId = $this->deterministicUuid($iocType . ':' . $iocValue);
+                        $valueNorm = strtolower($iocValue);
+
+                        // Generate realistic enrichment & score for demo
+                        $enrichmentData = $this->generateDemoEnrichment($iocType, $scamCode);
+                        $extractionMethod = $this->pickExtractionMethod($iocType);
+                        $confidence = round(random_int(75, 100) / 100, 3);
+
+                        $context = [
+                            'type' => $iocType,
+                            'value' => $iocValue,
+                            'value_norm' => $valueNorm,
+                            'category' => $scamCode,
+                            'source' => 'extraction',
+                            'extraction_method' => $extractionMethod,
+                            'first_seen' => $msgTimestamp,
+                            'enrichment' => $enrichmentData['enrichment'],
+                            'score' => $enrichmentData['score'],
+                            'tags' => [$scamCode],
+                            'tlp' => 'AMBER',
+                        ];
 
                         $this->connection->insert('observed_ioc', [
                             'obs_id' => $obsId,
                             'msg_id' => $msgId,
                             'indicator_id' => $indicatorId,
-                            'context_observation' => json_encode([
-                                'type' => $iocType,
-                                'value' => $iocValue,
-                                'value_norm' => strtolower($iocValue),
-                                'category' => $scamCode,
-                                'source' => 'demo-dataset',
-                            ], JSON_THROW_ON_ERROR),
-                            'confidence_score' => round(random_int(70, 100) / 100, 3),
+                            'context_observation' => json_encode($context, JSON_THROW_ON_ERROR),
+                            'confidence_score' => $confidence,
                             'ts_observed' => $msgTimestamp,
                         ]);
+
+                        // Upsert indicator table (global IOC dedup)
+                        $existingIndicator = $this->connection->fetchAssociative(
+                            'SELECT indicator_id, occurrences FROM indicator WHERE indicator_id = ?',
+                            [$indicatorId]
+                        );
+
+                        if ($existingIndicator) {
+                            $this->connection->executeStatement(
+                                'UPDATE indicator SET last_seen = :lastSeen, occurrences = occurrences + 1,
+                                 enrichment = :enrichment, score = :score, updated_at = :updatedAt
+                                 WHERE indicator_id = :id',
+                                [
+                                    'lastSeen' => $msgTimestamp,
+                                    'enrichment' => json_encode($enrichmentData['enrichment']),
+                                    'score' => json_encode($enrichmentData['score']),
+                                    'updatedAt' => $msgTimestamp,
+                                    'id' => $indicatorId,
+                                ]
+                            );
+                        } else {
+                            $this->connection->insert('indicator', [
+                                'indicator_id' => $indicatorId,
+                                'type' => $iocType,
+                                'value' => $iocValue,
+                                'value_norm' => $valueNorm,
+                                'first_seen' => $msgTimestamp,
+                                'last_seen' => $msgTimestamp,
+                                'occurrences' => 1,
+                                'enrichment' => json_encode($enrichmentData['enrichment']),
+                                'score' => json_encode($enrichmentData['score']),
+                                'tlp' => 'AMBER',
+                                'created_at' => $msgTimestamp,
+                                'updated_at' => $msgTimestamp,
+                            ]);
+                        }
+
                         $counts['ioc']++;
                     }
                 }
@@ -424,5 +477,112 @@ class LoadDemoDataCommand extends Command
         }
 
         return $lookup;
+    }
+
+    /**
+     * Generate realistic enrichment data for demo IOCs.
+     *
+     * High-risk scam types (CEO_FRAUD, PHISH_MALWARE) get VT detections.
+     * URLs and domains get URLScan verdicts. Finance IOCs get no VT/URLScan (not applicable).
+     *
+     * @return array{enrichment: array<string, mixed>, score: array<string, mixed>}
+     */
+    private function generateDemoEnrichment(string $iocType, string $scamType): array
+    {
+        $enrichment = [];
+        $vtScore = 0;
+        $urlscanScore = 0;
+        $explanations = [];
+
+        // Determine threat level based on scam type
+        $highRisk = \in_array($scamType, ['CEO_FRAUD', 'PHISH_MALWARE', 'PHISH_CREDENTIALS'], true);
+        $mediumRisk = \in_array($scamType, ['PHISHING', 'INVOICE_FRAUD', 'TECH_SUPPORT'], true);
+
+        // VT enrichment for URLs, domains, IPs, hashes
+        if (\in_array($iocType, ['url', 'domain', 'ipv4', 'sha256'], true)) {
+            if ($highRisk) {
+                $malicious = random_int(3, 12);
+                $suspicious = random_int(0, 3);
+            } elseif ($mediumRisk) {
+                $malicious = random_int(0, 5);
+                $suspicious = random_int(1, 4);
+            } else {
+                $malicious = 0;
+                $suspicious = random_int(0, 2);
+            }
+
+            $enrichment['virustotal'] = [
+                'malicious' => $malicious,
+                'suspicious' => $suspicious,
+                'harmless' => random_int(50, 70),
+                'undetected' => random_int(5, 15),
+            ];
+
+            if ($malicious > 0) {
+                $vtScore = 70;
+                $explanations[] = "VT: {$malicious} engines flagged malicious";
+            } elseif ($suspicious > 0) {
+                $vtScore = 40;
+                $explanations[] = "VT: {$suspicious} engines flagged suspicious";
+            }
+        }
+
+        // URLScan enrichment for URLs and domains
+        if (\in_array($iocType, ['url', 'domain'], true)) {
+            if ($highRisk) {
+                $verdict = 'malicious';
+                $urlscanScore = 60;
+                $explanations[] = 'URLScan: verdict malicious';
+            } elseif ($mediumRisk && random_int(0, 1) === 1) {
+                $verdict = 'suspicious';
+                $urlscanScore = 25;
+                $explanations[] = 'URLScan: verdict suspicious';
+            } else {
+                $verdict = random_int(0, 2) === 0 ? 'suspicious' : 'clean';
+                $urlscanScore = $verdict === 'suspicious' ? 25 : 0;
+
+                if ($verdict === 'suspicious') {
+                    $explanations[] = 'URLScan: verdict suspicious';
+                }
+            }
+
+            $enrichment['urlscan'] = [
+                'status' => 'completed',
+                'verdict' => $verdict,
+                'positives' => $verdict === 'malicious' ? random_int(1, 3) : 0,
+            ];
+        }
+
+        $aggScore = min($vtScore + $urlscanScore, 100);
+        $explain = empty($explanations) ? 'No threats detected' : implode('; ', $explanations);
+
+        return [
+            'enrichment' => $enrichment,
+            'score' => [
+                'vt' => $vtScore,
+                'urlscan' => $urlscanScore,
+                'agg' => $aggScore,
+                'explain' => $explain,
+            ],
+        ];
+    }
+
+    /** Pick a realistic extraction method based on IOC type */
+    private function pickExtractionMethod(string $iocType): string
+    {
+        $methods = [
+            'url' => ['llm', 'regex', 'llm'],
+            'domain' => ['derived_from_url', 'llm', 'derived_from_email'],
+            'email' => ['regex', 'llm', 'regex'],
+            'ipv4' => ['regex', 'derived_from_url', 'llm'],
+            'phone' => ['llm', 'regex'],
+            'iban' => ['llm', 'regex'],
+            'wallet_btc' => ['llm', 'regex'],
+            'wallet_eth' => ['llm'],
+            'sha256' => ['regex', 'llm'],
+        ];
+        $pool = $methods[$iocType] ?? ['llm'];
+
+        return $pool[array_rand($pool)];
     }
 }
