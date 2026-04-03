@@ -177,7 +177,7 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 
 | Capability | Benefit |
 |------------|---------|
-| **Automated IOC feeds** | STIX 2.1 / MISP-compatible exports |
+| **Automated IOC feeds** | OpenCTI-compatible STIX 2.1 bundles with TLP markings, relationships, valid_until |
 | **Campaign attribution** | Link individual scams to organized operations |
 | **Early warning** | Identify emerging threats before they scale |
 | **Reduced analyst workload** | Automated extraction vs manual review |
@@ -307,10 +307,19 @@ scambuster/
 - `GET  /api/v1/scambaiting/stats` -- Aggregated performance stats
 - `POST /api/v1/scambaiting/conversation/{id}/close` -- Close and update stats
 
-### Attachments & IOCs
+### IOC Intelligence
+- `GET /api/v1/iocs` -- All IOCs with confidence/decay scoring, optional min_score filter
+- `GET /api/v1/iocs/{indicator_id}/detail` -- Full IOC detail: observations, related IOCs (co-occurrence), MISP/STIX mappings
+- `GET /api/v1/iocs/co-occurrence` -- IOC relationship graph (nodes + edges for visualization)
+- `GET /api/v1/communication/conversation/{id}/iocs` -- Conversation-specific IOCs (deduplicated)
+
+### STIX & MISP Export
+- `GET /api/v1/conversations/{id}/export/stix` -- OpenCTI-compatible STIX 2.1 bundle (indicators + relationships + TLP markings)
+- `POST /api/v1/campaign/{id}/export/stix` -- Campaign-level STIX export
+- `GET /api/v1/conversations/{id}/export/misp` -- MISP Event JSON export
+
+### Attachments
 - `POST/GET/DELETE /api/v1/communication/attachment/{id}`
-- `GET /api/v1/communication/message/{id}/iocs`
-- `GET /api/v1/iocs` -- IOCs with confidence scores
 
 ### Monitoring & Observability
 - `GET /api/v1/monitoring/autonomy` -- System health, convergence, kill switch, activity
@@ -326,13 +335,14 @@ scambuster/
 
 ## Frontend (React Dashboard)
 
-16 pages for operators and analysts:
+17 pages for operators and analysts:
 
 | Page | Purpose |
 |------|---------|
 | **Dashboard** | Operations overview with activity feed, weekly trends, top IOCs, pipeline health |
 | **Conversations** | List with search, pagination, CSV export |
-| **IOC Explorer** | Browse IOCs with confidence scores, decay, CSV export |
+| **IOC Explorer** | Browse 40+ IOC types with advanced filters (severity, confidence, date range, hide headers), direct navigation to full detail page |
+| **IOC Detail** | Full indicator view: scoring (VT/URLScan/confidence/decay), MISP mapping, STIX pattern, observation timeline, co-occurrence graph, related IOCs table |
 | **Campaign Radar** | Campaign clustering, profiling, rule hunting |
 | **Analytics** | 7 interactive charts: IOC timeline, conversation volume, distributions, cost trend, pipeline health, convergence sparklines |
 | **Pipeline Monitor** | Per-reply tracing with component waterfall and health metrics |
@@ -341,7 +351,7 @@ scambuster/
 | **LLM Costs** | Monthly budget, per-purpose breakdown, daily trend |
 | **Personas** | 27 personas with performance matrix per scam type |
 | **Convergence** | Bandit convergence history with pagination |
-| **STIX Export** | Export campaigns as STIX 2.1 bundles with real preview and download |
+| **STIX Export** | Export campaigns or conversations as OpenCTI-compatible STIX 2.1 bundles (TLP markings, relationships, valid_until) |
 | **Settings** | System configuration, LLM provider, kill switch |
 
 Bilingual (EN/FR) with automatic language detection.

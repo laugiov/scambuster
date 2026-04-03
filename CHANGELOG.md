@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.2.0] - 2026-04-03
+
+### Added
+
+#### IOC Explorer UI Overhaul (Feature 037)
+- **IOC Detail Page** with 3 tabs: Overview (scoring bars, MISP mapping, STIX pattern), Observations (linked conversations), Related IOCs (co-occurrence table)
+- **Co-occurrence Graph**: custom SVG radial layout showing IOC relationships, colored by type, clickable nodes
+- **Observation Timeline**: Recharts ScatterChart showing when each IOC was observed, colored by extraction method
+- **Advanced Filters**: severity (High/Medium/Low), confidence threshold (>0.9/>0.7/>0.5), date range (7d/30d/90d), hide header IOCs toggle
+- Direct navigation from IOC list to detail page (removed intermediate side panel)
+- "View full IOC detail" link in Conversation Detail IOC panel
+- `GET /api/v1/iocs/{indicator_id}/detail` endpoint
+- `GET /api/v1/iocs/co-occurrence` endpoint (graph data)
+
+#### STIX 2.1 Full Conformity (Feature 038)
+- **StixBundleBuilder** service generating OpenCTI-compatible STIX 2.1 bundles
+- TLP marking-definitions with OpenCTI well-known UUIDs
+- Indicators with: name, valid_from, valid_until (from decay config), confidence, created_by_ref, OpenCTI extensions (x_opencti_score, x_opencti_main_observable_type)
+- Relationship objects (related-to) for co-occurring IOCs
+- `GET /api/v1/conversations/{conv_id}/export/stix` endpoint
+- "STIX 2.1" download button on Conversation Detail page
+- Refactored existing campaign STIX export to use shared builder
+- Header IOCs excluded from STIX export
+
+#### Demo Dataset v4
+- 1025 IOCs across 9 types (added Telegram usernames, ETH wallets, SHA256)
+- Indicator table populated with mock enrichment data (VT/URLScan scores)
+- Outbound message uniqueness: 98.6% (was 82%)
+- `injectVariation()` post-processor with persona-group-specific greetings, interjections, time references
+
+### Fixed
+
+#### IOC Extraction
+- **Telegram username**: regex bug `\B@` (not-word-boundary) replaced with `(?<!\w)@` (negative lookbehind); validator now requires letter start per Telegram spec
+- **CVE extraction**: added to LLM prompt (rule 8: Security Identifiers) with examples
+- **Category always "Unknown"**: `upsertEnrichedIoc` bypassed categorizer due to hardcoded `'Unknown'` placeholder; now checks for placeholder before calling categorizer
+- **Category display**: replaced IocCategorizer mini-taxonomy (3 values) with conversation scam type (13 values) for user display; MISP mapping kept separate
+- **Extraction method**: fallback to `source` field when `extraction_method` missing from context
+
+#### STIX Export
+- Fixed `TLP:TLP_AMBER` double prefix (DB stores `TLP_AMBER` with underscore)
+- Fixed campaign export 500 error after STIXExporter refactor (missing Uuid import)
+- Updated all STIX-related tests for new bundle structure
+
+---
+
 ## [1.8.0] - 2026-03-30
 
 ### Added
