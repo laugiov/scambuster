@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.2.1] - 2026-04-03
+
+### Fixed
+
+#### STIX Export
+- **IOC Explorer STIX export**: new "Export STIX" button exports filtered IOCs as a STIX 2.1 bundle directly from the IOC Explorer page (not just per-conversation)
+- Fixed UTF-8 encoding issue in STIX report names (em dash replaced with hyphen)
+- CS-Fixer: single quotes for SQL strings without interpolation + PHPDoc alignment
+
+---
+
 ## [2.2.0] - 2026-04-03
 
 ### Added
