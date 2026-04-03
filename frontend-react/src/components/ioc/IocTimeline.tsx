@@ -97,10 +97,10 @@ export function IocTimeline({ observations }: Props) {
           <Scatter
             data={data}
             fill={DEFAULT_DOT_COLOR}
-            shape={(props: Record<string, unknown>) => {
-              const { cx: dotCx, cy: dotCy, payload } = props as { cx: number; cy: number; payload: (typeof data)[number] };
-              const color = METHOD_COLORS[payload.method] ?? DEFAULT_DOT_COLOR;
-              return <circle cx={dotCx} cy={dotCy} r={8} fill={color} fillOpacity={0.85} stroke={color} strokeWidth={2} strokeOpacity={0.4} />;
+            shape={({ cx: dotCx, cy: dotCy, payload }: { cx?: number; cy?: number; payload?: Record<string, unknown> }) => {
+              const p = payload as (typeof data)[number] | undefined;
+              const color = p ? (METHOD_COLORS[p.method] ?? DEFAULT_DOT_COLOR) : DEFAULT_DOT_COLOR;
+              return <circle cx={dotCx ?? 0} cy={dotCy ?? 0} r={8} fill={color} fillOpacity={0.85} stroke={color} strokeWidth={2} strokeOpacity={0.4} />;
             }}
           />
         </ScatterChart>
