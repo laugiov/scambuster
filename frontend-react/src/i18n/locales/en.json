@@ -200,7 +200,9 @@
     "coOccurrence": "Co-occurrence",
     "conversations": "conv.",
     "noObservations": "No observations found for this IOC",
-    "noRelated": "No related IOCs found"
+    "noRelated": "No related IOCs found",
+    "coOccurrenceGraph": "Co-occurrence Graph",
+    "observationTimeline": "Observation Timeline"
   },
   "personas": {
     "title": "Persona & Bandit Configuration",
