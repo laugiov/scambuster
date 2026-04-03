@@ -137,6 +137,7 @@ export function IocExplorer() {
               ]}
               filename={`scambuster-iocs-${new Date().toISOString().slice(0, 10)}.csv`}
             />
+            <ExportStixButton indicatorIds={filtered.map((ioc) => ioc.ioc_id)} count={filtered.length} />
           </div>
         </div>
       </header>
@@ -358,6 +359,46 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
         </tbody>
       </table>
     </div>
+  );
+}
+
+function ExportStixButton({ indicatorIds, count }: { indicatorIds: string[]; count: number }) {
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    if (count === 0 || exporting) return;
+    setExporting(true);
+
+    try {
+      const { default: client } = await import('@/api/client');
+      const { ENDPOINTS } = await import('@/api/endpoints');
+      const { data } = await client.post(ENDPOINTS.iocs.exportStix, {
+        indicator_ids: [...new Set(indicatorIds)].slice(0, 500),
+      });
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `scambuster-stix-${count}-iocs-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={() => void handleExport()}
+      disabled={count === 0 || exporting}
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-surface-high hover:bg-surface-highest text-on-surface-variant hover:text-accent transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      </svg>
+      {exporting ? 'Exporting...' : `STIX 2.1 (${count})`}
+    </button>
   );
 }
 
