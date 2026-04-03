@@ -13,7 +13,7 @@
 [![STIX](https://img.shields.io/badge/STIX-2.1-red.svg)](docs/03_high_level_architecture.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> **Last updated**: 2026-03-30 | **Data period**: December 2025 - ongoing
+> **Last updated**: 2026-04-03 | **Data period**: December 2025 - ongoing
 
 <p align="center">
   <img src="frontend-react/public/dashboard_v2.png" alt="ScamBuster Operations Dashboard" width="100%" />
@@ -55,7 +55,7 @@ Instead of discarding scam emails, ScamBuster creates an **observatory** that an
 |----------|-------------------|
 | **What scam types are trending?** | Real-time classification across 13 types |
 | **Which personas maximize engagement?** | Adaptive learning identifies optimal strategies per scam type |
-| **What IOCs do scammers reveal?** | Automatic extraction of 34 indicator types |
+| **What IOCs do scammers reveal?** | Automatic extraction of 40+ indicator types |
 | **How do campaigns evolve?** | Clustering and attribution over time |
 | **What works against different scammers?** | Data-driven optimization, not intuition |
 
@@ -131,8 +131,8 @@ Five specialized AI agents form the core pipeline, supported by one forensic mod
 
 | Agent | Role | Achievement |
 |-------|------|-------------|
-| **ScamClassifier** | Categorize incoming scams | 82% auto-classification, 13 types |
-| **IocExtractor** | Extract threat indicators | High precision on audited samples, 34 IOC types |
+| **ScamClassifier** | Categorize incoming scams + detect language | Auto-classification at ingestion, 13 types, multilingual (EN/FR/ES/DE/IT/PT) |
+| **IocExtractor** | Extract threat indicators | 97% recall, 100% precision on validation suite, 40+ IOC types |
 | **Generator** | Create contextual responses | +35% IOCs post-IBAN detection |
 | **Validator** | Ensure safety & quality | 100% first-attempt approval (PolicyGuard + multi-criteria LLM) |
 | **Orchestrator** | Coordinate & optimize costs | 3-attempt loop, best-of-3 fallback, per-reply cost tracking |
