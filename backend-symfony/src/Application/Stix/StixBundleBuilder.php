@@ -91,15 +91,16 @@ final class StixBundleBuilder
         ?string $reportDesc = null,
     ): array {
         $bundleId = 'bundle--' . $this->uuid4();
-        $tlpUpper = strtoupper($tlp);
-        $markingRef = self::TLP_MARKING[$tlpUpper] ?? self::TLP_MARKING['AMBER'];
+        // Normalize TLP: strip "TLP:" or "TLP_" prefix
+        $tlpNormalized = strtoupper((string) preg_replace('/^TLP[_:]/i', '', $tlp));
+        $markingRef = self::TLP_MARKING[$tlpNormalized] ?? self::TLP_MARKING['AMBER'];
         $now = $this->formatTimestamp(new \DateTimeImmutable());
 
         /** @var array<int, array<string, mixed>> $objects */
         $objects = [];
 
         // 1. TLP marking-definition
-        $objects[] = $this->buildMarkingDefinition($tlpUpper, $markingRef);
+        $objects[] = $this->buildMarkingDefinition($tlpNormalized, $markingRef);
 
         // 2. Identity
         $objects[] = $this->buildIdentity($markingRef);
@@ -161,8 +162,8 @@ final class StixBundleBuilder
      */
     private function buildMarkingDefinition(string $tlp, string $markingRef): array
     {
-        // Normalize: strip any existing "TLP:" prefix, then lowercase
-        $raw = preg_replace('/^TLP:/i', '', $tlp) ?? $tlp;
+        // Normalize: strip "TLP:" or "TLP_" prefix, then lowercase
+        $raw = preg_replace('/^TLP[_:]/i', '', $tlp) ?? $tlp;
         $tlpLower = strtolower($raw);
 
         if ($tlpLower === 'white') {
@@ -210,6 +211,13 @@ final class StixBundleBuilder
         $valueNorm = is_string($ioc['value_norm'] ?? null) ? $ioc['value_norm'] : $value;
 
         if ($type === '' || $value === '') {
+            return null;
+        }
+
+        // Skip header IOCs — no value for CTI consumers
+        $headerTypes = ['message_id', 'subject', 'spf_result', 'dkim_result', 'dmarc_result', 'x_mailer', 'return_path'];
+
+        if (\in_array($type, $headerTypes, true)) {
             return null;
         }
 
