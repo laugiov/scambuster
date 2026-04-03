@@ -58,7 +58,7 @@ final class IocValidator
 
         // Contact channels
         'phone' => '/^[\d\s\+\(\)\-\.]{7,20}$/',
-        'telegram_username' => '/^@[a-zA-Z0-9_]{5,32}$/',
+        'telegram_username' => '/^@[a-zA-Z][a-zA-Z0-9_]{4,31}$/',
         'discord_username' => '/^.{2,32}#[0-9]{4}$|^[a-z0-9._]{2,32}$/',  // Old format (Name#1234) or new format (username)
         'skype_id' => '/^[a-zA-Z][a-zA-Z0-9\.,\-_]{5,31}$/',
 

@@ -1210,7 +1210,7 @@ class IocHandler
 
             // Contact channels
             'phone' => '/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{2,4}[-.\s]?\d{2,4}(?:[-.\s]?\d{2,4})?\b/',
-            'telegram_username' => '/\B@[a-zA-Z0-9_]{5,32}\b/',
+            'telegram_username' => '/(?<!\w)@[a-zA-Z][a-zA-Z0-9_]{4,31}\b/',
             'discord_username' => '/\b.{2,32}#[0-9]{4}\b/',
 
             // Security identifiers
