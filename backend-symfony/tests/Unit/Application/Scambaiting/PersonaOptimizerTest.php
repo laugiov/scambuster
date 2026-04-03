@@ -199,18 +199,18 @@ class PersonaOptimizerTest extends TestCase
                 throw new \RuntimeException("Unexpected entity class: $entityClass");
             });
 
-        // Both personas have same reward_avg (0.75)
+        // Both personas have same reward_avg AND same sessions (true ex-aequo)
         $stats = [
             $this->createMockStats($personas[0], $scamType, 10, 7.5, 0.75),
-            $this->createMockStats($personas[1], $scamType, 12, 9.0, 0.75),
+            $this->createMockStats($personas[1], $scamType, 10, 7.5, 0.75),
         ];
 
         $this->statsRepository->method('findAllByScamType')
             ->willReturn($stats);
 
-        // Act: Run multiple times during exploitation phase
+        // Act: Run 200 times to ensure random tiebreaker selects both
         $results = [];
-        for ($i = 0; $i < 50; $i++) {
+        for ($i = 0; $i < 200; $i++) {
             $selectedPersonaCode = $this->optimizer->selectPersona('PHISHING');
             if ($selectedPersonaCode !== null) {
                 $results[] = $selectedPersonaCode;
@@ -219,7 +219,7 @@ class PersonaOptimizerTest extends TestCase
 
         // Assert: Both personas should appear in results (ex-aequo random tiebreaker)
         $uniquePersonas = array_unique($results);
-        $this->assertCount(2, $uniquePersonas,
+        $this->assertGreaterThanOrEqual(2, count($uniquePersonas),
             'Ex-aequo personas should both be selected via random tiebreaker'
         );
     }
