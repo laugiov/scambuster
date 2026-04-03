@@ -90,6 +90,11 @@ if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
         UPDATE observed_ioc SET
           ts_observed = ts_observed + shift_interval
         WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'));
+        UPDATE indicator SET
+          first_seen = first_seen + shift_interval,
+          last_seen = last_seen + shift_interval,
+          created_at = created_at + shift_interval,
+          updated_at = updated_at + shift_interval;
         UPDATE llm_usage SET
           created_at = created_at + shift_interval;
         UPDATE bandit_convergence_log SET
@@ -126,6 +131,11 @@ else
         UPDATE observed_ioc SET
           ts_observed = ts_observed + shift_interval
         WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'));
+        UPDATE indicator SET
+          first_seen = first_seen + shift_interval,
+          last_seen = last_seen + shift_interval,
+          created_at = created_at + shift_interval,
+          updated_at = updated_at + shift_interval;
         UPDATE llm_usage SET
           created_at = created_at + shift_interval;
         UPDATE bandit_convergence_log SET
