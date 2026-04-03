@@ -673,6 +673,11 @@ class IocHandler
      *
      * @return array<int, array<string, mixed>> Array of IOCs found (with obs_id if $persist=true)
      */
+    /**
+     * @param array<int, string> $types
+     *
+     * @return array<int, array<string, mixed>>
+     */
     public function extractIocsFromMessage(string $msgId, string $method = 'hybrid', array $types = [], bool $persist = false): array
     {
         // Get message
@@ -887,6 +892,11 @@ class IocHandler
         return array_merge($iocs, $derived);
     }
 
+    /**
+     * @param array<int, string> $types
+     *
+     * @return array<int, array<string, mixed>>
+     */
     private function extractIocsWithRegex(string $text, array $types = []): array
     {
         $iocs = [];
