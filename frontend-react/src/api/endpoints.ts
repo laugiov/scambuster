@@ -32,6 +32,7 @@ export const ENDPOINTS = {
   iocs: {
     list: '/iocs',
     detail: (indicatorId: string) => `/iocs/${indicatorId}/detail`,
+    coOccurrence: '/iocs/co-occurrence',
   },
   scambaiting: {
     stats: '/scambaiting/stats',

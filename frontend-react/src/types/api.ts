@@ -154,6 +154,27 @@ export interface IocDetail {
   related_iocs: IocRelated[];
 }
 
+// IOC Co-occurrence Graph
+export interface GraphNode {
+  id: string;
+  type: string;
+  value: string;
+  score: number;
+  center: boolean;
+}
+
+export interface GraphEdge {
+  source: string;
+  target: string;
+  weight: number;
+  conversations: string[];
+}
+
+export interface IocGraph {
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+}
+
 // Meta config (from GET /meta/config)
 export interface MetaPersona {
   code: string;

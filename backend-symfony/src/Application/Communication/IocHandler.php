@@ -812,6 +812,101 @@ class IocHandler
     }
 
     /**
+     * Get co-occurrence graph data for an indicator.
+     *
+     * Returns nodes (IOCs) and edges (shared conversations) centered on the given indicator.
+     * Excludes header IOC types (message_id, subject, spf_result, dkim_result, dmarc_result).
+     *
+     * @param string $indicatorId Center indicator UUID
+     * @param int    $maxNodes    Maximum related nodes to return
+     *
+     * @return array{nodes: array<int, array<string, mixed>>, edges: array<int, array<string, mixed>>}
+     */
+    public function getCoOccurrenceGraph(string $indicatorId, int $maxNodes = 30): array
+    {
+        $conn = $this->em->getConnection();
+
+        // Get center node
+        $center = $conn->executeQuery(
+            'SELECT indicator_id, type, value, value_norm, score::text AS score FROM indicator WHERE indicator_id = :id',
+            ['id' => $indicatorId]
+        )->fetchAssociative();
+
+        if (!$center) {
+            return ['nodes' => [], 'edges' => []];
+        }
+
+        $headerTypes = "'message_id','subject','spf_result','dkim_result','dmarc_result','x_mailer','return_path'";
+
+        // Get related IOCs with shared conversation IDs, excluding header types
+        $rows = $conn->executeQuery(
+            "SELECT
+                i.indicator_id,
+                i.type,
+                i.value_norm,
+                i.score::text AS score,
+                COUNT(DISTINCT c.conv_id) AS weight,
+                array_agg(DISTINCT c.conv_id::text) AS conv_ids
+            FROM observed_ioc oi
+            JOIN indicator i ON oi.indicator_id = i.indicator_id
+            JOIN message m ON oi.msg_id = m.msg_id
+            JOIN conversation c ON m.conv_id = c.conv_id
+            WHERE c.conv_id IN (
+                SELECT DISTINCT c2.conv_id
+                FROM observed_ioc oi2
+                JOIN message m2 ON oi2.msg_id = m2.msg_id
+                JOIN conversation c2 ON m2.conv_id = c2.conv_id
+                WHERE oi2.indicator_id = :indicatorId
+            )
+            AND i.indicator_id != :indicatorId
+            AND i.type NOT IN ({$headerTypes})
+            GROUP BY i.indicator_id, i.type, i.value_norm, i.score::text
+            ORDER BY weight DESC, i.type
+            LIMIT :maxNodes",
+            ['indicatorId' => $indicatorId, 'maxNodes' => $maxNodes],
+            ['indicatorId' => \Doctrine\DBAL\ParameterType::STRING, 'maxNodes' => \Doctrine\DBAL\ParameterType::INTEGER]
+        )->fetchAllAssociative();
+
+        // Build center node
+        $centerScore = is_string($center['score']) ? json_decode($center['score'], true) : [];
+        $nodes = [
+            [
+                'id' => $indicatorId,
+                'type' => is_string($center['type']) ? $center['type'] : 'unknown',
+                'value' => is_string($center['value_norm']) ? $center['value_norm'] : '',
+                'score' => is_array($centerScore) ? ($centerScore['agg'] ?? 0) : 0,
+                'center' => true,
+            ],
+        ];
+
+        $edges = [];
+
+        foreach ($rows as $row) {
+            $relScore = is_string($row['score']) ? json_decode($row['score'], true) : [];
+            $convIdsRaw = is_string($row['conv_ids']) ? $row['conv_ids'] : '{}';
+            // PostgreSQL array format: {uuid1,uuid2}
+            $convIds = array_filter(explode(',', trim($convIdsRaw, '{}')));
+
+            $nodes[] = [
+                'id' => $row['indicator_id'],
+                'type' => is_string($row['type']) ? $row['type'] : 'unknown',
+                'value' => is_string($row['value_norm']) ? $row['value_norm'] : '',
+                'score' => is_array($relScore) ? ($relScore['agg'] ?? 0) : 0,
+                'center' => false,
+            ];
+
+            $edges[] = [
+                'source' => $indicatorId,
+                'target' => $row['indicator_id'],
+                'weight' => is_numeric($row['weight']) ? (int) $row['weight'] : 1,
+                'conversations' => $convIds,
+            ];
+        }
+
+        return ['nodes' => $nodes, 'edges' => $edges];
+    }
+
+    /**
      * Compute confidence data for a single ObservedIoc.
      *
      * @return array{confidence: float, decay_factor: float, effective_score: float}

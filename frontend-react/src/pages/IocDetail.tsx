@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useIocDetail } from '@/hooks/useIocs';
+import { useIocDetail, useIocGraph } from '@/hooks/useIocs';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { IocGraph } from '@/components/ioc/IocGraph';
+import { IocTimeline } from '@/components/ioc/IocTimeline';
 import { timeSince } from '@/lib/time';
 import type { IocObservation, IocRelated } from '@/types/api';
 
@@ -29,6 +31,7 @@ export function IocDetail() {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { data: detail, isLoading, error, refetch } = useIocDetail(indicatorId ?? '');
+  const { data: graphData } = useIocGraph(indicatorId ?? '');
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
   if (isLoading) return <Loading message={t('iocDetail.loading')} />;
@@ -102,7 +105,7 @@ export function IocDetail() {
       {/* Tab content */}
       {activeTab === 'overview' && <OverviewTab detail={detail} />}
       {activeTab === 'observations' && <ObservationsTab observations={detail.observations} />}
-      {activeTab === 'related' && <RelatedTab relatedIocs={detail.related_iocs} />}
+      {activeTab === 'related' && <RelatedTab relatedIocs={detail.related_iocs} graphData={graphData} />}
     </div>
   );
 }
@@ -167,6 +170,11 @@ function OverviewTab({ detail }: { detail: import('@/types/api').IocDetail }) {
           </p>
         )}
       </section>
+
+      {/* Observation Timeline */}
+      {detail.observations.length > 0 && (
+        <IocTimeline observations={detail.observations} />
+      )}
 
       {/* MISP + STIX */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -257,7 +265,7 @@ function ObservationsTab({ observations }: { observations: IocObservation[] }) {
   );
 }
 
-function RelatedTab({ relatedIocs }: { relatedIocs: IocRelated[] }) {
+function RelatedTab({ relatedIocs, graphData }: { relatedIocs: IocRelated[]; graphData?: import('@/types/api').IocGraph }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -270,7 +278,19 @@ function RelatedTab({ relatedIocs }: { relatedIocs: IocRelated[] }) {
   }
 
   return (
-    <div className="bg-surface-low rounded-lg overflow-hidden">
+    <div className="space-y-6">
+      {/* Co-occurrence graph */}
+      {graphData && graphData.nodes.length > 1 && (
+        <div className="bg-surface-low rounded-lg p-4">
+          <h4 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest mb-3">
+            {t('iocDetail.coOccurrenceGraph')}
+          </h4>
+          <IocGraph data={graphData} />
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="bg-surface-low rounded-lg overflow-hidden">
       <table className="w-full text-left">
         <thead>
           <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
@@ -309,6 +329,7 @@ function RelatedTab({ relatedIocs }: { relatedIocs: IocRelated[] }) {
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
