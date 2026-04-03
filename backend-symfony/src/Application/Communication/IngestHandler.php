@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\Audit\AuditLogger;
+use App\Application\LLM\LanguageDetector;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Attachment;
 use App\Domain\Communication\Channel;
@@ -30,6 +31,7 @@ class IngestHandler
         private readonly ?RateLimiterFactory $emailsPerSenderPerDayLimiter = null,
         private readonly ?SenderFloodDetector $senderFloodDetector = null,
         private readonly ?AuditLogger $auditLogger = null,
+        private readonly ?LanguageDetector $languageDetector = null,
     ) {
     }
 
@@ -485,13 +487,21 @@ class IngestHandler
             $extraThreatIntel['parsed'] = $dto->parsed;
         }
 
+        // Detect language from message body (fallback to 'en' if too short or detector unavailable)
+        $detectedLang = 'en';
+
+        if ($this->languageDetector !== null && !empty($bodyText) && mb_strlen($bodyText) >= 50) {
+            $detectedLang = $this->languageDetector->detect($bodyText);
+            $this->logger->info('[IngestHandler] Language detected', ['lang' => $detectedLang, 'body_length' => mb_strlen($bodyText)]);
+        }
+
         // Créer le message avec tous les headers normalisés
         $messageEntity = new Message(
             $msgId,
             $conversation,
             $channel,
             $direction,
-            'fr',
+            $detectedLang,
             $subject,
             $bodyText,
             $bodyHtml,

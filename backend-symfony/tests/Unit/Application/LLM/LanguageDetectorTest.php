@@ -83,4 +83,32 @@ class LanguageDetectorTest extends TestCase
 
         $this->assertSame('fr', $this->detector->detect($text));
     }
+
+    public function testPhishingEmailEnglish(): void
+    {
+        $text = 'Dear Customer, We have detected unauthorized access to your account from IP address 198.51.100.42. For your protection, please verify your identity immediately. Failure to verify within 24 hours will result in permanent account suspension.';
+
+        $this->assertSame('en', $this->detector->detect($text));
+    }
+
+    public function testInvoiceFraudEmailEnglish(): void
+    {
+        $text = 'Dear Accounts Payable, Please be advised that our banking details have changed effective immediately. All outstanding and future payments should be redirected to our new account. Please process this payment promptly.';
+
+        $this->assertSame('en', $this->detector->detect($text));
+    }
+
+    public function testRomanceScamEmailEnglish(): void
+    {
+        $text = 'Hello my dear, I found your profile and I felt compelled to write. My name is Dr. Sarah Mitchell, I am a humanitarian worker in Eastern Europe. Life here is lonely and I am looking for genuine connection.';
+
+        $this->assertSame('en', $this->detector->detect($text));
+    }
+
+    public function testAmbiguousShortTextDefaultsToEnglish(): void
+    {
+        $text = 'OK merci beaucoup'; // Very short, ambiguous
+
+        $this->assertSame('en', $this->detector->detect($text));
+    }
 }
