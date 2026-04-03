@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from 'recharts';
 import type { IocObservation } from '@/types/api';
 
@@ -80,7 +79,7 @@ export function IocTimeline({ observations }: Props) {
             tick={{ fontSize: 10, fill: '#94a3b8' }}
             stroke="#334155"
           />
-          <YAxis hide domain={[0, 2.5]} />
+          <YAxis dataKey="y" hide domain={[0, 2.5]} />
           <Tooltip
             content={({ payload }) => {
               if (!payload || payload.length === 0) return null;
@@ -95,15 +94,15 @@ export function IocTimeline({ observations }: Props) {
               );
             }}
           />
-          <Scatter data={data}>
-            {data.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={METHOD_COLORS[entry.method] ?? DEFAULT_DOT_COLOR}
-                r={8}
-              />
-            ))}
-          </Scatter>
+          <Scatter
+            data={data}
+            fill={DEFAULT_DOT_COLOR}
+            shape={(props: Record<string, unknown>) => {
+              const { cx: dotCx, cy: dotCy, payload } = props as { cx: number; cy: number; payload: (typeof data)[number] };
+              const color = METHOD_COLORS[payload.method] ?? DEFAULT_DOT_COLOR;
+              return <circle cx={dotCx} cy={dotCy} r={8} fill={color} fillOpacity={0.85} stroke={color} strokeWidth={2} strokeOpacity={0.4} />;
+            }}
+          />
         </ScatterChart>
       </ResponsiveContainer>
     </div>
