@@ -106,16 +106,18 @@ class ScamClassifier
             $confidence = isset($data['confidence']) && is_numeric($data['confidence']) ? (float) $data['confidence'] : 0.0;
             $isNewType = isset($data['is_new_type']) && is_bool($data['is_new_type']) ? $data['is_new_type'] : false;
             $reasoning = isset($data['reasoning']) && is_string($data['reasoning']) ? $data['reasoning'] : 'No reasoning provided';
+            $detectedLanguage = isset($data['detected_language']) && is_string($data['detected_language']) ? $data['detected_language'] : 'en';
 
             return new ClassificationResult(
                 scamTypeCode: $scamTypeCode,
                 confidence: $confidence,
                 isNewType: $isNewType,
-                isNewPersona: false, // No longer creating new personas, just suggesting existing ones
-                personaCode: null, // Deprecated - use suggestedPersonaCodes instead
+                isNewPersona: false,
+                personaCode: null,
                 reasoning: $reasoning,
                 personaData: $newTypeData,
-                suggestedPersonaCodes: $suggestedPersonaCodes
+                suggestedPersonaCodes: $suggestedPersonaCodes,
+                detectedLanguage: $detectedLanguage,
             );
 
         } catch (\Exception $e) {
@@ -174,8 +176,11 @@ Répondez au format JSON strict suivant :
   "label_en": "Label in English",
   "label_fr": "Label en français",
   "reasoning": "Explication courte de votre décision",
-  "suggested_persona_codes": ["persona_code_1", "persona_code_2", "persona_code_3"]
+  "suggested_persona_codes": ["persona_code_1", "persona_code_2", "persona_code_3"],
+  "detected_language": "en"
 }
+
+Règle pour detected_language: ISO 639-1 code (en, fr, es, de, pt, it, nl, etc.) de la langue PRINCIPALE du contenu du message scam. Basez-vous sur le texte du message, PAS sur les headers.
 
 Règles :
 1. Si type connu, utilisez son code exact et mettez "suggested_persona_codes": null
@@ -197,7 +202,8 @@ Type connu (phishing):
   "label_en": "Phishing",
   "label_fr": "Hameçonnage",
   "reasoning": "Email frauduleux demandant des identifiants bancaires",
-  "suggested_persona_codes": null
+  "suggested_persona_codes": null,
+  "detected_language": "fr"
 }
 
 Nouveau type (fake_delivery):
@@ -208,7 +214,8 @@ Nouveau type (fake_delivery):
   "label_en": "Fake Delivery Scam",
   "label_fr": "Fausse livraison",
   "reasoning": "Faux message de livraison demandant paiement frais douane",
-  "suggested_persona_codes": ["buyer_eager", "seller_trusting", "student_busy", "elderly_person", "generic_user"]
+  "suggested_persona_codes": ["buyer_eager", "seller_trusting", "student_busy", "elderly_person", "generic_user"],
+  "detected_language": "fr"
 }
 PROMPT;
 

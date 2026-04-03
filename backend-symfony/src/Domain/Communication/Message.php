@@ -144,6 +144,11 @@ class Message
         return $this->langDetect;
     }
 
+    public function setLangDetect(string $langDetect): void
+    {
+        $this->langDetect = $langDetect;
+    }
+
     public function getSubject(): ?string
     {
         return $this->subject;

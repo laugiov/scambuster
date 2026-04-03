@@ -21,7 +21,8 @@ final class ClassificationResult
         public readonly ?string $personaCode,
         public readonly string $reasoning,
         public readonly ?array $personaData = null,
-        public readonly ?array $suggestedPersonaCodes = null
+        public readonly ?array $suggestedPersonaCodes = null,
+        public readonly string $detectedLanguage = 'en',
     ) {
     }
 
