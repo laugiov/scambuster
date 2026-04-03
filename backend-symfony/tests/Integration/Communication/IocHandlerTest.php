@@ -449,9 +449,13 @@ class IocHandlerTest extends KernelTestCase
         // Should find at least some IOCs (email, url)
         $this->assertGreaterThan(0, count($iocs));
 
-        // All should be marked as regex extraction
+        // Non-derived IOCs should be marked as regex extraction
         foreach ($iocs as $ioc) {
-            $this->assertSame('regex', $ioc['context']['extraction_method']);
+            $method = $ioc['context']['extraction_method'] ?? '';
+            $this->assertTrue(
+                \in_array($method, ['regex', 'derived_from_url', 'derived_from_email'], true),
+                "Unexpected extraction method: {$method}"
+            );
         }
     }
 }
