@@ -62,7 +62,7 @@ final class ExportConversationStixController
                 [],
                 [],
                 $conversation->getTlp(),
-                'ScamBuster — ' . $conv_id,
+                'ScamBuster - ' . $conv_id,
             );
 
             return new JsonResponse($bundle, Response::HTTP_OK);
@@ -121,7 +121,7 @@ final class ExportConversationStixController
             $iocs,
             $relationships,
             $conversation->getTlp(),
-            "ScamBuster — {$scamType} conversation {$conv_id}",
+            "ScamBuster - {$scamType} conversation {$conv_id}",
             "IOCs extracted from {$scamType} scam conversation tracked by ScamBuster honeypot",
         );
 

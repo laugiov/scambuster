@@ -148,7 +148,7 @@ final class ExportIocsStixController
             $iocs,
             $relationships,
             'AMBER',
-            sprintf('ScamBuster IOC Export — %d indicators', \count($iocs)),
+            sprintf('ScamBuster IOC Export - %d indicators', \count($iocs)),
             sprintf('Exported %d indicators from ScamBuster IOC Explorer', \count($iocs)),
         );
 
