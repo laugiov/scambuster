@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Put(
     path: '/api/v1/personas/{personaCode}',
@@ -36,6 +37,7 @@ use Symfony\Component\Routing\Annotation\Route;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/personas/{personaCode}', name: 'api_persona_update', methods: ['PUT'])]
+#[IsGranted('config:write')]
 final class UpdatePersonaController extends AbstractController
 {
     private const MAX_LABEL_LENGTH = 128;

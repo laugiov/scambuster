@@ -8,6 +8,7 @@ use App\Application\Monitoring\LlmCostHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * LLM cost monitoring endpoint.
@@ -16,6 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * daily trend, and limit status.
  * Auth handled by Symfony firewall (same as /monitoring/autonomy).
  */
+#[IsGranted('monitoring:read')]
 final class LlmCostController
 {
     public function __construct(

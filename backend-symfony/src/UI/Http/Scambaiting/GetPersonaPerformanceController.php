@@ -12,6 +12,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Retourne la performance d'un persona sur tous les scam_types.
@@ -73,6 +74,7 @@ use Symfony\Component\Routing\Annotation\Route;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/scambaiting/persona/{personaCode}/performance', name: 'api_scambaiting_persona_performance', methods: ['GET'])]
+#[IsGranted('monitoring:read')]
 final class GetPersonaPerformanceController extends AbstractController
 {
     public function __construct(

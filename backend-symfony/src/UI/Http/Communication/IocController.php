@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Controller for IOC (Indicator of Compromise) enrichment endpoints
@@ -29,6 +30,7 @@ use Symfony\Component\Routing\Annotation\Route;
  * Spec: specs/05-normaliser-decider.md §3
  */
 #[Route('/api/v1/iocs')]
+#[IsGranted('ioc:read')]
 final class IocController
 {
     public function __construct(

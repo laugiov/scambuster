@@ -9,6 +9,7 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Returns all reference/configuration data for the frontend in a single call.
@@ -24,6 +25,7 @@ use Symfony\Component\Routing\Annotation\Route;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/meta/config', name: 'api_meta_config', methods: ['GET'])]
+#[IsGranted('monitoring:read')]
 final class ConfigController
 {
     public function __construct(

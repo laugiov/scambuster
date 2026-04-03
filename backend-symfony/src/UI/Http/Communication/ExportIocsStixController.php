@@ -11,6 +11,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Export a selection of IOCs as a STIX 2.1 bundle (OpenCTI-compatible).
@@ -18,6 +19,7 @@ use Symfony\Component\Routing\Annotation\Route;
  * Accepts indicator_ids from the frontend (filtered IOC Explorer list)
  * and builds a bundle with indicators + co-occurrence relationships.
  */
+#[IsGranted('ioc:export')]
 final class ExportIocsStixController
 {
     public function __construct(

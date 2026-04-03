@@ -10,8 +10,10 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/monitoring/pipeline-health', name: 'api_monitoring_pipeline_health', methods: ['GET'])]
+#[IsGranted('monitoring:read')]
 final class PipelineHealthController
 {
     public function __construct(

@@ -10,6 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Retourne les statistiques agrégées pour tous les scam_types.
@@ -46,6 +47,7 @@ use Symfony\Component\Routing\Annotation\Route;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/scambaiting/stats', name: 'api_scambaiting_all_stats', methods: ['GET'])]
+#[IsGranted('monitoring:read')]
 final class GetAllScambaitingStatsController extends AbstractController
 {
     public function __construct(

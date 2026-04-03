@@ -78,7 +78,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     security: [['Bearer' => []]]
 )]
 #[Route('/api/v1/scambaiting/select-persona', name: 'api_scambaiting_select_persona', methods: ['POST'])]
-#[IsGranted('ROLE_USER')]
+#[IsGranted('conversation:write')]
 final class SelectPersonaController extends AbstractController
 {
     public function __construct(

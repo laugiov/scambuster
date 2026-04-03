@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/communication/message')]
 final class MessageController
@@ -68,6 +69,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('', name: 'create_message', methods: ['POST'])]
+    #[IsGranted('conversation:write')]
     public function create(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -122,6 +124,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}', name: 'get_message', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function getMessage(string $msgId): JsonResponse
     {
         $message = $this->handler->getMessage($msgId);
@@ -163,6 +166,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}', name: 'delete_message', methods: ['DELETE'])]
+    #[IsGranted('conversation:write')]
     public function deleteMessage(string $msgId): JsonResponse
     {
         $ok = $this->handler->deleteMessage($msgId);
@@ -200,6 +204,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}/attachments', name: 'get_message_attachments', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function getMessageAttachments(string $msgId): JsonResponse
     {
         $attachments = $this->handler->getMessageAttachments($msgId);
@@ -258,6 +263,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}/attachments', name: 'upload_message_attachment', methods: ['POST'])]
+    #[IsGranted('conversation:write')]
     public function uploadAttachment(string $msgId, Request $request): JsonResponse
     {
         $message = $this->handler->getMessage($msgId);
@@ -318,6 +324,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}', name: 'patch_message', methods: ['PATCH'])]
+    #[IsGranted('conversation:write')]
     public function patchMessage(string $msgId, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -373,6 +380,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}/iocs', name: 'get_message_iocs', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function getMessageIocs(string $msgId): JsonResponse
     {
         $iocs = $this->handler->getMessageIocs($msgId);
@@ -408,6 +416,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}/risk', name: 'get_message_risk', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function getMessageRisk(string $msgId): JsonResponse
     {
         try {
@@ -448,6 +457,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/by-message-id/{messageId}', name: 'get_message_by_message_id', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function getMessageByMessageId(string $messageId): JsonResponse
     {
         $message = $this->handler->getMessageByMessageId($messageId);
@@ -537,6 +547,7 @@ final class MessageController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{msgId}/extract-iocs', name: 'extract_message_iocs', methods: ['POST'])]
+    #[IsGranted('conversation:write')]
     public function extractIocs(string $msgId, Request $request): JsonResponse
     {
         $this->logger->info('[IOC-EXTRACT-DEBUG] Starting IOC extraction', [
