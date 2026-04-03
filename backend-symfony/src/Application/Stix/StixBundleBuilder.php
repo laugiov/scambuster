@@ -161,7 +161,9 @@ final class StixBundleBuilder
      */
     private function buildMarkingDefinition(string $tlp, string $markingRef): array
     {
-        $tlpLower = strtolower($tlp);
+        // Normalize: strip any existing "TLP:" prefix, then lowercase
+        $raw = preg_replace('/^TLP:/i', '', $tlp) ?? $tlp;
+        $tlpLower = strtolower($raw);
 
         if ($tlpLower === 'white') {
             $tlpLower = 'clear';
@@ -173,7 +175,7 @@ final class StixBundleBuilder
             'id' => $markingRef,
             'created' => '2017-01-20T00:00:00.000Z',
             'definition_type' => 'tlp',
-            'name' => 'TLP:' . strtoupper($tlpLower === 'clear' ? 'CLEAR' : $tlp),
+            'name' => 'TLP:' . strtoupper($tlpLower),
             'definition' => ['tlp' => $tlpLower],
         ];
     }
