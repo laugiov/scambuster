@@ -158,7 +158,7 @@ final class ExportIocsStixController
     /**
      * Build co-occurrence relationships among selected indicator IDs.
      *
-     * @param array<int, string>              $indicatorIds
+     * @param array<int, string>               $indicatorIds
      * @param array<int, array<string, mixed>> $iocs
      *
      * @return array<int, array<string, mixed>>
