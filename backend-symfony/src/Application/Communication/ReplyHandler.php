@@ -110,6 +110,7 @@ class ReplyHandler
             return [
                 'msg_id' => $msg->getMsgId(),
                 'direction' => $msg->getDirection()->getCode(),
+                'lang_detect' => $msg->getLangDetect(),
                 'subject' => $msg->getSubject(),
                 'body_text' => $msg->getBodyText(),
                 'headers' => [
@@ -799,22 +800,29 @@ class ReplyHandler
         $messages = $context['last_messages'] ?? [];
 
         // Find last inbound message (direction=in)
-        $lastInboundText = '';
-
         foreach (array_reverse($messages) as $msg) {
             if (($msg['direction'] ?? '') === 'in') {
-                /** @var string $lastInboundText */
-                $lastInboundText = $msg['body_text'] ?? '';
+                // Priority 1: use lang_detect already stored on the message (set by LLM at ingestion)
+                $storedLang = $msg['lang_detect'] ?? null;
+
+                if (\is_string($storedLang) && \strlen($storedLang) === 2 && $storedLang !== 'fr') {
+                    // 'fr' is the old hardcoded value — ignore it as unreliable
+                    return $storedLang;
+                }
+
+                // Priority 2: fallback to trigram detection
+                /** @var string $bodyText */
+                $bodyText = $msg['body_text'] ?? '';
+
+                if ($bodyText !== '' && $this->languageDetector !== null) {
+                    return $this->languageDetector->detect($bodyText);
+                }
 
                 break;
             }
         }
 
-        if ($lastInboundText === '' || $this->languageDetector === null) {
-            return 'en';
-        }
-
-        return $this->languageDetector->detect($lastInboundText);
+        return 'en';
     }
 
     private function dispatchRateLimitAudit(string $limitType, string $convId): void
