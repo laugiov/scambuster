@@ -218,10 +218,21 @@ EXTRACTION RULES:
    - "g00gle dot com" → "google.com"
    - "hxxps://example[.]com" → "https://example.com" (refang if already defanged)
 
-7. **Context Awareness**: Use semantic understanding to distinguish:
+7. **Contact Channels**:
+   - Telegram: Extract @username handles (5-32 chars, starts with letter, e.g., "@crypto_support42")
+   - Discord: Extract user#1234 handles
+   - Skype: Extract Skype IDs
+
+8. **Security Identifiers**:
+   - CVE: Extract CVE identifiers (e.g., "CVE-2024-12345", "CVE-2021-44228")
+   - MITRE ATT&CK: Extract technique IDs (e.g., "T1566", "T1566.001")
+   - Malware families: Extract when named (e.g., "Emotet", "AgentTesla")
+
+9. **Context Awareness**: Use semantic understanding to distinguish:
    - Phone numbers vs dates/invoice numbers
    - Real URLs vs example URLs in signatures
    - Financial data vs random numbers
+   - Telegram handles vs email local parts (@ in emails vs standalone @username)
 
 OUTPUT FORMAT:
 Return a JSON array of objects with "type" and "value" fields:
@@ -229,7 +240,9 @@ Return a JSON array of objects with "type" and "value" fields:
   {"type": "url", "value": "https://evil.com"},
   {"type": "phone", "value": "+33612345678"},
   {"type": "email", "value": "scammer@example.com"},
-  {"type": "iban", "value": "FR7612345678901234567890185"}
+  {"type": "iban", "value": "FR7612345678901234567890185"},
+  {"type": "telegram_username", "value": "@crypto_support42"},
+  {"type": "cve", "value": "CVE-2024-12345"}
 ]
 
 IMPORTANT: Extract URLs and domains in their ORIGINAL format (NOT defanged).
