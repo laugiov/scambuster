@@ -737,6 +737,9 @@ class IocHandler
             }
         }
 
+        // Derive additional IOCs (domains from URLs, IPs from URL hosts, domains from emails)
+        $uniqueIocs = $this->deriveAdditionalIocs($uniqueIocs);
+
         // Persist IOCs if requested
         if ($persist) {
             $persistedIocs = [];
@@ -782,11 +785,106 @@ class IocHandler
     /**
      * Extract IOCs using regex patterns
      *
-     * @param string             $text  Text to extract IOCs from
-     * @param array<int, string> $types IOC types to extract (empty = all)
      *
      * @return array<int, array<string, mixed>> Array of IOCs
      */
+    /**
+     * Derive additional IOCs from extracted URLs and emails.
+     *
+     * - URLs → derive domain (or IP if host is an IP)
+     * - Emails → derive domain (skip common providers like gmail.com)
+     *
+     * @param array<int, array<string, mixed>> $iocs
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function deriveAdditionalIocs(array $iocs): array
+    {
+        $skipDomains = [
+            'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com',
+            'proton.me', 'protonmail.com', 'live.com', 'icloud.com',
+            'aol.com', 'mail.com', 'yandex.com', 'zoho.com',
+        ];
+
+        $existingKeys = [];
+
+        foreach ($iocs as $ioc) {
+            $type = (string) ($ioc['type'] ?? '');
+            $norm = strtolower((string) ($ioc['value_norm'] ?? $ioc['value'] ?? ''));
+            $existingKeys[$type . ':' . $norm] = true;
+        }
+
+        $derived = [];
+
+        foreach ($iocs as $ioc) {
+            $type = (string) ($ioc['type'] ?? '');
+            $value = (string) ($ioc['value'] ?? '');
+
+            // Derive domain/IP from URL
+            if ($type === 'url') {
+                // Refang for parsing (convert hxxps→https, [.]→.)
+                $refanged = str_replace(['hxxp', '[.]', '[:]'], ['http', '.', ':'], $value);
+                $parsed = parse_url($refanged);
+                $host = $parsed['host'] ?? null;
+
+                if ($host !== null) {
+                    $hostLower = strtolower($host);
+
+                    if (filter_var($host, \FILTER_VALIDATE_IP, \FILTER_FLAG_IPV4)) {
+                        $key = 'ipv4:' . $host;
+
+                        if (!isset($existingKeys[$key])) {
+                            $derived[] = [
+                                'type' => 'ipv4',
+                                'value' => $host,
+                                'value_norm' => $host,
+                                'context' => ['extraction_method' => 'derived_from_url'],
+                            ];
+                            $existingKeys[$key] = true;
+                        }
+                    } elseif (!filter_var($host, \FILTER_VALIDATE_IP)) {
+                        $key = 'domain:' . $hostLower;
+
+                        if (!isset($existingKeys[$key])) {
+                            $normDomain = isset($this->normalizer) ? $this->normalizer->normalize('domain', $host) : strtolower($host);
+                            $derived[] = [
+                                'type' => 'domain',
+                                'value' => $host,
+                                'value_norm' => $normDomain,
+                                'context' => ['extraction_method' => 'derived_from_url'],
+                            ];
+                            $existingKeys[$key] = true;
+                        }
+                    }
+                }
+            }
+
+            // Derive domain from email
+            if ($type === 'email') {
+                $parts = explode('@', $value);
+                $domain = $parts[1] ?? null;
+
+                if ($domain !== null) {
+                    $domainLower = strtolower($domain);
+                    $key = 'domain:' . $domainLower;
+
+                    if (!isset($existingKeys[$key]) && !\in_array($domainLower, $skipDomains, true)) {
+                        $normDomain = isset($this->normalizer) ? $this->normalizer->normalize('domain', $domain) : strtolower($domain);
+                        $derived[] = [
+                            'type' => 'domain',
+                            'value' => $domain,
+                            'value_norm' => $normDomain,
+                            'context' => ['extraction_method' => 'derived_from_email'],
+                        ];
+                        $existingKeys[$key] = true;
+                    }
+                }
+            }
+        }
+
+        return array_merge($iocs, $derived);
+    }
+
     private function extractIocsWithRegex(string $text, array $types = []): array
     {
         $iocs = [];
