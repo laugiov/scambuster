@@ -691,7 +691,19 @@ class IngestHandler
                     'conv_id' => $conversation->getConvId(),
                     'scam_type' => $classificationResult->scamTypeCode,
                     'confidence' => $classificationResult->confidence,
+                    'detected_language' => $classificationResult->detectedLanguage,
                 ]);
+
+                // Update message language with LLM-detected language (more accurate than trigrams)
+                $llmLang = $classificationResult->detectedLanguage;
+                if ($llmLang !== $detectedLang) {
+                    $messageEntity->setLangDetect($llmLang);
+                    $this->em->flush();
+                    $this->logger->info('[IngestHandler] Language updated from LLM', [
+                        'trigram' => $detectedLang,
+                        'llm' => $llmLang,
+                    ]);
+                }
             } catch (\Throwable $e) {
                 $this->logger->warning('[IngestHandler] Auto-classification failed, keeping UNKNOWN', [
                     'conv_id' => $conversation->getConvId(),
