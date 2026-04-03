@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Campaign;
 
-use App\Application\Communication\IocConfidenceCalculator;
+use App\Application\Stix\StixBundleBuilder;
 use App\Domain\CampaignRadar\Campaign;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -12,49 +12,19 @@ use Symfony\Component\Yaml\Yaml;
 
 final class STIXExporter
 {
-    private const STIX_VERSION = '2.1';
-    private const IDENTITY_NAME = 'ScamBuster Threat Intel';
-
-    /**
-     * Mapping des types d'IoCs vers les STIX Cyber-observable Objects.
-     *
-     * @var array<string, array{stix_type: string, pattern_format: string, name_prefix: string}>
-     */
-    private const IOC_TYPE_MAPPING = [
-        'domains' => [
-            'stix_type' => 'domain-name',
-            'pattern_format' => "[domain-name:value = '%s']",
-            'name_prefix' => 'Malicious domain',
-        ],
-        'emails' => [
-            'stix_type' => 'email-addr',
-            'pattern_format' => "[email-addr:value = '%s']",
-            'name_prefix' => 'Malicious email',
-        ],
-        'urls' => [
-            'stix_type' => 'url',
-            'pattern_format' => "[url:value = '%s']",
-            'name_prefix' => 'Malicious URL',
-        ],
-        'phone_numbers' => [
-            'stix_type' => 'x-phone-number',
-            'pattern_format' => "[x-phone-number:value = '%s']",
-            'name_prefix' => 'Malicious phone',
-        ],
-        'ip_addresses' => [
-            'stix_type' => 'ipv4-addr',
-            'pattern_format' => "[ipv4-addr:value = '%s']",
-            'name_prefix' => 'Malicious IP',
-        ],
-        'file_hashes' => [
-            'stix_type' => 'file',
-            'pattern_format' => "[file:hashes.SHA256 = '%s']",
-            'name_prefix' => 'Malicious file hash',
-        ],
+    /** @var array<string, string> Maps campaign YAML IOC categories to IOC types */
+    private const YAML_TYPE_MAP = [
+        'domains' => 'domain',
+        'emails' => 'email',
+        'urls' => 'url',
+        'phone_numbers' => 'phone',
+        'ip_addresses' => 'ipv4',
+        'file_hashes' => 'sha256',
     ];
 
     public function __construct(
         private readonly LoggerInterface $logger,
+        private readonly StixBundleBuilder $bundleBuilder,
         private readonly string $stixExportPath
     ) {
     }
@@ -412,119 +382,44 @@ final class STIXExporter
     }
 
     /**
-     * Génère un bundle STIX 2.1 de manière générique.
+     * Convert campaign YAML IOCs to StixBundleBuilder-compatible format
+     * and delegate bundle generation.
      *
      * @param array{domains: list<string>, emails: list<string>, urls: list<string>, phone_numbers: list<string>, ip_addresses: list<string>, file_hashes: list<string>} $iocs
      *
-     * @return array<string, mixed> Bundle STIX
+     * @return array<string, mixed> STIX 2.1 bundle
      */
     private function generateSTIXBundle(Campaign $campaign, array $iocs): array
     {
-        $bundleId = 'bundle--' . Uuid::v4()->toRfc4122();
-        $identityId = 'identity--' . Uuid::v4()->toRfc4122();
-        $reportId = 'report--' . Uuid::v4()->toRfc4122();
+        // Convert YAML-extracted IOCs to builder format
+        $builderIocs = [];
+        $firstSeen = $campaign->getFirstSeen()->format('Y-m-d H:i:s');
 
-        /** @var array<int, array<string, mixed>> $objects */
-        $objects = [];
-
-        // Identity object
-        $objects[] = [
-            'type' => 'identity',
-            'spec_version' => self::STIX_VERSION,
-            'id' => $identityId,
-            'created' => $campaign->getCreatedAt()->format('Y-m-d\TH:i:s.000\Z'),
-            'modified' => $campaign->getUpdatedAt()->format('Y-m-d\TH:i:s.000\Z'),
-            'name' => self::IDENTITY_NAME,
-            'identity_class' => 'organization',
-        ];
-
-        // Report object avec TLP
-        $objects[] = [
-            'type' => 'report',
-            'spec_version' => self::STIX_VERSION,
-            'id' => $reportId,
-            'created' => $campaign->getCreatedAt()->format('Y-m-d\TH:i:s.000\Z'),
-            'modified' => $campaign->getUpdatedAt()->format('Y-m-d\TH:i:s.000\Z'),
-            'name' => 'ScamBuster Campaign ' . substr($campaign->getCampaignId()->toRfc4122(), 0, 8),
-            'published' => $campaign->getUpdatedAt()->format('Y-m-d\TH:i:s.000\Z'),
-            'object_refs' => [$identityId],
-            'labels' => ['campaign', 'threat-report', $campaign->getTlp()],
-        ];
-
-        // Générer les indicators de manière générique pour tous les types d'IoCs
-        $this->generateIndicatorsForAllIocTypes($campaign, $iocs, $objects);
-
-        // Bundle
-        return [
-            'type' => 'bundle',
-            'id' => $bundleId,
-            'spec_version' => self::STIX_VERSION,
-            'objects' => $objects,
-        ];
-    }
-
-    /**
-     * Génère les indicators STIX pour tous les types d'IoCs de manière générique.
-     *
-     * @param array{domains: list<string>, emails: list<string>, urls: list<string>, phone_numbers: list<string>, ip_addresses: list<string>, file_hashes: list<string>} $iocs
-     * @param array<int, array<string, mixed>>                                                                                                                           &$objects
-     */
-    private function generateIndicatorsForAllIocTypes(Campaign $campaign, array $iocs, array &$objects): void
-    {
-        foreach ($iocs as $iocType => $iocValues) {
-            // Ignorer les types d'IoCs vides
-            if (empty($iocValues)) {
+        foreach ($iocs as $yamlCategory => $values) {
+            if (!array_key_exists($yamlCategory, self::YAML_TYPE_MAP) || empty($values)) {
                 continue;
             }
 
-            // Vérifier si ce type d'IoC a un mapping STIX défini
-            if (!array_key_exists($iocType, self::IOC_TYPE_MAPPING)) {
-                $this->logger->warning('Unknown IoC type, skipping', [
-                    'ioc_type' => $iocType,
-                    'values_count' => count($iocValues),
-                ]);
+            $iocType = self::YAML_TYPE_MAP[$yamlCategory];
 
-                continue;
-            }
-
-            $mapping = self::IOC_TYPE_MAPPING[$iocType];
-
-            // Générer un indicator pour chaque valeur
-            foreach ($iocValues as $iocValue) {
-                $indicatorId = 'indicator--' . Uuid::v4()->toRfc4122();
-
-                // Compute confidence for STIX (0-100 integer per spec)
-                $baseConfidence = IocConfidenceCalculator::getBaseConfidence('regex');
-                $stixConfidence = (int) ($baseConfidence * 100);
-
-                $objects[] = [
-                    'type' => 'indicator',
-                    'spec_version' => self::STIX_VERSION,
-                    'id' => $indicatorId,
-                    'created' => $campaign->getCreatedAt()->format('Y-m-d\TH:i:s.000\Z'),
-                    'modified' => $campaign->getUpdatedAt()->format('Y-m-d\TH:i:s.000\Z'),
-                    'name' => $mapping['name_prefix'] . ': ' . $iocValue,
-                    'pattern' => sprintf($mapping['pattern_format'], addslashes($iocValue)),
-                    'pattern_type' => 'stix',
-                    'valid_from' => $campaign->getFirstSeen()->format('Y-m-d\TH:i:s.000\Z'),
-                    'confidence' => $stixConfidence,
-                    'labels' => ['malicious-activity'],
+            foreach ($values as $value) {
+                $builderIocs[] = [
+                    'type' => $iocType,
+                    'value' => $value,
+                    'value_norm' => strtolower($value),
+                    'first_seen' => $firstSeen,
+                    'extraction_method' => 'regex',
                 ];
-
-                // Ajouter la référence au report
-                /** @var array<string, mixed> $reportObject */
-                $reportObject = &$objects[1];
-                /** @var array<int, string> $objectRefs */
-                $objectRefs = $reportObject['object_refs'];
-                $objectRefs[] = $indicatorId;
-                $reportObject['object_refs'] = $objectRefs;
             }
-
-            $this->logger->debug('Generated STIX indicators', [
-                'ioc_type' => $iocType,
-                'count' => count($iocValues),
-            ]);
         }
+
+        return $this->bundleBuilder->buildBundle(
+            $builderIocs,
+            [],
+            $campaign->getTlp(),
+            'ScamBuster Campaign ' . substr($campaign->getCampaignId()->toRfc4122(), 0, 8),
+            'Campaign threat intelligence exported from ScamBuster honeypot',
+        );
     }
 
     /**

@@ -165,9 +165,9 @@ class CampaignPromotionEndToEndTest extends WebTestCase
         
         $this->assertIsArray($bundle);
         $this->assertSame('bundle', $bundle['type']);
-        $this->assertSame('2.1', $bundle['spec_version']);
+        $this->assertArrayNotHasKey('spec_version', $bundle); // STIX 2.1: no spec_version on bundle
         $this->assertArrayHasKey('objects', $bundle);
-        $this->assertGreaterThanOrEqual(2, count($bundle['objects'])); // identity + report minimum
+        $this->assertGreaterThanOrEqual(3, count($bundle['objects'])); // marking + identity + report minimum
 
         // Vérifier présence indicateurs
         $indicators = array_filter($bundle['objects'], fn($obj) => $obj['type'] === 'indicator');

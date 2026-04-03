@@ -122,13 +122,14 @@ class CampaignWorkflowIntegrationTest extends KernelTestCase
         $bundle = json_decode($bundleJson, true);
 
         $this->assertSame('bundle', $bundle['type']);
-        $this->assertSame('2.1', $bundle['spec_version']);
+        $this->assertArrayNotHasKey('spec_version', $bundle); // STIX 2.1: no spec_version on bundle
         $this->assertArrayHasKey('objects', $bundle);
-        $this->assertGreaterThanOrEqual(2, count($bundle['objects'])); // identity + report minimum
+        $this->assertGreaterThanOrEqual(3, count($bundle['objects'])); // marking + identity + report minimum
 
-        // Vérifier TLP
-        $report = array_values(array_filter($bundle['objects'], fn($obj) => $obj['type'] === 'report'))[0];
-        $this->assertContains('TLP:AMBER', $report['labels']);
+        // Vérifier TLP marking-definition
+        $marking = array_values(array_filter($bundle['objects'], fn ($obj) => $obj['type'] === 'marking-definition'))[0];
+        $this->assertSame('tlp', $marking['definition_type']);
+        $this->assertSame('marking-definition--f88d31f6-486f-44da-b317-01333bde0b82', $marking['id']);
     }
 
     public function testPromotionThresholdsValidation(): void
