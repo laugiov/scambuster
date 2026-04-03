@@ -805,8 +805,7 @@ class ReplyHandler
                 // Priority 1: use lang_detect already stored on the message (set by LLM at ingestion)
                 $storedLang = $msg['lang_detect'] ?? null;
 
-                if (\is_string($storedLang) && \strlen($storedLang) === 2 && $storedLang !== 'fr') {
-                    // 'fr' is the old hardcoded value — ignore it as unreliable
+                if (\is_string($storedLang) && \strlen($storedLang) === 2) {
                     return $storedLang;
                 }
 

@@ -696,6 +696,7 @@ class IngestHandler
 
                 // Update message language with LLM-detected language (more accurate than trigrams)
                 $llmLang = $classificationResult->detectedLanguage;
+
                 if ($llmLang !== $detectedLang) {
                     $messageEntity->setLangDetect($llmLang);
                     $this->em->flush();
