@@ -96,7 +96,7 @@ class LoadDemoDataCommand extends Command
             $this->connection->executeStatement("DELETE FROM campaign_rule WHERE campaign_id IN (SELECT campaign_id FROM campaign WHERE created_by = 'demo-dataset')");
             $this->connection->executeStatement("DELETE FROM campaign WHERE created_by = 'demo-dataset'");
             $this->connection->executeStatement("DELETE FROM observed_ioc WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'))");
-            $this->connection->executeStatement("DELETE FROM indicator WHERE indicator_id NOT IN (SELECT DISTINCT indicator_id FROM observed_ioc)");
+            $this->connection->executeStatement('DELETE FROM indicator WHERE indicator_id NOT IN (SELECT DISTINCT indicator_id FROM observed_ioc)');
             $this->connection->executeStatement("DELETE FROM llm_usage WHERE conversation_id IN (SELECT conv_id::text FROM conversation WHERE stix_id LIKE 'demo-%')");
             $this->connection->executeStatement("DELETE FROM bandit_convergence_log WHERE scam_type_code LIKE '%'");
             $this->connection->executeStatement("DELETE FROM conversation WHERE stix_id LIKE 'demo-%'");
