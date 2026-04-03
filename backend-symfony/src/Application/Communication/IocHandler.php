@@ -809,16 +809,18 @@ class IocHandler
         $existingKeys = [];
 
         foreach ($iocs as $ioc) {
-            $type = (string) ($ioc['type'] ?? '');
-            $norm = strtolower((string) ($ioc['value_norm'] ?? $ioc['value'] ?? ''));
+            /** @var array<string, mixed> $ioc */
+            $type = \is_string($ioc['type'] ?? null) ? $ioc['type'] : '';
+            $norm = strtolower(\is_string($ioc['value_norm'] ?? null) ? $ioc['value_norm'] : (\is_string($ioc['value'] ?? null) ? $ioc['value'] : ''));
             $existingKeys[$type . ':' . $norm] = true;
         }
 
         $derived = [];
 
         foreach ($iocs as $ioc) {
-            $type = (string) ($ioc['type'] ?? '');
-            $value = (string) ($ioc['value'] ?? '');
+            /** @var array<string, mixed> $ioc */
+            $type = \is_string($ioc['type'] ?? null) ? $ioc['type'] : '';
+            $value = \is_string($ioc['value'] ?? null) ? $ioc['value'] : '';
 
             // Derive domain/IP from URL
             if ($type === 'url') {
