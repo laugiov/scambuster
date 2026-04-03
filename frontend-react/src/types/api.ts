@@ -113,6 +113,47 @@ export interface Ioc {
   effective_score?: number;
 }
 
+// IOC Detail (from GET /iocs/{id}/detail)
+export interface IocObservation {
+  obs_id: string;
+  msg_id: string;
+  conv_id: string;
+  conv_subject: string | null;
+  conv_status: string;
+  conv_scam_type: string;
+  extraction_method: string;
+  ts_observed: string;
+}
+
+export interface IocRelated {
+  indicator_id: string;
+  type: string;
+  value_norm: string;
+  score: IocScore | Record<string, never>;
+  co_occurrence_count: number;
+}
+
+export interface IocDetail {
+  indicator_id: string;
+  type: string;
+  value: string;
+  value_norm: string;
+  first_seen: string;
+  last_seen: string;
+  occurrences: number;
+  tlp: string;
+  enrichment: Record<string, unknown>;
+  score: IocScore | Record<string, never>;
+  confidence: number;
+  decay_factor: number;
+  effective_score: number;
+  category: string;
+  misp: { category: string; type: string; to_ids: boolean } | null;
+  stix: { sco_type: string; pattern: string } | null;
+  observations: IocObservation[];
+  related_iocs: IocRelated[];
+}
+
 // Meta config (from GET /meta/config)
 export interface MetaPersona {
   code: string;

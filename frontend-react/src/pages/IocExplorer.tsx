@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAllIocs } from '@/hooks/useIocs';
 import { useMetaConfig } from '@/hooks/useMetaConfig';
@@ -11,6 +12,10 @@ import { timeSince } from '@/lib/time';
 import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
 
 const IOC_PAGE_SIZE = 30;
+
+const HEADER_IOC_TYPES = new Set([
+  'message_id', 'subject', 'spf_result', 'dkim_result', 'dmarc_result', 'x_mailer', 'return_path',
+]);
 
 const CATEGORY_MAP: Record<string, string> = {
   ipv4: 'IP', ipv6: 'IP',
@@ -62,17 +67,49 @@ export function IocExplorer() {
   const typeFilters = useMemo(() => buildTypeFilters(config?.ioc_types ?? []), [config?.ioc_types]);
   const [typeFilter, setTypeFilter] = useState<string>('All');
   const [search, setSearch] = useState('');
-  const [selectedIoc, setSelectedIoc] = useState<Ioc | null>(null);
   const [page, setPage] = useState(1);
+  const [severity, setSeverity] = useState<string>('All');
+  const [minConfidence, setMinConfidence] = useState<string>('All');
+  const [dateRange, setDateRange] = useState<string>('All');
+  const [hideHeaders, setHideHeaders] = useState(true);
 
   const filtered = useMemo(() => {
     if (!iocs) return [];
+
+    function daysAgo(days: number): string {
+      const d = new Date();
+      d.setDate(d.getDate() - days);
+      return d.toISOString();
+    }
+
+    const dateThresholds: Record<string, string> = {
+      '7d': daysAgo(7),
+      '30d': daysAgo(30),
+      '90d': daysAgo(90),
+    };
+
     return iocs.filter((ioc) => {
+      if (hideHeaders && HEADER_IOC_TYPES.has(ioc.type.toLowerCase())) return false;
       if (!matchesType(ioc.type, typeFilter)) return false;
       if (search && !ioc.value.toLowerCase().includes(search.toLowerCase())) return false;
+
+      const aggScore = ioc.score?.agg ?? 0;
+      if (severity === 'High' && aggScore < 70) return false;
+      if (severity === 'Medium' && (aggScore < 40 || aggScore >= 70)) return false;
+      if (severity === 'Low' && aggScore >= 40) return false;
+
+      const effectiveScore = ioc.effective_score ?? ioc.confidence ?? 0;
+      if (minConfidence === '>0.9' && effectiveScore <= 0.9) return false;
+      if (minConfidence === '>0.7' && effectiveScore <= 0.7) return false;
+      if (minConfidence === '>0.5' && effectiveScore <= 0.5) return false;
+
+      if (dateRange !== 'All' && dateThresholds[dateRange]) {
+        if (ioc.ts_observed < dateThresholds[dateRange]) return false;
+      }
+
       return true;
     });
-  }, [iocs, typeFilter, search]);
+  }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders]);
 
   if (isLoading) return <Loading message={t('iocExplorer.loading')} />;
   if (error) return <ErrorMessage message={t('iocExplorer.failedLoad')} onRetry={() => void refetch()} />;
@@ -106,19 +143,21 @@ export function IocExplorer() {
 
       <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={filtered.length} typeFilters={typeFilters} />
 
+      <AdvancedFilters
+        severity={severity}
+        onSeverityChange={(v) => { setSeverity(v); setPage(1); }}
+        minConfidence={minConfidence}
+        onMinConfidenceChange={(v) => { setMinConfidence(v); setPage(1); }}
+        dateRange={dateRange}
+        onDateRangeChange={(v) => { setDateRange(v); setPage(1); }}
+        hideHeaders={hideHeaders}
+        onHideHeadersChange={(v) => { setHideHeaders(v); setPage(1); }}
+      />
+
       <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
 
-      <div className="flex gap-6 items-start">
-        <div className="flex-1 min-w-0">
-          <IocTable iocs={filtered.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
-          <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
-        </div>
-        {selectedIoc && (
-          <div className="sticky top-0 shrink-0">
-            <DetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
-          </div>
-        )}
-      </div>
+      <IocTable iocs={filtered.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} />
+      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
     </div>
   );
 }
@@ -156,12 +195,78 @@ function FilterBar({ typeFilter, onTypeChange, total, typeFilters }: {
   );
 }
 
-function IocTable({ iocs, selectedId, onSelect }: {
-  iocs: Ioc[];
-  selectedId: string | null;
-  onSelect: (ioc: Ioc) => void;
+function AdvancedFilters({
+  severity, onSeverityChange,
+  minConfidence, onMinConfidenceChange,
+  dateRange, onDateRangeChange,
+  hideHeaders, onHideHeadersChange,
+}: {
+  severity: string; onSeverityChange: (v: string) => void;
+  minConfidence: string; onMinConfidenceChange: (v: string) => void;
+  dateRange: string; onDateRangeChange: (v: string) => void;
+  hideHeaders: boolean; onHideHeadersChange: (v: boolean) => void;
 }) {
   const { t } = useTranslation();
+
+  const pillBtn = (active: boolean) =>
+    `px-3 py-1 text-xs rounded-full transition-colors cursor-pointer ${
+      active ? 'bg-accent-muted text-on-surface font-medium' : 'bg-surface-high hover:bg-surface-highest text-on-surface-variant'
+    }`;
+
+  return (
+    <div className="flex flex-wrap items-center gap-4">
+      {/* Severity */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.severity')}</span>
+        <div className="flex gap-1">
+          {['All', 'High', 'Medium', 'Low'].map((s) => (
+            <button key={s} onClick={() => onSeverityChange(s)} className={pillBtn(severity === s)}>{s}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Confidence */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.confidence')}</span>
+        <select
+          value={minConfidence}
+          onChange={(e) => onMinConfidenceChange(e.target.value)}
+          className="text-xs bg-surface-high text-on-surface rounded px-2 py-1 border-none cursor-pointer"
+        >
+          <option value="All">{t('iocExplorer.all')}</option>
+          <option value=">0.9">&gt; 0.9</option>
+          <option value=">0.7">&gt; 0.7</option>
+          <option value=">0.5">&gt; 0.5</option>
+        </select>
+      </div>
+
+      {/* Date range */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.dateRange')}</span>
+        <div className="flex gap-1">
+          {['7d', '30d', '90d', 'All'].map((d) => (
+            <button key={d} onClick={() => onDateRangeChange(d)} className={pillBtn(dateRange === d)}>{d}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* Hide header IOCs */}
+      <label className="flex items-center gap-2 cursor-pointer ml-auto">
+        <input
+          type="checkbox"
+          checked={hideHeaders}
+          onChange={(e) => onHideHeadersChange(e.target.checked)}
+          className="rounded accent-accent"
+        />
+        <span className="text-xs text-on-surface-dim">{t('iocExplorer.hideHeaders')}</span>
+      </label>
+    </div>
+  );
+}
+
+function IocTable({ iocs }: { iocs: Ioc[] }) {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
 
   return (
     <div className="bg-surface-low rounded-lg overflow-hidden">
@@ -171,30 +276,24 @@ function IocTable({ iocs, selectedId, onSelect }: {
             <th className="px-5 py-3 font-medium">{t('iocExplorer.id')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.type')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.value')}</th>
-            <th className="px-5 py-3 font-medium">{t('conversationDetail.category')}</th>
+            <th className="px-5 py-3 font-medium">{t('iocExplorer.scamType')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.score')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.confidence')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.lastSeen')}</th>
-            <th className="px-5 py-3 font-medium text-center">{t('iocExplorer.inspect')}</th>
+            <th className="px-5 py-3 font-medium text-center"></th>
           </tr>
         </thead>
         <tbody className="text-sm">
           {iocs.map((ioc) => {
             const sev = scoreSeverity(ioc.score?.agg ?? 0);
-            const isSelected = ioc.obs_id === selectedId;
             return (
               <tr
                 key={ioc.obs_id}
-                onClick={() => onSelect(ioc)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(ioc); } }}
+                onClick={() => navigate(`/ioc-explorer/${ioc.ioc_id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/ioc-explorer/${ioc.ioc_id}`); } }}
                 tabIndex={0}
-                role="button"
-                aria-pressed={isSelected}
-                className={`transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent ${
-                  isSelected
-                    ? 'bg-surface-high border-l-2 border-accent'
-                    : 'hover:bg-surface-high/50'
-                }`}
+                role="link"
+                className="transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent hover:bg-surface-high/50"
               >
                 <td className="px-5 py-3 text-on-surface-dim font-mono text-xs">
                   {ioc.obs_id.slice(0, 8)}
@@ -241,20 +340,10 @@ function IocTable({ iocs, selectedId, onSelect }: {
                 <td className="px-5 py-3 text-on-surface-dim text-xs">
                   {timeSince(ioc.ts_observed)}
                 </td>
-                <td className="px-5 py-3 text-center">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onSelect(ioc); }}
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      isSelected
-                        ? 'bg-accent-muted/20 text-accent'
-                        : 'hover:bg-accent-muted/20 text-on-surface-dim hover:text-accent'
-                    }`}
-                    aria-label={`Inspect IOC ${ioc.value}`}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
-                    </svg>
-                  </button>
+                <td className="px-5 py-3 text-center text-on-surface-dim">
+                  <svg className="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  </svg>
                 </td>
               </tr>
             );
@@ -268,80 +357,6 @@ function IocTable({ iocs, selectedId, onSelect }: {
           )}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function DetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
-  const { t } = useTranslation();
-  const sev = scoreSeverity(ioc.score?.agg ?? 0);
-
-  return (
-    <aside className="w-96 shrink-0 bg-surface-low rounded-lg p-6 flex flex-col gap-5 overflow-y-auto">
-      <div className="flex items-center justify-between">
-        <h3 className="font-bold text-on-surface text-base tracking-tight">{t('iocExplorer.intelligenceProfile')}</h3>
-        <button
-          onClick={onClose}
-          className="p-1 hover:bg-surface-highest rounded text-on-surface-dim"
-          aria-label="Close detail panel"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-
-      <div className="p-4 bg-surface-base rounded-lg">
-        <label className="text-xs font-bold text-accent-muted uppercase tracking-widest block mb-1">{t('iocExplorer.targetIdentity')}</label>
-        <p className="font-mono text-sm font-bold break-all text-on-surface">{ioc.value}</p>
-        <div className="mt-2 flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded font-medium ${sev.color} bg-surface-high`}>
-            {sev.label}
-          </span>
-          <span className="text-xs px-2 py-0.5 bg-surface-high text-on-surface-variant rounded">
-            {ioc.type.toUpperCase()}
-          </span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <DetailField label={t('conversationDetail.firstSeen')} value={new Date(ioc.ts_observed).toLocaleDateString('en-GB')} />
-        <DetailField label={t('conversationDetail.category')} value={ioc.category} />
-        <DetailField label={t('conversationDetail.vtScore')} value={String(ioc.score?.vt ?? 0)} />
-        <DetailField label={t('conversationDetail.urlScan')} value={String(ioc.score?.urlscan ?? 0)} />
-        <DetailField label={t('iocExplorer.confidence')} value={(ioc.confidence ?? 0).toFixed(3)} />
-        <DetailField label={t('iocExplorer.decayFactor')} value={(ioc.decay_factor ?? 1).toFixed(3)} />
-        <DetailField label={t('iocExplorer.effectiveScore')} value={(ioc.effective_score ?? 0).toFixed(3)} />
-      </div>
-
-      <div className="space-y-2">
-        <h4 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.scoreExplanation')}</h4>
-        <p className="text-sm text-on-surface-variant bg-surface-base rounded-lg p-3">
-          {ioc.score?.explain ?? t('conversationDetail.noAnalysis')}
-        </p>
-      </div>
-
-      <div className="space-y-2 flex-1">
-        <h4 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.stixContext')}</h4>
-        <pre className="flex-1 min-h-[120px] p-3 bg-surface-base rounded-lg font-mono text-xs text-accent/70 overflow-auto">
-{JSON.stringify({
-  type: 'indicator',
-  id: `indicator--${ioc.ioc_id.slice(0, 8)}`,
-  pattern: `[${ioc.type}:value = '${ioc.value_norm.replace(/'/g, "\\'")}']`,
-  confidence: ioc.score?.agg ?? 0,
-  labels: [ioc.category.toLowerCase().replace(/\s+/g, '-')],
-}, null, 2)}
-        </pre>
-      </div>
-    </aside>
-  );
-}
-
-function DetailField({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="space-y-0.5">
-      <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">{label}</label>
-      <p className="text-sm font-medium text-on-surface">{value}</p>
     </div>
   );
 }

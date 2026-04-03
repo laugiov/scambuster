@@ -145,7 +145,8 @@
     "normalized": "Normalise",
     "analysis": "Analyse",
     "noAnalysis": "Aucune analyse disponible",
-    "stixPattern": "Pattern STIX"
+    "stixPattern": "Pattern STIX",
+    "viewFullDetail": "Voir le detail complet de l'IOC"
   },
   "iocExplorer": {
     "title": "Explorateur IOC",
@@ -171,7 +172,35 @@
     "effectiveScore": "Score effectif",
     "decayFactor": "Decroissance",
     "loading": "Chargement des IOCs...",
-    "failedLoad": "Echec du chargement des IOCs"
+    "failedLoad": "Echec du chargement des IOCs",
+    "severity": "Severite :",
+    "dateRange": "Periode :",
+    "hideHeaders": "Masquer les IOC d'en-tete",
+    "scamType": "Type de scam"
+  },
+  "iocDetail": {
+    "loading": "Chargement du detail IOC...",
+    "notFound": "IOC introuvable",
+    "backToExplorer": "Retour a l'explorateur IOC",
+    "overview": "Vue d'ensemble",
+    "observations": "Observations",
+    "relatedIocs": "IOCs lies",
+    "firstSeen": "Premiere observation",
+    "lastSeen": "Derniere observation",
+    "occurrences": "Occurrences",
+    "tlp": "TLP",
+    "scoring": "Scoring",
+    "mispMapping": "Mapping MISP",
+    "stixPattern": "Pattern STIX",
+    "date": "Date",
+    "conversation": "Conversation",
+    "scamType": "Type de scam",
+    "extractionMethod": "Extraction",
+    "status": "Statut",
+    "coOccurrence": "Co-occurrence",
+    "conversations": "conv.",
+    "noObservations": "Aucune observation trouvee pour cet IOC",
+    "noRelated": "Aucun IOC lie trouve"
   },
   "personas": {
     "title": "Configuration Persona & Bandit",

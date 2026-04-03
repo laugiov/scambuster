@@ -145,7 +145,8 @@
     "normalized": "Normalized",
     "analysis": "Analysis",
     "noAnalysis": "No analysis available",
-    "stixPattern": "STIX Pattern"
+    "stixPattern": "STIX Pattern",
+    "viewFullDetail": "View full IOC detail"
   },
   "iocExplorer": {
     "title": "IOC Explorer",
@@ -171,7 +172,35 @@
     "effectiveScore": "Effective Score",
     "decayFactor": "Decay",
     "loading": "Loading IOCs...",
-    "failedLoad": "Failed to load IOCs"
+    "failedLoad": "Failed to load IOCs",
+    "severity": "Severity:",
+    "dateRange": "Period:",
+    "hideHeaders": "Hide header IOCs",
+    "scamType": "Scam Type"
+  },
+  "iocDetail": {
+    "loading": "Loading IOC detail...",
+    "notFound": "IOC not found",
+    "backToExplorer": "Back to IOC Explorer",
+    "overview": "Overview",
+    "observations": "Observations",
+    "relatedIocs": "Related IOCs",
+    "firstSeen": "First Seen",
+    "lastSeen": "Last Seen",
+    "occurrences": "Occurrences",
+    "tlp": "TLP",
+    "scoring": "Scoring",
+    "mispMapping": "MISP Mapping",
+    "stixPattern": "STIX Pattern",
+    "date": "Date",
+    "conversation": "Conversation",
+    "scamType": "Scam Type",
+    "extractionMethod": "Extraction",
+    "status": "Status",
+    "coOccurrence": "Co-occurrence",
+    "conversations": "conv.",
+    "noObservations": "No observations found for this IOC",
+    "noRelated": "No related IOCs found"
   },
   "personas": {
     "title": "Persona & Bandit Configuration",
