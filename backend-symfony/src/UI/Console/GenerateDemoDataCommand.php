@@ -310,6 +310,9 @@ class GenerateDemoDataCommand extends Command
             '{sender_email}' => 'support@' . $domain,
             '{iban}' => $campaignSig['iban'] ?? 'GB' . random_int(10, 99) . 'TEST' . random_int(10000000, 99999999) . random_int(1000, 9999),
             '{wallet}' => $campaignSig['wallet'] ?? '1Demo' . bin2hex(random_bytes(8)),
+            '{wallet_eth}' => '0x' . bin2hex(random_bytes(20)),
+            '{telegram}' => '@' . ['agent_smith', 'crypto_master', 'dr_williams', 'sarah_finance', 'secure_support', 'lucky_winner', 'officer_jones', 'tech_helper'][array_rand(['agent_smith', 'crypto_master', 'dr_williams', 'sarah_finance', 'secure_support', 'lucky_winner', 'officer_jones', 'tech_helper'])] . random_int(100, 999),
+            '{sha256}' => hash('sha256', 'demo-' . random_int(0, 999999)),
             '{date}' => date('F j, Y', time() - random_int(86400, 604800)),
             '{ticket}' => 'MSFT-SEC-2026-' . random_int(1000, 9999),
             '{lottery_name}' => ['EuroMillions International', 'UK National Lottery', 'Global Sweepstakes', 'Atlantic Prize Draw', 'World Lottery Foundation'][array_rand(['EuroMillions International', 'UK National Lottery', 'Global Sweepstakes', 'Atlantic Prize Draw', 'World Lottery Foundation'])],
@@ -451,6 +454,30 @@ class GenerateDemoDataCommand extends Command
             }
         }
 
+        // ETH wallets
+        if (preg_match_all('/\b0x[a-fA-F0-9]{40}\b/', $body, $m)) {
+            foreach ($m[0] as $v) {
+                $k = 'wallet_eth:' . $v;
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'wallet_eth', 'value' => $v];
+                    $seen[$k] = true;
+                }
+            }
+        }
+
+        // Telegram usernames
+        if (preg_match_all('/@[a-zA-Z][a-zA-Z0-9_]{4,31}\b/', $body, $m)) {
+            foreach ($m[0] as $v) {
+                $k = 'telegram_username:' . $v;
+
+                if (!isset($seen[$k])) {
+                    $iocs[] = ['type' => 'telegram_username', 'value' => $v];
+                    $seen[$k] = true;
+                }
+            }
+        }
+
         // SHA256
         if (preg_match_all('/\b[a-f0-9]{64}\b/', $body, $m)) {
             foreach ($m[0] as $v) {
@@ -565,6 +592,7 @@ class GenerateDemoDataCommand extends Command
 
                 $body = $this->randomize($pool[$idx], $resolved);
                 $body = $this->applyPersonaFlair($body, $persona);
+                $body = $this->injectVariation($body, $personaGroup, $i);
                 $pipelineTrace = $this->generatePipelineTrace($convId, $persona, $scamType, $timestamp);
 
                 $messages[] = [
@@ -715,6 +743,70 @@ class GenerateDemoDataCommand extends Command
         return $text;
     }
 
+    /**
+     * Inject random variation into outbound message to boost uniqueness.
+     * Adds time-of-day greetings, random interjections, and varied closings.
+     */
+    private function injectVariation(string $body, string $group, int $msgIndex): string
+    {
+        // 1. Random greeting prefix (50% chance)
+        if (random_int(0, 1) === 1) {
+            $greetings = [
+                'formal' => ['Good morning,', 'Good afternoon,', 'Good evening,', 'Dear Sir or Madam,', 'Good day,'],
+                'anxious' => ['Oh hi!', 'Hello again!', 'Hi there!', 'Ok so...', 'Right, so...'],
+                'warm' => ['Hello dear,', 'Good morning!', 'Hi there!', 'Hello again!', 'Greetings!'],
+                'skeptical' => ['Hello.', 'Good day.', 'To whom it may concern,', 'Hi.', 'I am writing again.'],
+                'direct' => ['Hi,', 'Hey,', 'Look,', 'Quick update:', 'Following up:'],
+                'casual' => ['hey', 'yo', 'heya', 'sup', 'hi again'],
+                'romantic' => ['My dearest,', 'Hello sweetheart,', 'Darling,', 'My love,', 'Dear heart,'],
+                'neutral' => ['Hello,', 'Hi,', 'Good day,', 'Dear support,', 'Hi again,'],
+            ];
+            $pool = $greetings[$group] ?? $greetings['neutral'];
+            $body = $pool[array_rand($pool)] . "\n\n" . $body;
+        }
+
+        // 2. Random interjection mid-text (30% chance, every other message)
+        if ($msgIndex > 2 && random_int(1, 100) <= 30) {
+            $interjections = [
+                'formal' => ['As a point of clarification, ', 'For the record, ', 'I should note that ', 'It bears mentioning that '],
+                'anxious' => ['I keep worrying about this — ', 'My stomach is in knots — ', 'I told my sister about this and she said '],
+                'warm' => ['By the way, ', 'Speaking of which, ', 'Oh, I almost forgot — ', 'That reminds me — '],
+                'skeptical' => ['I have to say, ', 'Frankly speaking, ', 'Let me be direct — ', 'I want to be clear — '],
+                'direct' => ['Bottom line: ', 'Let me cut to the chase — ', 'Short version: ', 'Quick note: '],
+                'casual' => ['btw ', 'oh and also ', 'also random thought but ', 'side note '],
+                'romantic' => ['I cannot stop thinking about... ', 'Every day I wonder... ', 'My heart tells me... '],
+                'neutral' => ['Additionally, ', 'I also wanted to mention — ', 'On another note, ', 'Furthermore, '],
+            ];
+            $pool = $interjections[$group] ?? $interjections['neutral'];
+            $sentences = preg_split('/(?<=[.!?])\s+/', $body, 3);
+
+            if (count($sentences) >= 2) {
+                $body = $sentences[0] . ' ' . $pool[array_rand($pool)] . lcfirst($sentences[1]);
+
+                if (isset($sentences[2])) {
+                    $body .= ' ' . $sentences[2];
+                }
+            }
+        }
+
+        // 3. Random time reference (20% chance) for realism
+        if (random_int(1, 100) <= 20) {
+            $timeRefs = [
+                'I was thinking about this while having my morning coffee. ',
+                'I spent most of yesterday evening going over this. ',
+                'I discussed this with a colleague during lunch today. ',
+                'I have been checking my emails every few hours waiting for your response. ',
+                'I barely slept last night worrying about this situation. ',
+                'I was just about to log off for the day when I saw your message. ',
+                'I mentioned this to my family over dinner and they had some thoughts too. ',
+                'I have been doing some research on my own since our last exchange. ',
+            ];
+            $body .= ' ' . $timeRefs[array_rand($timeRefs)];
+        }
+
+        return $body;
+    }
+
     // ═══════════════════════════════════════════════════════════════
     //  INBOUND TEMPLATES (SCAMMER EMAILS) — STAGE-AWARE
     // ═══════════════════════════════════════════════════════════════
@@ -794,7 +886,7 @@ class GenerateDemoDataCommand extends Command
                     ['body' => "Thank you for writing back so quickly! I was worried you might think my message was strange. I am so glad you gave me a chance.\n\nLife here is challenging. Today we had a power outage that lasted 6 hours. But reading your words by candlelight was actually quite romantic, don't you think? Tell me about your week."],
                 ],
                 'follow_mid' => [
-                    ['body' => "Things have taken a difficult turn here. My unit is being relocated and I need some help with a personal matter. I would not ask if it was not urgent. Can I trust you with something?\n\nMy personal account has been frozen due to international banking restrictions in this region. I need someone I trust to receive a small transfer while I sort things out."],
+                    ['body' => "Things have taken a difficult turn here. My unit is being relocated and I need some help with a personal matter. I would not ask if it was not urgent. Can I trust you with something?\n\nMy personal account has been frozen due to international banking restrictions in this region. I need someone I trust to receive a small transfer while I sort things out.\n\nIt would be easier to discuss privately. You can reach me on Telegram: {telegram}\nOr email me at: {sender_email}"],
                     ['body' => "I have something difficult to tell you. I have been thinking about how to say this for days. I am in a complicated situation financially. My organization has not paid us for two months due to a funding dispute.\n\nI hate asking this, but could you help me with a small amount for basic supplies? I will repay you as soon as I return home. I feel terrible asking."],
                     ['body' => "My darling, I have the most wonderful news — I have been approved for home leave! I cannot wait to finally meet you in person. I have already started planning.\n\nThere is just one small complication. The travel authorization requires a processing fee that I cannot pay from here due to the banking restrictions. It is only {fee}. Could you possibly help? I will reimburse you immediately when I arrive."],
                     ['body' => "I need to be honest with you about something. My daughter (I have not mentioned her before — she is 8) needs urgent medical treatment that my insurance here will not cover. The surgery costs {amount}.\n\nI am not asking you for that amount. But if you could help with even a fraction, it would make a difference. I am desperate and you are the only person I trust enough to ask."],
@@ -890,8 +982,8 @@ class GenerateDemoDataCommand extends Command
                 'opening' => [
                     ['subject' => 'Exclusive Investment Opportunity - {pct}% Returns', 'body' => "EXCLUSIVE INVITATION\n\nDear Investor,\n\nYou have been selected to join our AI-powered trading platform that has generated an average return of {pct}% for our members this quarter.\n\nOur proprietary algorithm analyzes market patterns in real-time and executes trades automatically. No experience needed.\n\nMinimum investment: {amount}\nExpected monthly return: 25-40%\nFull withdrawal anytime\n\nRegister now: https://{domain}/join\n\nSpots are limited. Do not miss this opportunity.\n\nBest regards,\n{company}\n{sender_email}"],
                     ['subject' => 'You have been selected for our trading platform', 'body' => "Dear Prospective Member,\n\nCongratulations! Based on your profile, you have been pre-approved for our exclusive forex trading signal service.\n\nOur track record:\n- 94% win rate last quarter\n- Average {pct}% monthly returns\n- Over 12,000 active members\n\nGet started with just {amount}: https://{domain}/start\n\nThis invitation expires in 48 hours.\n\n{company} Trading\n{sender_email}"],
-                    ['subject' => 'Limited spots: AI crypto trading', 'body' => "Attention: Serious Investors Only\n\nOur AI-powered cryptocurrency trading bot has generated consistent returns of {pct}% annually since 2024.\n\nHow it works:\n1. Deposit minimum {amount}\n2. Our AI trades 24/7 automatically\n3. Withdraw profits anytime\n\nJoin now: https://{domain}/crypto-bot\nDeposit to: {wallet}\n\nOnly 50 new accounts accepted this month.\n\n{sender_name}\n{company}\n{sender_email}"],
-                    ['subject' => 'Your portfolio could triple this quarter', 'body' => "Dear {name},\n\nWhat if I told you there was a way to triple your investment in 90 days with virtually no risk?\n\nOur DeFi yield farming protocol consistently delivers {pct}% APY through smart contract optimization.\n\nStarting capital: {amount}\nProject returns in 90 days: 3x\nSecurity: Funds locked in audited smart contracts\n\nLearn more: https://{domain}/yield-farm\n\nThis is not financial advice — it is an invitation to financial freedom.\n\n{company}\n{sender_email}"],
+                    ['subject' => 'Limited spots: AI crypto trading', 'body' => "Attention: Serious Investors Only\n\nOur AI-powered cryptocurrency trading bot has generated consistent returns of {pct}% annually since 2024.\n\nHow it works:\n1. Deposit minimum {amount}\n2. Our AI trades 24/7 automatically\n3. Withdraw profits anytime\n\nJoin now: https://{domain}/crypto-bot\nBTC: {wallet}\nETH: {wallet_eth}\n\nFor faster onboarding, contact us on Telegram: {telegram}\n\nOnly 50 new accounts accepted this month.\n\n{sender_name}\n{company}\n{sender_email}"],
+                    ['subject' => 'Your portfolio could triple this quarter', 'body' => "Dear {name},\n\nWhat if I told you there was a way to triple your investment in 90 days with virtually no risk?\n\nOur DeFi yield farming protocol consistently delivers {pct}% APY through smart contract optimization.\n\nStarting capital: {amount}\nProject returns in 90 days: 3x\nSecurity: Funds locked in audited smart contracts\nSmart contract audit: {sha256}\n\nLearn more: https://{domain}/yield-farm\nDeposit ETH: {wallet_eth}\nSupport: {telegram}\n\nThis is not financial advice — it is an invitation to financial freedom.\n\n{company}\n{sender_email}"],
                     ['subject' => 'Insider tip: Stock alert from {company}', 'body' => "CONFIDENTIAL — DO NOT FORWARD\n\nA reliable source within {company} has informed us that a major announcement will be made on {date} that will send their stock price up by 200-300%.\n\nThis is a once-in-a-lifetime opportunity. To participate:\n1. Open an account: https://{domain}/trade\n2. Deposit minimum {amount}\n3. Our team will execute the trade at the optimal time\n\nAct fast — the window closes in 24 hours.\n\n{sender_name}\n{sender_email}"],
                     ['subject' => 'Real estate investment - Guaranteed {pct}% returns', 'body' => "Exclusive Real Estate Investment Opportunity\n\nDear Investor,\n\n{company} is offering guaranteed returns of {pct}% per annum on our luxury property development in {city}.\n\nInvestment details:\n- Minimum: {amount}\n- Lock period: 12 months\n- Guaranteed buyback clause\n- Monthly dividend payments\n\nProperties already 80% sold. Reserve your unit: https://{domain}/reserve\n\nBrochure and prospectus available on request: {sender_email}\n\n{sender_name}\nDirector of Investments, {company}"],
                 ],
@@ -1019,7 +1111,7 @@ class GenerateDemoDataCommand extends Command
 
             'PHISH_MALWARE' => [
                 'opening' => [
-                    ['subject' => 'Document shared with you: Q1_Report_2026.pdf', 'body' => "Hi,\n\nPlease find attached the Q1 2026 financial report as discussed. The file is password protected for security.\n\nPassword: Finance2026!\nFilename: Q1_Report_2026.pdf.exe\n\nPlease review and let me know if you have any questions by end of day.\n\nSHA256: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2\n\nBest regards,\nFinance Team\n{sender_email}"],
+                    ['subject' => 'Document shared with you: Q1_Report_2026.pdf', 'body' => "Hi,\n\nPlease find attached the Q1 2026 financial report as discussed. The file is password protected for security.\n\nPassword: Finance2026!\nFilename: Q1_Report_2026.pdf.exe\n\nPlease review and let me know if you have any questions by end of day.\n\nSHA256: {sha256}\n\nBest regards,\nFinance Team\n{sender_email}"],
                     ['subject' => 'Your tax refund form is ready', 'body' => "Dear Taxpayer,\n\nYour tax refund of {amount} has been approved. Download your refund form to complete the process:\n\nhttps://{domain}/download/tax-refund-form.pdf\n\nYou will need to enable macros to fill in the interactive form fields.\n\nRefund Reference: {ref}\nProcessing time: 5-7 business days after submission\n\nTax Authority\n{sender_email}"],
                     ['subject' => 'Shared file requires your review', 'body' => "{sender_name} has shared a file with you:\n\n📄 Contract_Amendment_Final.docx\nSize: 2.4 MB\nShared via: {company} Cloud\n\nView file: https://{domain}/shared/contract-final\n\nThis link expires in 24 hours. You may need to enable editing to view all changes.\n\nSent via {company} File Sharing"],
                     ['subject' => 'Invoice attached - Payment due {date}', 'body' => "Dear Customer,\n\nPlease find attached invoice #{ref} for {amount}.\n\nDownload invoice: https://{domain}/invoice/{ref}\n\nSHA256: deadbeefcafebabe1234567890abcdef1234567890abcdef1234567890abcdef\n\nPayment is due by {date}. For questions, contact billing@{domain}.\n\nBilling Department\n{company}"],
@@ -1032,7 +1124,7 @@ class GenerateDemoDataCommand extends Command
                 ],
                 'follow_mid' => [
                     ['body' => "REMINDER: The document shared on {date} has not been reviewed. Our compliance team requires your sign-off before we can proceed.\n\nDownload here: https://{domain}/urgent-review\n\nIf your security software is blocking the download, please whitelist {domain} in your settings. The file has been verified safe by our security team."],
-                    ['body' => "I understand security concerns. To verify the file's authenticity:\n\nSHA256: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2\nSigned by: {company} Digital Certificate\nVirusTotal: Clean (0/67 detections)\n\nPlease download and review: https://{domain}/verified-download\n\nThe deadline is {date}."],
+                    ['body' => "I understand security concerns. To verify the file's authenticity:\n\nSHA256: {sha256}\nSigned by: {company} Digital Certificate\nVirusTotal: Clean (0/67 detections)\n\nPlease download and review: https://{domain}/verified-download\n\nThe deadline is {date}."],
                     ['body' => "Final attempt to share this document. I have uploaded it to three different platforms:\n\n1. https://{domain}/share1/{ref}\n2. https://{domain}/share2/{ref}\n3. Direct email attachment (see below)\n\nPlease open one of these and review the content. Enable editing/macros as prompted."],
                 ],
                 'follow_late' => [
