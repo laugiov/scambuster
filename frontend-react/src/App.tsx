@@ -11,6 +11,7 @@ const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Conversations = lazy(() => import('@/pages/Conversations'));
 const ConversationDetail = lazy(() => import('@/pages/ConversationDetail'));
 const IocExplorer = lazy(() => import('@/pages/IocExplorer'));
+const IocDetail = lazy(() => import('@/pages/IocDetail'));
 const StixExport = lazy(() => import('@/pages/StixExport'));
 const Personas = lazy(() => import('@/pages/Personas'));
 const ConvergenceHistory = lazy(() => import('@/pages/ConvergenceHistory'));
@@ -52,6 +53,7 @@ export default function App() {
               <Route path="conversations" element={<Conversations />} />
               <Route path="conversations/:id" element={<ConversationDetail />} />
               <Route path="ioc-explorer" element={<IocExplorer />} />
+              <Route path="ioc-explorer/:indicatorId" element={<IocDetail />} />
               <Route path="stix-export" element={<StixExport />} />
               <Route path="personas" element={<Personas />} />
               <Route path="convergence" element={<ConvergenceHistory />} />
