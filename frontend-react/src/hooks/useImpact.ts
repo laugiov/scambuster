@@ -10,7 +10,9 @@ interface WeeklyPoint {
 interface WastedTime {
   total_hours: number;
   total_conversations: number;
-  avg_hours_per_conversation: number;
+  avg_hours: number;
+  max_hours: number;
+  longest_scam_type: string | null;
   weekly_trend: WeeklyPoint[];
 }
 
@@ -23,26 +25,34 @@ interface IocValue {
   total_iocs: number;
   novel_iocs: number;
   novel_pct: number;
+  financial_iocs: number;
+  high_confidence_iocs: number;
   by_type: IocTypeEntry[];
 }
 
 interface CostEfficiency {
   total_cost_usd: number;
   cost_per_ioc_usd: number;
-  cost_per_conversation_usd: number;
+  cost_per_hour_wasted_usd: number;
+  current_month_usd: number;
+  previous_month_usd: number;
+  month_delta_pct: number;
 }
 
 interface TopCampaign {
   campaign_id: string;
-  rule_id: string;
-  hits: number;
-  ppv: number;
-  promoted: boolean;
+  status: string;
+  severity: string;
+  first_seen: string;
+  tlp: string;
+  conv_count: number;
+  ioc_count: number;
 }
 
 interface CampaignData {
   total: number;
   promoted: number;
+  scam_type_count: number;
   top_campaigns: TopCampaign[];
 }
 
