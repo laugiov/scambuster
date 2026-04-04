@@ -34,7 +34,7 @@ final class TaxiiObjectsTest extends WebTestCase
             );
         }
 
-        $this->client->request('GET', '/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [], [], [
+        $this->client->request('GET', '/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 
@@ -58,7 +58,7 @@ final class TaxiiObjectsTest extends WebTestCase
 
     public function testReturns404ForUnknownCollection(): void
     {
-        $this->client->request('GET', '/taxii2/api/collections/00000000-0000-0000-0000-000000000000/objects/', [], [], [
+        $this->client->request('GET', '/api/v1/taxii2/api/collections/00000000-0000-0000-0000-000000000000/objects/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 
@@ -86,7 +86,7 @@ final class TaxiiObjectsTest extends WebTestCase
 
         // Request with added_after in the future: should return no results from the old indicator
         $futureDate = (new \DateTimeImmutable('+1 year'))->format(\DateTimeInterface::ATOM);
-        $this->client->request('GET', '/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [
+        $this->client->request('GET', '/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [
             'added_after' => $futureDate,
         ], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
@@ -100,7 +100,7 @@ final class TaxiiObjectsTest extends WebTestCase
 
     public function testLimitParameterWorks(): void
     {
-        $this->client->request('GET', '/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [
+        $this->client->request('GET', '/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [
             'limit' => '1',
         ], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',

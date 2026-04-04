@@ -19,7 +19,7 @@ final class TaxiiApiRootController
     }
 
     #[OA\Get(
-        path: '/taxii2/api/',
+        path: '/api/v1/taxii2/api/',
         summary: 'TAXII 2.1 API Root',
         description: 'Returns API root information including supported versions and content limits.',
         tags: ['TAXII'],
@@ -29,7 +29,7 @@ final class TaxiiApiRootController
         ],
         security: [['Bearer' => []]]
     )]
-    #[Route('/taxii2/api/', name: 'taxii_api_root', methods: ['GET'])]
+    #[Route('/api/v1/taxii2/api/', name: 'taxii_api_root', methods: ['GET'])]
     public function __invoke(): JsonResponse
     {
         $response = new JsonResponse($this->taxiiService->getApiRoot());
