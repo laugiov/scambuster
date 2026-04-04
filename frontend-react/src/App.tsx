@@ -7,6 +7,7 @@ import { Loading } from '@/components/feedback/Loading';
 import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
 import { Login } from '@/pages/Login';
 
+const Impact = lazy(() => import('@/pages/Impact'));
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
 const Conversations = lazy(() => import('@/pages/Conversations'));
 const ConversationDetail = lazy(() => import('@/pages/ConversationDetail'));
@@ -49,7 +50,8 @@ export default function App() {
                 </AuthGuard>
               }
             >
-              <Route index element={<Dashboard />} />
+              <Route index element={<Impact />} />
+              <Route path="dashboard" element={<Dashboard />} />
               <Route path="conversations" element={<Conversations />} />
               <Route path="conversations/:id" element={<ConversationDetail />} />
               <Route path="ioc-explorer" element={<IocExplorer />} />
