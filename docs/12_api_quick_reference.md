@@ -278,6 +278,25 @@ All endpoints return JSON errors:
 
 ---
 
+## TAXII 2.1 (Automated Feed)
+
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| GET | `/api/v1/taxii2/` | Yes | TAXII discovery (server info, API roots) |
+| GET | `/api/v1/taxii2/api/` | Yes | API root (versions, max content length) |
+| GET | `/api/v1/taxii2/api/collections/` | Yes | List collections (IOCs + Campaigns) |
+| GET | `/api/v1/taxii2/api/collections/{id}/objects/` | Yes | Get STIX objects (delta sync via `added_after`) |
+
+```bash
+# Get latest 5 IOCs as STIX indicators
+curl -H "Authorization: Bearer $TOKEN" \
+  "http://localhost:8081/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/?limit=5" | jq .
+```
+
+See [TAXII 2.1 Server Guide](16_taxii_server.md) for OpenCTI/MISP integration.
+
+---
+
 ## Swagger UI
 
 For full interactive documentation with request/response schemas:
