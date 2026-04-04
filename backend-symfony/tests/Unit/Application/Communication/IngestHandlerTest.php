@@ -4,38 +4,26 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Application\Communication;
 
-use App\Application\Communication\IngestHandler;
-use App\Application\Communication\IocHandler;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Application\Communication\EmailParsingService;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
-use ReflectionClass;
 
 class IngestHandlerTest extends TestCase
 {
-    private IngestHandler $handler;
-    private EntityManagerInterface $em;
-    private LoggerInterface $logger;
-    private IocHandler $iocHandler;
+    private EmailParsingService $emailParser; // @phpstan-ignore-line
 
     protected function setUp(): void
     {
-        $this->em = $this->createMock(EntityManagerInterface::class);
-        $this->logger = $this->createMock(LoggerInterface::class);
-        $this->iocHandler = $this->createMock(IocHandler::class);
-        $this->handler = new IngestHandler($this->em, $this->logger, $this->iocHandler);
+        $logger = $this->createMock(LoggerInterface::class);
+        $this->emailParser = new EmailParsingService($logger);
     }
 
     /**
-     * Helper method to access private convertHtmlToText method
+     * Helper method to access convertHtmlToText (now public on EmailParsingService)
      */
     private function invokeConvertHtmlToText(string $html): string
     {
-        $reflection = new ReflectionClass($this->handler);
-        $method = $reflection->getMethod('convertHtmlToText');
-        $method->setAccessible(true);
-
-        return $method->invoke($this->handler, $html);
+        return $this->emailParser->convertHtmlToText($html);
     }
 
     public function test_convertHtmlToText_preserves_phone_numbers(): void

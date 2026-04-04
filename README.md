@@ -318,6 +318,12 @@ scambuster/
 - `POST /api/v1/campaign/{id}/export/stix` -- Campaign-level STIX export
 - `GET /api/v1/conversations/{id}/export/misp` -- MISP Event JSON export
 
+### TAXII 2.1 Server (Automated Feed)
+- `GET /api/v1/taxii2/` -- Server discovery
+- `GET /api/v1/taxii2/api/collections/` -- Available feeds (IOCs + Campaigns)
+- `GET /api/v1/taxii2/api/collections/{id}/objects/?added_after=...&limit=100` -- STIX objects with delta sync
+- See [TAXII Server Guide](docs/16_taxii_server.md) for OpenCTI/MISP/SIEM integration
+
 ### Attachments
 - `POST/GET/DELETE /api/v1/communication/attachment/{id}`
 
@@ -434,6 +440,7 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 | [MISP Integration](docs/13_misp_integration.md) | Connect to MISP, export IOCs, troubleshooting |
 | [Key Management](docs/14_key_management.md) | JWT RS256 keys, rotation, emergency response |
 | [SIEM Integration](docs/15_siem_integration.md) | Enterprise SIEM connector guide (CEF/ECS/JSON) |
+| [TAXII 2.1 Server](docs/16_taxii_server.md) | Automated CTI feed for OpenCTI, MISP, TheHive, SIEM |
 
 ---
 

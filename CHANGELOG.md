@@ -7,6 +7,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.3.0] - 2026-04-04
+
+### Added
+
+#### TAXII 2.1 Server (Feature 040 -- MT-7)
+- **4 TAXII 2.1 endpoints** for automated CTI feed consumption by OpenCTI, MISP, TheHive, SIEM:
+  - `GET /api/v1/taxii2/` -- Server discovery
+  - `GET /api/v1/taxii2/api/` -- API root
+  - `GET /api/v1/taxii2/api/collections/` -- 2 collections (IOCs + Campaigns)
+  - `GET /api/v1/taxii2/api/collections/{id}/objects/` -- STIX 2.1 objects with `added_after` delta sync
+- JWT authentication + `#[IsGranted('ioc:read')]` on all TAXII endpoints
+- Content-Type `application/taxii+json;version=2.1`, pagination headers (`X-TAXII-Date-Added-First/Last`)
+- STIX pattern mapping for 8+ IOC types (domain, URL, IPv4/6, email, SHA256, MD5, SHA1)
+- 9 new integration tests
+- Full documentation: `docs/16_taxii_server.md` with OpenCTI/MISP/SIEM integration guides
+
+#### MFA TOTP (Feature 040 -- MT-11)
+- **Two-Factor Authentication** via TOTP (Time-based One-Time Password) for admin accounts
+- `POST /api/v1/2fa/setup` -- Generate secret + QR URI for authenticator app
+- `POST /api/v1/2fa/verify` -- Validate 6-digit code from authenticator
+- `POST /api/v1/auth/2fa/login` -- Full login with email + password + TOTP code
+- LoginController returns `requires_2fa: true` when TOTP is enabled (instead of tokens)
+- **Not enabled by default** -- demo users unaffected, opt-in activation only
+- Backward compatible: users without TOTP log in normally
+- 6 new integration tests
+
+#### Fine-Grained RBAC (Feature 039 -- CT-1)
+- **`#[IsGranted]` annotations** on 37 controllers with 12 Permission enum values
+- Per-method annotations on multi-action controllers (ConversationController, MessageController, ReplyController, AttachmentController)
+- PermissionVoter updated to handle both User entity and InMemoryUser (test environment)
+- UserFixtures grants all permissions to standard user for n8n compatibility
+
+#### Infrastructure Hardening (Feature 039 -- CT-5/6/9/10/11)
+- **Dependabot** enabled (monthly, 5 PRs max, direct deps only)
+- **n8n image pinned** to 1.114.3 (was `latest`)
+- **Trivy + CycloneDX SBOM** in CI pipeline (new `container-security` job)
+- **GOVERNANCE.md** + **MAINTAINERS.md** + **.github/FUNDING.yml** created
+
+### Changed
+
+#### IocHandler Decomposition (Feature 039 -- CT-0)
+- **IocHandler.php** (1277 LOC) decomposed into 4 services:
+  - `IocQueryService` (445 LOC): list, detail, co-occurrence, conversation IOCs
+  - `IocUpsertService` (320 LOC): upsert, dedup, header extraction
+  - `IocExtractorOrchestrator` (274 LOC): regex/LLM/hybrid extraction + derivation
+  - `IocEnrichmentService` (171 LOC): risk scoring, enrichment updates
+- IocHandler (165 LOC) is now a thin facade delegating to the 4 services
+
+#### IngestHandler Decomposition (Feature 040 -- MT-1)
+- **IngestHandler.php** (891 LOC) decomposed into 3 services:
+  - `EmailParsingService` (200 LOC): RFC822 parsing, HTML-to-text, language detection
+  - `ThreadResolverService` (337 LOC): threading, conversation create/reopen
+  - `IngestPostProcessor` (285 LOC): IOC extraction, classification, risk scoring, injection detection
+- IngestHandler (341 LOC) is now an orchestrator
+
+#### ReplyHandler Decomposition (Feature 040 -- MT-2)
+- **ReplyHandler.php** (941 LOC) decomposed into 3 services:
+  - `ReplyContextService` (276 LOC): conversation context, persona assignment
+  - `ReplyCadenceService` (191 LOC): kill switch, cadence, rate limits, safelist
+  - `ReplyCompositionService` (337 LOC): compose headers, mark sent, send email
+- ReplyHandler (287 LOC) is now an orchestrator
+
+#### DDD Architecture (Feature 039 -- CT-7/CT-8)
+- **EntityManager removed** from all 6 controllers that had it (dedicated handlers created)
+- **5 repository interfaces** added in Domain/ (Conversation, Message, ObservedIoc, Persona, Campaign) with Doctrine implementations
+
+### Fixed
+
+#### Security (Feature 039 -- CT-2)
+- **Login rate limiting** now Redis-backed via `RateLimiterFactory` (was inoperant `static $attempts`)
+- `Makefile` stan target uses `--memory-limit=512M` (matches CI)
+
+#### Compliance (Feature 039 -- CT-3)
+- **GDPR retention** aligned with constitution: soft-delete at 6 months (was 2 years), hard-delete at 12 months (was 5 years)
+
+#### Monitoring (Feature 040)
+- **PipelineTraceHandler** uses dynamic direction lookup (was hardcoded ID `2`, should be `4`)
+
+---
+
 ## [2.2.1] - 2026-04-03
 
 ### Fixed

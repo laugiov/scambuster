@@ -37,6 +37,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $permissions = [];
 
+    #[ORM\Column(name: 'totp_secret', type: 'string', length: 255, nullable: true)]
+    private ?string $totpSecret = null;
+
     public function __construct()
     {
         $this->id       = Uuid::v4();
@@ -111,6 +114,24 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         }
 
         return in_array($permission->value, $this->permissions, true);
+    }
+
+    // --- TOTP ---
+    public function getTotpSecret(): ?string
+    {
+        return $this->totpSecret;
+    }
+
+    public function setTotpSecret(?string $secret): self
+    {
+        $this->totpSecret = $secret;
+
+        return $this;
+    }
+
+    public function isTotpEnabled(): bool
+    {
+        return $this->totpSecret !== null;
     }
 
     // --- UserInterface ---

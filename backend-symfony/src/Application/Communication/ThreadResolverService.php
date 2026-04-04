@@ -1,0 +1,337 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Communication;
+
+use App\Domain\Communication\Channel;
+use App\Domain\Communication\Conversation;
+use App\Domain\Communication\ConversationStatus;
+use App\Domain\Communication\Direction;
+use App\Domain\Communication\MailAccount;
+use App\Domain\Communication\Message;
+use App\Domain\Communication\ScamType;
+use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+
+/**
+ * Resolves email threads by matching Message-ID, In-Reply-To, and References headers.
+ *
+ * Extracted from IngestHandler (decomposition).
+ * Handles: deduplication, thread resolution, conversation creation, and reopening.
+ */
+class ThreadResolverService
+{
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly LoggerInterface $logger,
+    ) {
+    }
+
+    /**
+     * Check if a message with the given Message-ID already exists.
+     *
+     * @return array{msg_id: string, conv_id: string}|null existing message data, or null if not found
+     */
+    public function findExistingMessage(?string $messageId): ?array
+    {
+        if (!$messageId) {
+            return null;
+        }
+
+        $conn = $this->em->getConnection();
+        $qb = $conn->createQueryBuilder();
+        $qb->select('m.msg_id', 'm.conv_id')
+            ->from('message', 'm')
+            ->where("m.headers->>'message-id' = :messageId")
+            ->orWhere("m.headers->>'message-id' = :messageIdWithChevrons")
+            ->andWhere('m.deleted_at IS NULL')
+            ->setParameter('messageId', $messageId)
+            ->setParameter('messageIdWithChevrons', '<' . $messageId . '>')
+            ->setMaxResults(1);
+
+        $existingMsg = $qb->executeQuery()->fetchAssociative();
+
+        if ($existingMsg !== false) {
+            $this->logger->warning('[ThreadResolverService] Message already exists', [
+                'message-id' => $messageId,
+                'existing_msg_id' => $existingMsg['msg_id'],
+                'existing_conv_id' => $existingMsg['conv_id'],
+            ]);
+
+            return [
+                'msg_id' => $existingMsg['msg_id'],
+                'conv_id' => $existingMsg['conv_id'],
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve the conversation for an incoming message by threading headers.
+     *
+     * Searches by In-Reply-To, then References, then reverse lookups.
+     *
+     * @param list<string> $references parsed references list
+     *
+     * @return array{conversation: ?Conversation, replyToMessage: ?Message}
+     */
+    public function resolveConversation(?string $inReplyTo, array $references, ?string $messageId): array
+    {
+        $conversation = null;
+        $replyToMessage = null;
+
+        // 1. Search by In-Reply-To
+        if ($inReplyTo) {
+            $conn = $this->em->getConnection();
+            $qb = $conn->createQueryBuilder();
+            $qb->select('m.msg_id')
+                ->from('message', 'm')
+                ->where("m.headers->>'message-id' = :messageId")
+                ->orWhere("m.headers->>'message-id' = :messageIdWithChevrons")
+                ->andWhere('m.deleted_at IS NULL')
+                ->setParameter('messageId', $inReplyTo)
+                ->setParameter('messageIdWithChevrons', '<' . $inReplyTo . '>')
+                ->setMaxResults(1);
+
+            $replyToMessageId = $qb->executeQuery()->fetchOne();
+
+            if ($replyToMessageId !== false) {
+                $replyToMessage = $this->em->find(Message::class, $replyToMessageId);
+
+                if ($replyToMessage) {
+                    $conversation = $replyToMessage->getConversation();
+                }
+            }
+
+            // Fallback: search in in_reply_to and references fields
+            if (!$conversation) {
+                $this->logger->info('[ThreadResolverService] Fallback: searching in in_reply_to/references fields', [
+                    'searching_for' => $inReplyTo,
+                ]);
+
+                $qb2 = $conn->createQueryBuilder();
+                $qb2->select('m.msg_id')
+                    ->from('message', 'm')
+                    ->where("m.headers->>'in_reply_to' = :messageId")
+                    ->orWhere("m.headers->>'in_reply_to' = :messageIdWithChevrons")
+                    ->orWhere("m.headers->>'references' LIKE :messageIdPattern")
+                    ->orWhere("m.headers->>'references' LIKE :messageIdWithChevronsPattern")
+                    ->andWhere('m.deleted_at IS NULL')
+                    ->setParameter('messageId', $inReplyTo)
+                    ->setParameter('messageIdWithChevrons', '<' . $inReplyTo . '>')
+                    ->setParameter('messageIdPattern', '%' . $inReplyTo . '%')
+                    ->setParameter('messageIdWithChevronsPattern', '%<' . $inReplyTo . '>%')
+                    ->setMaxResults(1);
+
+                $fallbackMessageId = $qb2->executeQuery()->fetchOne();
+
+                if ($fallbackMessageId !== false) {
+                    $fallbackMessage = $this->em->find(Message::class, $fallbackMessageId);
+
+                    if ($fallbackMessage) {
+                        $conversation = $fallbackMessage->getConversation();
+                        $this->logger->info('[ThreadResolverService] Found conversation via fallback search', [
+                            'in_reply_to' => $inReplyTo,
+                            'conv_id' => $conversation->getConvId(),
+                        ]);
+                    }
+                }
+            }
+        }
+
+        // 2. Search by References
+        if (!$conversation && !empty($references)) {
+            $this->logger->info('[ThreadResolverService] Searching by references', ['references' => $references]);
+            $conn = $this->em->getConnection();
+
+            foreach ($references as $ref) {
+                $qb = $conn->createQueryBuilder();
+                $qb->select('m.msg_id')
+                    ->from('message', 'm')
+                    ->where("m.headers->>'message-id' = :messageId")
+                    ->orWhere("m.headers->>'message-id' = :messageIdWithChevrons")
+                    ->andWhere('m.deleted_at IS NULL')
+                    ->setParameter('messageId', $ref)
+                    ->setParameter('messageIdWithChevrons', '<' . $ref . '>')
+                    ->setMaxResults(1);
+
+                $refMessageId = $qb->executeQuery()->fetchOne();
+
+                if ($refMessageId !== false) {
+                    $refMessage = $this->em->find(Message::class, $refMessageId);
+
+                    if ($refMessage) {
+                        $conversation = $refMessage->getConversation();
+                        $this->logger->info('[ThreadResolverService] Found conversation via references', [
+                            'ref' => $ref,
+                            'conv_id' => $conversation->getConvId(),
+                        ]);
+
+                        break;
+                    }
+                }
+            }
+
+            if (!$conversation) {
+                $this->logger->info('[ThreadResolverService] No conversation found via references');
+            }
+        }
+
+        // 3. Reverse lookup: search for messages that reference this message
+        if (!$conversation && $messageId) {
+            $conn = $this->em->getConnection();
+            $qb = $conn->createQueryBuilder();
+            $qb->select('m.msg_id')
+                ->from('message', 'm')
+                ->where("m.headers->>'in-reply-to' = :messageId")
+                ->orWhere("m.headers->>'in-reply-to' = :messageIdWithChevrons")
+                ->orWhere("m.headers->>'references' LIKE :messageIdPattern")
+                ->orWhere("m.headers->>'references' LIKE :messageIdWithChevronsPattern")
+                ->andWhere('m.deleted_at IS NULL')
+                ->setParameter('messageId', $messageId)
+                ->setParameter('messageIdWithChevrons', '<' . $messageId . '>')
+                ->setParameter('messageIdPattern', '%' . $messageId . '%')
+                ->setParameter('messageIdWithChevronsPattern', '%<' . $messageId . '>%')
+                ->setMaxResults(1);
+
+            $referencingMessageId = $qb->executeQuery()->fetchOne();
+
+            if ($referencingMessageId !== false) {
+                $referencingMessage = $this->em->find(Message::class, $referencingMessageId);
+
+                if ($referencingMessage) {
+                    $conversation = $referencingMessage->getConversation();
+                }
+            }
+        }
+
+        return ['conversation' => $conversation, 'replyToMessage' => $replyToMessage];
+    }
+
+    /**
+     * Create a new conversation for an inbound message that has no thread match.
+     */
+    public function createNewConversation(
+        ?string $fromHeader,
+        ?string $messageId,
+        MailAccount $account,
+        Channel $channel,
+        int $scoreRisk,
+    ): Conversation {
+        $this->logger->info('[ThreadResolverService] Creating new conversation');
+
+        $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'unknown'])
+            ?? $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'UNKNOWN']);
+
+        if (!$scamType) {
+            throw new \RuntimeException('Unknown scam_type');
+        }
+
+        $now = new \DateTimeImmutable();
+
+        // Extract sender email
+        $fromEmail = $fromHeader ? (preg_match('/<([^>]+)>/', $fromHeader, $matches) ? $matches[1] : $fromHeader) : '';
+
+        // Generate unique stixId
+        $uniquePart = bin2hex(random_bytes(8));
+        $stixId = 'shadow-ingest-' . $fromEmail . '-' . $messageId . '-' . $uniquePart;
+
+        $this->logger->info('[ThreadResolverService] Generated stixId', [
+            'stixId' => $stixId,
+            'fromEmail' => $fromEmail,
+            'messageId' => $messageId,
+        ]);
+
+        $conversation = new Conversation(
+            uuid_create(UUID_TYPE_RANDOM),
+            $channel,
+            $scamType,
+            $account,
+            ConversationStatus::OPEN,
+            $scoreRisk,
+            $now,
+            $now,
+            $stixId
+        );
+        $this->em->persist($conversation);
+
+        try {
+            $this->em->flush();
+            $this->logger->info('[ThreadResolverService] Conversation created', ['conv_id' => $conversation->getConvId()]);
+        } catch (UniqueConstraintViolationException $e) {
+            $this->logger->error('[ThreadResolverService] Duplicate stixId detected', [
+                'stixId' => $stixId,
+                'error' => $e->getMessage(),
+            ]);
+
+            throw new \RuntimeException('Conversation with this stixId already exists');
+        }
+
+        return $conversation;
+    }
+
+    /**
+     * Reopen a closed/abandoned conversation if policy allows it.
+     */
+    public function reopenIfNeeded(Conversation $conversation): void
+    {
+        if ($conversation->getStatus() === ConversationStatus::OPEN) {
+            return;
+        }
+
+        $scamCode = $conversation->getScamType()->getCode();
+        $policy = ConversationLifecycleConfig::getPolicy($scamCode);
+        $previousStatus = $conversation->getStatus()->value;
+
+        if (!$policy['allow_reopen']) {
+            $this->logger->info('[ThreadResolverService] Reopen not allowed for scam type, message added to closed conversation', [
+                'conv_id' => $conversation->getConvId(),
+                'scam_type' => $scamCode,
+                'previous_status' => $previousStatus,
+            ]);
+
+            return;
+        }
+
+        if ($policy['reopen_window_hours'] > 0) {
+            $closedAt = $conversation->getUpdatedAt();
+            $windowEnd = $closedAt->modify(sprintf('+%d hours', $policy['reopen_window_hours']));
+
+            if (new \DateTimeImmutable() > $windowEnd) {
+                $this->logger->info('[ThreadResolverService] Reopen window expired, message added to closed conversation', [
+                    'conv_id' => $conversation->getConvId(),
+                    'scam_type' => $scamCode,
+                    'closed_at' => $closedAt->format('Y-m-d H:i'),
+                    'window_hours' => $policy['reopen_window_hours'],
+                ]);
+
+                return;
+            }
+
+            $previousReward = $conversation->getRewardValue();
+            $conversation->setStatus(ConversationStatus::OPEN);
+            $conversation->resetRewardValue();
+
+            $this->logger->info('[ThreadResolverService] Conversation reopened (within reopen window)', [
+                'conv_id' => $conversation->getConvId(),
+                'scam_type' => $scamCode,
+                'previous_status' => $previousStatus,
+                'previous_reward' => $previousReward,
+            ]);
+        } else {
+            $previousReward = $conversation->getRewardValue();
+            $conversation->setStatus(ConversationStatus::OPEN);
+            $conversation->resetRewardValue();
+
+            $this->logger->info('[ThreadResolverService] Conversation reopened on new inbound message', [
+                'conv_id' => $conversation->getConvId(),
+                'previous_status' => $previousStatus,
+                'previous_reward' => $previousReward,
+                'new_status' => 'open',
+            ]);
+        }
+    }
+}
