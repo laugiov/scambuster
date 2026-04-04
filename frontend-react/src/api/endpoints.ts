@@ -57,6 +57,10 @@ export const ENDPOINTS = {
     update: (code: string) => `/personas/${code}`,
     toggleActive: (code: string) => `/personas/${code}/active`,
   },
+  impact: {
+    summary: '/impact/summary',
+    iocUniqueness: '/impact/ioc-uniqueness',
+  },
   scamTypes: '/communication/scam-types',
   meta: {
     config: '/meta/config',
