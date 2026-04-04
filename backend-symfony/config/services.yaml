@@ -299,9 +299,21 @@ services:
         autowire: true
         autoconfigure: true
 
-    App\Application\Communication\ReplyHandler:
+    App\Application\Communication\ReplyContextService:
         arguments:
             $personaOptimizer: '@App\Application\Scambaiting\PersonaOptimizer'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\ReplyCadenceService:
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\ReplyCompositionService:
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\ReplyHandler:
         autowire: true
         autoconfigure: true
     ###< Scambaiting Adaptatif - Application Layer ###
