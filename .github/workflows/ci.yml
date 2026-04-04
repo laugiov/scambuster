@@ -292,7 +292,7 @@ jobs:
 
       - name: Upload to Codecov (unit + integration + e2e merged)
         if: always()
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage-unit-integration.xml,./coverage-e2e.xml
           fail_ci_if_error: false
