@@ -33,11 +33,19 @@ The complete source code is available on GitHub under MIT License.
 | **Backend** | PHP 8.3, Symfony 7.2 |
 | **Architecture** | Domain-Driven Design (DDD) |
 | **Database** | PostgreSQL 15, Redis 7 |
-| **LLM** | GPT-4o (generation), GPT-4o-mini (validation/classification) |
+| **LLM** | Multi-provider: OpenAI, Anthropic, Ollama (local), Mock. Switch via `LLM_PROVIDER` env var |
 | **Orchestration** | n8n (workflow automation) |
 | **Infrastructure** | Docker, Docker Compose |
 | **CI/CD** | GitHub Actions |
 | **Secrets** | Dedicated secrets management |
+
+### Why PHP / Symfony?
+
+Symfony 7.2 is the most mature PHP framework for Domain-Driven Design and hexagonal architecture. The same stack powers MISP -- the world's most deployed threat intelligence sharing platform (15,000+ instances). PHP 8.3 with strict types, enums, readonly properties, and PHPStan level 6 bleeding edge provides type safety comparable to statically-typed languages. The codebase has 2140 tests (1.16:1 test/code LOC ratio) and zero PHPStan errors.
+
+### Can I run ScamBuster without sending data to OpenAI?
+
+**Yes.** Set `LLM_PROVIDER=ollama` in your `.env` file and run a local model (Mistral, Llama 3, Phi). All LLM processing stays on your infrastructure. No data is sent to any external API. This is the recommended configuration for regulated environments (NIS2, DORA, government).
 
 ### How does the LLM architecture work?
 
