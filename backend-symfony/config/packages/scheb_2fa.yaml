@@ -1,0 +1,8 @@
+scheb_two_factor:
+    totp:
+        enabled: true
+        issuer: "ScamBuster"
+        parameters:
+            digits: 6
+            period: 30
+            algorithm: sha1

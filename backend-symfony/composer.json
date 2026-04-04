@@ -16,6 +16,7 @@
         "php-mime-mail-parser/php-mime-mail-parser": "^1.0",
         "ramsey/uuid": "^4.7",
         "scheb/2fa-bundle": "^7.9",
+        "scheb/2fa-totp": "*",
         "symfony/asset": "7.2.*",
         "symfony/console": "7.2.*",
         "symfony/dotenv": "7.2.*",
