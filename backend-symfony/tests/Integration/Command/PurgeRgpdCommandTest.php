@@ -22,8 +22,8 @@ class PurgeRgpdCommandTest extends KernelTestCase
 
     public function testPurgeWithRetentionSoftDeletesOldOutbound(): void
     {
-        // Fixture conv 005 is CLOSED, ts_last = -3 years, deleted_at = null -> eligible for soft delete (> 2 years)
-        // Fixture conv 006 is CLOSED, ts_last = -6 years, deleted_at = -5y-1d -> eligible for hard delete (> 5 years)
+        // Soft delete: closed conversations with ts_last > 6 months ago (GDPR content retention)
+        // Hard delete: soft-deleted conversations with ts_last > 12 months ago (GDPR audit retention)
         $command = self::getContainer()->get(PurgeRgpdCommand::class);
         $app = new Application(self::$kernel);
         $app->add($command);
