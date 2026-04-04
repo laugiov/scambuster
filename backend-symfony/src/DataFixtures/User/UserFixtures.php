@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\DataFixtures\User;
 
+use App\Domain\User\Permission;
 use App\Domain\User\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -25,13 +26,16 @@ class UserFixtures extends Fixture
 
     public function load(ObjectManager $manager): void
     {
+        // Standard user with all fine-grained permissions
         $user = new User();
         $user->setEmail(self::TEST_USER_EMAIL);
         $user->setRoles(['ROLE_USER']);
+        $user->setPermissions(array_map(fn (Permission $p) => $p->value, Permission::cases()));
 
         $hashedPassword = $this->passwordHasher->hashPassword($user, self::TEST_USER_PASSWORD);
         $user->setPassword($hashedPassword);
 
+        // Admin user (has all permissions implicitly via ROLE_ADMIN)
         $admin = new User();
         $admin->setEmail(self::TEST_ADMIN_EMAIL);
         $admin->setRoles(['ROLE_ADMIN']);

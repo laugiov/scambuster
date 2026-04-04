@@ -9,12 +9,14 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Controller for IOC detail page — returns full indicator data
  * with observations and related IOCs.
  */
 #[Route('/api/v1/iocs')]
+#[IsGranted('ioc:read')]
 final class IocDetailController
 {
     public function __construct(

@@ -4,22 +4,27 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Application\Communication;
 
-use App\Application\Communication\IocHandler;
+use App\Application\Communication\IocExtractorOrchestrator;
+use App\Application\Communication\IocNormalizer;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Tests for IocHandler::deriveAdditionalIocs() via reflection.
+ * Tests for IocExtractorOrchestrator::deriveAdditionalIocs().
+ *
+ * Migrated from IocHandler reflection tests after CT-0 decomposition.
  */
 class IocDerivationTest extends TestCase
 {
     private function callDerive(array $iocs): array
     {
-        // Create IocHandler with minimal dependencies — we only test the derivation method
-        $handler = $this->createPartialMock(IocHandler::class, []);
+        $orchestrator = (new \ReflectionClass(IocExtractorOrchestrator::class))
+            ->newInstanceWithoutConstructor();
 
-        $reflection = new \ReflectionMethod(IocHandler::class, 'deriveAdditionalIocs');
+        // Inject normalizer via reflection (needed for domain normalization in derive)
+        $normProp = new \ReflectionProperty(IocExtractorOrchestrator::class, 'normalizer');
+        $normProp->setValue($orchestrator, new IocNormalizer());
 
-        return $reflection->invoke($handler, $iocs);
+        return $orchestrator->deriveAdditionalIocs($iocs);
     }
 
     public function testDerivesDomainFromUrl(): void

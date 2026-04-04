@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/communication/conversation')]
 final class ConversationController
@@ -70,6 +71,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('', name: 'create_conversation', methods: ['POST'])]
+    #[IsGranted('conversation:write')]
     public function create(Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -133,6 +135,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{convId}', name: 'get_conversation', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function getConversation(string $convId): JsonResponse
     {
         $conv = $this->handler->getConversation($convId);
@@ -185,6 +188,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('', name: 'list_conversations', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function listConversations(Request $request): JsonResponse
     {
         $page = max(1, (int)$request->query->get('page', '1'));
@@ -244,6 +248,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{convId}', name: 'delete_conversation', methods: ['DELETE'])]
+    #[IsGranted('conversation:write')]
     public function deleteConversation(string $convId): JsonResponse
     {
         $ok = $this->handler->deleteConversation($convId);
@@ -296,6 +301,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{convId}', name: 'patch_conversation', methods: ['PATCH'])]
+    #[IsGranted('conversation:write')]
     public function patchConversation(string $convId, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -322,6 +328,7 @@ final class ConversationController
     }
 
     #[Route('/{convId}/add-channel', name: 'add_channel_to_conversation', methods: ['POST'])]
+    #[IsGranted('conversation:write')]
     public function addChannel(string $convId, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -379,6 +386,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{convId}/iocs', name: 'list_conversation_iocs', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function listIocs(string $convId): JsonResponse
     {
         $conv = $this->handler->getConversation($convId);
@@ -451,6 +459,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{convId}/messages', name: 'list_conversation_messages', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function listMessages(string $convId, Request $request): JsonResponse
     {
         $page = max(1, (int)$request->query->get('page', 1));
@@ -533,6 +542,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{convId}/classify', name: 'classify_conversation', methods: ['POST'])]
+    #[IsGranted('conversation:write')]
     public function classify(string $convId, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);
@@ -619,6 +629,7 @@ final class ConversationController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{convId}/auto-classify', name: 'auto_classify_conversation', methods: ['POST'])]
+    #[IsGranted('conversation:write')]
     public function autoClassify(string $convId, Request $request): JsonResponse
     {
         $data = json_decode($request->getContent(), true);

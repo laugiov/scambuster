@@ -71,7 +71,7 @@ final class ExportMispController
         security: [['Bearer' => []]]
     )]
     #[Route('/api/v1/conversations/{id}/export/misp', methods: ['GET'])]
-    #[IsGranted('ROLE_USER')]
+    #[IsGranted('ioc:export')]
     public function __invoke(string $id): JsonResponse
     {
         // Retrieve all IOCs for conversation (deduplicated)

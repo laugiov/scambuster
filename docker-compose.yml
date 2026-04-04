@@ -165,7 +165,7 @@ services:
       - scambuster
 
   n8n:
-    image: n8nio/n8n:latest
+    image: n8nio/n8n:1.114.3
     container_name: scambuster-n8n
     # Run as root so the init script can fix data dir permissions on fresh installs.
     # n8n start is launched via 'su node' inside the init script for security.

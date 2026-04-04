@@ -14,6 +14,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/communication/attachment')]
 final class AttachmentController
@@ -44,6 +45,7 @@ final class AttachmentController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{attachmentId}', name: 'delete_attachment', methods: ['DELETE'])]
+    #[IsGranted('conversation:write')]
     public function deleteAttachment(string $attachmentId): JsonResponse
     {
         $ok = $this->handler->deleteAttachment($attachmentId);
@@ -81,6 +83,7 @@ final class AttachmentController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{attachmentId}/download', name: 'download_attachment', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function downloadAttachment(string $attachmentId): Response
     {
         $attachment = $this->handler->getAttachment($attachmentId);
@@ -126,6 +129,7 @@ final class AttachmentController
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/conversation/{convId}/attachments', name: 'list_conversation_attachments', methods: ['GET'])]
+    #[IsGranted('conversation:read')]
     public function listConversationAttachments(string $convId): JsonResponse
     {
         $conversation = $this->handler->getConversation($convId);

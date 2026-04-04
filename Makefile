@@ -179,7 +179,7 @@ test:          ##@test Load fixtures then run only integration and unit PHPUnit 
 	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,unit
 
 stan:       ##@test Run PHPStan static analysis
-	$(DC) exec $(PHP_CONTAINER_DEV) vendor/bin/phpstan analyse src
+	$(DC) exec $(PHP_CONTAINER_DEV) vendor/bin/phpstan analyse src --memory-limit=512M
 
 cs-fixer:        ##@test Check & fix code style
 	$(DC) exec $(PHP_CONTAINER_DEV) vendor/bin/php-cs-fixer fix --diff --using-cache no

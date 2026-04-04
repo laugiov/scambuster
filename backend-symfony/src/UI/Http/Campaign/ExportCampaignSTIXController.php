@@ -4,27 +4,19 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Campaign;
 
-use App\Application\Audit\AuditLogger;
-use App\Application\Campaign\STIXExporter;
-use App\Application\Stix\StixBundleBuilder;
-use App\Domain\CampaignRadar\Campaign;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Application\Campaign\CampaignStixExportHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
-use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/{campaignId}/export/stix', name: 'api_campaign_export_stix', methods: ['POST'])]
-#[IsGranted('ROLE_USER')]
+#[IsGranted('campaign:read')]
 final class ExportCampaignSTIXController
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly STIXExporter $exporter,
-        private readonly StixBundleBuilder $bundleBuilder,
-        private readonly ?AuditLogger $auditLogger = null,
+        private readonly CampaignStixExportHandler $handler,
     ) {
     }
 
@@ -88,124 +80,20 @@ final class ExportCampaignSTIXController
     public function __invoke(string $campaignId): JsonResponse
     {
         try {
-            $campaignUuid = Uuid::fromString($campaignId);
+            $data = $this->handler->export($campaignId);
         } catch (\InvalidArgumentException) {
             return new JsonResponse(['error' => 'Invalid campaign_id format'], Response::HTTP_BAD_REQUEST);
-        }
-
-        $campaign = $this->em->find(Campaign::class, $campaignUuid);
-
-        if (!$campaign) {
-            return new JsonResponse(['error' => 'Campaign not found'], Response::HTTP_NOT_FOUND);
-        }
-
-        try {
-            $result = $this->exporter->export($campaign);
-
-            // If YAML-based export produced no indicators, fallback to DB IOCs
-            $hasIndicators = false;
-
-            /** @var array<int, array<string, mixed>> $bundleObjects */
-            $bundleObjects = is_array($result['bundle']['objects'] ?? null) ? $result['bundle']['objects'] : [];
-
-            foreach ($bundleObjects as $obj) {
-                if (($obj['type'] ?? '') === 'indicator') {
-                    $hasIndicators = true;
-
-                    break;
-                }
-            }
-
-            if (!$hasIndicators) {
-                $dbBundle = $this->buildBundleFromCampaignMessages($campaign);
-
-                if ($dbBundle !== null) {
-                    $result['bundle'] = $dbBundle;
-                    $result['bundle_id'] = $dbBundle['id'];
-                }
-            }
         } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'Campaign not found') {
+                return new JsonResponse(['error' => 'Campaign not found'], Response::HTTP_NOT_FOUND);
+            }
+
             return new JsonResponse([
                 'error' => 'STIX export failed',
                 'message' => $e->getMessage(),
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $this->auditLogger?->log(
-            \App\Domain\Audit\AuditEventType::EXPORT_STIX,
-            $campaignId,
-            'export_stix',
-            'success',
-            'campaign',
-            $campaignId,
-            [
-                'bundle_id' => $result['bundle_id'],
-                'file_path' => $result['file_path'],
-            ],
-        );
-
-        return new JsonResponse([
-            'message' => 'STIX export completed',
-            'file_path' => $result['file_path'],
-            'bundle_id' => $result['bundle_id'],
-            'bundle' => $result['bundle'],
-        ]);
-    }
-
-    /**
-     * Fallback: build STIX bundle from campaign's matched messages IOCs in DB.
-     *
-     * @return array<string, mixed>|null
-     */
-    private function buildBundleFromCampaignMessages(Campaign $campaign): ?array
-    {
-        $conn = $this->em->getConnection();
-        $campaignId = $campaign->getCampaignId()->toRfc4122();
-
-        // Get IOCs from messages linked to this campaign
-        $rows = $conn->executeQuery(
-            'SELECT DISTINCT
-                oi.indicator_id,
-                oi.context_observation,
-                oi.confidence_score,
-                oi.ts_observed
-            FROM message_campaign mc
-            JOIN observed_ioc oi ON mc.msg_id = oi.msg_id
-            WHERE mc.campaign_id = :campaignId',
-            ['campaignId' => $campaignId]
-        )->fetchAllAssociative();
-
-        if (empty($rows)) {
-            return null;
-        }
-
-        $iocs = [];
-
-        foreach ($rows as $row) {
-            $context = is_string($row['context_observation']) ? json_decode($row['context_observation'], true) : [];
-
-            if (!is_array($context)) {
-                continue;
-            }
-
-            $iocs[] = [
-                'indicator_id' => $row['indicator_id'],
-                'type' => is_string($context['type'] ?? null) ? $context['type'] : 'unknown',
-                'value' => is_string($context['value'] ?? null) ? $context['value'] : '',
-                'value_norm' => is_string($context['value_norm'] ?? null) ? $context['value_norm'] : '',
-                'first_seen' => is_string($row['ts_observed']) ? $row['ts_observed'] : '',
-                'confidence' => is_numeric($row['confidence_score']) ? (float) $row['confidence_score'] : null,
-                'extraction_method' => is_string($context['extraction_method'] ?? null) ? $context['extraction_method'] : (is_string($context['source'] ?? null) ? $context['source'] : 'unknown'),
-                'score' => is_array($context['score'] ?? null) ? $context['score'] : [],
-            ];
-        }
-
-        return $this->bundleBuilder->buildBundle(
-            $iocs,
-            [],
-            $campaign->getTlp(),
-            'ScamBuster Campaign ' . substr($campaignId, 0, 8),
-            'Campaign threat intelligence from ScamBuster honeypot (DB fallback)',
-        );
+        return new JsonResponse($data);
     }
 }
