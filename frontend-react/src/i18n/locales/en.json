@@ -26,7 +26,8 @@
     }
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "impact": "Impact",
+    "operations": "Operations",
     "campaigns": "Campaigns",
     "conversations": "Conversations",
     "iocExplorer": "IOC Explorer",
@@ -420,6 +421,21 @@
     "withinBudget": "Within Budget",
     "noLimit": "No budget limit configured",
     "refresh": "Refresh"
+  },
+  "impact": {
+    "title": "Impact & Intelligence",
+    "wasted_time": "Criminal Time Wasted",
+    "novel_iocs": "Exclusive IOCs",
+    "cost_per_ioc": "Cost per IOC",
+    "campaigns_exposed": "Campaigns Exposed",
+    "weekly_wasted": "Hours Wasted per Week",
+    "ioc_by_type": "IOCs by Type",
+    "top_campaigns": "Top Campaigns",
+    "comparison": "vs ~$10,000/yr for commercial CTI feeds",
+    "empty_state": "No data available. Set up honeypots to start collecting intelligence.",
+    "promoted": "promoted",
+    "exclusive": "exclusive to ScamBuster",
+    "across_conversations": "across {{count}} conversations"
   },
   "monitoring": {
     "title": "Conversation Monitoring",
