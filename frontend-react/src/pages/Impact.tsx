@@ -186,24 +186,26 @@ export function Impact() {
               <thead>
                 <tr className="text-on-surface-dim text-xs uppercase tracking-widest border-b border-outline-variant">
                   <th className="text-left py-2 px-3">Campaign</th>
-                  <th className="text-left py-2 px-3">Rule</th>
-                  <th className="text-right py-2 px-3">Hits</th>
-                  <th className="text-right py-2 px-3">PPV</th>
+                  <th className="text-center py-2 px-3">Severity</th>
+                  <th className="text-right py-2 px-3">Conversations</th>
+                  <th className="text-right py-2 px-3">IOCs</th>
+                  <th className="text-left py-2 px-3">First Seen</th>
                   <th className="text-center py-2 px-3">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {campaigns.top_campaigns.map((c: TopCampaign) => (
+                {(campaigns.top_campaigns ?? []).map((c: TopCampaign) => (
                   <tr key={c.campaign_id} className="border-b border-outline-variant/50 hover:bg-surface-high transition-colors">
-                    <td className="py-2 px-3 text-on-surface font-mono text-xs">{c.campaign_id.slice(0, 8)}</td>
-                    <td className="py-2 px-3 text-on-surface-dim font-mono text-xs">{c.rule_id.slice(0, 8)}</td>
-                    <td className="py-2 px-3 text-right text-on-surface">{c.hits}</td>
-                    <td className="py-2 px-3 text-right text-on-surface">{(c.ppv * 100).toFixed(0)}%</td>
+                    <td className="py-2 px-3 text-on-surface font-mono text-xs">{c.campaign_id?.slice(0, 8) ?? '-'}</td>
+                    <td className="py-2 px-3 text-center text-on-surface">{c.severity}</td>
+                    <td className="py-2 px-3 text-right text-on-surface">{c.conv_count}</td>
+                    <td className="py-2 px-3 text-right text-on-surface">{c.ioc_count}</td>
+                    <td className="py-2 px-3 text-on-surface-dim text-xs">{c.first_seen?.slice(0, 10) ?? '-'}</td>
                     <td className="py-2 px-3 text-center">
-                      {c.promoted ? (
+                      {c.status === 'promoted' ? (
                         <span className="text-xs bg-green-900/30 text-green-400 px-2 py-0.5 rounded">{t('impact.promoted')}</span>
                       ) : (
-                        <span className="text-xs bg-surface-high text-on-surface-dim px-2 py-0.5 rounded">pending</span>
+                        <span className="text-xs bg-surface-high text-on-surface-dim px-2 py-0.5 rounded">{c.status}</span>
                       )}
                     </td>
                   </tr>
