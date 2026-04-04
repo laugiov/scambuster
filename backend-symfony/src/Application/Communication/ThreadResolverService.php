@@ -7,7 +7,6 @@ namespace App\Application\Communication;
 use App\Domain\Communication\Channel;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationStatus;
-use App\Domain\Communication\Direction;
 use App\Domain\Communication\MailAccount;
 use App\Domain\Communication\Message;
 use App\Domain\Communication\ScamType;

@@ -144,6 +144,7 @@ final class TotpLoginController
 
         foreach (str_split($base32) as $char) {
             $index = strpos($alphabet, $char);
+
             if ($index === false) {
                 continue;
             }

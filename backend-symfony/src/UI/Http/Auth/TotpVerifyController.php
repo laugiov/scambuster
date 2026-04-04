@@ -26,6 +26,7 @@ final class TotpVerifyController
     public function __invoke(Request $request): JsonResponse
     {
         $token = $this->tokenStorage->getToken();
+
         if ($token === null) {
             return new JsonResponse(['message' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
@@ -46,6 +47,7 @@ final class TotpVerifyController
         }
 
         $secret = $user->getTotpSecret();
+
         if ($secret === null) {
             return new JsonResponse(['message' => 'TOTP not configured'], Response::HTTP_BAD_REQUEST);
         }
@@ -102,6 +104,7 @@ final class TotpVerifyController
 
         foreach (str_split($base32) as $char) {
             $index = strpos($alphabet, $char);
+
             if ($index === false) {
                 continue;
             }
