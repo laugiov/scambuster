@@ -215,7 +215,7 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 | **Backend** | PHP 8.3, Symfony 7.2, DDD architecture |
 | **Database** | PostgreSQL 15, Redis 7 |
 | **Frontend** | React 19, TypeScript, TailwindCSS, i18n (EN/FR) |
-| **LLM** | OpenAI GPT-4o (generation) + GPT-4o-mini (validation). Also supports Anthropic, Ollama, Mock |
+| **LLM** | Multi-provider via `LLM_PROVIDER` env var: **OpenAI** (GPT-4o), **Anthropic** (Claude), **Ollama** (Llama/Mistral -- full local, zero data exfiltration), **Mock** (dev/demo). Switch with one env var. |
 | **Orchestration** | n8n (self-hosted workflow automation) |
 | **Secrets** | HashiCorp Vault |
 | **Monitoring** | `/api/health`, `/api/metrics` (Prometheus), LLM cost tracking |
@@ -256,7 +256,16 @@ All other `change-me` values have safe defaults for local development. Run `bash
 make demo-load           # Load 150 synthetic conversations with IOCs
 ```
 
-**LLM providers**: ScamBuster supports OpenAI, Anthropic Claude, Ollama (local), and Mock. Set `LLM_PROVIDER` in `.env`. See [Getting Started](docs/08_getting_started.md) for details.
+**LLM providers**: ScamBuster supports 4 LLM providers via a single env var -- no code change needed:
+
+| Provider | `LLM_PROVIDER=` | Data Location | Best For |
+|----------|-----------------|---------------|----------|
+| **OpenAI** | `openai` | Cloud (US) | Best quality (GPT-4o) |
+| **Anthropic** | `anthropic` | Cloud (US) | Alternative cloud (Claude) |
+| **Ollama** | `ollama` | **100% local** | Sovereign deployment (Mistral, Llama 3) -- zero data leaves your infrastructure |
+| **Mock** | `mock` | Local | Development and demo (no API key needed, no cost) |
+
+> **Data sovereignty**: For regulated environments (NIS2, DORA, SGDSN), deploy with `LLM_PROVIDER=ollama` and a local Mistral or Llama model. All processing stays on-premise. No data is sent to external APIs.
 
 **Default credentials** (created by fixtures):
 
