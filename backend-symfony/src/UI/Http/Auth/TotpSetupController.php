@@ -25,6 +25,7 @@ final class TotpSetupController
     public function __invoke(): JsonResponse
     {
         $token = $this->tokenStorage->getToken();
+
         if ($token === null) {
             return new JsonResponse(['message' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
