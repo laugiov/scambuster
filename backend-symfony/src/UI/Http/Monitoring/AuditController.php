@@ -9,6 +9,7 @@ use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Audit log query endpoint.
@@ -16,6 +17,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * Returns structured audit events, paginated and filterable.
  * Auth handled by Symfony firewall (access_control: ROLE_ADMIN for /monitoring).
  */
+#[IsGranted('audit:read')]
 final class AuditController
 {
     public function __construct(

@@ -1,6 +1,21 @@
-# Disable LLM pipeline rate limiters in test environment
+# Disable all rate limiters in test environment (except where explicitly tested)
 framework:
   rate_limiter:
+    login_ip:
+      policy: 'sliding_window'
+      limit: 100
+      interval: '1 minute'
+
+    api_global:
+      policy: 'token_bucket'
+      limit: 999999
+      rate: { interval: '1 minute', amount: 999999 }
+
+    emails_per_sender_per_day:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
     replies_per_conversation:
       policy: 'sliding_window'
       limit: 999999

@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/monitoring/analytics')]
-#[IsGranted('ROLE_USER')]
+#[IsGranted('monitoring:read')]
 #[OA\Tag(name: 'Analytics')]
 final class AnalyticsController
 {
