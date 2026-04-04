@@ -22,10 +22,10 @@ final class CampaignStixExportHandler
     }
 
     /**
-     * @return array<string, mixed>
-     *
      * @throws \InvalidArgumentException if campaignId format is invalid
      * @throws \RuntimeException         if campaign not found or export fails
+     *
+     * @return array<string, mixed>
      */
     public function export(string $campaignId): array
     {
