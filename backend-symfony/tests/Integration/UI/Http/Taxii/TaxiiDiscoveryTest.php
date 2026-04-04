@@ -18,14 +18,14 @@ final class TaxiiDiscoveryTest extends WebTestCase
 
     public function testRequiresAuthentication(): void
     {
-        $this->client->request('GET', '/taxii2/');
+        $this->client->request('GET', '/api/v1/taxii2/');
 
         $this->assertResponseStatusCodeSame(401);
     }
 
     public function testReturnsCorrectStructure(): void
     {
-        $this->client->request('GET', '/taxii2/', [], [], [
+        $this->client->request('GET', '/api/v1/taxii2/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 
@@ -36,12 +36,12 @@ final class TaxiiDiscoveryTest extends WebTestCase
         $this->assertSame('ScamBuster TAXII Server', $data['title']);
         $this->assertArrayHasKey('api_roots', $data);
         $this->assertIsArray($data['api_roots']);
-        $this->assertContains('/taxii2/api/', $data['api_roots']);
+        $this->assertContains('/api/v1/taxii2/api/', $data['api_roots']);
     }
 
     public function testContentTypeIsTaxii(): void
     {
-        $this->client->request('GET', '/taxii2/', [], [], [
+        $this->client->request('GET', '/api/v1/taxii2/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 

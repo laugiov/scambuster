@@ -19,7 +19,7 @@ final class TaxiiDiscoveryController
     }
 
     #[OA\Get(
-        path: '/taxii2/',
+        path: '/api/v1/taxii2/',
         summary: 'TAXII 2.1 Discovery',
         description: 'Returns server discovery information including available API roots.',
         tags: ['TAXII'],
@@ -29,7 +29,7 @@ final class TaxiiDiscoveryController
         ],
         security: [['Bearer' => []]]
     )]
-    #[Route('/taxii2/', name: 'taxii_discovery', methods: ['GET'])]
+    #[Route('/api/v1/taxii2/', name: 'taxii_discovery', methods: ['GET'])]
     public function __invoke(): JsonResponse
     {
         $response = new JsonResponse($this->taxiiService->getDiscovery());

@@ -18,7 +18,7 @@ final class TaxiiCollectionsTest extends WebTestCase
 
     public function testReturnsTwoCollections(): void
     {
-        $this->client->request('GET', '/taxii2/api/collections/', [], [], [
+        $this->client->request('GET', '/api/v1/taxii2/api/collections/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 
@@ -32,7 +32,7 @@ final class TaxiiCollectionsTest extends WebTestCase
 
     public function testCollectionsHaveCorrectPermissions(): void
     {
-        $this->client->request('GET', '/taxii2/api/collections/', [], [], [
+        $this->client->request('GET', '/api/v1/taxii2/api/collections/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
         ]);
 

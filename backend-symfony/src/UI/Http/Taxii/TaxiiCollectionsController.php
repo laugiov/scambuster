@@ -19,7 +19,7 @@ final class TaxiiCollectionsController
     }
 
     #[OA\Get(
-        path: '/taxii2/api/collections/',
+        path: '/api/v1/taxii2/api/collections/',
         summary: 'TAXII 2.1 Collections',
         description: 'Returns the list of available STIX collections.',
         tags: ['TAXII'],
@@ -29,7 +29,7 @@ final class TaxiiCollectionsController
         ],
         security: [['Bearer' => []]]
     )]
-    #[Route('/taxii2/api/collections/', name: 'taxii_collections', methods: ['GET'])]
+    #[Route('/api/v1/taxii2/api/collections/', name: 'taxii_collections', methods: ['GET'])]
     public function __invoke(): JsonResponse
     {
         $response = new JsonResponse($this->taxiiService->getCollections());

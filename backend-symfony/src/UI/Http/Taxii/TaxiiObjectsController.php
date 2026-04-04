@@ -21,7 +21,7 @@ final class TaxiiObjectsController
     }
 
     #[OA\Get(
-        path: '/taxii2/api/collections/{collectionId}/objects/',
+        path: '/api/v1/taxii2/api/collections/{collectionId}/objects/',
         summary: 'TAXII 2.1 Collection Objects',
         description: 'Returns STIX objects from a specific collection with optional filtering.',
         tags: ['TAXII'],
@@ -38,7 +38,7 @@ final class TaxiiObjectsController
         ],
         security: [['Bearer' => []]]
     )]
-    #[Route('/taxii2/api/collections/{collectionId}/objects/', name: 'taxii_objects', methods: ['GET'])]
+    #[Route('/api/v1/taxii2/api/collections/{collectionId}/objects/', name: 'taxii_objects', methods: ['GET'])]
     public function __invoke(string $collectionId, Request $request): JsonResponse
     {
         if (!$this->taxiiService->isValidCollection($collectionId)) {

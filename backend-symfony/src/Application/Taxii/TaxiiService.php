@@ -34,8 +34,8 @@ final class TaxiiService
             'title' => 'ScamBuster TAXII Server',
             'description' => 'TAXII 2.1 server for ScamBuster threat intelligence',
             'contact' => 'scambuster@localhost',
-            'default' => '/taxii2/api/',
-            'api_roots' => ['/taxii2/api/'],
+            'default' => '/api/v1/taxii2/api/',
+            'api_roots' => ['/api/v1/taxii2/api/'],
         ];
     }
 
