@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  BarChart, Bar, PieChart, Pie, Cell,
+  BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
-import { useImpactSummary } from '@/hooks/useImpact';
+import { useImpactSummary, useIocUniqueness } from '@/hooks/useImpact';
 import type { IocTypeEntry, TopCampaign } from '@/hooks/useImpact';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
@@ -62,6 +62,7 @@ export function Impact() {
   const [period, setPeriod] = useState<string>('all');
 
   const { data, isLoading, error, refetch } = useImpactSummary(period);
+  const { data: iocData } = useIocUniqueness(period);
 
   if (isLoading) return <Loading message={t('common.loading')} />;
   if (error) return <ErrorMessage message={t('common.error')} onRetry={() => void refetch()} />;
@@ -109,22 +110,58 @@ export function Impact() {
         <StatCard
           label={t('impact.wasted_time')}
           value={`${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`}
-          subtitle={t('impact.across_conversations', { count: wasted_time.total_conversations })}
+          subtitle={
+            <>
+              {t('impact.across_conversations', { count: wasted_time.total_conversations })}
+              {data.trends?.wasted_hours_delta_pct != null && (
+                <span className={`ml-2 ${data.trends.wasted_hours_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {data.trends.wasted_hours_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.wasted_hours_delta_pct).toFixed(1)}%
+                </span>
+              )}
+            </>
+          }
         />
         <StatCard
           label={t('impact.novel_iocs')}
           value={`${ioc_value.novel_pct}%`}
-          subtitle={`${ioc_value.novel_iocs} ${t('impact.exclusive')}`}
+          subtitle={
+            <>
+              {`${ioc_value.novel_iocs} ${t('impact.exclusive')}`}
+              {data.trends?.novel_pct_delta != null && (
+                <span className={`ml-2 ${data.trends.novel_pct_delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {data.trends.novel_pct_delta >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.novel_pct_delta).toFixed(1)}pp
+                </span>
+              )}
+            </>
+          }
         />
         <StatCard
           label={t('impact.cost_per_ioc')}
           value={`$${cost_efficiency.cost_per_ioc_usd.toFixed(4)}`}
-          subtitle={`Total: $${cost_efficiency.total_cost_usd.toFixed(2)}`}
+          subtitle={
+            <>
+              {`Total: $${cost_efficiency.total_cost_usd.toFixed(2)}`}
+              {data.trends?.cost_per_ioc_delta_pct != null && (
+                <span className={`ml-2 ${data.trends.cost_per_ioc_delta_pct <= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {data.trends.cost_per_ioc_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.cost_per_ioc_delta_pct).toFixed(1)}%
+                </span>
+              )}
+            </>
+          }
         />
         <StatCard
           label={t('impact.campaigns_exposed')}
           value={campaigns.total}
-          subtitle={`${campaigns.promoted} ${t('impact.promoted')}`}
+          subtitle={
+            <>
+              {`${campaigns.promoted} ${t('impact.promoted')}`}
+              {data.trends?.campaigns_delta != null && data.trends.campaigns_delta !== 0 && (
+                <span className={`ml-2 ${data.trends.campaigns_delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {data.trends.campaigns_delta >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.campaigns_delta)}
+                </span>
+              )}
+            </>
+          }
         />
       </div>
 
@@ -174,6 +211,22 @@ export function Impact() {
         </ChartCard>
       </div>
 
+      {/* IOC daily trend */}
+      {(iocData?.daily_trend?.length ?? 0) > 0 && (
+        <ChartCard title={t('impact.ioc_daily_trend', 'IOCs per Day (novel vs known)')}>
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={iocData!.daily_trend.map((d) => ({ date: d.date, novel: d.novel, known: d.total - d.novel }))}>
+              <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
+              <XAxis dataKey="date" tick={{ fill: AXIS_COLOR, fontSize: 10 }} />
+              <YAxis tick={{ fill: AXIS_COLOR, fontSize: 10 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="known" stackId="1" stroke="#6b7280" fill="#6b7280" fillOpacity={0.3} name="Known" />
+              <Area type="monotone" dataKey="novel" stackId="1" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} name="Novel" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </ChartCard>
+      )}
+
       {/* Campaign table */}
       {campaigns.top_campaigns.length > 0 && (
         <div className="bg-surface-low rounded-lg p-5">
@@ -191,9 +244,12 @@ export function Impact() {
                 </tr>
               </thead>
               <tbody>
-                {(campaigns.top_campaigns ?? []).map((c: TopCampaign) => (
+                {(campaigns.top_campaigns ?? []).map((c: TopCampaign, index: number) => (
                   <tr key={c.campaign_id} className="border-b border-outline-variant/50 hover:bg-surface-high transition-colors">
-                    <td className="py-2 px-3 text-on-surface font-mono text-xs">{c.campaign_id?.slice(0, 8) ?? '-'}</td>
+                    <td className="py-2 px-3 text-on-surface text-sm">
+                      Campaign #{index + 1} — {c.dominant_scam_type ?? 'Unknown'}
+                      <span className="block text-xs text-on-surface-dim font-mono">{c.campaign_id?.slice(0, 8)}</span>
+                    </td>
                     <td className="py-2 px-3 text-center text-on-surface">{c.severity}</td>
                     <td className="py-2 px-3 text-right text-on-surface">{c.conv_count}</td>
                     <td className="py-2 px-3 text-right text-on-surface">{c.ioc_count}</td>

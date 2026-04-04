@@ -47,6 +47,7 @@ final class ImpactHandler
             'ioc_value' => $this->getIocValue($threshold),
             'cost_efficiency' => $this->getCostEfficiency($threshold),
             'campaigns' => $this->getCampaigns(),
+            'trends' => $this->computeTrends($period),
         ];
     }
 
@@ -316,7 +317,14 @@ final class ImpactHandler
         $topRows = $this->connection->fetchAllAssociative(
             'SELECT c.campaign_id, c.status, c.severity, c.first_seen, c.tlp,'
             . ' COUNT(DISTINCT msg.conv_id) AS conv_count,'
-            . ' COUNT(DISTINCT oi.indicator_id) AS ioc_count'
+            . ' COUNT(DISTINCT oi.indicator_id) AS ioc_count,'
+            . ' (SELECT st2.code FROM message_campaign mc2'
+            . ' JOIN message m2 ON mc2.msg_id::text = m2.msg_id::text'
+            . ' JOIN conversation cv2 ON m2.conv_id::text = cv2.conv_id::text'
+            . ' JOIN lkp_scam_type st2 ON cv2.scam_type_id = st2.scam_type_id'
+            . ' WHERE mc2.campaign_id::text = c.campaign_id::text'
+            . ' GROUP BY st2.code ORDER BY COUNT(*) DESC LIMIT 1'
+            . ') AS dominant_scam_type'
             . ' FROM campaign c'
             . ' LEFT JOIN message_campaign mc ON c.campaign_id::text = mc.campaign_id::text'
             . ' LEFT JOIN message msg ON mc.msg_id::text = msg.msg_id::text'
@@ -335,6 +343,7 @@ final class ImpactHandler
             'tlp' => self::rowStr($r, 'tlp'),
             'conv_count' => self::rowInt($r, 'conv_count'),
             'ioc_count' => self::rowInt($r, 'ioc_count'),
+            'dominant_scam_type' => \is_string($r['dominant_scam_type'] ?? null) ? $r['dominant_scam_type'] : null,
         ], $topRows);
 
         return [
@@ -342,6 +351,102 @@ final class ImpactHandler
             'promoted' => self::rowInt($row, 'promoted'),
             'scam_type_count' => $scamTypeCount,
             'top_campaigns' => $topCampaigns,
+        ];
+    }
+
+    /**
+     * Compute trend deltas comparing the current period to the previous equivalent period.
+     *
+     * @return array{wasted_hours_delta_pct: float|null, novel_pct_delta: float|null, cost_per_ioc_delta_pct: float|null, campaigns_delta: int|null}|null
+     */
+    private function computeTrends(string $period): ?array
+    {
+        $daysMap = ['7d' => 7, '30d' => 30, '90d' => 90];
+
+        if (!isset($daysMap[$period])) {
+            return null;
+        }
+
+        $days = $daysMap[$period];
+        $doubleDays = $days * 2;
+        $prevStart = "NOW() - INTERVAL '{$doubleDays} days'";
+        $prevEnd = "NOW() - INTERVAL '{$days} days'";
+        $currStart = "NOW() - INTERVAL '{$days} days'";
+        $headerExclude = $this->headerExcludeClause();
+
+        // Current wasted hours
+        $currHours = $this->fetchFloat(
+            'SELECT COALESCE(SUM(engagement_duration_sec), 0) / 3600.0'
+            . ' FROM conversation'
+            . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
+            . " AND ts_last >= {$currStart}",
+        );
+
+        // Previous wasted hours
+        $prevHours = $this->fetchFloat(
+            'SELECT COALESCE(SUM(engagement_duration_sec), 0) / 3600.0'
+            . ' FROM conversation'
+            . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
+            . " AND ts_last >= {$prevStart} AND ts_last < {$prevEnd}",
+        );
+
+        // Current novel IOC percentage
+        $currTotalIocs = $this->fetchInt(
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$currStart}",
+        );
+        $currNovelIocs = $this->fetchInt(
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$currStart}"
+            . " AND (enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
+            . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
+            . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal'))",
+        );
+        $currNovelPct = $currTotalIocs > 0 ? round($currNovelIocs * 100.0 / $currTotalIocs, 1) : 0.0;
+
+        // Previous novel IOC percentage
+        $prevTotalIocs = $this->fetchInt(
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$prevStart} AND created_at < {$prevEnd}",
+        );
+        $prevNovelIocs = $this->fetchInt(
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$prevStart} AND created_at < {$prevEnd}"
+            . " AND (enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
+            . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
+            . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal'))",
+        );
+        $prevNovelPct = $prevTotalIocs > 0 ? round($prevNovelIocs * 100.0 / $prevTotalIocs, 1) : 0.0;
+
+        // Current cost
+        $currCost = $this->fetchFloat(
+            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= {$currStart}",
+        );
+
+        // Previous cost
+        $prevCost = $this->fetchFloat(
+            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= {$prevStart} AND created_at < {$prevEnd}",
+        );
+
+        // Cost per IOC
+        $currCostPerIoc = $currTotalIocs > 0 ? $currCost / $currTotalIocs : 0.0;
+        $prevCostPerIoc = $prevTotalIocs > 0 ? $prevCost / $prevTotalIocs : 0.0;
+
+        // Current campaigns
+        $currCampaigns = $this->fetchInt(
+            "SELECT COUNT(*) FROM campaign WHERE created_at >= {$currStart}",
+        );
+
+        // Previous campaigns
+        $prevCampaigns = $this->fetchInt(
+            "SELECT COUNT(*) FROM campaign WHERE created_at >= {$prevStart} AND created_at < {$prevEnd}",
+        );
+
+        // Compute deltas
+        $deltaHours = $prevHours > 0 ? round(($currHours - $prevHours) / $prevHours * 100, 1) : null;
+        $deltaCostPerIoc = $prevCostPerIoc > 0 ? round(($currCostPerIoc - $prevCostPerIoc) / $prevCostPerIoc * 100, 1) : null;
+
+        return [
+            'wasted_hours_delta_pct' => $deltaHours,
+            'novel_pct_delta' => round($currNovelPct - $prevNovelPct, 1),
+            'cost_per_ioc_delta_pct' => $deltaCostPerIoc,
+            'campaigns_delta' => $currCampaigns - $prevCampaigns,
         ];
     }
 
