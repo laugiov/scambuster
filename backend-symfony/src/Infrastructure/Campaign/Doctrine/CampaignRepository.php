@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Infrastructure\Campaign\Doctrine;
 
 use App\Domain\CampaignRadar\Campaign;
+use App\Domain\CampaignRadar\CampaignRepositoryInterface;
 use App\Domain\CampaignRadar\CampaignStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -13,7 +14,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * @extends ServiceEntityRepository<Campaign>
  */
-final class CampaignRepository extends ServiceEntityRepository
+final class CampaignRepository extends ServiceEntityRepository implements CampaignRepositoryInterface
 {
     public function __construct(ManagerRegistry $registry)
     {
@@ -41,6 +42,17 @@ final class CampaignRepository extends ServiceEntityRepository
     public function findById(Uuid $campaignId): ?Campaign
     {
         return $this->find($campaignId);
+    }
+
+    /** @return array<Campaign> */
+    public function findByStatus(string $status): array
+    {
+        return $this->createQueryBuilder('c')
+            ->where('c.status = :status')
+            ->setParameter('status', $status)
+            ->orderBy('c.firstSeen', 'DESC')
+            ->getQuery()
+            ->getResult();
     }
 
     /**

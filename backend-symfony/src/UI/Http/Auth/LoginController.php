@@ -87,8 +87,7 @@ final class LoginController
                 ipAddress: $request->getClientIp()
             );
 
-            $retryAfter = $limit->getRetryAfter();
-            $seconds = $retryAfter !== null ? max(1, $retryAfter->getTimestamp() - time()) : 60;
+            $seconds = max(1, $limit->getRetryAfter()->getTimestamp() - time());
 
             return new JsonResponse(
                 ['retry_after' => $seconds],

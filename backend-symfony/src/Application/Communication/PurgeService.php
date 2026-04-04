@@ -15,11 +15,14 @@ class PurgeService
     }
 
     /**
-     * Soft delete outbound conversations older than 2 years.
+     * Soft delete closed conversations older than 6 months.
+     *
+     * Aligned with GDPR retention policy (constitution + DPIA):
+     * content retention = 6 months max.
      */
     public function softDeleteOldOutboundConversations(): int
     {
-        $dateLimit = (new \DateTimeImmutable('-2 years'))->setTime(0, 0);
+        $dateLimit = (new \DateTimeImmutable('-6 months'))->setTime(0, 0);
         $qb = $this->em->createQueryBuilder();
         $qb->select('c')
             ->from(Conversation::class, 'c')
@@ -45,11 +48,14 @@ class PurgeService
     }
 
     /**
-     * Hard delete inbound conversations older than 5 years.
+     * Hard delete soft-deleted conversations older than 12 months.
+     *
+     * Aligned with GDPR retention policy (constitution + DPIA):
+     * audit metadata retention = 12 months max.
      */
     public function hardDeleteOldInboundConversations(): int
     {
-        $dateLimit = (new \DateTimeImmutable('-5 years'))->setTime(0, 0);
+        $dateLimit = (new \DateTimeImmutable('-12 months'))->setTime(0, 0);
         $qb = $this->em->createQueryBuilder();
         $qb->select('c')
             ->from(Conversation::class, 'c')
