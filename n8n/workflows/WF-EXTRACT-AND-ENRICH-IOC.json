@@ -71,7 +71,7 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 30000
+          "timeout": 120000
         }
       },
       "id": "extract_iocs",
