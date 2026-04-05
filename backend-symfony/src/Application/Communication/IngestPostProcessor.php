@@ -25,6 +25,7 @@ class IngestPostProcessor
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
         private readonly IocHandler $iocHandler,
+        private readonly ?IocContextService $iocContextService = null,
         private readonly ?PromptInjectionDetector $promptInjectionDetector = null,
         private readonly ?RateLimiterFactory $emailsPerSenderPerDayLimiter = null,
         private readonly ?SenderFloodDetector $senderFloodDetector = null,
@@ -45,6 +46,7 @@ class IngestPostProcessor
         $msgId = $message->getMsgId();
 
         $this->extractHeaderIocs($message, $msgId);
+        $this->computeIocContext($msgId);
         $this->autoClassifyScamType($message, $conversation, $detectedLang);
         $this->updateRiskScore($conversation, $message);
         $this->analyzePromptInjection($message, $conversation, $msgId);
@@ -63,6 +65,49 @@ class IngestPostProcessor
             ]);
         } catch (\Exception $e) {
             $this->logger->error('[IngestPostProcessor] Failed to extract header IOCs', [
+                'msg_id' => $msgId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Compute structural context for all IOCs of this message.
+     * Non-blocking: failure does not affect ingestion. Batch command will retry.
+     */
+    private function computeIocContext(string $msgId): void
+    {
+        if ($this->iocContextService === null) {
+            return;
+        }
+
+        try {
+            // Collect all IOCs from this message
+            $conn = $this->em->getConnection();
+            $rows = $conn->fetchAllAssociative(
+                'SELECT oi.obs_id, oi.indicator_id, i.type AS ioc_type'
+                . ' FROM observed_ioc oi'
+                . ' JOIN indicator i ON oi.indicator_id = i.indicator_id'
+                . ' WHERE oi.msg_id = :msgId',
+                ['msgId' => $msgId]
+            );
+
+            if (empty($rows)) {
+                return;
+            }
+
+            $obsIocData = [];
+            foreach ($rows as $row) {
+                $obsIocData[] = [
+                    'obs_id' => \is_string($row['obs_id'] ?? null) ? $row['obs_id'] : '',
+                    'indicator_id' => \is_string($row['indicator_id'] ?? null) ? $row['indicator_id'] : '',
+                    'ioc_type' => \is_string($row['ioc_type'] ?? null) ? $row['ioc_type'] : '',
+                ];
+            }
+
+            $this->iocContextService->computeAndPersistForMessage($msgId, $obsIocData);
+        } catch (\Throwable $e) {
+            $this->logger->warning('[IngestPostProcessor] IOC context computation failed', [
                 'msg_id' => $msgId,
                 'error' => $e->getMessage(),
             ]);
