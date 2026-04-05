@@ -24,6 +24,7 @@ class IocUpsertService
         private readonly IocExportMapper $exportMapper,
         private readonly HeaderIocExtractor $headerExtractor,
         private readonly ?AuditLogger $auditLogger = null,
+        private readonly ?IocContextService $contextService = null,
     ) {
     }
 
@@ -190,6 +191,12 @@ class IocUpsertService
                 'value_norm' => $valueNorm,
                 'indicator_id' => $indicatorId,
             ],
+        );
+
+        // Compute structural context for the newly upserted IOC
+        $this->contextService?->computeAndPersistForMessage(
+            $message->getMsgId(),
+            [['obs_id' => $obsId, 'indicator_id' => $indicatorId, 'ioc_type' => $type]],
         );
 
         return $observedIoc;
