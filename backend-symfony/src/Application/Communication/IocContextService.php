@@ -53,7 +53,7 @@ final class IocContextService
     /**
      * Compute and persist structural context for all IOCs from a given message.
      *
-     * @param string                          $msgId      The message UUID containing the IOCs
+     * @param string                                                              $msgId      The message UUID containing the IOCs
      * @param list<array{obs_id: string, indicator_id: string, ioc_type: string}> $obsIocData
      */
     public function computeAndPersistForMessage(string $msgId, array $obsIocData): void
@@ -218,6 +218,7 @@ final class IocContextService
         );
 
         $types = [];
+
         foreach ($rows as $row) {
             if (\is_string($row['type'] ?? null)) {
                 $types[] = $row['type'];

@@ -44,6 +44,10 @@ final class MockLLMClient implements LLMClientInterface
             ], JSON_THROW_ON_ERROR);
         }
 
+        if (str_contains($content, 'ioc_roles') || str_contains($content, 'stimulus_type') || str_contains($content, 'ioc_semantic_role')) {
+            return $this->contextualEnrichment();
+        }
+
         if (str_contains($content, 'classify') || str_contains($content, 'scam_type')) {
             return json_encode([
                 'scam_type' => 'PHISHING',
@@ -77,6 +81,25 @@ infra:
   dkim_spf_pattern: "absent"
   mx_provider_pattern: "low-cost"
 YAML;
+    }
+
+    private function contextualEnrichment(): string
+    {
+        return json_encode([
+            'stimulus_type' => 'DIRECT_REQUEST',
+            'scammer_urgency_score' => 0.75,
+            'language_switch_detected' => false,
+            'hesitation_detected' => false,
+            'context_excerpt' => 'Scammer provided IOC details after direct request from honeypot',
+            'enrichment_confidence' => 0.85,
+            'ioc_roles' => [
+                ['type' => 'url', 'role' => 'PAYMENT_REDIRECT_URL'],
+                ['type' => 'iban', 'role' => 'PAYMENT_DESTINATION'],
+                ['type' => 'phone', 'role' => 'CONTACT_CHANNEL'],
+                ['type' => 'email', 'role' => 'CONTACT_CHANNEL'],
+                ['type' => 'domain', 'role' => 'INFRASTRUCTURE_DOMAIN'],
+            ],
+        ], JSON_THROW_ON_ERROR);
     }
 
     private function compiledRule(): string

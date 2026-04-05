@@ -65,7 +65,7 @@ final class ImpactHandler
         if (null !== $iocType && '' !== $iocType) {
             /** @var string $quoted */
             $quoted = $this->connection->quote($iocType);
-            $typeFilter = " AND type = " . $quoted;
+            $typeFilter = ' AND type = ' . $quoted;
         }
 
         $dateFilter = null !== $threshold ? " AND created_at >= {$threshold}" : '';
@@ -92,7 +92,7 @@ final class ImpactHandler
 
         // By type
         $byTypeRows = $this->connection->fetchAllAssociative(
-            "SELECT type, COUNT(*) as total,"
+            'SELECT type, COUNT(*) as total,'
             . " COUNT(*) FILTER (WHERE enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal')) as novel"
@@ -114,7 +114,7 @@ final class ImpactHandler
 
         // Daily trend (last 30 days)
         $trendRows = $this->connection->fetchAllAssociative(
-            "SELECT DATE(created_at) as date, COUNT(*) as total,"
+            'SELECT DATE(created_at) as date, COUNT(*) as total,'
             . " COUNT(*) FILTER (WHERE enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal')) as novel"
@@ -149,7 +149,7 @@ final class ImpactHandler
             . ' COUNT(*) AS total_conversations,'
             . ' COALESCE(AVG(NULLIF(engagement_duration_sec, 0)), 0) / 3600.0 AS avg_hours,'
             . ' COALESCE(MAX(engagement_duration_sec), 0) / 3600.0 AS max_hours'
-            . " FROM conversation"
+            . ' FROM conversation'
             . " WHERE status IN ('closed', 'open', 'abandoned')"
             . ' AND deleted_at IS NULL'
             . $dateFilter,
@@ -261,7 +261,7 @@ final class ImpactHandler
 
         // Previous month cost
         $previousMonthCost = $this->fetchFloat(
-            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage"
+            'SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage'
             . " WHERE created_at >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')"
             . " AND created_at < DATE_TRUNC('month', NOW())",
         );
@@ -299,7 +299,7 @@ final class ImpactHandler
     private function getCampaigns(): array
     {
         $row = $this->connection->fetchAssociative(
-            "SELECT COUNT(*) AS total,"
+            'SELECT COUNT(*) AS total,'
             . " COUNT(CASE WHEN status = 'promoted' THEN 1 END) AS promoted"
             . ' FROM campaign',
         );
