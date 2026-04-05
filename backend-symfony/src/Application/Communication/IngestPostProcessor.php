@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\Audit\AuditLogger;
+use App\Application\LLM\ContextualEnricher;
+use App\Application\LLM\ContextualEnrichmentRequest;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Message;
@@ -31,6 +33,7 @@ class IngestPostProcessor
         private readonly ?SenderFloodDetector $senderFloodDetector = null,
         private readonly ?AuditLogger $auditLogger = null,
         private readonly ?ScamClassificationHandler $scamClassifier = null,
+        private readonly ?ContextualEnricher $contextualEnricher = null,
     ) {
     }
 
@@ -47,6 +50,7 @@ class IngestPostProcessor
 
         $this->extractHeaderIocs($message, $msgId);
         $this->computeIocContext($msgId);
+        $this->enrichIocContext($message, $msgId);
         $this->autoClassifyScamType($message, $conversation, $detectedLang);
         $this->updateRiskScore($conversation, $message);
         $this->analyzePromptInjection($message, $conversation, $msgId);
@@ -97,6 +101,7 @@ class IngestPostProcessor
             }
 
             $obsIocData = [];
+
             foreach ($rows as $row) {
                 $obsIocData[] = [
                     'obs_id' => \is_string($row['obs_id'] ?? null) ? $row['obs_id'] : '',
@@ -108,6 +113,151 @@ class IngestPostProcessor
             $this->iocContextService->computeAndPersistForMessage($msgId, $obsIocData);
         } catch (\Throwable $e) {
             $this->logger->warning('[IngestPostProcessor] IOC context computation failed', [
+                'msg_id' => $msgId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * LLM-based contextual enrichment for IOCs (fail-safe).
+     *
+     * Loads ioc_context rows with status='structural', builds a ContextualEnrichmentRequest,
+     * calls the ContextualEnricher, and updates rows with semantic fields.
+     */
+    private function enrichIocContext(Message $message, string $msgId): void
+    {
+        if ($this->contextualEnricher === null) {
+            return;
+        }
+
+        try {
+            $conn = $this->em->getConnection();
+
+            // Load ioc_context rows with status='structural' for this message
+            $contextRows = $conn->fetchAllAssociative(
+                'SELECT ic.id, ic.obs_id, ic.stimulus_msg_id, ic.revelation_turn, ic.total_turns,'
+                . ' ic.scam_type_code, ic.persona_code,'
+                . ' i.type AS ioc_type'
+                . ' FROM ioc_context ic'
+                . ' JOIN observed_ioc oi ON ic.obs_id = oi.obs_id'
+                . ' JOIN indicator i ON ic.indicator_id = i.indicator_id'
+                . ' WHERE oi.msg_id = :msgId'
+                . ' AND ic.enrichment_status = \'structural\'',
+                ['msgId' => $msgId]
+            );
+
+            if (empty($contextRows)) {
+                return;
+            }
+
+            // Collect IOC types
+            $iocTypes = array_unique(array_map(
+                fn (array $row) => \is_string($row['ioc_type'] ?? null) ? $row['ioc_type'] : '',
+                $contextRows
+            ));
+            $iocTypes = array_values(array_filter($iocTypes, fn (string $t) => $t !== ''));
+
+            // Use first row for conversation-level data
+            $firstRow = $contextRows[0];
+            $scamType = \is_string($firstRow['scam_type_code'] ?? null) ? $firstRow['scam_type_code'] : 'UNKNOWN';
+            $personaCode = \is_string($firstRow['persona_code'] ?? null) ? $firstRow['persona_code'] : 'generic_user';
+            $revelationTurn = \is_numeric($firstRow['revelation_turn'] ?? null) ? (int) $firstRow['revelation_turn'] : 1;
+            $totalTurns = \is_numeric($firstRow['total_turns'] ?? null) ? (int) $firstRow['total_turns'] : 1;
+
+            // Load message texts
+            $revelationText = $message->getBodyText();
+
+            // Load stimulus message text
+            $stimulusMsgId = \is_string($firstRow['stimulus_msg_id'] ?? null) ? $firstRow['stimulus_msg_id'] : null;
+            $stimulusText = null;
+
+            if ($stimulusMsgId !== null) {
+                $stimulusText = $conn->fetchOne(
+                    'SELECT body_text FROM message WHERE msg_id = :msgId AND deleted_at IS NULL',
+                    ['msgId' => $stimulusMsgId]
+                );
+                $stimulusText = \is_string($stimulusText) ? $stimulusText : null;
+            }
+
+            // Load previous inbound text (before our stimulus)
+            $previousInboundText = null;
+            $convId = $message->getConversation()->getConvId();
+
+            if ($stimulusMsgId !== null) {
+                $prevInbound = $conn->fetchOne(
+                    'SELECT m.body_text FROM message m'
+                    . ' WHERE m.conv_id = :convId'
+                    . ' AND m.direction = (SELECT dir_id FROM lkp_direction WHERE code = \'in\')'
+                    . ' AND m.ts_msg < (SELECT ts_msg FROM message WHERE msg_id = :stimId AND deleted_at IS NULL)'
+                    . ' AND m.deleted_at IS NULL'
+                    . ' ORDER BY m.ts_msg DESC LIMIT 1',
+                    ['convId' => $convId, 'stimId' => $stimulusMsgId]
+                );
+                $previousInboundText = \is_string($prevInbound) ? $prevInbound : null;
+            }
+
+            $request = new ContextualEnrichmentRequest(
+                iocTypes: $iocTypes,
+                scamType: $scamType,
+                personaCode: $personaCode,
+                revelationTurn: $revelationTurn,
+                totalTurns: $totalTurns,
+                revelationMessageText: $revelationText,
+                stimulusMessageText: $stimulusText,
+                previousInboundText: $previousInboundText,
+            );
+
+            $result = $this->contextualEnricher->enrich($request);
+
+            if ($result === null) {
+                $this->logger->debug('[IngestPostProcessor] LLM enrichment returned null, keeping structural', [
+                    'msg_id' => $msgId,
+                ]);
+
+                return;
+            }
+
+            // Update all ioc_context rows for this message
+            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+            foreach ($contextRows as $row) {
+                $iocType = \is_string($row['ioc_type'] ?? null) ? $row['ioc_type'] : '';
+                $semanticRole = $result->iocRoles[$iocType] ?? 'UNKNOWN';
+
+                $conn->executeStatement(
+                    'UPDATE ioc_context SET'
+                    . ' semantic_role = :semanticRole,'
+                    . ' stimulus_type = :stimulusType,'
+                    . ' urgency_score = :urgencyScore,'
+                    . ' language_switch = :languageSwitch,'
+                    . ' hesitation_detected = :hesitationDetected,'
+                    . ' context_excerpt = :contextExcerpt,'
+                    . ' enrichment_confidence = :enrichmentConfidence,'
+                    . ' enrichment_status = \'enriched\','
+                    . ' computed_at = :computedAt'
+                    . ' WHERE id = :id',
+                    [
+                        'semanticRole' => $semanticRole,
+                        'stimulusType' => $result->stimulusType,
+                        'urgencyScore' => $result->urgencyScore,
+                        'languageSwitch' => $result->languageSwitch ? 'true' : 'false',
+                        'hesitationDetected' => $result->hesitationDetected ? 'true' : 'false',
+                        'contextExcerpt' => $result->contextExcerpt,
+                        'enrichmentConfidence' => $result->enrichmentConfidence,
+                        'computedAt' => $now,
+                        'id' => $row['id'],
+                    ]
+                );
+            }
+
+            $this->logger->info('[IngestPostProcessor] IOC context enriched via LLM', [
+                'msg_id' => $msgId,
+                'ioc_count' => \count($contextRows),
+                'stimulus_type' => $result->stimulusType,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger->warning('[IngestPostProcessor] LLM IOC context enrichment failed', [
                 'msg_id' => $msgId,
                 'error' => $e->getMessage(),
             ]);
