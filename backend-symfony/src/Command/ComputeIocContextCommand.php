@@ -78,7 +78,16 @@ final class ComputeIocContextCommand extends Command
         $messages = $this->connection->fetchAllAssociative($sql);
 
         if (empty($messages)) {
-            $io->success('No IOCs to process.');
+            $io->success('No IOCs to process for structural context.');
+
+            // Continue to LLM enrichment if requested
+            $withLlm = (bool) $input->getOption('with-llm');
+
+            if ($withLlm) {
+                $llmErrors = $this->runLlmEnrichment($input, $io, $limit, $dryRun);
+
+                return $llmErrors > 0 ? Command::FAILURE : Command::SUCCESS;
+            }
 
             return Command::SUCCESS;
         }
@@ -332,7 +341,7 @@ final class ComputeIocContextCommand extends Command
                         'urgencyScore' => $result->urgencyScore,
                         'languageSwitch' => $result->languageSwitch ? 'true' : 'false',
                         'hesitationDetected' => $result->hesitationDetected ? 'true' : 'false',
-                        'contextExcerpt' => $result->contextExcerpt,
+                        'contextExcerpt' => mb_substr($result->contextExcerpt, 0, 295),
                         'enrichmentConfidence' => $result->enrichmentConfidence,
                         'computedAt' => $now,
                         'id' => $row['id'],

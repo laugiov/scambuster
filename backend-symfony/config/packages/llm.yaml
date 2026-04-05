@@ -151,6 +151,17 @@ services:
             $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
             $logger: '@monolog.logger.llm'
 
+    # Application - ContextualEnricher (LLM semantic enrichment for IOC context)
+    App\Application\LLM\ContextualEnricher:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $anonymizer: '@App\Application\Communication\MessageAnonymizer'
+            $dispatcher: '@event_dispatcher'
+            $logger: '@monolog.logger.llm'
+
+    App\Application\LLM\ContextualEnrichmentRequest: ~
+    App\Application\LLM\ContextualEnrichmentResult: ~
+
     # Application - Prompt Injection Detection (forensic analysis of inbound messages)
     App\Application\Communication\PromptInjectionPatternMatcher:
         arguments:

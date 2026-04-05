@@ -179,15 +179,51 @@ final class ContextualEnricher
     private function fallbackPromptTemplate(): string
     {
         return <<<'PROMPT'
-Analyze this 3-message window from a scambaiting honeypot conversation.
+You are a cybersecurity analyst specializing in scam email analysis. Analyze this 3-message window from a scambaiting honeypot conversation and determine the semantic role of IOCs revealed by the scammer.
 
-Context: Scam type={{SCAM_TYPE}}, Persona={{PERSONA_CODE}}, Turn={{REVELATION_TURN}}/{{TOTAL_TURNS}}, IOC types={{IOC_TYPES}}
+## Context
+- Scam type: {{SCAM_TYPE}}
+- Honeypot persona: {{PERSONA_CODE}}
+- IOC revelation turn: {{REVELATION_TURN}} of {{TOTAL_TURNS}}
+- IOC types found in this message: {{IOC_TYPES}}
 
-Previous inbound: {{PREVIOUS_INBOUND}}
-Our stimulus: {{STIMULUS_MESSAGE}}
-Revelation message: {{REVELATION_MESSAGE}}
+## Message Window
 
-Return JSON with: stimulus_type, scammer_urgency_score, language_switch_detected, hesitation_detected, context_excerpt, enrichment_confidence, ioc_roles (array of {type, role}).
+### Previous inbound message (scammer, before our reply):
+{{PREVIOUS_INBOUND}}
+
+### Our outbound reply (honeypot stimulus):
+{{STIMULUS_MESSAGE}}
+
+### Current inbound message (scammer, contains the IOCs):
+{{REVELATION_MESSAGE}}
+
+## Task
+Analyze the 3-message window and determine:
+
+1. **stimulus_type**: What triggered the scammer to reveal IOCs? One of: URGENCY_PRESSURE, TRUST_BUILDING, DIRECT_REQUEST, DOCUMENT_REQUEST, PAYMENT_INITIATION, PASSIVE, UNKNOWN
+2. **scammer_urgency_score**: How urgent is the scammer's tone? Float [0.0, 1.0] where 1.0 = extreme urgency
+3. **language_switch_detected**: Did the scammer switch language mid-conversation? Boolean
+4. **hesitation_detected**: Does the scammer show hesitation or uncertainty? Boolean
+5. **context_excerpt**: One-sentence narrative summary of why these IOCs appeared (max 150 chars, NO PII)
+6. **enrichment_confidence**: Your confidence in this analysis [0.0, 1.0]
+7. **ioc_roles**: For each IOC type, assign a semantic role from: PAYMENT_DESTINATION, PAYMENT_REDIRECT_URL, PHISHING_CREDENTIAL_URL, MALWARE_DOWNLOAD_URL, CONTACT_CHANNEL, IDENTITY_DOCUMENT, VERIFICATION_CODE_URL, INFRASTRUCTURE_DOMAIN, MONEY_MULE_ACCOUNT, UNKNOWN
+
+## Response Format (strict JSON, no markdown)
+{
+  "stimulus_type": "DIRECT_REQUEST",
+  "scammer_urgency_score": 0.75,
+  "language_switch_detected": false,
+  "hesitation_detected": false,
+  "context_excerpt": "Scammer provided payment details after honeypot expressed willingness to pay",
+  "enrichment_confidence": 0.85,
+  "ioc_roles": [
+    {"type": "url", "role": "PAYMENT_REDIRECT_URL"},
+    {"type": "iban", "role": "PAYMENT_DESTINATION"}
+  ]
+}
+
+IMPORTANT: context_excerpt must NEVER contain email addresses, phone numbers, IBANs, or wallet addresses. Use generic descriptions only.
 PROMPT;
     }
 }

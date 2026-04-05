@@ -84,7 +84,7 @@ final class ContextualEnrichmentResult
 
         // Context excerpt
         $contextExcerpt = \is_string($data['context_excerpt'] ?? null)
-            ? $data['context_excerpt']
+            ? mb_substr($data['context_excerpt'], 0, 295)
             : '';
 
         // Enrichment confidence clamped to [0.0, 1.0]
