@@ -420,15 +420,20 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
         </div>
 
         {/* Turn progress */}
-        {s.revelation_turn != null && s.total_turns != null && (
+        {s.revelation_turn != null && (
           <div>
             <div className="flex items-center justify-between text-xs text-on-surface-dim mb-1">
-              <span>{t('iocContext.turn')} {s.revelation_turn} / {s.total_turns}</span>
-              <span>{turnPct}%</span>
+              <span>
+                {t('iocContext.turn')} {s.revelation_turn}
+                {s.total_turns != null && s.total_turns > 0 && ` / ${s.total_turns}`}
+              </span>
+              {s.total_turns != null && s.total_turns > 0 && <span>{turnPct}%</span>}
             </div>
-            <div className="w-full h-1.5 bg-surface-highest rounded-full overflow-hidden">
-              <div className="h-full rounded-full bg-accent" style={{ width: `${turnPct}%` }} />
-            </div>
+            {s.total_turns != null && s.total_turns > 0 && (
+              <div className="w-full h-1.5 bg-surface-highest rounded-full overflow-hidden">
+                <div className="h-full rounded-full bg-accent" style={{ width: `${turnPct}%` }} />
+              </div>
+            )}
           </div>
         )}
 
