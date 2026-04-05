@@ -34,6 +34,7 @@ export const ENDPOINTS = {
     list: '/iocs',
     detail: (indicatorId: string) => `/iocs/${indicatorId}/detail`,
     coOccurrence: '/iocs/co-occurrence',
+    context: (indicatorId: string) => `/iocs/${indicatorId}/context`,
     exportStix: '/iocs/export/stix',
   },
   scambaiting: {

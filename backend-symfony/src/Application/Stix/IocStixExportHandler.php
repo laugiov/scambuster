@@ -40,12 +40,28 @@ final class IocStixExportHandler
                 i.tlp,
                 oi.confidence_score,
                 oi.context_observation,
-                st.code AS scam_type_code
+                st.code AS scam_type_code,
+                ic.enrichment_status AS ctx_enrichment_status,
+                ic.scam_type_code AS ctx_scam_type_code,
+                ic.scam_type_attck AS ctx_scam_type_attck,
+                ic.persona_code AS ctx_persona_code,
+                ic.extraction_method AS ctx_extraction_method,
+                ic.revelation_turn AS ctx_revelation_turn,
+                ic.revelation_turn_ratio AS ctx_revelation_turn_ratio,
+                ic.total_turns AS ctx_total_turns,
+                ic.engagement_hours AS ctx_engagement_hours,
+                ic.co_revealed_types AS ctx_co_revealed_types,
+                ic.semantic_role AS ctx_semantic_role,
+                ic.stimulus_type AS ctx_stimulus_type,
+                ic.urgency_score AS ctx_urgency_score,
+                ic.context_excerpt AS ctx_context_excerpt,
+                ic.enrichment_confidence AS ctx_enrichment_confidence
             FROM indicator i
             LEFT JOIN observed_ioc oi ON i.indicator_id = oi.indicator_id
             LEFT JOIN message m ON oi.msg_id = m.msg_id
             LEFT JOIN conversation c ON m.conv_id = c.conv_id
             LEFT JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+            LEFT JOIN ioc_context ic ON oi.obs_id = ic.obs_id
             WHERE i.indicator_id IN ({$placeholders})
             ORDER BY i.first_seen DESC",
             array_values($indicatorIds)
@@ -83,6 +99,7 @@ final class IocStixExportHandler
                 'extraction_method' => is_string($context['extraction_method'] ?? null) ? $context['extraction_method'] : (is_string($context['source'] ?? null) ? $context['source'] : 'unknown'),
                 'score' => is_array($scoreData) ? $scoreData : [],
                 'scam_type' => is_string($row['scam_type_code']) ? $row['scam_type_code'] : null,
+                'context' => $this->extractContextRow($row),
             ];
         }
 
@@ -167,5 +184,39 @@ final class IocStixExportHandler
         }
 
         return $relationships;
+    }
+
+    /**
+     * Extract ioc_context columns from a joined row (prefixed with ctx_).
+     *
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, mixed>|null
+     */
+    private function extractContextRow(array $row): ?array
+    {
+        $status = is_string($row['ctx_enrichment_status'] ?? null) ? $row['ctx_enrichment_status'] : null;
+
+        if ($status === null) {
+            return null;
+        }
+
+        return [
+            'enrichment_status' => $status,
+            'scam_type_code' => $row['ctx_scam_type_code'] ?? null,
+            'scam_type_attck' => $row['ctx_scam_type_attck'] ?? null,
+            'persona_code' => $row['ctx_persona_code'] ?? null,
+            'extraction_method' => $row['ctx_extraction_method'] ?? null,
+            'revelation_turn' => $row['ctx_revelation_turn'] ?? null,
+            'revelation_turn_ratio' => $row['ctx_revelation_turn_ratio'] ?? null,
+            'total_turns' => $row['ctx_total_turns'] ?? null,
+            'engagement_hours' => $row['ctx_engagement_hours'] ?? null,
+            'co_revealed_types' => $row['ctx_co_revealed_types'] ?? null,
+            'semantic_role' => $row['ctx_semantic_role'] ?? null,
+            'stimulus_type' => $row['ctx_stimulus_type'] ?? null,
+            'urgency_score' => $row['ctx_urgency_score'] ?? null,
+            'context_excerpt' => $row['ctx_context_excerpt'] ?? null,
+            'enrichment_confidence' => $row['ctx_enrichment_confidence'] ?? null,
+        ];
     }
 }

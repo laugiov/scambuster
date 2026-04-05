@@ -72,6 +72,7 @@ export function IocExplorer() {
   const [minConfidence, setMinConfidence] = useState<string>('All');
   const [dateRange, setDateRange] = useState<string>('All');
   const [hideHeaders, setHideHeaders] = useState(true);
+  const [hasContextOnly, setHasContextOnly] = useState(false);
 
   const filtered = useMemo(() => {
     if (!iocs) return [];
@@ -107,9 +108,11 @@ export function IocExplorer() {
         if (ioc.ts_observed < dateThresholds[dateRange]) return false;
       }
 
+      if (hasContextOnly && !ioc.has_context) return false;
+
       return true;
     });
-  }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders]);
+  }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders, hasContextOnly]);
 
   if (isLoading) return <Loading message={t('iocExplorer.loading')} />;
   if (error) return <ErrorMessage message={t('iocExplorer.failedLoad')} onRetry={() => void refetch()} />;
@@ -153,6 +156,8 @@ export function IocExplorer() {
         onDateRangeChange={(v) => { setDateRange(v); setPage(1); }}
         hideHeaders={hideHeaders}
         onHideHeadersChange={(v) => { setHideHeaders(v); setPage(1); }}
+        hasContextOnly={hasContextOnly}
+        onHasContextOnlyChange={(v) => { setHasContextOnly(v); setPage(1); }}
       />
 
       <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
@@ -201,11 +206,13 @@ function AdvancedFilters({
   minConfidence, onMinConfidenceChange,
   dateRange, onDateRangeChange,
   hideHeaders, onHideHeadersChange,
+  hasContextOnly, onHasContextOnlyChange,
 }: {
   severity: string; onSeverityChange: (v: string) => void;
   minConfidence: string; onMinConfidenceChange: (v: string) => void;
   dateRange: string; onDateRangeChange: (v: string) => void;
   hideHeaders: boolean; onHideHeadersChange: (v: boolean) => void;
+  hasContextOnly: boolean; onHasContextOnlyChange: (v: boolean) => void;
 }) {
   const { t } = useTranslation();
 
@@ -251,16 +258,27 @@ function AdvancedFilters({
         </div>
       </div>
 
-      {/* Hide header IOCs */}
-      <label className="flex items-center gap-2 cursor-pointer ml-auto">
-        <input
-          type="checkbox"
-          checked={hideHeaders}
-          onChange={(e) => onHideHeadersChange(e.target.checked)}
-          className="rounded accent-accent"
-        />
-        <span className="text-xs text-on-surface-dim">{t('iocExplorer.hideHeaders')}</span>
-      </label>
+      {/* Checkbox filters */}
+      <div className="flex items-center gap-4 ml-auto">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hasContextOnly}
+            onChange={(e) => onHasContextOnlyChange(e.target.checked)}
+            className="rounded accent-accent"
+          />
+          <span className="text-xs text-on-surface-dim">&#10024; {t('iocContext.hasContext')}</span>
+        </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={hideHeaders}
+            onChange={(e) => onHideHeadersChange(e.target.checked)}
+            className="rounded accent-accent"
+          />
+          <span className="text-xs text-on-surface-dim">{t('iocExplorer.hideHeaders')}</span>
+        </label>
+      </div>
     </div>
   );
 }
@@ -301,6 +319,9 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                 </td>
                 <td className="px-5 py-3">
                   <span className="text-xs uppercase text-on-surface-variant">{ioc.type}</span>
+                  {ioc.has_context && (
+                    <span className="ml-1 text-accent" title="Has contextual enrichment">&#10024;</span>
+                  )}
                 </td>
                 <td className="px-5 py-3 font-mono text-on-surface truncate max-w-[200px]">
                   {ioc.value}

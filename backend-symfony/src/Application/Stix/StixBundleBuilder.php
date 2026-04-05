@@ -300,17 +300,33 @@ final class StixBundleBuilder
             $indicator['valid_until'] = $validUntil;
         }
 
-        // OpenCTI extensions
+        // Extensions
+        $extensions = [];
+
+        // OpenCTI extension
         $observableType = self::OPENCTI_OBSERVABLE_TYPE[$type] ?? null;
 
         if ($observableType !== null) {
-            $indicator['extensions'] = [
-                self::OPENCTI_EXTENSION_ID => [
-                    'extension_type' => 'property-extension',
-                    'x_opencti_score' => $score,
-                    'x_opencti_main_observable_type' => $observableType,
-                ],
+            $extensions[self::OPENCTI_EXTENSION_ID] = [
+                'extension_type' => 'property-extension',
+                'x_opencti_score' => $score,
+                'x_opencti_main_observable_type' => $observableType,
             ];
+        }
+
+        // ScamBuster context extension (from ioc_context)
+        $contextRow = \is_array($ioc['context'] ?? null) ? $ioc['context'] : null;
+
+        if ($contextRow !== null) {
+            $contextExt = IocContextStixExtensionBuilder::build($contextRow);
+
+            if ($contextExt !== null) {
+                $extensions['x_scambuster_context'] = $contextExt;
+            }
+        }
+
+        if (!empty($extensions)) {
+            $indicator['extensions'] = $extensions;
         }
 
         return $indicator;
