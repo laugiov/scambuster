@@ -207,7 +207,7 @@ class IocUpsertService
         // LLM semantic enrichment (fail-safe: never blocks upsert)
         if ($this->contextualEnricher !== null && !IocContextService::isHeaderIocType($type)) {
             try {
-                $this->enrichWithLlm($message, $obsId, $indicatorId, $type);
+                $this->enrichWithLlm($message, $obsId, $type);
             } catch (\Throwable $e) {
                 $this->logger?->warning('[IocUpsert] LLM enrichment failed, structural context preserved', [
                     'obs_id' => $obsId,
@@ -345,11 +345,10 @@ class IocUpsertService
     /**
      * Run LLM semantic enrichment for a single IOC, updating ioc_context in place.
      */
-    private function enrichWithLlm(Message $message, string $obsId, string $indicatorId, string $iocType): void
+    private function enrichWithLlm(Message $message, string $obsId, string $iocType): void
     {
         $conn = $this->em->getConnection();
 
-        // Load ioc_context row
         $ctxRow = $conn->fetchAssociative(
             'SELECT scam_type_code, persona_code, revelation_turn, total_turns FROM ioc_context WHERE obs_id = :obsId',
             ['obsId' => $obsId],
@@ -359,17 +358,12 @@ class IocUpsertService
             return;
         }
 
-        $scamType = \is_string($ctxRow['scam_type_code'] ?? null) ? $ctxRow['scam_type_code'] : 'UNKNOWN';
-        $personaCode = \is_string($ctxRow['persona_code'] ?? null) ? $ctxRow['persona_code'] : 'generic_user';
-        $revelationTurn = \is_numeric($ctxRow['revelation_turn'] ?? null) ? (int) $ctxRow['revelation_turn'] : 1;
-        $totalTurns = \is_numeric($ctxRow['total_turns'] ?? null) ? (int) $ctxRow['total_turns'] : 1;
-
         $request = new ContextualEnrichmentRequest(
             iocTypes: [$iocType],
-            scamType: $scamType,
-            personaCode: $personaCode,
-            revelationTurn: $revelationTurn,
-            totalTurns: $totalTurns,
+            scamType: \is_string($ctxRow['scam_type_code'] ?? null) ? $ctxRow['scam_type_code'] : 'UNKNOWN',
+            personaCode: \is_string($ctxRow['persona_code'] ?? null) ? $ctxRow['persona_code'] : 'generic_user',
+            revelationTurn: \is_numeric($ctxRow['revelation_turn'] ?? null) ? (int) $ctxRow['revelation_turn'] : 1,
+            totalTurns: \is_numeric($ctxRow['total_turns'] ?? null) ? (int) $ctxRow['total_turns'] : 1,
             revelationMessageText: $message->getBodyText(),
             stimulusMessageText: null,
             previousInboundText: null,
@@ -380,9 +374,6 @@ class IocUpsertService
         if ($result === null) {
             return;
         }
-
-        $semanticRole = $result->iocRoles[$iocType] ?? 'UNKNOWN';
-        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
 
         $conn->executeStatement(
             'UPDATE ioc_context SET'
@@ -397,14 +388,14 @@ class IocUpsertService
             . ' computed_at = :computedAt'
             . ' WHERE obs_id = :obsId',
             [
-                'semanticRole' => $semanticRole,
+                'semanticRole' => $result->iocRoles[$iocType] ?? 'UNKNOWN',
                 'stimulusType' => $result->stimulusType,
                 'urgencyScore' => $result->urgencyScore,
                 'languageSwitch' => $result->languageSwitch ? 'true' : 'false',
                 'hesitationDetected' => $result->hesitationDetected ? 'true' : 'false',
                 'contextExcerpt' => mb_substr($result->contextExcerpt, 0, 295),
                 'enrichmentConfidence' => $result->enrichmentConfidence,
-                'computedAt' => $now,
+                'computedAt' => (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
                 'obsId' => $obsId,
             ],
         );
