@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useIocDetail, useIocGraph } from '@/hooks/useIocs';
+import { useIocDetail, useIocGraph, useIocContext } from '@/hooks/useIocs';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { IocGraph } from '@/components/ioc/IocGraph';
 import { IocTimeline } from '@/components/ioc/IocTimeline';
 import { timeSince } from '@/lib/time';
-import type { IocObservation, IocRelated } from '@/types/api';
+import type { IocObservation, IocRelated, IocContextEntry } from '@/types/api';
 
-type TabId = 'overview' | 'observations' | 'related';
+type TabId = 'overview' | 'observations' | 'related' | 'context';
 
 function scoreSeverity(score: number): { label: string; color: string; barColor: string } {
   if (score >= 70) return { label: 'High', color: 'text-error', barColor: 'bg-error' };
@@ -32,6 +32,7 @@ export function IocDetail() {
   const { t } = useTranslation();
   const { data: detail, isLoading, error, refetch } = useIocDetail(indicatorId ?? '');
   const { data: graphData } = useIocGraph(indicatorId ?? '');
+  const { data: contextData } = useIocContext(indicatorId ?? '');
   const [activeTab, setActiveTab] = useState<TabId>('overview');
 
   if (isLoading) return <Loading message={t('iocDetail.loading')} />;
@@ -39,10 +40,13 @@ export function IocDetail() {
 
   const sev = scoreSeverity(('agg' in detail.score) ? (detail.score.agg ?? 0) : 0);
 
+  const contextCount = contextData?.contexts.length ?? 0;
+
   const tabs: { id: TabId; label: string; count?: number }[] = [
     { id: 'overview', label: t('iocDetail.overview') },
     { id: 'observations', label: t('iocDetail.observations'), count: detail.observations.length },
     { id: 'related', label: t('iocDetail.relatedIocs'), count: detail.related_iocs.length },
+    { id: 'context', label: t('iocDetail.context'), count: contextCount > 0 ? contextCount : undefined },
   ];
 
   return (
@@ -106,6 +110,7 @@ export function IocDetail() {
       {activeTab === 'overview' && <OverviewTab detail={detail} />}
       {activeTab === 'observations' && <ObservationsTab observations={detail.observations} />}
       {activeTab === 'related' && <RelatedTab relatedIocs={detail.related_iocs} graphData={graphData} />}
+      {activeTab === 'context' && <ContextTab contexts={contextData?.contexts ?? []} />}
     </div>
   );
 }
@@ -329,6 +334,232 @@ function RelatedTab({ relatedIocs, graphData }: { relatedIocs: IocRelated[]; gra
           })}
         </tbody>
       </table>
+      </div>
+    </div>
+  );
+}
+
+const ROLE_COLORS: Record<string, string> = {
+  PAYMENT_DESTINATION: 'bg-error/20 text-error',
+  PAYMENT_REDIRECT_URL: 'bg-error/20 text-error',
+  MONEY_MULE_ACCOUNT: 'bg-error/20 text-error',
+  PHISHING_CREDENTIAL_URL: 'bg-warning/20 text-warning',
+  MALWARE_DOWNLOAD_URL: 'bg-warning/20 text-warning',
+  CONTACT_CHANNEL: 'bg-blue-500/20 text-blue-400',
+  INFRASTRUCTURE_DOMAIN: 'bg-purple-500/20 text-purple-400',
+  VERIFICATION_CODE_URL: 'bg-yellow-500/20 text-yellow-400',
+  IDENTITY_DOCUMENT: 'bg-yellow-500/20 text-yellow-400',
+  UNKNOWN: 'bg-on-surface-dim/20 text-on-surface-dim',
+};
+
+const STATUS_STYLE: Record<string, { bg: string; label: string }> = {
+  enriched: { bg: 'bg-success/20 text-success', label: 'enriched' },
+  structural: { bg: 'bg-warning/20 text-warning', label: 'structural' },
+  pending: { bg: 'bg-on-surface-dim/20 text-on-surface-dim', label: 'pending' },
+  failed: { bg: 'bg-error/20 text-error', label: 'failed' },
+  skipped: { bg: 'bg-on-surface-dim/20 text-on-surface-dim', label: 'skipped' },
+};
+
+function ContextTab({ contexts }: { contexts: IocContextEntry[] }) {
+  const { t } = useTranslation();
+
+  if (contexts.length === 0) {
+    return (
+      <div className="text-center py-12 text-on-surface-dim">
+        {t('iocContext.noContext')}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {contexts.map((ctx) => (
+        <ContextCard key={ctx.obs_id} ctx={ctx} />
+      ))}
+    </div>
+  );
+}
+
+function ContextCard({ ctx }: { ctx: IocContextEntry }) {
+  const { t } = useTranslation();
+  const status = ctx.enrichment_status;
+  const statusStyle = STATUS_STYLE[status] ?? STATUS_STYLE.pending;
+
+  if (status === 'skipped') {
+    return (
+      <div className="bg-surface-low rounded-lg p-5">
+        <span className={`text-xs px-2 py-0.5 rounded ${statusStyle.bg}`}>{statusStyle.label}</span>
+        <p className="text-sm text-on-surface-dim mt-2">{t('iocContext.skipped')}</p>
+      </div>
+    );
+  }
+
+  if (status === 'pending') {
+    return (
+      <div className="bg-surface-low rounded-lg p-5">
+        <span className={`text-xs px-2 py-0.5 rounded ${statusStyle.bg}`}>{statusStyle.label}</span>
+        <p className="text-sm text-on-surface-dim mt-2">{t('iocContext.pending')}</p>
+      </div>
+    );
+  }
+
+  const s = ctx.structural;
+  const turnPct = s.revelation_turn_ratio != null ? Math.round(s.revelation_turn_ratio * 100) : 0;
+
+  return (
+    <div className="bg-surface-low rounded-lg overflow-hidden">
+      {/* Revelation Context */}
+      <div className="p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+            {t('iocContext.revelationContext')}
+          </h3>
+          <span className={`text-xs px-2 py-0.5 rounded font-medium ${statusStyle.bg}`}>
+            {statusStyle.label}
+          </span>
+        </div>
+
+        {/* Turn progress */}
+        {s.revelation_turn != null && s.total_turns != null && (
+          <div>
+            <div className="flex items-center justify-between text-xs text-on-surface-dim mb-1">
+              <span>{t('iocContext.turn')} {s.revelation_turn} / {s.total_turns}</span>
+              <span>{turnPct}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-surface-highest rounded-full overflow-hidden">
+              <div className="h-full rounded-full bg-accent" style={{ width: `${turnPct}%` }} />
+            </div>
+          </div>
+        )}
+
+        {/* Metadata grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {s.scam_type && <MetaField label={t('iocContext.scamType')} value={s.scam_type} />}
+          {s.persona_code && <MetaField label={t('iocContext.persona')} value={s.persona_label ?? s.persona_code} />}
+          {s.extraction_method && <MetaField label={t('iocContext.extraction')} value={s.extraction_method} />}
+          {s.engagement_hours != null && <MetaField label={t('iocContext.engagement')} value={`${s.engagement_hours}h`} />}
+        </div>
+      </div>
+
+      {/* Semantic Role */}
+      {status === 'enriched' && ctx.semantic && (
+        <>
+          <div className="border-t border-surface-high p-5 space-y-4">
+            <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+              {t('iocContext.semanticRole')}
+            </h3>
+            {ctx.semantic.role && (
+              <div className="flex items-center gap-3">
+                <span className={`text-sm font-bold px-3 py-1 rounded ${ROLE_COLORS[ctx.semantic.role] ?? ROLE_COLORS.UNKNOWN}`}>
+                  {ctx.semantic.role}
+                </span>
+                {ctx.semantic.enrichment_confidence != null && (
+                  <span className="text-xs text-on-surface-dim">
+                    {t('iocContext.confidence')}: {Math.round(ctx.semantic.enrichment_confidence * 100)}%
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Stimulus */}
+          {ctx.semantic.stimulus_type && (
+            <div className="border-t border-surface-high p-5">
+              <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest mb-2">
+                {t('iocContext.stimulus')}
+              </h3>
+              <span className="text-sm font-mono text-accent">{ctx.semantic.stimulus_type}</span>
+            </div>
+          )}
+
+          {/* Behavioral Signals */}
+          <div className="border-t border-surface-high p-5 space-y-3">
+            <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+              {t('iocContext.behavioralSignals')}
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {ctx.semantic.urgency_score != null && (
+                <div>
+                  <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.urgency')}</label>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-1.5 bg-surface-highest rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-error"
+                        style={{ width: `${Math.round(ctx.semantic.urgency_score * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-on-surface">
+                      {Math.round(ctx.semantic.urgency_score * 100)}%
+                    </span>
+                  </div>
+                </div>
+              )}
+              <div>
+                <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.hesitation')}</label>
+                <span className={`text-xs font-medium ${ctx.semantic.hesitation_detected ? 'text-warning' : 'text-on-surface-dim'}`}>
+                  {ctx.semantic.hesitation_detected ? t('iocContext.hesitationDetected') : t('iocContext.hesitationNotDetected')}
+                </span>
+              </div>
+              <div>
+                <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.languageSwitch')}</label>
+                <span className={`text-xs font-medium ${ctx.semantic.language_switch ? 'text-warning' : 'text-on-surface-dim'}`}>
+                  {ctx.semantic.language_switch ? t('iocContext.detected') : t('iocContext.notDetected')}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Context Excerpt */}
+          {ctx.semantic.context_excerpt && (
+            <div className="border-t border-surface-high p-5">
+              <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest mb-2">
+                {t('iocContext.contextExcerpt')}
+              </h3>
+              <p className="text-sm text-on-surface-variant bg-surface-base rounded-lg p-3 italic">
+                &ldquo;{ctx.semantic.context_excerpt}&rdquo;
+              </p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Structural-only message */}
+      {status === 'structural' && (
+        <div className="border-t border-surface-high p-5">
+          <p className="text-xs text-warning">{t('iocContext.structuralOnly')}</p>
+        </div>
+      )}
+
+      {/* Failed message */}
+      {status === 'failed' && (
+        <div className="border-t border-surface-high p-5">
+          <p className="text-xs text-error">{t('iocContext.failed')}</p>
+        </div>
+      )}
+
+      {/* Co-revealed IOCs */}
+      {s.co_revealed_types.length > 0 && (
+        <div className="border-t border-surface-high p-5">
+          <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest mb-2">
+            {t('iocContext.coRevealed')}
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            {s.co_revealed_types.map((type) => (
+              <span key={type} className="text-xs bg-surface-high px-2 py-0.5 rounded text-on-surface-variant">
+                {type}
+              </span>
+            ))}
+            <span className="text-xs text-on-surface-dim">
+              ({s.co_revealed_count} {t('iocContext.coRevealedFrom')})
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Footer: enrichment status + computed_at */}
+      <div className="border-t border-surface-high px-5 py-3 flex items-center gap-4 text-xs text-on-surface-dim">
+        <span>{t('iocContext.enrichmentStatus')}: {statusStyle.label}</span>
+        {ctx.computed_at && <span>{t('iocContext.computedAt')}: {new Date(ctx.computed_at).toLocaleString()}</span>}
       </div>
     </div>
   );

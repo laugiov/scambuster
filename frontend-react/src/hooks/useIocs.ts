@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
-import type { Ioc, IocDetail, IocGraph } from '@/types/api';
+import type { Ioc, IocDetail, IocGraph, IocContextResponse } from '@/types/api';
 
 export function useAllIocs() {
   return useQuery<Ioc[]>({
@@ -35,6 +35,19 @@ export function useIocDetail(indicatorId: string) {
     queryKey: ['ioc-detail', indicatorId],
     queryFn: async () => {
       const { data } = await client.get<IocDetail>(ENDPOINTS.iocs.detail(indicatorId));
+      return data;
+    },
+    enabled: !!indicatorId,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useIocContext(indicatorId: string) {
+  return useQuery<IocContextResponse>({
+    queryKey: ['ioc-context', indicatorId],
+    queryFn: async () => {
+      const { data } = await client.get<IocContextResponse>(ENDPOINTS.iocs.context(indicatorId));
       return data;
     },
     enabled: !!indicatorId,

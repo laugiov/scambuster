@@ -111,6 +111,7 @@ export interface Ioc {
   confidence?: number;
   decay_factor?: number;
   effective_score?: number;
+  has_context?: boolean;
 }
 
 // IOC Detail (from GET /iocs/{id}/detail)
@@ -152,6 +153,47 @@ export interface IocDetail {
   stix: { sco_type: string; pattern: string } | null;
   observations: IocObservation[];
   related_iocs: IocRelated[];
+}
+
+// IOC Context (from GET /iocs/{indicatorId}/context)
+export interface IocContextStructural {
+  scam_type: string | null;
+  attck_technique: string | null;
+  persona_code: string | null;
+  persona_label: string | null;
+  extraction_method: string | null;
+  revelation_turn: number | null;
+  total_turns: number | null;
+  revelation_turn_ratio: number | null;
+  engagement_hours: number | null;
+  reward_value: number | null;
+  co_revealed_types: string[];
+  co_revealed_count: number;
+  campaign_id: string | null;
+}
+
+export interface IocContextSemantic {
+  role: string | null;
+  stimulus_type: string | null;
+  urgency_score: number | null;
+  language_switch: boolean | null;
+  hesitation_detected: boolean | null;
+  context_excerpt: string | null;
+  enrichment_confidence: number | null;
+  enrichment_model: string | null;
+}
+
+export interface IocContextEntry {
+  obs_id: string;
+  enrichment_status: 'pending' | 'structural' | 'enriched' | 'failed' | 'skipped';
+  structural: IocContextStructural;
+  semantic: IocContextSemantic | null;
+  computed_at: string | null;
+}
+
+export interface IocContextResponse {
+  indicator_id: string;
+  contexts: IocContextEntry[];
 }
 
 // IOC Co-occurrence Graph

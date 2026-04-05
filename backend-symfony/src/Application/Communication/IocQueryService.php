@@ -75,12 +75,14 @@ class IocQueryService
                 oi.confidence_score,
                 i.type AS indicator_type,
                 i.last_seen AS indicator_last_seen,
-                st.code AS scam_type_code
+                st.code AS scam_type_code,
+                CASE WHEN ic.id IS NOT NULL AND ic.enrichment_status IN (\'structural\', \'enriched\') THEN true ELSE false END AS has_context
             FROM observed_ioc oi
             LEFT JOIN indicator i ON oi.indicator_id = i.indicator_id
             LEFT JOIN message m ON oi.msg_id = m.msg_id
             LEFT JOIN conversation c ON m.conv_id = c.conv_id
             LEFT JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+            LEFT JOIN ioc_context ic ON oi.obs_id = ic.obs_id
             ORDER BY oi.ts_observed DESC
         ';
 
@@ -131,6 +133,7 @@ class IocQueryService
                 'confidence' => round($confidenceRaw, 4),
                 'decay_factor' => round($decayFactor, 4),
                 'effective_score' => $effectiveScore,
+                'has_context' => !empty($row['has_context']) && $row['has_context'] !== 'f',
             ];
         }
 
