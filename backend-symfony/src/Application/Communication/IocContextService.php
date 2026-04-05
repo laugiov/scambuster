@@ -261,12 +261,17 @@ final class IocContextService
             return $context['extraction_method'];
         }
 
-        // Normalize source field: 'headers.from' → 'header', 'body' → 'regex'
+        // Normalize source field
         if (\is_string($context['source'] ?? null)) {
             $source = $context['source'];
 
             if (str_starts_with($source, 'headers')) {
                 return 'header';
+            }
+
+            // n8n pipeline uses LLM extraction, normalize the generic label
+            if ($source === 'extraction') {
+                return 'llm';
             }
 
             return $source;
