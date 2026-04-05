@@ -269,6 +269,12 @@ cleanup-weekly-dry: ##@scambaiting Preview weekly cleanup without changes
 validate: ##@docker Validate installation (check all services)
 	bash scripts/validate-install.sh
 
+ioc-context-backfill: ##@scambaiting Compute structural context for historical IOCs (no LLM)
+	$(DC) exec $(PHP_CONTAINER_DEV) php bin/console app:ioc:compute-context --limit=500
+
+ioc-context-dry: ##@scambaiting Preview IOC context computation (dry-run)
+	$(DC) exec $(PHP_CONTAINER_DEV) php bin/console app:ioc:compute-context --dry-run
+
 validate-n8n: ##@docker Validate n8n workflow JSON files (no hardcoded values)
 	bash scripts/validate-n8n-workflows.sh
 

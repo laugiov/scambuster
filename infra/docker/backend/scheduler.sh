@@ -58,6 +58,10 @@ while true; do
         php /app/bin/console app:generate-actor-profiles --no-interaction 2>&1 || \
             echo "[scheduler] WARNING: generate-actor-profiles failed"
 
+        echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running ioc:compute-context (backfill)"
+        php /app/bin/console app:ioc:compute-context --limit=500 --no-interaction 2>&1 || \
+            echo "[scheduler] WARNING: ioc:compute-context failed"
+
         LAST_BANDIT_DAY="$CURRENT_DAY"
     fi
 
