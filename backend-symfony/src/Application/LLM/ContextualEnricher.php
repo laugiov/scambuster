@@ -70,7 +70,18 @@ final class ContextualEnricher
                 return null;
             }
 
-            $result = ContextualEnrichmentResult::fromLlmResponse($data, $request->iocTypes);
+            // Count how many messages in the window were available
+            $availableMessages = 1; // revelation is always present
+
+            if ($request->stimulusMessageText !== null) {
+                ++$availableMessages;
+            }
+
+            if ($request->previousInboundText !== null) {
+                ++$availableMessages;
+            }
+
+            $result = ContextualEnrichmentResult::fromLlmResponse($data, $request->iocTypes, $availableMessages);
 
             // PII post-validation on context_excerpt
             $result = $this->validateExcerptPii($result);
@@ -179,7 +190,7 @@ final class ContextualEnricher
     private function fallbackPromptTemplate(): string
     {
         return <<<'PROMPT'
-You are a cybersecurity analyst specializing in scam email analysis. Analyze this 3-message window from a scambaiting honeypot conversation and determine the semantic role of IOCs revealed by the scammer.
+You are a cybersecurity analyst specializing in scam email analysis. Analyze this message window from a scambaiting honeypot conversation and determine the semantic role of IOCs revealed by the scammer.
 
 ## Context
 - Scam type: {{SCAM_TYPE}}
@@ -199,31 +210,93 @@ You are a cybersecurity analyst specializing in scam email analysis. Analyze thi
 {{REVELATION_MESSAGE}}
 
 ## Task
-Analyze the 3-message window and determine:
+Analyze the message window and determine:
 
-1. **stimulus_type**: What triggered the scammer to reveal IOCs? One of: URGENCY_PRESSURE, TRUST_BUILDING, DIRECT_REQUEST, DOCUMENT_REQUEST, PAYMENT_INITIATION, PASSIVE, UNKNOWN
-2. **scammer_urgency_score**: How urgent is the scammer's tone? Float [0.0, 1.0] where 1.0 = extreme urgency
-3. **language_switch_detected**: Did the scammer switch language mid-conversation? Boolean
-4. **hesitation_detected**: Does the scammer show hesitation or uncertainty? Boolean
-5. **context_excerpt**: One-sentence narrative summary of why these IOCs appeared (max 150 chars, NO PII)
-6. **enrichment_confidence**: Your confidence in this analysis [0.0, 1.0]
-7. **ioc_roles**: For each IOC type, assign a semantic role from: PAYMENT_DESTINATION, PAYMENT_REDIRECT_URL, PHISHING_CREDENTIAL_URL, MALWARE_DOWNLOAD_URL, CONTACT_CHANNEL, IDENTITY_DOCUMENT, VERIFICATION_CODE_URL, INFRASTRUCTURE_DOMAIN, MONEY_MULE_ACCOUNT, UNKNOWN
+1. **stimulus_type**: What triggered the scammer to reveal IOCs?
+   - PASSIVE: scammer volunteered IOCs unprompted (typical of first contact / spam blast)
+   - URGENCY_PRESSURE: scammer uses time limits, threats of closure, or deadlines
+   - TRUST_BUILDING: scammer builds rapport before revealing IOCs
+   - DIRECT_REQUEST: our honeypot specifically asked for payment/contact info
+   - DOCUMENT_REQUEST: our honeypot asked for documents, scammer provided links/hashes
+   - PAYMENT_INITIATION: scammer initiates payment flow with banking details
+   - UNKNOWN: cannot determine from available context
+   NOTE: If stimulus message is "(not available)", the scammer likely sent this unprompted. Use PASSIVE or infer from message tone.
+
+2. **scammer_urgency_score**: Float [0.0, 1.0]. Calibrate carefully:
+   - 0.0-0.2: casual, no time pressure
+   - 0.3-0.5: moderate ("please respond soon")
+   - 0.6-0.8: strong ("urgent", "immediate action required", deadlines)
+   - 0.9-1.0: extreme ("account will be closed in 24h", threats)
+
+3. **language_switch_detected**: Did the scammer switch language within THIS message? Boolean
+
+4. **hesitation_detected**: Does the scammer show doubt, apologize, or backtrack? Boolean
+
+5. **context_excerpt**: One SPECIFIC sentence explaining WHY these IOCs appeared in THIS conversation.
+   BAD (too generic): "Scammer provided payment details after engagement"
+   GOOD (specific): "Scammer presented fake customs fees with IBAN and crypto wallet as alternative payment for alleged blocked parcel"
+   GOOD: "First-contact phishing email impersonating PayPal with credential harvesting URL and support phone as social engineering backup"
+   Max 150 chars, NO PII (no emails, phones, IBANs, wallets, names).
+
+6. **enrichment_confidence**: Your confidence in this analysis [0.0, 1.0]. Calibrate honestly:
+   - 0.3-0.5: only 1 message available (no stimulus/previous), generic first contact
+   - 0.5-0.7: 1-2 messages, context is partially clear
+   - 0.7-0.85: full 3-message window, clear conversational dynamics
+   - 0.85-0.95: full window with unambiguous stimulus-response pattern
+   If stimulus and previous messages are "(not available)", confidence MUST be below 0.65.
+
+7. **ioc_roles**: For EACH IOC type, assign the MOST SPECIFIC semantic role.
+
+## IOC Type to Role Constraints (MUST follow)
+- phone → almost always CONTACT_CHANNEL (never PAYMENT_DESTINATION or IDENTITY_DOCUMENT)
+- email → almost always CONTACT_CHANNEL
+- iban, bic → always PAYMENT_DESTINATION or MONEY_MULE_ACCOUNT
+- wallet_btc, wallet_eth, wallet_xmr → always PAYMENT_DESTINATION
+- url → analyze the URL path: /login, /verify, /restore → PHISHING_CREDENTIAL_URL; /download, .exe, .pdf.exe → MALWARE_DOWNLOAD_URL; /pay, /checkout → PAYMENT_REDIRECT_URL
+- domain → INFRASTRUCTURE_DOMAIN (the domain itself hosts the scam infrastructure)
+- sha256, md5, sha1 → MALWARE_DOWNLOAD_URL (file hash = malware indicator)
+- telegram_username, discord_username → CONTACT_CHANNEL
+
+## Few-Shot Examples
+
+### Example 1: Advance fee scam, Turn 5/12, 36h engagement
+Message: "Send the processing fee to unlock your inheritance. Wire $500 to account GB82WEST12345698765432 or Bitcoin 1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa. Call me at +234 802 345 6789."
+```json
+{"stimulus_type":"DIRECT_REQUEST","scammer_urgency_score":0.65,"language_switch_detected":false,"hesitation_detected":false,"context_excerpt":"Scammer demanded processing fee via wire or Bitcoin after victim agreed to claim fictional inheritance","enrichment_confidence":0.82,"ioc_roles":[{"type":"iban","role":"MONEY_MULE_ACCOUNT"},{"type":"wallet_btc","role":"PAYMENT_DESTINATION"},{"type":"phone","role":"CONTACT_CHANNEL"}]}
+```
+
+### Example 2: Phishing, Turn 1/1, first contact (no stimulus available)
+Message: "Your account has been suspended. Click here to verify: https://secure-login-verify.com/restore"
+```json
+{"stimulus_type":"PASSIVE","scammer_urgency_score":0.80,"language_switch_detected":false,"hesitation_detected":false,"context_excerpt":"First-contact phishing impersonating account security with credential harvesting link","enrichment_confidence":0.45,"ioc_roles":[{"type":"url","role":"PHISHING_CREDENTIAL_URL"},{"type":"domain","role":"INFRASTRUCTURE_DOMAIN"}]}
+```
+
+### Example 3: Invoice fraud, Turn 3/8, CEO impersonation
+Stimulus: "I need to verify this with our accounting team first."
+Message: "This is urgent and approved by the CEO. Transfer $28,750 to CH93 0076 2011 6238 5295 7 (UBS). Contact accounting@global-trading.net for confirmation."
+```json
+{"stimulus_type":"URGENCY_PRESSURE","scammer_urgency_score":0.85,"language_switch_detected":false,"hesitation_detected":false,"context_excerpt":"Scammer escalated urgency citing CEO approval after victim expressed caution about wire transfer","enrichment_confidence":0.78,"ioc_roles":[{"type":"iban","role":"MONEY_MULE_ACCOUNT"},{"type":"bic","role":"PAYMENT_DESTINATION"},{"type":"email","role":"CONTACT_CHANNEL"}]}
+```
 
 ## Response Format (strict JSON, no markdown)
 {
-  "stimulus_type": "DIRECT_REQUEST",
+  "stimulus_type": "PASSIVE",
   "scammer_urgency_score": 0.75,
   "language_switch_detected": false,
   "hesitation_detected": false,
-  "context_excerpt": "Scammer provided payment details after honeypot expressed willingness to pay",
-  "enrichment_confidence": 0.85,
+  "context_excerpt": "Specific analysis of why these IOCs appeared in this context",
+  "enrichment_confidence": 0.55,
   "ioc_roles": [
-    {"type": "url", "role": "PAYMENT_REDIRECT_URL"},
-    {"type": "iban", "role": "PAYMENT_DESTINATION"}
+    {"type": "url", "role": "PHISHING_CREDENTIAL_URL"},
+    {"type": "domain", "role": "INFRASTRUCTURE_DOMAIN"},
+    {"type": "phone", "role": "CONTACT_CHANNEL"}
   ]
 }
 
-IMPORTANT: context_excerpt must NEVER contain email addresses, phone numbers, IBANs, or wallet addresses. Use generic descriptions only.
+IMPORTANT:
+- context_excerpt must NEVER contain email addresses, phone numbers, IBANs, wallet addresses, or real names
+- If only 1 message is available (stimulus/previous are "not available"), confidence MUST be below 0.65
+- phone and email are almost NEVER PAYMENT_DESTINATION or IDENTITY_DOCUMENT
 PROMPT;
     }
 }
