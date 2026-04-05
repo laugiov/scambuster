@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Application\Communication;
 
+use App\Application\LLM\ContextualEnricher;
+use App\Application\LLM\ContextualEnrichmentRequest;
 use App\Domain\Communication\Message;
 use App\Domain\Communication\ObservedIoc;
+use Doctrine\DBAL\Connection;
+use Psr\Log\LoggerInterface;
 
 /**
  * Facade for IOC operations. Delegates to specialized services.
@@ -28,6 +32,9 @@ class IocHandler
         private readonly IocExtractorOrchestrator $extractorOrchestrator,
         private readonly IocEnrichmentService $enrichmentService,
         private readonly IocQueryService $queryService,
+        private readonly ?ContextualEnricher $contextualEnricher = null,
+        private readonly ?Connection $connection = null,
+        private readonly ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -160,9 +167,126 @@ class IocHandler
                 }
             }
 
+            // LLM semantic enrichment: 1 call per message for all IOCs (spec 043b)
+            $this->enrichMessageIocsWithLlm($msgId, $persistedIocs);
+
             return $persistedIocs;
         }
 
         return $uniqueIocs;
+    }
+
+    /**
+     * Run LLM semantic enrichment for all IOCs from a single message (1 LLM call).
+     *
+     * @param list<array{type: string, value: string, value_norm: string, context: array<string, mixed>}> $persistedIocs
+     */
+    private function enrichMessageIocsWithLlm(string $msgId, array $persistedIocs): void
+    {
+        if ($this->contextualEnricher === null || $this->connection === null || empty($persistedIocs)) {
+            return;
+        }
+
+        // Collect non-header IOC types
+        $iocTypes = [];
+
+        foreach ($persistedIocs as $ioc) {
+            if (!IocContextService::isHeaderIocType($ioc['type'])) {
+                $iocTypes[] = $ioc['type'];
+            }
+        }
+
+        $iocTypes = array_values(array_unique($iocTypes));
+
+        if (empty($iocTypes)) {
+            return;
+        }
+
+        try {
+            // Load message text + conversation context
+            $msgRow = $this->connection->fetchAssociative(
+                'SELECT m.body_text, c.conv_id, st.code AS scam_type, p.persona_code,'
+                . ' ic2.revelation_turn, ic2.total_turns'
+                . ' FROM message m'
+                . ' JOIN conversation c ON m.conv_id = c.conv_id'
+                . ' JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id'
+                . ' LEFT JOIN persona p ON c.persona_id = p.persona_id'
+                . ' LEFT JOIN observed_ioc oi ON oi.msg_id = m.msg_id'
+                . ' LEFT JOIN ioc_context ic2 ON oi.obs_id = ic2.obs_id'
+                . ' WHERE m.msg_id = :msgId'
+                . ' LIMIT 1',
+                ['msgId' => $msgId],
+            );
+
+            if (!$msgRow) {
+                return;
+            }
+
+            $request = new ContextualEnrichmentRequest(
+                iocTypes: $iocTypes,
+                scamType: \is_string($msgRow['scam_type'] ?? null) ? $msgRow['scam_type'] : 'UNKNOWN',
+                personaCode: \is_string($msgRow['persona_code'] ?? null) ? $msgRow['persona_code'] : 'generic_user',
+                revelationTurn: \is_numeric($msgRow['revelation_turn'] ?? null) ? (int) $msgRow['revelation_turn'] : 1,
+                totalTurns: \is_numeric($msgRow['total_turns'] ?? null) ? (int) $msgRow['total_turns'] : 1,
+                revelationMessageText: \is_string($msgRow['body_text'] ?? null) ? $msgRow['body_text'] : '',
+                stimulusMessageText: null,
+                previousInboundText: null,
+            );
+
+            $result = $this->contextualEnricher->enrich($request);
+
+            if ($result === null) {
+                return;
+            }
+
+            // Update all IOC contexts from this message in one go
+            $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+            foreach ($persistedIocs as $ioc) {
+                $obsId = $ioc['context']['obs_id'] ?? null;
+
+                if (!\is_string($obsId) || IocContextService::isHeaderIocType($ioc['type'])) {
+                    continue;
+                }
+
+                $semanticRole = $result->iocRoles[$ioc['type']] ?? 'UNKNOWN';
+
+                $this->connection->executeStatement(
+                    'UPDATE ioc_context SET'
+                    . ' semantic_role = :semanticRole,'
+                    . ' stimulus_type = :stimulusType,'
+                    . ' urgency_score = :urgencyScore,'
+                    . ' language_switch = :languageSwitch,'
+                    . ' hesitation_detected = :hesitationDetected,'
+                    . ' context_excerpt = :contextExcerpt,'
+                    . ' enrichment_confidence = :enrichmentConfidence,'
+                    . ' enrichment_status = \'enriched\','
+                    . ' computed_at = :computedAt'
+                    . ' WHERE obs_id = :obsId',
+                    [
+                        'semanticRole' => $semanticRole,
+                        'stimulusType' => $result->stimulusType,
+                        'urgencyScore' => $result->urgencyScore,
+                        'languageSwitch' => $result->languageSwitch ? 'true' : 'false',
+                        'hesitationDetected' => $result->hesitationDetected ? 'true' : 'false',
+                        'contextExcerpt' => mb_substr($result->contextExcerpt, 0, 295),
+                        'enrichmentConfidence' => $result->enrichmentConfidence,
+                        'computedAt' => $now,
+                        'obsId' => $obsId,
+                    ],
+                );
+            }
+
+            $this->logger?->info('[IocHandler] LLM enrichment completed for message', [
+                'msg_id' => $msgId,
+                'ioc_count' => \count($iocTypes),
+                'stimulus_type' => $result->stimulusType,
+            ]);
+        } catch (\Throwable $e) {
+            $this->logger?->warning('[IocHandler] LLM enrichment failed, structural context preserved', [
+                'msg_id' => $msgId,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 }
