@@ -60,10 +60,11 @@ final class ContextualEnrichmentResult
     /**
      * Build from raw LLM JSON response with validation and defaults.
      *
-     * @param array<string,mixed> $data     Decoded JSON from LLM
-     * @param list<string>        $iocTypes IOC types to map roles for
+     * @param array<string,mixed> $data              Decoded JSON from LLM
+     * @param list<string>        $iocTypes          IOC types to map roles for
+     * @param int                 $availableMessages How many of the 3-message window were available (1-3)
      */
-    public static function fromLlmResponse(array $data, array $iocTypes): self
+    public static function fromLlmResponse(array $data, array $iocTypes, int $availableMessages = 3): self
     {
         // Validate stimulus_type
         $stimulusType = \is_string($data['stimulus_type'] ?? null) ? $data['stimulus_type'] : 'UNKNOWN';
@@ -92,6 +93,17 @@ final class ContextualEnrichmentResult
             ? (float) $data['enrichment_confidence']
             : 0.0;
         $enrichmentConfidence = max(0.0, min(1.0, $enrichmentConfidence));
+
+        // Cap confidence based on available context window:
+        // 1 message (no stimulus/previous) → max 0.60
+        // 2 messages → max 0.80
+        // 3 messages → no cap
+        $maxConfidence = match (true) {
+            $availableMessages <= 1 => 0.60,
+            $availableMessages === 2 => 0.80,
+            default => 1.0,
+        };
+        $enrichmentConfidence = min($enrichmentConfidence, $maxConfidence);
 
         // Map ioc_roles from LLM format [{"type": "url", "role": "..."}] to associative
         $iocRoles = self::mapIocRoles($data['ioc_roles'] ?? [], $iocTypes);
