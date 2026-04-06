@@ -63,7 +63,7 @@ if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
   php bin/console doctrine:fixtures:load --no-interaction 2>&1 | tail -5
 
   echo "[demo] Loading demo dataset..."
-  php bin/console scambuster:demo:load 2>&1 | tail -3
+  php bin/console scambuster:demo:load --purge 2>&1 | tail -3
 
   echo "[demo] Cleaning fixture test data..."
   php bin/console doctrine:query:sql "DELETE FROM conversation WHERE stix_id NOT LIKE 'demo-%'" --no-interaction 2>/dev/null || true
