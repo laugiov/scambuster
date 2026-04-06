@@ -9,6 +9,8 @@ echo "╚═══════════════════════�
 # Railway injects env vars but Symfony needs a .env file to bootstrap.
 # We generate one from the current environment so Doctrine can connect.
 echo "[demo] Writing .env from environment variables..."
+# Ensure LOCK_DSN has a fallback (semaphore = local, no Redis dependency)
+export LOCK_DSN="${LOCK_DSN:-semaphore}"
 env | grep -E '^(DATABASE_URL|REDIS_URL|APP_|JWT_|LLM_|MAILER_|SCAMBUSTER_|VAULT_|LOGIN_|LOCK_|PROMPT_|STIX_|SCORE_|CAMPAIGN_|REPLY_|CONVERSATION_|SIEM_|INGEST_|N8N_|PORT)' > /app/.env
 echo "[demo] .env written with $(wc -l < /app/.env) variables."
 
