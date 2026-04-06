@@ -108,6 +108,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 | PATCH | `/iocs/{obsId}/enrich` | Yes | Update IOC enrichment data |
 | GET | `/api/v1/iocs` | Yes | List all IOCs with confidence score, decay factor, effective score, `has_context` flag |
 | GET | `/iocs/{indicatorId}/context` | Yes | Contextual enrichment: structural (turn, scam type, persona, co-revealed) + semantic (role, stimulus, urgency, excerpt) |
+| GET | `/conversations/{conv_id}/export/stix` | Yes | STIX 2.1 bundle with indicators + threat-actor + attack-pattern + relationships. `?include_threat_actor=false` for IOCs only |
 
 ---
 
