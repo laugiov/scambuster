@@ -37,7 +37,7 @@ class LoadDemoDataCommand extends Command
     public function __construct(
         private readonly Connection $connection,
         private readonly string $projectDir,
-        private readonly IocContextService $contextService,
+        private readonly ?IocContextService $contextService = null,
     ) {
         parent::__construct();
     }
@@ -106,6 +106,7 @@ class LoadDemoDataCommand extends Command
         }
 
         $counts = ['conv' => 0, 'msg' => 0, 'ioc' => 0, 'llm' => 0, 'perf' => 0, 'convergence' => 0, 'campaign' => 0, 'campaign_msg' => 0];
+        $allMsgIocs = []; // msgId => obsIocData, for post-commit context computation
 
         $this->connection->beginTransaction();
 
@@ -291,13 +292,9 @@ class LoadDemoDataCommand extends Command
                         $counts['ioc']++;
                     }
 
-                    // Compute IOC structural context
+                    // Collect IOCs for post-commit context computation
                     if (!empty($obsIocData)) {
-                        try {
-                            $this->contextService->computeAndPersistForMessage($msgId, $obsIocData);
-                        } catch (\Throwable) {
-                            // Non-blocking: demo data loads even if context fails
-                        }
+                        $allMsgIocs[$msgId] = $obsIocData;
                     }
                 }
             }
@@ -446,7 +443,23 @@ class LoadDemoDataCommand extends Command
             return Command::FAILURE;
         }
 
-        // ─── 6. Hardcoded LLM semantic enrichment for demo IOCs ───
+        // ─── 6. Compute structural IOC context (post-commit, non-blocking) ───
+        if ($this->contextService !== null && !empty($allMsgIocs)) {
+            $io->info(sprintf('Computing structural context for %d messages...', count($allMsgIocs)));
+            $ctxCount = 0;
+
+            foreach ($allMsgIocs as $msgId => $obsIocData) {
+                try {
+                    $this->contextService->computeAndPersistForMessage($msgId, $obsIocData);
+                    ++$ctxCount;
+                } catch (\Throwable) {
+                    // Non-blocking
+                }
+            }
+            $io->info(sprintf('Structural context: %d messages processed.', $ctxCount));
+        }
+
+        // ─── 7. Hardcoded LLM semantic enrichment for demo IOCs ───
         $enrichedCount = $this->applyDemoSemanticEnrichment($io);
 
         $io->success(sprintf(
