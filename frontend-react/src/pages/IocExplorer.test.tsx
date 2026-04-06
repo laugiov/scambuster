@@ -86,8 +86,9 @@ describe('IocExplorer Advanced Filters', () => {
       expect(screen.getByText('evil.com')).toBeDefined();
     });
 
-    const toggle = screen.getByRole('checkbox');
-    fireEvent.click(toggle);
+    const toggles = screen.getAllByRole('checkbox');
+    const hideHeadersToggle = toggles.find(el => el.getAttribute('checked') !== null) ?? toggles[toggles.length - 1];
+    fireEvent.click(hideHeadersToggle);
 
     await waitFor(() => {
       expect(screen.getByText('<abc@mail.com>')).toBeDefined();
