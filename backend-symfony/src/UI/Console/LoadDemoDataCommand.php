@@ -94,9 +94,9 @@ class LoadDemoDataCommand extends Command
 
         if ($input->getOption('purge')) {
             $io->warning('Purging existing demo data...');
-            $this->connection->executeStatement("DELETE FROM message_campaign WHERE detected_by = 'demo-dataset'");
-            $this->connection->executeStatement("DELETE FROM campaign_rule WHERE campaign_id IN (SELECT campaign_id FROM campaign WHERE created_by = 'demo-dataset')");
-            $this->connection->executeStatement("DELETE FROM campaign WHERE created_by = 'demo-dataset'");
+            $this->connection->executeStatement('DELETE FROM message_campaign');
+            $this->connection->executeStatement('DELETE FROM campaign_rule');
+            $this->connection->executeStatement('DELETE FROM campaign');
             $this->connection->executeStatement("DELETE FROM ioc_context WHERE obs_id IN (SELECT obs_id FROM observed_ioc WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%')))");
             $this->connection->executeStatement("DELETE FROM observed_ioc WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'))");
             $this->connection->executeStatement('DELETE FROM indicator WHERE indicator_id NOT IN (SELECT DISTINCT indicator_id FROM observed_ioc)');
