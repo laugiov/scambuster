@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Taxii;
 
 use App\Application\Stix\IocContextStixExtensionBuilder;
+use App\Application\Stix\ThreatActorStixBuilder;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -20,6 +21,7 @@ final class TaxiiService
 
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly ?ThreatActorStixBuilder $threatActorBuilder = null,
     ) {
     }
 
@@ -268,16 +270,28 @@ final class TaxiiService
 
             $lastAdded = $createdAt;
 
+            $campaignId = \is_string($row['campaign_id']) ? $row['campaign_id'] : '';
+            $campaignStixId = 'campaign--' . $campaignId;
+
             $objects[] = [
                 'type' => 'campaign',
                 'spec_version' => '2.1',
-                'id' => 'campaign--' . (\is_string($row['campaign_id']) ? $row['campaign_id'] : ''),
+                'id' => $campaignStixId,
                 'created' => $this->formatIso8601($createdAt),
                 'modified' => $this->formatIso8601($createdAt),
-                'name' => 'ScamBuster Campaign ' . (\is_string($row['campaign_id']) ? $row['campaign_id'] : ''),
+                'name' => 'ScamBuster Campaign ' . $campaignId,
                 'first_seen' => $this->formatIso8601(\is_string($row['first_seen']) ? $row['first_seen'] : ''),
                 'labels' => ['scam'],
             ];
+
+            // Add threat-actor if builder available
+            if ($this->threatActorBuilder !== null && $campaignId !== '') {
+                $threatActorObjects = $this->buildThreatActorForCampaign($conn, $campaignId, $campaignStixId, $row);
+
+                foreach ($threatActorObjects as $obj) {
+                    $objects[] = $obj;
+                }
+            }
         }
 
         return [
@@ -288,6 +302,86 @@ final class TaxiiService
             'firstAdded' => $firstAdded !== null ? $this->formatIso8601($firstAdded) : null,
             'lastAdded' => $lastAdded !== null ? $this->formatIso8601($lastAdded) : null,
         ];
+    }
+
+    /**
+     * Build threat-actor + attack-pattern STIX objects for a campaign in the TAXII feed.
+     *
+     * @param \Doctrine\DBAL\Connection $conn
+     * @param array<string, mixed>      $campaignRow
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function buildThreatActorForCampaign($conn, string $campaignId, string $campaignStixId, array $campaignRow): array
+    {
+        $objects = [];
+
+        // Get scam type for this campaign
+        $scamTypeRow = $conn->fetchAssociative(
+            'SELECT st.code, st.attck_technique'
+            . ' FROM message_campaign mc'
+            . ' JOIN message m ON mc.msg_id = m.msg_id'
+            . ' JOIN conversation cv ON m.conv_id = cv.conv_id'
+            . ' JOIN lkp_scam_type st ON cv.scam_type_id = st.scam_type_id'
+            . ' WHERE mc.campaign_id = :id LIMIT 1',
+            ['id' => $campaignId],
+        );
+
+        $scamType = \is_string($scamTypeRow['code'] ?? null) ? $scamTypeRow['code'] : 'UNKNOWN';
+        $attckTechnique = \is_string($scamTypeRow['attck_technique'] ?? null) ? $scamTypeRow['attck_technique'] : null;
+
+        // Load actor profile
+        $actorProfileRow = $conn->fetchAssociative(
+            'SELECT style_dna, infra_dna FROM actor_profile WHERE campaigns::text LIKE :p LIMIT 1',
+            ['p' => '%' . $campaignId . '%'],
+        );
+
+        $actorProfile = null;
+
+        if ($actorProfileRow) {
+            $styleDna = \is_string($actorProfileRow['style_dna'] ?? null) ? json_decode($actorProfileRow['style_dna'], true) : null;
+            $infraDna = \is_string($actorProfileRow['infra_dna'] ?? null) ? json_decode($actorProfileRow['infra_dna'], true) : null;
+
+            if (\is_array($styleDna) || \is_array($infraDna)) {
+                $actorProfile = ['style_dna' => $styleDna, 'infra_dna' => $infraDna];
+            }
+        }
+
+        // Simple metrics
+        $metrics = ['conversation_count' => 0, 'avg_engagement_hours' => 0, 'avg_turns' => 0, 'unique_ioc_type_count' => 0, 'has_injection_attempts' => false];
+
+        $campaignData = [
+            'campaign_id' => $campaignId,
+            'scam_type' => $scamType,
+            'first_seen' => \is_string($campaignRow['first_seen'] ?? null) ? $campaignRow['first_seen'] : '',
+            'last_seen' => \is_string($campaignRow['created_at'] ?? null) ? $campaignRow['created_at'] : '',
+            'profile_yaml' => \is_string($campaignRow['profile_yaml'] ?? null) ? $campaignRow['profile_yaml'] : null,
+            'tlp' => \is_string($campaignRow['tlp'] ?? null) ? $campaignRow['tlp'] : 'AMBER',
+        ];
+
+        $threatActor = $this->threatActorBuilder->buildThreatActor($campaignData, $actorProfile, $metrics);
+        $objects[] = $threatActor;
+
+        $attackPatterns = $this->threatActorBuilder->buildAttackPatterns($attckTechnique);
+
+        foreach ($attackPatterns as $ap) {
+            $objects[] = $ap;
+        }
+
+        // Add attributed-to relationship
+        $attackPatternIds = array_map(fn (array $ap) => $ap['id'], $attackPatterns);
+        $relationships = $this->threatActorBuilder->buildActorRelationships(
+            $threatActor['id'],
+            $campaignStixId,
+            [],
+            $attackPatternIds,
+        );
+
+        foreach ($relationships as $rel) {
+            $objects[] = $rel;
+        }
+
+        return $objects;
     }
 
     private function buildStixPattern(string $type, string $value): string
