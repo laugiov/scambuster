@@ -128,15 +128,18 @@ final class ConversationStixExportHandler
             . ' WHERE m.conv_id = :convId'
             . ' AND ic.enrichment_status = \'enriched\''
             . ' AND ic.context_excerpt IS NOT NULL'
-            . ' LIMIT 3',
+            . ' LIMIT 1',
             ['convId' => $convId],
         );
 
         $description = sprintf('Criminal actor operating %s scam.', strtolower($scamType->getCode()));
 
         if (!empty($excerpts)) {
-            $excerptTexts = array_map(fn (array $r) => \is_string($r['context_excerpt']) ? $r['context_excerpt'] : '', $excerpts);
-            $description .= ' ' . implode(' ', array_filter($excerptTexts));
+            $excerptTexts = array_unique(array_filter(array_map(
+                fn (array $r) => \is_string($r['context_excerpt']) ? trim($r['context_excerpt']) : '',
+                $excerpts,
+            )));
+            $description .= ' ' . implode(' ', $excerptTexts);
         }
 
         // Count IOC types
@@ -150,8 +153,24 @@ final class ConversationStixExportHandler
         $uniqueIocTypeCount = \count($iocTypesRow);
 
         // Conversation metrics
-        $engagementHours = $bundle_conversation->getEngagementDurationSec() / 3600.0;
+        $engagementSec = $bundle_conversation->getEngagementDurationSec();
         $turns = $bundle_conversation->getTurnsCount();
+
+        // Fallback: compute engagement from timestamps if metrics not yet calculated (open conversations)
+        if ($engagementSec === 0) {
+            $diff = $bundle_conversation->getTsLast()->getTimestamp() - $bundle_conversation->getTsFirst()->getTimestamp();
+            $engagementSec = max($diff, 0);
+        }
+
+        if ($turns === 0) {
+            $msgCount = $conn->fetchOne(
+                'SELECT COUNT(*) FROM message WHERE conv_id = :convId',
+                ['convId' => $convId],
+            );
+            $turns = \is_numeric($msgCount) ? (int) ceil((int) $msgCount / 2) : 0;
+        }
+
+        $engagementHours = $engagementSec / 3600.0;
 
         $metrics = [
             'conversation_count' => 1,
