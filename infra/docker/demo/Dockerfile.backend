@@ -47,7 +47,7 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
 # Copy built application (with dev dependencies for fixtures)
 COPY --from=build /app /app
 
-# Copy demo dataset into image
+# Copy demo dataset into image (bust cache: 2026-04-06-v2)
 COPY scambuster-dataset-sample.json /app/scambuster-dataset-sample.json
 
 # Copy demo entrypoint
