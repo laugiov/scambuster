@@ -43,13 +43,13 @@ final class GenerateActorProfilesCommand extends Command
 
         // Find campaigns with enough conversations that don't have a profile yet
         $campaigns = $this->connection->fetchAllAssociative("
-            SELECT c.campaign_id, c.status, COUNT(DISTINCT mc.message_id) as msg_count
+            SELECT c.campaign_id, c.status, COUNT(DISTINCT mc.msg_id) as msg_count
             FROM campaign c
             JOIN message_campaign mc ON mc.campaign_id = c.campaign_id
             LEFT JOIN actor_profile ap ON ap.campaigns LIKE '%' || c.campaign_id::text || '%'
             WHERE ap.actor_id IS NULL
             GROUP BY c.campaign_id, c.status
-            HAVING COUNT(DISTINCT mc.message_id) >= :minMsgs
+            HAVING COUNT(DISTINCT mc.msg_id) >= :minMsgs
             ORDER BY msg_count DESC
         ", ['minMsgs' => $minConvs * 2]); // at least 2 messages per conversation
 

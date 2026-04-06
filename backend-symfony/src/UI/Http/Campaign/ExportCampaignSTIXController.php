@@ -7,7 +7,6 @@ namespace App\UI\Http\Campaign;
 use App\Application\Campaign\CampaignStixExportHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -78,12 +77,10 @@ final class ExportCampaignSTIXController
             ),
         ]
     )]
-    public function __invoke(string $campaignId, Request $request): JsonResponse
+    public function __invoke(string $campaignId): JsonResponse
     {
-        $includeThreatActor = $request->query->get('include_threat_actor', 'true') !== 'false';
-
         try {
-            $data = $this->handler->export($campaignId, $includeThreatActor);
+            $data = $this->handler->export($campaignId);
         } catch (\InvalidArgumentException) {
             return new JsonResponse(['error' => 'Invalid campaign_id format'], Response::HTTP_BAD_REQUEST);
         } catch (\RuntimeException $e) {
