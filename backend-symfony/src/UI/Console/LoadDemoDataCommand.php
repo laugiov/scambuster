@@ -6,6 +6,7 @@ declare(strict_types=1);
 
 namespace App\UI\Console;
 
+use App\Application\Communication\IocContextService;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -35,7 +36,8 @@ class LoadDemoDataCommand extends Command
 {
     public function __construct(
         private readonly Connection $connection,
-        private readonly string $projectDir
+        private readonly string $projectDir,
+        private readonly IocContextService $contextService,
     ) {
         parent::__construct();
     }
@@ -95,6 +97,7 @@ class LoadDemoDataCommand extends Command
             $this->connection->executeStatement("DELETE FROM message_campaign WHERE detected_by = 'demo-dataset'");
             $this->connection->executeStatement("DELETE FROM campaign_rule WHERE campaign_id IN (SELECT campaign_id FROM campaign WHERE created_by = 'demo-dataset')");
             $this->connection->executeStatement("DELETE FROM campaign WHERE created_by = 'demo-dataset'");
+            $this->connection->executeStatement("DELETE FROM ioc_context WHERE obs_id IN (SELECT obs_id FROM observed_ioc WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%')))");
             $this->connection->executeStatement("DELETE FROM observed_ioc WHERE msg_id IN (SELECT msg_id FROM message WHERE conv_id IN (SELECT conv_id FROM conversation WHERE stix_id LIKE 'demo-%'))");
             $this->connection->executeStatement('DELETE FROM indicator WHERE indicator_id NOT IN (SELECT DISTINCT indicator_id FROM observed_ioc)');
             $this->connection->executeStatement("DELETE FROM llm_usage WHERE conversation_id IN (SELECT conv_id::text FROM conversation WHERE stix_id LIKE 'demo-%')");
@@ -205,6 +208,7 @@ class LoadDemoDataCommand extends Command
                     // IOCs (inbound only)
                     /** @var list<array<string, mixed>> $iocsExtracted */
                     $iocsExtracted = (array) ($msg['iocs_extracted'] ?? []);
+                    $obsIocData = [];
 
                     foreach ($iocsExtracted as $j => $ioc) {
                         /** @var array<string, mixed> $ioc */
@@ -278,7 +282,22 @@ class LoadDemoDataCommand extends Command
                             ]);
                         }
 
+                        $obsIocData[] = [
+                            'obs_id' => $obsId,
+                            'indicator_id' => $indicatorId,
+                            'ioc_type' => $iocType,
+                        ];
+
                         $counts['ioc']++;
+                    }
+
+                    // Compute IOC structural context
+                    if (!empty($obsIocData)) {
+                        try {
+                            $this->contextService->computeAndPersistForMessage($msgId, $obsIocData);
+                        } catch (\Throwable) {
+                            // Non-blocking: demo data loads even if context fails
+                        }
                     }
                 }
             }
@@ -427,11 +446,15 @@ class LoadDemoDataCommand extends Command
             return Command::FAILURE;
         }
 
+        // ─── 6. Hardcoded LLM semantic enrichment for demo IOCs ───
+        $enrichedCount = $this->applyDemoSemanticEnrichment($io);
+
         $io->success(sprintf(
-            'Loaded: %d conversations, %d messages, %d IOCs, %d LLM records, %d perf stats, %d convergence logs, %d campaigns (%d message links).',
+            'Loaded: %d conversations, %d messages, %d IOCs (%d enriched), %d LLM records, %d perf stats, %d convergence logs, %d campaigns (%d message links).',
             $counts['conv'],
             $counts['msg'],
             $counts['ioc'],
+            $enrichedCount,
             $counts['llm'],
             $counts['perf'],
             $counts['convergence'],
@@ -584,5 +607,201 @@ class LoadDemoDataCommand extends Command
         $pool = $methods[$iocType] ?? ['llm'];
 
         return $pool[array_rand($pool)];
+    }
+
+    /**
+     * Apply hardcoded LLM semantic enrichment to demo ioc_context rows.
+     *
+     * Updates structural rows to enriched with realistic roles, stimulus, urgency.
+     * No LLM call — all values are deterministic based on IOC type and scam type.
+     */
+    private function applyDemoSemanticEnrichment(SymfonyStyle $io): int
+    {
+        // Role mapping by IOC type (deterministic, matches prompt constraints)
+        $roleByType = [
+            'url' => 'PHISHING_CREDENTIAL_URL',
+            'domain' => 'INFRASTRUCTURE_DOMAIN',
+            'email' => 'CONTACT_CHANNEL',
+            'phone' => 'CONTACT_CHANNEL',
+            'iban' => 'PAYMENT_DESTINATION',
+            'bic' => 'PAYMENT_DESTINATION',
+            'wallet_btc' => 'PAYMENT_DESTINATION',
+            'wallet_eth' => 'PAYMENT_DESTINATION',
+            'wallet_xmr' => 'PAYMENT_DESTINATION',
+            'sha256' => 'MALWARE_DOWNLOAD_URL',
+            'ipv4' => 'INFRASTRUCTURE_DOMAIN',
+            'telegram_username' => 'CONTACT_CHANNEL',
+            'discord_username' => 'CONTACT_CHANNEL',
+        ];
+
+        // Stimulus by scam type
+        $stimulusByScam = [
+            'PHISHING' => 'PASSIVE',
+            'PHISH_CREDENTIALS' => 'PASSIVE',
+            'PHISH_MALWARE' => 'PASSIVE',
+            'ROMANCE' => 'TRUST_BUILDING',
+            'INVOICE_FRAUD' => 'PAYMENT_INITIATION',
+            'CEO_FRAUD' => 'URGENCY_PRESSURE',
+            'TECH_SUPPORT' => 'URGENCY_PRESSURE',
+            'INVESTMENT' => 'PASSIVE',
+            'LOTTERY' => 'PASSIVE',
+            'ADVANCE_FEE_419' => 'DIRECT_REQUEST',
+            'JOB_OFFER' => 'PASSIVE',
+            'CHARITY' => 'TRUST_BUILDING',
+        ];
+
+        // Urgency by scam type
+        $urgencyByScam = [
+            'PHISHING' => [0.65, 0.85],
+            'PHISH_CREDENTIALS' => [0.70, 0.90],
+            'PHISH_MALWARE' => [0.50, 0.70],
+            'ROMANCE' => [0.20, 0.50],
+            'INVOICE_FRAUD' => [0.60, 0.85],
+            'CEO_FRAUD' => [0.80, 0.95],
+            'TECH_SUPPORT' => [0.70, 0.90],
+            'INVESTMENT' => [0.30, 0.60],
+            'LOTTERY' => [0.40, 0.65],
+            'ADVANCE_FEE_419' => [0.50, 0.75],
+            'JOB_OFFER' => [0.25, 0.50],
+            'CHARITY' => [0.40, 0.65],
+        ];
+
+        // Context excerpts by scam type (specific, not generic boilerplate)
+        $excerptsByScam = [
+            'PHISHING' => [
+                'First-contact phishing impersonating bank security with credential harvesting link and support phone',
+                'Scammer created urgency around account suspension to push victim toward fake verification portal',
+                'Account security impersonation with fake login page designed to harvest credentials',
+            ],
+            'PHISH_CREDENTIALS' => [
+                'Credential harvesting email impersonating IT security requiring password reset via fake portal',
+                'MFA reset phishing with fake compliance deadline to capture authentication credentials',
+                'SSO re-authentication phish targeting corporate email credentials via fake login page',
+            ],
+            'PHISH_MALWARE' => [
+                'Scammer distributed malware disguised as shared document with executable payload',
+                'Fake file-sharing notification leading to malicious download with social engineering pretext',
+            ],
+            'ROMANCE' => [
+                'Scammer built emotional connection before requesting money transfer for fabricated emergency',
+                'Romance scammer escalated financial requests after establishing trust over multiple exchanges',
+                'Fake military persona used emotional manipulation to solicit wire transfer for travel fees',
+            ],
+            'INVOICE_FRAUD' => [
+                'Scammer impersonated vendor with changed banking details for invoice payment redirect',
+                'Fake payment update notice with new IBAN to intercept legitimate business payment',
+                'Invoice fraud with fake overdue notice and legal threats to pressure immediate wire transfer',
+            ],
+            'CEO_FRAUD' => [
+                'CEO impersonation pressuring urgent wire transfer with fake approval and time constraints',
+                'Business email compromise with spoofed executive requesting confidential payment processing',
+            ],
+            'TECH_SUPPORT' => [
+                'Fake Microsoft security alert with fabricated threats to sell fraudulent protection service',
+                'Tech support scam using fake virus detection to gain remote access and charge removal fees',
+            ],
+            'INVESTMENT' => [
+                'Fraudulent investment scheme promising unrealistic returns with crypto and wire payment options',
+                'Fake hedge fund solicitation with fabricated performance data and urgency around fund closing',
+            ],
+            'LOTTERY' => [
+                'Fake lottery win notification requiring advance fee payment to claim non-existent prize',
+                'Scammer impersonated lottery board requesting processing fee via wire transfer for fake prize',
+            ],
+            'ADVANCE_FEE_419' => [
+                'Advance fee fraud claiming inheritance requiring processing fee to release fictional funds',
+                'Classic 419 scam with fabricated legal scenario requesting upfront payment for fund release',
+            ],
+            'JOB_OFFER' => [
+                'Fake job offer requesting personal information and bank details for identity theft',
+                'Employment scam with unrealistic salary offering to harvest personal and financial data',
+            ],
+            'CHARITY' => [
+                'Fake charity appeal exploiting disaster scenario to solicit donations via wire transfer',
+                'Fraudulent humanitarian organization soliciting donations with emotional manipulation',
+            ],
+        ];
+
+        // Override roles for specific scam contexts
+        $roleOverrides = [
+            'ROMANCE' => ['iban' => 'MONEY_MULE_ACCOUNT', 'wallet_btc' => 'PAYMENT_DESTINATION'],
+            'INVOICE_FRAUD' => ['iban' => 'MONEY_MULE_ACCOUNT'],
+            'CEO_FRAUD' => ['iban' => 'MONEY_MULE_ACCOUNT'],
+            'ADVANCE_FEE_419' => ['iban' => 'MONEY_MULE_ACCOUNT'],
+            'PHISH_MALWARE' => ['url' => 'MALWARE_DOWNLOAD_URL', 'sha256' => 'MALWARE_DOWNLOAD_URL'],
+            'TECH_SUPPORT' => ['url' => 'PAYMENT_REDIRECT_URL', 'phone' => 'CONTACT_CHANNEL'],
+            'INVESTMENT' => ['url' => 'PAYMENT_REDIRECT_URL'],
+        ];
+
+        $rows = $this->connection->fetchAllAssociative(
+            "SELECT ic.id, ic.obs_id, ic.scam_type_code, ic.revelation_turn, ic.total_turns,
+                    i.type AS ioc_type
+             FROM ioc_context ic
+             JOIN indicator i ON ic.indicator_id = i.indicator_id
+             WHERE ic.enrichment_status = 'structural'"
+        );
+
+        $enriched = 0;
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+        foreach ($rows as $row) {
+            $iocType = (string) ($row['ioc_type'] ?? 'unknown');
+            $scamType = (string) ($row['scam_type_code'] ?? 'UNKNOWN');
+            $turn = \is_numeric($row['revelation_turn'] ?? null) ? (int) $row['revelation_turn'] : 1;
+            $totalTurns = \is_numeric($row['total_turns'] ?? null) ? (int) $row['total_turns'] : 0;
+
+            // Determine role (with scam-specific overrides)
+            $overrides = $roleOverrides[$scamType] ?? [];
+            $role = $overrides[$iocType] ?? $roleByType[$iocType] ?? 'UNKNOWN';
+
+            // Stimulus
+            $stimulus = $stimulusByScam[$scamType] ?? 'UNKNOWN';
+
+            // Urgency (varies by turn position)
+            $range = $urgencyByScam[$scamType] ?? [0.40, 0.70];
+            $turnBoost = $totalTurns > 0 ? min($turn / $totalTurns * 0.2, 0.2) : 0.0;
+            $urgency = round($range[0] + (($range[1] - $range[0]) * (random_int(30, 80) / 100)) + $turnBoost, 2);
+            $urgency = min(1.0, $urgency);
+
+            // Confidence based on available context
+            $confidence = $totalTurns > 0
+                ? round(0.55 + min($turn / $totalTurns * 0.3, 0.3) + (random_int(0, 10) / 100), 2)
+                : round(0.35 + (random_int(0, 20) / 100), 2);
+            $confidence = min(0.95, $confidence);
+
+            // Excerpt
+            $pool = $excerptsByScam[$scamType] ?? ['Scammer revealed IOCs in a first-contact message'];
+            $excerpt = $pool[array_rand($pool)];
+
+            $this->connection->executeStatement(
+                'UPDATE ioc_context SET
+                    semantic_role = :role,
+                    stimulus_type = :stimulus,
+                    urgency_score = :urgency,
+                    language_switch = :langSwitch,
+                    hesitation_detected = :hesitation,
+                    context_excerpt = :excerpt,
+                    enrichment_confidence = :confidence,
+                    enrichment_status = \'enriched\',
+                    computed_at = :computedAt
+                 WHERE id = :id',
+                [
+                    'role' => $role,
+                    'stimulus' => $stimulus,
+                    'urgency' => $urgency,
+                    'langSwitch' => 'false',
+                    'hesitation' => random_int(0, 100) <= 15 ? 'true' : 'false',
+                    'excerpt' => $excerpt,
+                    'confidence' => $confidence,
+                    'computedAt' => $now,
+                    'id' => $row['id'],
+                ],
+            );
+            ++$enriched;
+        }
+
+        $io->info(sprintf('Semantic enrichment: %d IOCs enriched with hardcoded roles/excerpts.', $enriched));
+
+        return $enriched;
     }
 }
