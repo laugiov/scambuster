@@ -101,7 +101,7 @@ final class ThreatActorStixBuilder
             'created' => $this->parseTimestamp($firstSeen) ?? $now,
             'modified' => $this->parseTimestamp($lastSeen) ?? $now,
             'created_by_ref' => self::IDENTITY_ID,
-            'name' => sprintf('ScamBuster Actor - %s Campaign #%s', $scamType, $shortId),
+            'name' => sprintf('ScamBuster Actor - %s #%s', $scamType, $shortId),
             'description' => $description,
             'threat_actor_types' => ['criminal'],
             'primary_motivation' => 'personal-gain',
