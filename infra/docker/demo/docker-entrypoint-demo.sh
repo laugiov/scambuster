@@ -62,7 +62,7 @@ if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
   echo "[demo] Loading fixtures..."
   php bin/console doctrine:fixtures:load --no-interaction 2>&1 | tail -5
 
-  echo "[demo] Loading demo dataset (150 conversations)..."
+  echo "[demo] Loading demo dataset..."
   php bin/console scambuster:demo:load 2>&1 | tail -3
 
   echo "[demo] Cleaning fixture test data..."
