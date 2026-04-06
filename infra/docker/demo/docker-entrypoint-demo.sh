@@ -52,7 +52,7 @@ CONV_COUNT=$(php bin/console doctrine:query:sql \
 if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
   echo "[demo] Seeding database..."
 
-  if [ "${DEMO_FORCE_RESEED:-false}" = "true" ] && [ "$CONV_COUNT" != "0" ]; then
+  if [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
     echo "[demo] Force reseed requested — dropping and recreating schema..."
     php bin/console doctrine:database:drop --force --if-exists 2>/dev/null || true
     php bin/console doctrine:database:create --if-not-exists 2>/dev/null
