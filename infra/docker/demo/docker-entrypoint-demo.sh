@@ -53,14 +53,20 @@ if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
   echo "[demo] Seeding database..."
 
   if [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
-    echo "[demo] Force reseed requested — dropping and recreating schema..."
-    php bin/console doctrine:database:drop --force --if-exists 2>/dev/null || true
-    php bin/console doctrine:database:create --if-not-exists 2>/dev/null
-    php bin/console doctrine:migrations:migrate --no-interaction 2>&1 | tail -2
+    echo "[demo] Force reseed requested — truncating all tables..."
+    php bin/console doctrine:query:sql "
+      DO \$\$ DECLARE r RECORD;
+      BEGIN
+        FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename != 'doctrine_migration_versions') LOOP
+          EXECUTE 'TRUNCATE TABLE ' || quote_ident(r.tablename) || ' CASCADE';
+        END LOOP;
+      END \$\$;
+    " --no-interaction 2>/dev/null || true
+    echo "[demo] All tables truncated."
   fi
 
   echo "[demo] Loading fixtures..."
-  php bin/console doctrine:fixtures:load --no-interaction 2>&1 | tail -5
+  php bin/console doctrine:fixtures:load --no-interaction --append 2>&1 | tail -5
 
   echo "[demo] Loading demo dataset..."
   php bin/console scambuster:demo:load --purge 2>&1 | tail -3
