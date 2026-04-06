@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0] - 2026-04-06
+
+### Added
+
+#### STIX Threat Actor Export (Feature 044)
+- **STIX 2.1 threat-actor objects** in campaign exports and TAXII feeds
+- `ThreatActorStixBuilder`: builds threat-actor with behavioral fingerprint (style_dna, infra_dna), MITRE ATT&CK techniques, sophistication scoring, goals mapping
+- `x_scambuster_actor` STIX extension with campaign metrics and actor DNA
+- **attack-pattern** objects linked to MITRE ATT&CK techniques (TLP:WHITE)
+- **3 new relationship types**: campaign→attributed-to→threat-actor, threat-actor→uses→attack-pattern, indicator→indicates→threat-actor
+- Deterministic UUIDs for OpenCTI/MISP deduplication
+- Backward compatible: `?include_threat_actor=false` on campaign export
+
+### Changed
+- Completed MITRE ATT&CK mapping for 6 scam types (INVOICE_FRAUD→T1534, ROMANCE/LOTTERY/CHARITY/ADVANCE_FEE_419→T1566.001, INVESTMENT→T1566.002)
+- Fixed `ActorProfileGenerator` column reference (message_id→msg_id)
+
+---
+
 ## [2.4.0] - 2026-04-06
 
 ### Added
