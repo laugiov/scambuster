@@ -528,6 +528,12 @@ class GenerateDemoDataCommand extends Command
         $lastOutbound = -1;
         $conversationSubject = null;
 
+        // Pick a scenario index for this conversation: same index used across all stages
+        // so that opening[2], follow_early[2], follow_mid[2], follow_late[2] form one coherent story
+        $key = $scamType . '_opening';
+        $scenarioIdx = ($this->globalOpeningCounter[$key] ?? 0) % max(count($inboundTemplates['opening'] ?? []), 1);
+        $this->globalOpeningCounter[$key] = $scenarioIdx + 1;
+
         for ($i = 0; $i < $msgCount; $i++) {
             $isInbound = ($i % 2 === 0);
             $ts = $startTs + ($i * $timeStep) + random_int(0, min($timeStep, 3600));
@@ -537,14 +543,8 @@ class GenerateDemoDataCommand extends Command
                 $stage = $this->getInboundStage($i);
                 $pool = $inboundTemplates[$stage] ?? $inboundTemplates['opening'];
 
-                if ($stage === 'opening') {
-                    // Round-robin openings globally per scam type
-                    $key = $scamType . '_opening';
-                    $idx = ($this->globalOpeningCounter[$key] ?? 0) % count($pool);
-                    $this->globalOpeningCounter[$key] = $idx + 1;
-                } else {
-                    $idx = $this->pickTemplate($pool, $lastInbound);
-                }
+                // Use scenario index (modulo pool size) for narrative coherence
+                $idx = $scenarioIdx % max(count($pool), 1);
                 $lastInbound = $idx;
                 $template = $pool[$idx];
 
@@ -587,7 +587,8 @@ class GenerateDemoDataCommand extends Command
             } else {
                 $stage = $this->getOutboundStage($i);
                 $pool = $outboundTemplates[$stage] ?? $outboundTemplates['initial'];
-                $idx = $this->pickTemplate($pool, $lastOutbound);
+                // Use scenario index for outbound too (narrative coherence)
+                $idx = $scenarioIdx % max(count($pool), 1);
                 $lastOutbound = $idx;
 
                 $body = $this->randomize($pool[$idx], $resolved);
