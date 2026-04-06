@@ -8,6 +8,8 @@
 
 ScamBuster includes a built-in **TAXII 2.1 server** (read-only) that enables automated consumption of IOCs and campaign data by external threat intelligence platforms. Instead of manually exporting STIX bundles, consumers poll the TAXII server for new data on their own schedule.
 
+IOC indicators include the **`x_scambuster_context` STIX extension** with contextual metadata: scam type, persona, revelation turn, extraction method, engagement duration, and (when LLM-enriched) semantic role, stimulus type, urgency score, and a PII-free context excerpt.
+
 ### Architecture
 
 ```

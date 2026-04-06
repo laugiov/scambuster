@@ -55,7 +55,7 @@ Instead of discarding scam emails, ScamBuster creates an **observatory** that an
 |----------|-------------------|
 | **What scam types are trending?** | Real-time classification across 13 types |
 | **Which personas maximize engagement?** | Adaptive learning identifies optimal strategies per scam type |
-| **What IOCs do scammers reveal?** | Automatic extraction of 40+ indicator types |
+| **What IOCs do scammers reveal?** | Automatic extraction of 40+ indicator types with contextual enrichment (semantic role, stimulus analysis, urgency scoring) |
 | **How do campaigns evolve?** | Clustering and attribution over time |
 | **What works against different scammers?** | Data-driven optimization, not intuition |
 
@@ -317,8 +317,9 @@ scambuster/
 - `POST /api/v1/scambaiting/conversation/{id}/close` -- Close and update stats
 
 ### IOC Intelligence
-- `GET /api/v1/iocs` -- All IOCs with confidence/decay scoring, optional min_score filter
+- `GET /api/v1/iocs` -- All IOCs with confidence/decay scoring, optional min_score filter, `has_context` flag
 - `GET /api/v1/iocs/{indicator_id}/detail` -- Full IOC detail: observations, related IOCs (co-occurrence), MISP/STIX mappings
+- `GET /api/v1/iocs/{indicator_id}/context` -- Contextual enrichment: revelation turn, scam type, persona, semantic role, stimulus type, urgency, co-revealed IOCs
 - `GET /api/v1/iocs/co-occurrence` -- IOC relationship graph (nodes + edges for visualization)
 - `GET /api/v1/communication/conversation/{id}/iocs` -- Conversation-specific IOCs (deduplicated)
 
@@ -357,7 +358,7 @@ scambuster/
 | **Dashboard** | Operations overview with activity feed, weekly trends, top IOCs, pipeline health |
 | **Conversations** | List with search, pagination, CSV export |
 | **IOC Explorer** | Browse 40+ IOC types with advanced filters (severity, confidence, date range, hide headers), direct navigation to full detail page |
-| **IOC Detail** | Full indicator view: scoring (VT/URLScan/confidence/decay), MISP mapping, STIX pattern, observation timeline, co-occurrence graph, related IOCs table |
+| **IOC Detail** | Full indicator view: scoring (VT/URLScan/confidence/decay), MISP mapping, STIX pattern, observation timeline, co-occurrence graph, related IOCs table, **contextual enrichment** (semantic role, stimulus type, urgency, co-revealed IOCs) |
 | **Campaign Radar** | Campaign clustering, profiling, rule hunting |
 | **Analytics** | 7 interactive charts: IOC timeline, conversation volume, distributions, cost trend, pipeline health, convergence sparklines |
 | **Pipeline Monitor** | Per-reply tracing with component waterfall and health metrics |

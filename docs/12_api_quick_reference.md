@@ -106,7 +106,8 @@ curl -H "Authorization: Bearer $TOKEN" \
 |--------|------|------|-------------|
 | POST | `/iocs/enriched` | Yes | Ingest enriched IOC (from n8n) |
 | PATCH | `/iocs/{obsId}/enrich` | Yes | Update IOC enrichment data |
-| GET | `/api/v1/iocs` | Yes | List all IOCs with confidence score, decay factor, effective score |
+| GET | `/api/v1/iocs` | Yes | List all IOCs with confidence score, decay factor, effective score, `has_context` flag |
+| GET | `/iocs/{indicatorId}/context` | Yes | Contextual enrichment: structural (turn, scam type, persona, co-revealed) + semantic (role, stimulus, urgency, excerpt) |
 
 ---
 

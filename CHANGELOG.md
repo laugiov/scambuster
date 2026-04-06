@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.4.0] - 2026-04-06
+
+### Added
+
+#### Rich Contextual IOC Bundle (Feature 043)
+- **Structural IOC context** computed at extraction time: revelation turn, scam type, persona, extraction method, engagement duration, co-revealed IOC types, campaign link
+- **LLM semantic enrichment** via gpt-4o-mini (1 call per message): semantic role (PAYMENT_DESTINATION, PHISHING_CREDENTIAL_URL, CONTACT_CHANNEL, etc.), stimulus type (PASSIVE, URGENCY_PRESSURE, TRUST_BUILDING, etc.), scammer urgency score, hesitation/language switch detection, PII-free context excerpt
+- **Confidence calibration**: analysis confidence capped based on available context window (max 0.60 for first-contact with no conversational history)
+- **PII anonymization**: MessageAnonymizer strips emails, IBANs, phones, crypto wallets before LLM analysis; output validated post-LLM
+- **IOC Context API**: `GET /api/v1/iocs/{indicatorId}/context` returns structural + semantic context per observation
+- **Context tab** in IOC Detail (frontend): revelation context with turn indicator, semantic role with color coding, stimulus type, behavioral signals (urgency bar, hesitation, language switch), context excerpt, co-revealed IOCs
+- **IOC Explorer enhancements**: sparkle indicator on IOCs with context, "Has context" filter checkbox, `has_context` boolean in list response
+- **STIX export**: `x_scambuster_context` extension on indicators with scam type, persona, turn ratio, semantic role, stimulus type, urgency score
+- **TAXII feed**: context extension included by default on all IOC objects
+- **Batch command**: `app:ioc:compute-context --with-llm --budget-usd=1.00` for backfill with budget cap
+- **Scheduler**: context computation with LLM enrichment runs every 6 hours
+- **i18n**: full English and French translations for all context UI labels
+
+### Changed
+- `IocUpsertService` now triggers structural context + LLM enrichment at n8n IOC upsert time
+- `IocHandler::extractIocsFromMessage()` runs 1 LLM enrichment call per message (not per IOC)
+- `extraction_method` normalized: n8n pipeline correctly labeled as `llm` instead of generic `extraction`
+- n8n workflow `WF-EXTRACT-AND-ENRICH-IOC` timeout increased from 30s to 120s
+
+---
+
 ## [2.3.0] - 2026-04-04
 
 ### Added
