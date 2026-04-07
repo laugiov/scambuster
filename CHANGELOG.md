@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.5.0] - 2026-04-06
+
+### Added
+
+#### STIX Threat Actor Export (Feature 044)
+- **STIX 2.1 threat-actor objects** in conversation STIX exports
+- Each conversation produces a `threat-actor` with sophistication scoring, goals mapping, and behavioral profile from IOC context enrichment (feature 043)
+- `ThreatActorStixBuilder`: builds threat-actor, attack-pattern (MITRE ATT&CK, TLP:WHITE), and relationships
+- `x_scambuster_actor` STIX extension with persona, engagement metrics, IOC type diversity
+- **3 relationship types**: conversation→attributed-to→threat-actor, threat-actor→uses→attack-pattern, indicator→indicates→threat-actor
+- Deterministic UUIDs for OpenCTI/MISP deduplication
+- Backward compatible: `?include_threat_actor=false` on conversation export
+- Description enriched with IOC context excerpts (feature 043 integration)
+
+### Changed
+- Completed MITRE ATT&CK mapping for 6 scam types (INVOICE_FRAUD→T1534, ROMANCE/LOTTERY/CHARITY/ADVANCE_FEE_419→T1566.001, INVESTMENT→T1566.002)
+- Fixed `ActorProfileGenerator` bugs: column reference (message_id→msg_id), direction ID (hardcoded 3→dynamic subquery)
+
+---
+
 ## [2.4.0] - 2026-04-06
 
 ### Added
