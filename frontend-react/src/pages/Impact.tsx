@@ -216,16 +216,6 @@ export function Impact() {
 
       {/* Campaign table hidden — pipeline disconnected */}
 
-      {/* Comparison banner */}
-      <div className="bg-surface-low rounded-lg px-5 py-3 text-xs text-on-surface-dim flex items-center gap-2">
-        <svg className="w-4 h-4 text-accent shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        {cost_efficiency.cost_per_ioc_usd > 0
-          ? `$${cost_efficiency.cost_per_ioc_usd.toFixed(4)}/IOC — ~${Math.round(10000 / (cost_efficiency.cost_per_ioc_usd * Math.max(ioc_value.total_iocs, 1))).toLocaleString()}x cheaper than commercial CTI feeds ($10,000/yr)`
-          : t('impact.comparison')
-        }
-      </div>
     </div>
   );
 }
