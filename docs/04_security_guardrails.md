@@ -103,7 +103,7 @@ DPIA documentation covers:
 | Control | Limit | Purpose |
 |---------|-------|---------|
 | **New conversations/day** | 50 max | Prevent runaway engagement |
-| **Messages/conversation** | 20 max | Limit exposure |
+| **Messages/conversation** | 20 per 24h sliding window | Limit exposure |
 | **LLM calls/hour** | 200 max | Cost control |
 | **API requests/minute** | 100 max | DDoS protection |
 | **Emails/sender/day** | 10 max | Per-sender abuse prevention |

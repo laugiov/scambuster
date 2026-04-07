@@ -15,7 +15,7 @@ Wait ~2 minutes for the first build, then open:
 - **Dashboard**: http://localhost:3002
 - **Login**: `user@example.com` / `Un1que$trongPassword2024`
 
-The demo includes 150 pre-loaded conversations, 876 IOCs, 5 campaigns, pipeline monitoring, convergence history, and full analytics.
+The demo includes 150 pre-loaded conversations, 876 IOCs, pipeline monitoring, convergence history, and full analytics.
 
 ## What works in demo mode
 
@@ -32,7 +32,7 @@ The demo includes 150 pre-loaded conversations, 876 IOCs, 5 campaigns, pipeline 
 | Monitoring > Injection | Full | Prompt injection detection (15 alerts, 4 HIGH) |
 | Monitoring > LLM Costs | Full | Cost breakdown by purpose |
 | Analytics | Full | 8 charts with 8-week trends |
-| Campaigns | Full | 5 detected campaigns (2 promoted, 3 shadow) |
+| Campaigns | Experimental | 5 detected campaigns (experimental, disconnected from automated flow) |
 
 ## What does NOT work in demo mode
 

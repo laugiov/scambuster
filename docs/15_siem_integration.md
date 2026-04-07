@@ -327,7 +327,7 @@ The interface requires 4 methods:
 ## Security Considerations
 
 - **PII masking**: Email addresses and IP addresses in exported events follow the same masking rules as application logs
-- **Transport security**: Use TLS for TCP syslog (`tcp+tls://`) or HTTPS for webhook-based providers
+- **Transport security**: Use TLS for TCP syslog (`tcp+tls://`, planned) or HTTPS for webhook-based providers
 - **Authentication tokens**: Store SIEM tokens in environment variables (same security model as LLM API keys)
 - **Audit of audit**: SIEM export failures are logged to the application log (Monolog) for monitoring
 

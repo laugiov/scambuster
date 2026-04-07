@@ -16,11 +16,11 @@ The complete source code is available on GitHub under MIT License.
 
 ### What's the current project status?
 
-- **Phase 1-2 (Foundation + Adaptive V1)**: ✅ Complete
-- **Phase 3 (Thompson Sampling)**: Planned (v2 roadmap)
-- **Phase 4 (Scale & Dashboards)**: ✅ Complete
-- **Phase 5 (A/B Validation)**: ✅ Complete
-- **Phase 6 (Publication & Dataset Release)**: In Progress
+- **Foundation + Adaptive V1**: ✅ Complete
+- **Scale + Optimization**: ✅ Complete
+- **A/B Validation**: ✅ Complete
+- **Publication & Open Source**: ✅ Complete
+- **Thompson Sampling**: Planned (v2 roadmap)
 
 ---
 
@@ -41,7 +41,7 @@ The complete source code is available on GitHub under MIT License.
 
 ### Why PHP / Symfony?
 
-Symfony 7.2 is the most mature PHP framework for Domain-Driven Design and hexagonal architecture. The same stack powers MISP -- the world's most deployed threat intelligence sharing platform (15,000+ instances). PHP 8.3 with strict types, enums, readonly properties, and PHPStan level 6 bleeding edge provides type safety comparable to statically-typed languages. The codebase has 2140 tests (1.16:1 test/code LOC ratio) and zero PHPStan errors.
+Symfony 7.2 is the most mature PHP framework for Domain-Driven Design and hexagonal architecture. The same stack powers MISP -- the world's most deployed threat intelligence sharing platform (15,000+ instances). PHP 8.3 with strict types, enums, readonly properties, and PHPStan level 6 bleeding edge provides type safety comparable to statically-typed languages. The codebase has an extensive automated test suite and zero PHPStan errors.
 
 ### Can I run ScamBuster without sending data to OpenAI?
 
@@ -114,7 +114,7 @@ Currently 13 scam types:
 | **MSSPs** | Value-added security services |
 | **Financial Institutions** | BEC and fraud early warning |
 | **Telecoms** | Scam phone number identification |
-| **Law Enforcement** | Campaign attribution |
+| **Law Enforcement** | IOC intelligence sharing |
 | **Researchers** | Reproducible evaluation methodology |
 
 ### What's the ROI?
@@ -198,14 +198,13 @@ Yes, in a **controlled, sandboxed environment** with strict safeguards:
 
 ### Could scammers use this system?
 
-The operational code is **private** specifically to prevent misuse. This public repository contains no:
+The full source code is open-source (MIT License), but the system includes multiple layers of safeguards that prevent misuse:
 
-- Prompts or persona libraries
-- Automation workflows
-- Operational playbooks
-- Infrastructure details
-
-Access requires NDA and responsible-use agreement.
+- **PolicyGuard**: Content filtering rejects harmful or off-topic outputs
+- **Double validation**: LLM Validator ensures safety before any reply is sent
+- **Rate limiting**: Caps on conversations and messages per day
+- **Kill switch**: Immediate halt capability for operators
+- **Audit trail**: Every action is logged for accountability
 
 ---
 
