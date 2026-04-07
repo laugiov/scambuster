@@ -109,6 +109,8 @@ final class TaxiiObjectsTest extends WebTestCase
         $this->assertResponseIsSuccessful();
 
         $data = json_decode((string) $this->client->getResponse()->getContent(), true);
-        $this->assertLessThanOrEqual(1, \count($data['objects']));
+        // limit applies to indicators; enrichment adds threat-actor + attack-pattern + relationships
+        $indicators = array_filter($data['objects'], fn (array $o) => ($o['type'] ?? '') === 'indicator');
+        $this->assertLessThanOrEqual(1, \count($indicators));
     }
 }
