@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.6.0] - 2026-04-07
+
+### Added
+
+#### Threat Actor Frontend Display (Feature 044b)
+- **ThreatActorCard** on ConversationDetail: collapsible card showing sophistication badge, goals, MITRE ATT&CK link, description, engagement metrics, persona used
+- **ThreatActorSummaryCard** on IocDetail: aggregated attribution summary across all conversations where the IOC was observed (scam types, goals, max sophistication, MITRE techniques)
+- Card visible when IOC is selected in ConversationDetail right panel
+- `useThreatActorProfile` hook: fetches STIX bundle and extracts threat-actor client-side
+- `useThreatActorSummary` hook: aggregates up to 5 conversation threat-actors for IOC attribution
+
+#### TAXII IOC Feed Enrichment
+- TAXII IOC collection now includes `threat-actor`, `attack-pattern`, and `indicates` relationships alongside indicators
+- For each unique conversation behind the IOCs in a batch, a threat-actor is built on-the-fly
+- Integration test `ConversationStixExportWithActorTest` (7 tests)
+
+### Changed
+- Removed `attributed-to` relationship from STIX export (rejected by OpenCTI: Report→Threat-Actor-Group not allowed)
+- Added threat-actor and attack-pattern to report `object_refs` for OpenCTI container linking
+- TAXII limit parameter now applies to indicators only (enrichment objects are additional)
+- Campaign UI hidden from frontend (pipeline disconnected): stat cards removed from Dashboard and Impact, routes commented out
+- Removed vanity comparison banner from Impact page
+
+### Removed
+- Deleted `GenerateDemoDataCommand` (1703 LOC, obsolete — replaced by `LoadDemoDataCommand`)
+
+---
+
 ## [2.5.0] - 2026-04-06
 
 ### Added
@@ -16,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Each conversation produces a `threat-actor` with sophistication scoring, goals mapping, and behavioral profile from IOC context enrichment (feature 043)
 - `ThreatActorStixBuilder`: builds threat-actor, attack-pattern (MITRE ATT&CK, TLP:WHITE), and relationships
 - `x_scambuster_actor` STIX extension with persona, engagement metrics, IOC type diversity
-- **3 relationship types**: conversation→attributed-to→threat-actor, threat-actor→uses→attack-pattern, indicator→indicates→threat-actor
+- **2 relationship types**: threat-actor→uses→attack-pattern, indicator→indicates→threat-actor
 - Deterministic UUIDs for OpenCTI/MISP deduplication
 - Backward compatible: `?include_threat_actor=false` on conversation export
 - Description enriched with IOC context excerpts (feature 043 integration)
