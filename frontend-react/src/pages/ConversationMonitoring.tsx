@@ -15,7 +15,9 @@ function formatRelativeTime(isoDate: string): string {
 
 function TimeoutTable({ rows, t }: { rows: ConversationTimeoutRow[]; t: (key: string) => string }) {
   if (rows.length === 0) {
-    return <p className="text-on-surface-dim text-sm py-4 text-center">{t('monitoring.noTimeouts')}</p>;
+    return (
+      <p className="text-on-surface-dim text-sm py-4 text-center">{t('monitoring.noTimeouts')}</p>
+    );
   }
 
   return (
@@ -26,9 +28,15 @@ function TimeoutTable({ rows, t }: { rows: ConversationTimeoutRow[]; t: (key: st
             <th className="pb-2 font-medium text-on-surface-variant">{t('monitoring.convId')}</th>
             <th className="pb-2 font-medium text-on-surface-variant">{t('monitoring.scamType')}</th>
             <th className="pb-2 font-medium text-on-surface-variant">{t('monitoring.persona')}</th>
-            <th className="pb-2 font-medium text-on-surface-variant">{t('monitoring.lastActivity')}</th>
-            <th className="pb-2 font-medium text-on-surface-variant">{t('monitoring.timeoutIn')}</th>
-            <th className="pb-2 font-medium text-on-surface-variant">{t('monitoring.policyTimeout')}</th>
+            <th className="pb-2 font-medium text-on-surface-variant">
+              {t('monitoring.lastActivity')}
+            </th>
+            <th className="pb-2 font-medium text-on-surface-variant">
+              {t('monitoring.timeoutIn')}
+            </th>
+            <th className="pb-2 font-medium text-on-surface-variant">
+              {t('monitoring.policyTimeout')}
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -41,9 +49,13 @@ function TimeoutTable({ rows, t }: { rows: ConversationTimeoutRow[]; t: (key: st
                 </span>
               </td>
               <td className="py-2 text-on-surface-variant">{row.persona || '--'}</td>
-              <td className="py-2 text-on-surface-variant">{formatRelativeTime(row.last_activity)}</td>
+              <td className="py-2 text-on-surface-variant">
+                {formatRelativeTime(row.last_activity)}
+              </td>
               <td className="py-2">
-                <span className={`font-medium ${row.hours_remaining < 6 ? 'text-error' : row.hours_remaining < 12 ? 'text-warning' : 'text-on-surface'}`}>
+                <span
+                  className={`font-medium ${row.hours_remaining < 6 ? 'text-error' : row.hours_remaining < 12 ? 'text-warning' : 'text-on-surface'}`}
+                >
                   {row.hours_remaining.toFixed(0)}h
                 </span>
               </td>
@@ -72,19 +84,27 @@ export function ConversationMonitoring() {
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('monitoring.active')} value={data.active} />
-        <StatCard label={t('monitoring.aboutToTimeout')} value={data.about_to_timeout} subtitleColor={data.about_to_timeout > 0 ? 'text-warning' : undefined} />
+        <StatCard
+          label={t('monitoring.aboutToTimeout')}
+          value={data.about_to_timeout}
+          subtitleColor={data.about_to_timeout > 0 ? 'text-warning' : undefined}
+        />
         <StatCard label={t('monitoring.completedToday')} value={data.completed_today} />
         <StatCard label={t('monitoring.reopenedToday')} value={data.reopened_today} />
       </div>
 
       <div className="bg-surface-low rounded-lg p-6">
-        <h2 className="text-base font-medium text-on-surface mb-4">{t('monitoring.timeoutTable')}</h2>
+        <h2 className="text-base font-medium text-on-surface mb-4">
+          {t('monitoring.timeoutTable')}
+        </h2>
         <TimeoutTable rows={data.about_to_timeout_list ?? []} t={t} />
       </div>
 
       {data.by_scam_type && Object.keys(data.by_scam_type).length > 0 && (
         <div className="bg-surface-low rounded-lg p-6">
-          <h2 className="text-base font-medium text-on-surface mb-4">{t('monitoring.byScamType')}</h2>
+          <h2 className="text-base font-medium text-on-surface mb-4">
+            {t('monitoring.byScamType')}
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {Object.entries(data.by_scam_type).map(([code, info]) => (
               <div key={code} className="bg-surface rounded-md p-3">
@@ -128,11 +148,19 @@ function RateLimitsSection() {
         </div>
         <div className="bg-surface rounded-md p-3">
           <p className="text-xs text-on-surface-dim">{t('monitoring.rateLimitedToday')}</p>
-          <p className={`text-lg font-semibold ${totalHits > 0 ? 'text-warning' : 'text-on-surface'}`}>{totalHits}</p>
+          <p
+            className={`text-lg font-semibold ${totalHits > 0 ? 'text-warning' : 'text-on-surface'}`}
+          >
+            {totalHits}
+          </p>
         </div>
         <div className="bg-surface rounded-md p-3">
           <p className="text-xs text-on-surface-dim">{t('monitoring.quarantinedSenders')}</p>
-          <p className={`text-lg font-semibold ${data.quarantined_senders_today > 0 ? 'text-error' : 'text-on-surface'}`}>{data.quarantined_senders_today}</p>
+          <p
+            className={`text-lg font-semibold ${data.quarantined_senders_today > 0 ? 'text-error' : 'text-on-surface'}`}
+          >
+            {data.quarantined_senders_today}
+          </p>
         </div>
       </div>
     </div>

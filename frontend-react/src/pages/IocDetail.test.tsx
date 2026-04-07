@@ -52,7 +52,7 @@ const mockIocDetail: IocDetailType = {
 };
 
 const detailHandler = http.get(`${BASE}/iocs/:indicatorId/detail`, () =>
-  HttpResponse.json(mockIocDetail)
+  HttpResponse.json(mockIocDetail),
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
@@ -132,7 +132,7 @@ describe('IocDetail', () => {
   it('shows 404 for nonexistent indicator', async () => {
     server.use(
       http.get(`${BASE}/iocs/:indicatorId/detail`, () =>
-        HttpResponse.json({ error: 'Not found' }, { status: 404 })
+        HttpResponse.json({ error: 'Not found' }, { status: 404 }),
       ),
     );
 

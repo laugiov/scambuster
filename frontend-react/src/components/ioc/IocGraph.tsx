@@ -4,17 +4,17 @@ import { useTranslation } from 'react-i18next';
 import type { IocGraph as IocGraphData } from '@/types/api';
 
 const TYPE_COLORS: Record<string, string> = {
-  domain: '#60a5fa',   // blue
-  url: '#a78bfa',      // violet
-  email: '#34d399',    // green
-  ipv4: '#f87171',     // red
+  domain: '#60a5fa', // blue
+  url: '#a78bfa', // violet
+  email: '#34d399', // green
+  ipv4: '#f87171', // red
   ipv6: '#f87171',
-  phone: '#fbbf24',    // yellow
-  iban: '#fb923c',     // orange
+  phone: '#fbbf24', // yellow
+  iban: '#fb923c', // orange
   wallet_btc: '#fb923c',
   wallet_eth: '#fb923c',
   wallet_xmr: '#fb923c',
-  sha256: '#94a3b8',   // grey
+  sha256: '#94a3b8', // grey
   md5: '#94a3b8',
   sha1: '#94a3b8',
 };
@@ -85,12 +85,7 @@ export function IocGraph({ data, width = 700, height = 500 }: Props) {
   const maxWeight = Math.max(...data.edges.map((e) => e.weight), 1);
 
   return (
-    <svg
-      width={width}
-      height={height}
-      viewBox={`0 0 ${width} ${height}`}
-      className="w-full h-auto"
-    >
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
       {/* Edges */}
       {layout.edges.map((edge) => {
         const opacity = 0.2 + 0.6 * (edge.weight / maxWeight);
@@ -121,10 +116,14 @@ export function IocGraph({ data, width = 700, height = 500 }: Props) {
           <g
             key={node.id}
             className="cursor-pointer"
-            onClick={() => { if (!node.center) navigate(`/ioc-explorer/${node.id}`); }}
+            onClick={() => {
+              if (!node.center) navigate(`/ioc-explorer/${node.id}`);
+            }}
             role={node.center ? undefined : 'link'}
             tabIndex={node.center ? undefined : 0}
-            onKeyDown={(e) => { if (!node.center && (e.key === 'Enter')) navigate(`/ioc-explorer/${node.id}`); }}
+            onKeyDown={(e) => {
+              if (!node.center && e.key === 'Enter') navigate(`/ioc-explorer/${node.id}`);
+            }}
           >
             {/* Node circle */}
             <circle

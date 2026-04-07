@@ -41,35 +41,35 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
           <Suspense fallback={<Loading message="Loading page..." />}>
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route
-              element={
-                <AuthGuard>
-                  <AppLayout />
-                </AuthGuard>
-              }
-            >
-              <Route index element={<Impact />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="conversations" element={<Conversations />} />
-              <Route path="conversations/:id" element={<ConversationDetail />} />
-              <Route path="ioc-explorer" element={<IocExplorer />} />
-              <Route path="ioc-explorer/:indicatorId" element={<IocDetail />} />
-              <Route path="stix-export" element={<StixExport />} />
-              <Route path="personas" element={<Personas />} />
-              <Route path="convergence" element={<ConvergenceHistory />} />
-              <Route path="llm-costs" element={<LlmCosts />} />
-              <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
-              <Route path="monitoring/pipeline" element={<PipelineMonitor />} />
-              <Route path="monitoring/injection" element={<InjectionMonitoring />} />
-              <Route path="monitoring/analytics" element={<Analytics />} />
-              {/* Campaign routes hidden — pipeline disconnected */}
-              {/* <Route path="campaigns" element={<Campaigns />} /> */}
-              {/* <Route path="campaigns/:id" element={<CampaignDetail />} /> */}
-              <Route path="settings" element={<Settings />} />
-            </Route>
-          </Routes>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                element={
+                  <AuthGuard>
+                    <AppLayout />
+                  </AuthGuard>
+                }
+              >
+                <Route index element={<Impact />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="conversations" element={<Conversations />} />
+                <Route path="conversations/:id" element={<ConversationDetail />} />
+                <Route path="ioc-explorer" element={<IocExplorer />} />
+                <Route path="ioc-explorer/:indicatorId" element={<IocDetail />} />
+                <Route path="stix-export" element={<StixExport />} />
+                <Route path="personas" element={<Personas />} />
+                <Route path="convergence" element={<ConvergenceHistory />} />
+                <Route path="llm-costs" element={<LlmCosts />} />
+                <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
+                <Route path="monitoring/pipeline" element={<PipelineMonitor />} />
+                <Route path="monitoring/injection" element={<InjectionMonitoring />} />
+                <Route path="monitoring/analytics" element={<Analytics />} />
+                {/* Campaign routes hidden — pipeline disconnected */}
+                {/* <Route path="campaigns" element={<Campaigns />} /> */}
+                {/* <Route path="campaigns/:id" element={<CampaignDetail />} /> */}
+                <Route path="settings" element={<Settings />} />
+              </Route>
+            </Routes>
           </Suspense>
         </BrowserRouter>
       </QueryClientProvider>

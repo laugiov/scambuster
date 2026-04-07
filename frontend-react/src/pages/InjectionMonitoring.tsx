@@ -46,7 +46,9 @@ export default function InjectionMonitoring() {
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await client.get(ENDPOINTS.monitoring.injection, { params: { days: period.days } });
+      const res = await client.get(ENDPOINTS.monitoring.injection, {
+        params: { days: period.days },
+      });
       setStats(res.data);
       setError(null);
     } catch {
@@ -56,7 +58,9 @@ export default function InjectionMonitoring() {
     }
   }, [period]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (isLoading) return <Loading />;
   if (error) return <ErrorMessage message={error} />;
@@ -65,7 +69,11 @@ export default function InjectionMonitoring() {
   const parsePatterns = (patterns: string | string[] | null): string[] => {
     if (!patterns) return [];
     if (Array.isArray(patterns)) return patterns;
-    try { return JSON.parse(patterns); } catch { return [patterns]; }
+    try {
+      return JSON.parse(patterns);
+    } catch {
+      return [patterns];
+    }
   };
 
   return (
@@ -76,7 +84,10 @@ export default function InjectionMonitoring() {
           {PERIOD_OPTIONS.map((opt) => (
             <button
               key={opt.label}
-              onClick={() => { setPeriod(opt); setIsLoading(true); }}
+              onClick={() => {
+                setPeriod(opt);
+                setIsLoading(true);
+              }}
               className={`px-3 py-1 rounded text-sm ${period.label === opt.label ? 'bg-primary text-on-primary' : 'text-on-surface-dim hover:bg-surface-highest'}`}
             >
               {opt.label}
@@ -87,8 +98,17 @@ export default function InjectionMonitoring() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Analyzed" value={String(stats.analyzed)} subtitle={`${stats.coverage_pct}% coverage`} />
-        <StatCard label="High Risk" value={String(stats.high_risk)} subtitle={stats.high_risk > 0 ? 'Action needed' : 'No threats'} subtitleColor={stats.high_risk > 0 ? 'text-error' : 'text-success'} />
+        <StatCard
+          label="Analyzed"
+          value={String(stats.analyzed)}
+          subtitle={`${stats.coverage_pct}% coverage`}
+        />
+        <StatCard
+          label="High Risk"
+          value={String(stats.high_risk)}
+          subtitle={stats.high_risk > 0 ? 'Action needed' : 'No threats'}
+          subtitleColor={stats.high_risk > 0 ? 'text-error' : 'text-success'}
+        />
         <StatCard label="Medium Risk" value={String(stats.medium_risk)} />
         <StatCard label="Low Risk" value={String(stats.low_risk)} subtitle="Benign" />
       </div>
@@ -96,7 +116,9 @@ export default function InjectionMonitoring() {
       {/* Coverage bar */}
       <div className="bg-surface-high rounded-lg p-4">
         <div className="flex justify-between text-sm text-on-surface-variant mb-2">
-          <span>Coverage: {stats.analyzed} / {stats.total_inbound} messages</span>
+          <span>
+            Coverage: {stats.analyzed} / {stats.total_inbound} messages
+          </span>
           <span>{stats.coverage_pct}%</span>
         </div>
         <div className="h-3 bg-surface-highest rounded-full overflow-hidden">
@@ -111,7 +133,9 @@ export default function InjectionMonitoring() {
       {stats.recent_alerts.length === 0 ? (
         <div className="bg-success/10 border border-success/30 rounded-lg p-6 text-center">
           <p className="text-success font-semibold">No injection threats detected</p>
-          <p className="text-on-surface-dim text-sm mt-1">Last {period.label} — {stats.analyzed} messages analyzed</p>
+          <p className="text-on-surface-dim text-sm mt-1">
+            Last {period.label} — {stats.analyzed} messages analyzed
+          </p>
         </div>
       ) : (
         <div className="bg-surface-high rounded-lg overflow-hidden">
@@ -122,14 +146,23 @@ export default function InjectionMonitoring() {
             {stats.recent_alerts.map((alert) => (
               <div key={alert.msg_id} className="px-4 py-3">
                 <div className="flex items-center gap-4">
-                  <span className="font-mono text-xs text-on-surface-dim w-20 truncate">{(alert.conv_id || '').substring(0, 8)}</span>
+                  <span className="font-mono text-xs text-on-surface-dim w-20 truncate">
+                    {(alert.conv_id || '').substring(0, 8)}
+                  </span>
                   <RiskBadge score={alert.risk_score} />
                   <div className="flex-1">
                     {parsePatterns(alert.patterns).map((p, i) => (
-                      <span key={i} className="inline-block text-xs bg-error/10 text-error px-2 py-0.5 rounded mr-1 mb-1">{p}</span>
+                      <span
+                        key={i}
+                        className="inline-block text-xs bg-error/10 text-error px-2 py-0.5 rounded mr-1 mb-1"
+                      >
+                        {p}
+                      </span>
                     ))}
                   </div>
-                  <span className="text-xs text-on-surface-dim">{new Date(alert.ts_msg).toLocaleString()}</span>
+                  <span className="text-xs text-on-surface-dim">
+                    {new Date(alert.ts_msg).toLocaleString()}
+                  </span>
                 </div>
               </div>
             ))}

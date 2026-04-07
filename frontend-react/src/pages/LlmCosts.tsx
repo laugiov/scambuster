@@ -10,12 +10,24 @@ function BudgetBadge({ report }: { report: LlmCostReport }) {
   const { t } = useTranslation();
 
   if (report.limit_exceeded) {
-    return <span className="px-3 py-1 rounded-full text-xs font-medium bg-error/20 text-error">{t('llmCosts.budgetExceeded')}</span>;
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-medium bg-error/20 text-error">
+        {t('llmCosts.budgetExceeded')}
+      </span>
+    );
   }
   if (report.current_month.pct_used >= 80) {
-    return <span className="px-3 py-1 rounded-full text-xs font-medium bg-warning/20 text-warning">{t('llmCosts.approachingLimit')}</span>;
+    return (
+      <span className="px-3 py-1 rounded-full text-xs font-medium bg-warning/20 text-warning">
+        {t('llmCosts.approachingLimit')}
+      </span>
+    );
   }
-  return <span className="px-3 py-1 rounded-full text-xs font-medium bg-success/20 text-success">{t('llmCosts.withinBudget')}</span>;
+  return (
+    <span className="px-3 py-1 rounded-full text-xs font-medium bg-success/20 text-success">
+      {t('llmCosts.withinBudget')}
+    </span>
+  );
 }
 
 function BudgetBar({ report }: { report: LlmCostReport }) {
@@ -36,15 +48,27 @@ function BudgetBar({ report }: { report: LlmCostReport }) {
         <span>{t('llmCosts.limit', { amount: limit_usd.toFixed(2) })}</span>
       </div>
       <div className="relative h-4 bg-surface-highest rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${barWidth}%` }} />
-        <div className="absolute top-0 h-full border-r-2 border-dashed border-on-surface-dim/40" style={{ left: '80%' }} />
+        <div
+          className={`h-full rounded-full transition-all ${barColor}`}
+          style={{ width: `${barWidth}%` }}
+        />
+        <div
+          className="absolute top-0 h-full border-r-2 border-dashed border-on-surface-dim/40"
+          style={{ left: '80%' }}
+        />
       </div>
       <p className="text-xs text-on-surface-dim mt-1">{t('llmCosts.alertThreshold')}</p>
     </div>
   );
 }
 
-function PurposeTable({ perPurpose, totalUsd }: { perPurpose: Record<string, LlmPurposeCost>; totalUsd: number }) {
+function PurposeTable({
+  perPurpose,
+  totalUsd,
+}: {
+  perPurpose: Record<string, LlmPurposeCost>;
+  totalUsd: number;
+}) {
   const { t } = useTranslation();
   const entries = Object.entries(perPurpose);
 
@@ -71,15 +95,26 @@ function PurposeTable({ perPurpose, totalUsd }: { perPurpose: Record<string, Llm
             return (
               <tr key={purpose} className="border-b border-surface-highest/50">
                 <td className="py-3 px-2 text-on-surface">{formatPurposeName(purpose)}</td>
-                <td className="py-3 px-2 text-right text-on-surface font-mono">${data.cost_usd.toFixed(4)}</td>
-                <td className="py-3 px-2 text-right text-on-surface-variant">{data.calls.toLocaleString()}</td>
-                <td className="py-3 px-2 text-right text-on-surface-variant font-mono">${avgPerCall.toFixed(6)}</td>
+                <td className="py-3 px-2 text-right text-on-surface font-mono">
+                  ${data.cost_usd.toFixed(4)}
+                </td>
+                <td className="py-3 px-2 text-right text-on-surface-variant">
+                  {data.calls.toLocaleString()}
+                </td>
+                <td className="py-3 px-2 text-right text-on-surface-variant font-mono">
+                  ${avgPerCall.toFixed(6)}
+                </td>
                 <td className="py-3 px-2 text-right">
                   <div className="flex items-center justify-end gap-2">
                     <div className="w-16 h-2 bg-surface-highest rounded-full overflow-hidden">
-                      <div className="h-full bg-accent rounded-full" style={{ width: `${Math.min(share, 100)}%` }} />
+                      <div
+                        className="h-full bg-accent rounded-full"
+                        style={{ width: `${Math.min(share, 100)}%` }}
+                      />
                     </div>
-                    <span className="text-on-surface-variant text-xs w-12 text-right">{share.toFixed(1)}%</span>
+                    <span className="text-on-surface-variant text-xs w-12 text-right">
+                      {share.toFixed(1)}%
+                    </span>
                   </div>
                 </td>
               </tr>
@@ -99,7 +134,7 @@ function DailyChart({ trend }: { trend: LlmCostReport['daily_trend'] }) {
   }
 
   const chronological = [...trend].reverse();
-  const maxCost = Math.max(...chronological.map(d => d.cost_usd), 0.01);
+  const maxCost = Math.max(...chronological.map((d) => d.cost_usd), 0.01);
 
   return (
     <div className="flex items-end gap-2 h-40">
@@ -127,7 +162,14 @@ export default function LlmCosts() {
   const { data: report, isLoading, error, refetch } = useLlmCosts();
 
   if (isLoading) return <Loading message={t('llmCosts.loading') ?? undefined} />;
-  if (error || !report) return <ErrorMessage title={t('common.error')} message={t('llmCosts.failedLoad')} onRetry={() => refetch()} />;
+  if (error || !report)
+    return (
+      <ErrorMessage
+        title={t('common.error')}
+        message={t('llmCosts.failedLoad')}
+        onRetry={() => refetch()}
+      />
+    );
 
   const { current_month } = report;
 
@@ -153,7 +195,14 @@ export default function LlmCosts() {
         <StatCard
           label={t('llmCosts.monthlyCost')}
           value={`$${current_month.total_usd.toFixed(2)}`}
-          subtitle={current_month.limit_usd > 0 ? t('llmCosts.ofLimit', { pct: current_month.pct_used.toFixed(1), limit: current_month.limit_usd.toFixed(0) }) : t('llmCosts.thisMonth')}
+          subtitle={
+            current_month.limit_usd > 0
+              ? t('llmCosts.ofLimit', {
+                  pct: current_month.pct_used.toFixed(1),
+                  limit: current_month.limit_usd.toFixed(0),
+                })
+              : t('llmCosts.thisMonth')
+          }
         />
         <StatCard
           label={t('llmCosts.apiCalls')}

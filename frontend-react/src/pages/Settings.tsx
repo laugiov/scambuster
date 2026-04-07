@@ -22,29 +22,77 @@ export function Settings() {
         </Section>
 
         <Section title={t('settings.systemStatus')}>
-          {isLoading ? <Loading message={t('settings.loadingStatus')} /> : (
+          {isLoading ? (
+            <Loading message={t('settings.loadingStatus')} />
+          ) : (
             <div className="space-y-3">
-              <StatusRow label={t('settings.pipeline')} value={(stats?.kill_switch_active ?? stats?.kill_switch) ? t('dashboard.killSwitchActive') : t('settings.operational')} ok={!(stats?.kill_switch_active ?? stats?.kill_switch)} />
-              <StatusRow label={t('settings.lastCheck')} value={stats?.checked_at ? new Date(stats.checked_at).toLocaleString('en-GB') : '--'} ok />
-              <StatusRow label={t('settings.convergence')} value={stats?.convergence.status ?? `${stats?.convergence.converged_types ?? 0}/${stats?.convergence.total_types ?? 0} types`} ok={(stats?.convergence.converged_types ?? 0) > 0} />
-              <StatusRow label={t('settings.bestPersona')} value={stats?.convergence.best_persona ?? '--'} ok={!!stats?.convergence.best_persona} />
-              <StatusRow label={t('personas.explorationRate')} value={`${((stats?.convergence.exploration_rate ?? 0) * 100).toFixed(0)}%`} ok />
+              <StatusRow
+                label={t('settings.pipeline')}
+                value={
+                  (stats?.kill_switch_active ?? stats?.kill_switch)
+                    ? t('dashboard.killSwitchActive')
+                    : t('settings.operational')
+                }
+                ok={!(stats?.kill_switch_active ?? stats?.kill_switch)}
+              />
+              <StatusRow
+                label={t('settings.lastCheck')}
+                value={
+                  stats?.checked_at ? new Date(stats.checked_at).toLocaleString('en-GB') : '--'
+                }
+                ok
+              />
+              <StatusRow
+                label={t('settings.convergence')}
+                value={
+                  stats?.convergence.status ??
+                  `${stats?.convergence.converged_types ?? 0}/${stats?.convergence.total_types ?? 0} types`
+                }
+                ok={(stats?.convergence.converged_types ?? 0) > 0}
+              />
+              <StatusRow
+                label={t('settings.bestPersona')}
+                value={stats?.convergence.best_persona ?? '--'}
+                ok={!!stats?.convergence.best_persona}
+              />
+              <StatusRow
+                label={t('personas.explorationRate')}
+                value={`${((stats?.convergence.exploration_rate ?? 0) * 100).toFixed(0)}%`}
+                ok
+              />
             </div>
           )}
         </Section>
 
         <Section title={t('settings.counters')}>
-          {isLoading ? <Loading message={t('settings.loadingCounters')} /> : (
+          {isLoading ? (
+            <Loading message={t('settings.loadingCounters')} />
+          ) : (
             <div className="space-y-3">
-              <CounterRow label={t('settings.totalConversations')} value={stats?.conversations.total ?? 0} />
-              <CounterRow label={t('common.active')} value={stats?.conversations.open ?? stats?.conversations.active ?? 0} />
-              <CounterRow label={t('common.status.closed')} value={stats?.conversations.closed ?? 0} />
-              <CounterRow label={t('common.status.abandoned')} value={stats?.conversations.abandoned ?? 0} />
+              <CounterRow
+                label={t('settings.totalConversations')}
+                value={stats?.conversations.total ?? 0}
+              />
+              <CounterRow
+                label={t('common.active')}
+                value={stats?.conversations.open ?? stats?.conversations.active ?? 0}
+              />
+              <CounterRow
+                label={t('common.status.closed')}
+                value={stats?.conversations.closed ?? 0}
+              />
+              <CounterRow
+                label={t('common.status.abandoned')}
+                value={stats?.conversations.abandoned ?? 0}
+              />
               <CounterRow label={t('settings.totalMessages')} value={stats?.messages.total ?? 0} />
               <CounterRow label={t('settings.inbound')} value={stats?.messages.inbound ?? 0} />
               <CounterRow label={t('settings.outbound')} value={stats?.messages.outbound ?? 0} />
               <CounterRow label={t('settings.totalIocs')} value={stats?.iocs.total ?? 0} />
-              <CounterRow label={t('settings.uniqueIocTypes')} value={stats?.iocs.unique_types ?? 0} />
+              <CounterRow
+                label={t('settings.uniqueIocTypes')}
+                value={stats?.iocs.unique_types ?? 0}
+              />
             </div>
           )}
         </Section>
@@ -56,7 +104,12 @@ export function Settings() {
             <InfoRow label={t('settings.frontend')} value="React 18 / TypeScript" />
             <InfoRow label={t('settings.database')} value="PostgreSQL 15" />
             <InfoRow label={t('settings.cache')} value="Redis 7" />
-            <InfoRow label={t('settings.llmProvider')} value={metaConfig ? `${metaConfig.llm_provider} (${metaConfig.llm_model})` : 'Loading...'} />
+            <InfoRow
+              label={t('settings.llmProvider')}
+              value={
+                metaConfig ? `${metaConfig.llm_provider} (${metaConfig.llm_model})` : 'Loading...'
+              }
+            />
             <InfoRow label={t('settings.orchestration')} value="n8n" />
           </div>
         </Section>
@@ -101,7 +154,9 @@ function CounterRow({ label, value }: { label: string; value: number }) {
   return (
     <div className="flex items-center justify-between py-1.5">
       <span className="text-sm text-on-surface-variant">{label}</span>
-      <span className="text-sm text-on-surface font-mono font-medium">{value.toLocaleString()}</span>
+      <span className="text-sm text-on-surface font-mono font-medium">
+        {value.toLocaleString()}
+      </span>
     </div>
   );
 }

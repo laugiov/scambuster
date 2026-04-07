@@ -81,10 +81,10 @@ export function useTogglePersonaActive() {
 
   return useMutation({
     mutationFn: async ({ code, active }: { code: string; active: boolean }) => {
-      const { data } = await client.patch<{ success: boolean; data: { persona_code: string; is_active: boolean } }>(
-        ENDPOINTS.personas.toggleActive(code),
-        { active },
-      );
+      const { data } = await client.patch<{
+        success: boolean;
+        data: { persona_code: string; is_active: boolean };
+      }>(ENDPOINTS.personas.toggleActive(code), { active });
       return data.data;
     },
     onSuccess: (_data, variables) => {

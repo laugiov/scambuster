@@ -13,30 +13,61 @@ const BASE = '/api/v1';
 
 const mockIocs: Ioc[] = [
   {
-    obs_id: 'obs-1', ioc_id: 'ind-1', type: 'domain', value: 'evil.com',
-    value_norm: 'evil[.]com', score: { vt: 70, urlscan: 0, agg: 70, explain: '' },
-    category: 'Credential_phish', ts_observed: new Date().toISOString(),
-    confidence: 0.95, decay_factor: 0.9, effective_score: 0.85,
+    obs_id: 'obs-1',
+    ioc_id: 'ind-1',
+    type: 'domain',
+    value: 'evil.com',
+    value_norm: 'evil[.]com',
+    score: { vt: 70, urlscan: 0, agg: 70, explain: '' },
+    category: 'Credential_phish',
+    ts_observed: new Date().toISOString(),
+    confidence: 0.95,
+    decay_factor: 0.9,
+    effective_score: 0.85,
   },
   {
-    obs_id: 'obs-2', ioc_id: 'ind-2', type: 'message_id', value: '<abc@mail.com>',
-    value_norm: '<abc@mail.com>', score: { vt: 0, urlscan: 0, agg: 0, explain: '' },
-    category: 'Unknown', ts_observed: new Date().toISOString(),
-    confidence: 0.99, decay_factor: 1, effective_score: 0.99,
+    obs_id: 'obs-2',
+    ioc_id: 'ind-2',
+    type: 'message_id',
+    value: '<abc@mail.com>',
+    value_norm: '<abc@mail.com>',
+    score: { vt: 0, urlscan: 0, agg: 0, explain: '' },
+    category: 'Unknown',
+    ts_observed: new Date().toISOString(),
+    confidence: 0.99,
+    decay_factor: 1,
+    effective_score: 0.99,
   },
   {
-    obs_id: 'obs-3', ioc_id: 'ind-3', type: 'ipv4', value: '192.0.2.1',
-    value_norm: '192.0.2.1', score: { vt: 45, urlscan: 0, agg: 45, explain: '' },
-    category: 'Unknown', ts_observed: '2025-01-01T00:00:00Z',
-    confidence: 0.5, decay_factor: 0.3, effective_score: 0.15,
+    obs_id: 'obs-3',
+    ioc_id: 'ind-3',
+    type: 'ipv4',
+    value: '192.0.2.1',
+    value_norm: '192.0.2.1',
+    score: { vt: 45, urlscan: 0, agg: 45, explain: '' },
+    category: 'Unknown',
+    ts_observed: '2025-01-01T00:00:00Z',
+    confidence: 0.5,
+    decay_factor: 0.3,
+    effective_score: 0.15,
   },
 ];
 
 const mockMetaConfig = {
-  personas: [], scam_types: [],
+  personas: [],
+  scam_types: [],
   ioc_types: ['domain', 'ipv4', 'message_id', 'email'],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai', llm_model: 'gpt-4o-mini',
+  bandit: {
+    strategy: 'epsilon-greedy',
+    epsilon: 0.2,
+    cold_start_threshold: 3,
+    convergence_threshold: 0.6,
+    min_sessions_for_convergence: 10,
+    converged_epsilon: 0.05,
+    reward_weights: {},
+  },
+  llm_provider: 'openai',
+  llm_model: 'gpt-4o-mini',
 };
 
 const iocHandler = http.get(`${BASE}/iocs`, () => HttpResponse.json(mockIocs));
@@ -53,9 +84,7 @@ function createWrapper() {
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <MemoryRouter>
-          {children}
-        </MemoryRouter>
+        <MemoryRouter>{children}</MemoryRouter>
       </QueryClientProvider>
     );
   };
@@ -87,7 +116,8 @@ describe('IocExplorer Advanced Filters', () => {
     });
 
     const toggles = screen.getAllByRole('checkbox');
-    const hideHeadersToggle = toggles.find(el => el.getAttribute('checked') !== null) ?? toggles[toggles.length - 1];
+    const hideHeadersToggle =
+      toggles.find((el) => el.getAttribute('checked') !== null) ?? toggles[toggles.length - 1];
     fireEvent.click(hideHeadersToggle);
 
     await waitFor(() => {
@@ -104,9 +134,7 @@ describe('IocExplorer Advanced Filters', () => {
     });
 
     // Click "High" severity filter
-    const highBtn = screen.getAllByText('High').find(
-      (el) => el.tagName === 'BUTTON'
-    );
+    const highBtn = screen.getAllByText('High').find((el) => el.tagName === 'BUTTON');
     if (highBtn) fireEvent.click(highBtn);
 
     await waitFor(() => {

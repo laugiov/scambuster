@@ -15,12 +15,12 @@ export const mockMetaConfig: MetaConfig = {
   ioc_types: ['email', 'ipv4', 'domain', 'url', 'sha256', 'phone'],
   bandit: {
     strategy: 'epsilon-greedy',
-    epsilon: 0.20,
+    epsilon: 0.2,
     cold_start_threshold: 3,
-    convergence_threshold: 0.60,
+    convergence_threshold: 0.6,
     min_sessions_for_convergence: 10,
     converged_epsilon: 0.05,
-    reward_weights: { duration: 0.40, iocs_total: 0.25, iocs_sensibles: 0.25, completion: 0.10 },
+    reward_weights: { duration: 0.4, iocs_total: 0.25, iocs_sensibles: 0.25, completion: 0.1 },
   },
   llm_provider: 'openai',
   llm_model: 'gpt-4o-mini',
@@ -31,7 +31,12 @@ export const mockAutonomyStats: AutonomyStats = {
   conversations: { total: 15, active: 10, closed: 3, abandoned: 2 },
   messages: { total: 42, inbound: 20, outbound: 22 },
   iocs: { total: 89, unique_types: 6 },
-  convergence: { status: 'converging', best_persona: 'elderly_person', best_score: 0.82, exploration_rate: 0.15 },
+  convergence: {
+    status: 'converging',
+    best_persona: 'elderly_person',
+    best_score: 0.82,
+    exploration_rate: 0.15,
+  },
   kill_switch: false,
   checked_at: new Date().toISOString(),
 };
@@ -72,14 +77,14 @@ export const mockLlmCostReport: LlmCostReport = {
     generation: { cost_usd: 5.123456, calls: 620 },
     classification: { cost_usd: 2.345678, calls: 410 },
     validation: { cost_usd: 1.890123, calls: 380 },
-    ioc_extraction: { cost_usd: 1.567890, calls: 290 },
+    ioc_extraction: { cost_usd: 1.56789, calls: 290 },
     conversation_analysis: { cost_usd: 0.987654, calls: 98 },
     injection_detection: { cost_usd: 0.430877, calls: 44 },
   },
   daily_trend: [
     { date: '2026-03-22', cost_usd: 1.234567, calls: 312 },
-    { date: '2026-03-21', cost_usd: 2.100000, calls: 287 },
-    { date: '2026-03-20', cost_usd: 1.890000, calls: 301 },
+    { date: '2026-03-21', cost_usd: 2.1, calls: 287 },
+    { date: '2026-03-20', cost_usd: 1.89, calls: 301 },
   ],
   limit_exceeded: false,
 };
@@ -89,9 +94,11 @@ export const handlers = [
   http.get(`${BASE}/monitoring/autonomy`, () => HttpResponse.json(mockAutonomyStats)),
   http.get(`${BASE}/communication/conversation`, () => HttpResponse.json(mockConversations)),
   http.get(`${BASE}/monitoring/llm-cost`, () => HttpResponse.json(mockLlmCostReport)),
-  http.post(`${BASE}/auth/login`, () => HttpResponse.json({
-    access_token: 'mock-jwt-token',
-    refresh_token: 'mock-refresh-token',
-    expires_in: 3600,
-  })),
+  http.post(`${BASE}/auth/login`, () =>
+    HttpResponse.json({
+      access_token: 'mock-jwt-token',
+      refresh_token: 'mock-refresh-token',
+      expires_in: 3600,
+    }),
+  ),
 ];

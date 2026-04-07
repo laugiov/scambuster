@@ -27,15 +27,17 @@ export function Personas() {
   }, []);
 
   if (isLoading) return <Loading message={t('personas.loading')} />;
-  if (error) return <ErrorMessage message={t('personas.failedLoad')} onRetry={() => void refetch()} />;
+  if (error)
+    return <ErrorMessage message={t('personas.failedLoad')} onRetry={() => void refetch()} />;
 
   const safePersonas = personas ?? [];
   const activeCount = safePersonas.length;
   const epsilon = stats?.convergence.exploration_rate ?? 0.15;
   const totalSessions = safePersonas.reduce((sum, p) => sum + p.total_sessions, 0);
-  const bestPersona = safePersonas.length > 0
-    ? safePersonas.reduce((best, p) => p.global_avg_reward > best.global_avg_reward ? p : best)
-    : null;
+  const bestPersona =
+    safePersonas.length > 0
+      ? safePersonas.reduce((best, p) => (p.global_avg_reward > best.global_avg_reward ? p : best))
+      : null;
 
   const selectedPersona = safePersonas.find((p) => p.persona_code === selectedCode) ?? null;
 
@@ -48,7 +50,11 @@ export function Personas() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('personas.activePersonas')} value={activeCount} />
-        <StatCard label={t('personas.explorationRate')} value={epsilon.toFixed(2)} subtitle={t('personas.epsilon')} />
+        <StatCard
+          label={t('personas.explorationRate')}
+          value={epsilon.toFixed(2)}
+          subtitle={t('personas.epsilon')}
+        />
         <StatCard label={t('personas.totalSessions')} value={totalSessions} />
         <StatCard
           label={t('personas.convergenceRate')}
@@ -77,24 +83,31 @@ export function Personas() {
 
         <BanditSettings epsilon={epsilon} config={config} />
       </div>
-
     </div>
   );
 }
 
-function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
+function PerformanceMatrix({
+  personas,
+  selectedCode,
+  onSelect,
+  config,
+}: {
   personas: PersonaSummary[];
   selectedCode: string | null;
   onSelect: (code: string) => void;
   config: MetaConfig | undefined;
 }) {
   const { t } = useTranslation();
-  const handleKeyDown = useCallback((code: string, e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      onSelect(code);
-    }
-  }, [onSelect]);
+  const handleKeyDown = useCallback(
+    (code: string, e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onSelect(code);
+      }
+    },
+    [onSelect],
+  );
 
   return (
     <div className="bg-surface-low rounded-lg p-6">
@@ -128,25 +141,42 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
                   isSelected ? 'bg-surface-high' : 'hover:bg-surface-high/50'
                 }`}
               >
-                <td className="py-3 font-medium text-on-surface">{personaDisplayName(config, p.persona_code)}</td>
-                <td className="py-3 text-on-surface-variant font-mono text-xs">{p.total_sessions}</td>
+                <td className="py-3 font-medium text-on-surface">
+                  {personaDisplayName(config, p.persona_code)}
+                </td>
+                <td className="py-3 text-on-surface-variant font-mono text-xs">
+                  {p.total_sessions}
+                </td>
                 <td className="py-3">
-                  <span className={`font-mono text-xs font-bold ${
-                    p.global_avg_reward >= 0.7 ? 'text-success' :
-                    p.global_avg_reward >= 0.4 ? 'text-accent' : 'text-on-surface-variant'
-                  }`}>
+                  <span
+                    className={`font-mono text-xs font-bold ${
+                      p.global_avg_reward >= 0.7
+                        ? 'text-success'
+                        : p.global_avg_reward >= 0.4
+                          ? 'text-accent'
+                          : 'text-on-surface-variant'
+                    }`}
+                  >
                     {p.global_avg_reward.toFixed(2)}
                   </span>
                 </td>
                 <td className="py-3 text-on-surface-variant font-mono text-xs">
                   {p.performance_by_scam_type.length > 0
-                    ? Math.max(...p.performance_by_scam_type.map((s) => s.best_reward ?? s.reward_avg ?? 0)).toFixed(2)
+                    ? Math.max(
+                        ...p.performance_by_scam_type.map(
+                          (s) => s.best_reward ?? s.reward_avg ?? 0,
+                        ),
+                      ).toFixed(2)
                     : '--'}
                 </td>
                 <td className="py-3">
-                  <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-                    p.total_sessions > 0 ? 'bg-success/20 text-success' : 'bg-surface-highest text-on-surface-dim'
-                  }`}>
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded font-medium ${
+                      p.total_sessions > 0
+                        ? 'bg-success/20 text-success'
+                        : 'bg-surface-highest text-on-surface-dim'
+                    }`}
+                  >
                     {p.total_sessions > 0 ? t('common.active') : t('common.status.coldStart')}
                   </span>
                 </td>
@@ -166,7 +196,6 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
   );
 }
 
-
 function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConfig | undefined }) {
   const { t } = useTranslation();
   const bandit = config?.bandit;
@@ -176,35 +205,54 @@ function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConf
 
   return (
     <div className="bg-surface-low rounded-lg p-6 space-y-6">
-      <h2 className="text-base font-medium text-on-surface">{t('personas.banditStrategySettings')}</h2>
+      <h2 className="text-base font-medium text-on-surface">
+        {t('personas.banditStrategySettings')}
+      </h2>
 
       <div className="space-y-4">
-        <InfoField label={t('dashboard.strategy', { name: '' }).replace(': ', '')} value={strategy} />
+        <InfoField
+          label={t('dashboard.strategy', { name: '' }).replace(': ', '')}
+          value={strategy}
+        />
 
         <div>
-          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">{t('personas.epsilon')}</span>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">
+            {t('personas.epsilon')}
+          </span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface font-mono">
             {effectiveEpsilon.toFixed(2)}
           </div>
           <p className="text-xs text-on-surface-dim mt-1">
-            {t('personas.exploit', { pct: ((1 - effectiveEpsilon) * 100).toFixed(0) })} / {t('personas.explore', { pct: (effectiveEpsilon * 100).toFixed(0) })}
+            {t('personas.exploit', { pct: ((1 - effectiveEpsilon) * 100).toFixed(0) })} /{' '}
+            {t('personas.explore', { pct: (effectiveEpsilon * 100).toFixed(0) })}
           </p>
         </div>
 
         <div>
-          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">{t('personas.decaySchedule')}</span>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">
+            {t('personas.decaySchedule')}
+          </span>
           <div className="flex items-center justify-between bg-surface-base rounded px-3 py-2.5">
             <span className="text-sm text-on-surface">{t('common.enabled')}</span>
-            <span className="w-8 h-4 bg-accent-muted rounded-full relative" role="img" aria-label="Decay schedule enabled">
+            <span
+              className="w-8 h-4 bg-accent-muted rounded-full relative"
+              role="img"
+              aria-label="Decay schedule enabled"
+            >
               <span className="absolute right-0.5 top-0.5 w-3 h-3 bg-on-surface rounded-full" />
             </span>
           </div>
         </div>
 
-        <InfoField label={t('personas.minPullsBeforeExploit')} value={String(bandit?.min_sessions_for_convergence ?? 50)} />
+        <InfoField
+          label={t('personas.minPullsBeforeExploit')}
+          value={String(bandit?.min_sessions_for_convergence ?? 50)}
+        />
 
         <div>
-          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">{t('personas.resetOnNewCampaign')}</span>
+          <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">
+            {t('personas.resetOnNewCampaign')}
+          </span>
           <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface-dim italic">
             {t('personas.coldRestart', { threshold: coldStart })}
           </div>
@@ -212,7 +260,9 @@ function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConf
       </div>
 
       <div className="space-y-3 pt-2">
-        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">{t('personas.rewardFunction')}</span>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">
+          {t('personas.rewardFunction')}
+        </span>
         <div className="grid grid-cols-2 gap-2">
           {bandit?.reward_weights ? (
             Object.entries(bandit.reward_weights).map(([key, val]) => (
@@ -239,8 +289,12 @@ function RewardWeight({ label, value }: { label: string; value: string }) {
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{label}</span>
-      <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface mt-1">{value}</div>
+      <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+        {label}
+      </span>
+      <div className="bg-surface-base rounded px-3 py-2.5 text-sm text-on-surface mt-1">
+        {value}
+      </div>
     </div>
   );
 }

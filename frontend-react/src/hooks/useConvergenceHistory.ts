@@ -19,7 +19,9 @@ export function useConvergenceHistory() {
   return useQuery<ConvergenceHistoryResponse>({
     queryKey: ['convergence-history'],
     queryFn: async () => {
-      const { data } = await client.get<ConvergenceHistoryResponse>(ENDPOINTS.monitoring.convergenceHistory);
+      const { data } = await client.get<ConvergenceHistoryResponse>(
+        ENDPOINTS.monitoring.convergenceHistory,
+      );
       return data;
     },
     staleTime: 60_000,

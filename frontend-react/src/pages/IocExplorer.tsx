@@ -14,14 +14,24 @@ import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
 const IOC_PAGE_SIZE = 30;
 
 const HEADER_IOC_TYPES = new Set([
-  'message_id', 'subject', 'spf_result', 'dkim_result', 'dmarc_result', 'x_mailer', 'return_path',
+  'message_id',
+  'subject',
+  'spf_result',
+  'dkim_result',
+  'dmarc_result',
+  'x_mailer',
+  'return_path',
 ]);
 
 const CATEGORY_MAP: Record<string, string> = {
-  ipv4: 'IP', ipv6: 'IP',
+  ipv4: 'IP',
+  ipv6: 'IP',
   domain: 'Domain',
-  md5: 'Hash', sha1: 'Hash', sha256: 'Hash',
-  email: 'Email', whois_email: 'Email',
+  md5: 'Hash',
+  sha1: 'Hash',
+  sha256: 'Hash',
+  email: 'Email',
+  whois_email: 'Email',
   url: 'URL',
 };
 
@@ -115,19 +125,32 @@ export function IocExplorer() {
   }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders, hasContextOnly]);
 
   if (isLoading) return <Loading message={t('iocExplorer.loading')} />;
-  if (error) return <ErrorMessage message={t('iocExplorer.failedLoad')} onRetry={() => void refetch()} />;
+  if (error)
+    return <ErrorMessage message={t('iocExplorer.failedLoad')} onRetry={() => void refetch()} />;
 
   return (
     <div className="space-y-6">
       <header className="space-y-1">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-          <span className="text-xs uppercase tracking-widest text-accent/80 font-bold">{t('iocExplorer.realTimeAnalysis')}</span>
+          <span className="text-xs uppercase tracking-widest text-accent/80 font-bold">
+            {t('iocExplorer.realTimeAnalysis')}
+          </span>
         </div>
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-light text-on-surface tracking-tight">{t('iocExplorer.title')}</h1>
+          <h1 className="text-2xl font-light text-on-surface tracking-tight">
+            {t('iocExplorer.title')}
+          </h1>
           <div className="ml-8 flex items-center gap-3">
-            <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('iocExplorer.searchPlaceholder')} ariaLabel="Search IOCs" />
+            <SearchBar
+              value={search}
+              onChange={(v) => {
+                setSearch(v);
+                setPage(1);
+              }}
+              placeholder={t('iocExplorer.searchPlaceholder')}
+              ariaLabel="Search IOCs"
+            />
             <ExportCsvButton
               data={filtered as unknown as Record<string, unknown>[]}
               columns={[
@@ -140,35 +163,73 @@ export function IocExplorer() {
               ]}
               filename={`scambuster-iocs-${new Date().toISOString().slice(0, 10)}.csv`}
             />
-            <ExportStixButton indicatorIds={filtered.map((ioc) => ioc.ioc_id)} count={filtered.length} />
+            <ExportStixButton
+              indicatorIds={filtered.map((ioc) => ioc.ioc_id)}
+              count={filtered.length}
+            />
           </div>
         </div>
       </header>
 
-      <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={filtered.length} typeFilters={typeFilters} />
+      <FilterBar
+        typeFilter={typeFilter}
+        onTypeChange={setTypeFilter}
+        total={filtered.length}
+        typeFilters={typeFilters}
+      />
 
       <AdvancedFilters
         severity={severity}
-        onSeverityChange={(v) => { setSeverity(v); setPage(1); }}
+        onSeverityChange={(v) => {
+          setSeverity(v);
+          setPage(1);
+        }}
         minConfidence={minConfidence}
-        onMinConfidenceChange={(v) => { setMinConfidence(v); setPage(1); }}
+        onMinConfidenceChange={(v) => {
+          setMinConfidence(v);
+          setPage(1);
+        }}
         dateRange={dateRange}
-        onDateRangeChange={(v) => { setDateRange(v); setPage(1); }}
+        onDateRangeChange={(v) => {
+          setDateRange(v);
+          setPage(1);
+        }}
         hideHeaders={hideHeaders}
-        onHideHeadersChange={(v) => { setHideHeaders(v); setPage(1); }}
+        onHideHeadersChange={(v) => {
+          setHideHeaders(v);
+          setPage(1);
+        }}
         hasContextOnly={hasContextOnly}
-        onHasContextOnlyChange={(v) => { setHasContextOnly(v); setPage(1); }}
+        onHasContextOnlyChange={(v) => {
+          setHasContextOnly(v);
+          setPage(1);
+        }}
       />
 
-      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
+      <Pagination
+        page={page}
+        pageSize={IOC_PAGE_SIZE}
+        totalItems={filtered.length}
+        onPageChange={setPage}
+      />
 
       <IocTable iocs={filtered.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} />
-      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
+      <Pagination
+        page={page}
+        pageSize={IOC_PAGE_SIZE}
+        totalItems={filtered.length}
+        onPageChange={setPage}
+      />
     </div>
   );
 }
 
-function FilterBar({ typeFilter, onTypeChange, total, typeFilters }: {
+function FilterBar({
+  typeFilter,
+  onTypeChange,
+  total,
+  typeFilters,
+}: {
   typeFilter: string;
   onTypeChange: (t: string) => void;
   total: number;
@@ -179,7 +240,9 @@ function FilterBar({ typeFilter, onTypeChange, total, typeFilters }: {
   return (
     <div className="flex items-center gap-6">
       <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.typeFilter')}</span>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+          {t('iocExplorer.typeFilter')}
+        </span>
         <div className="flex gap-1.5">
           {typeFilters.map((tf) => (
             <button
@@ -196,46 +259,66 @@ function FilterBar({ typeFilter, onTypeChange, total, typeFilters }: {
           ))}
         </div>
       </div>
-      <span className="ml-auto text-xs text-on-surface-dim">{t('iocExplorer.indicators', { count: total })}</span>
+      <span className="ml-auto text-xs text-on-surface-dim">
+        {t('iocExplorer.indicators', { count: total })}
+      </span>
     </div>
   );
 }
 
 function AdvancedFilters({
-  severity, onSeverityChange,
-  minConfidence, onMinConfidenceChange,
-  dateRange, onDateRangeChange,
-  hideHeaders, onHideHeadersChange,
-  hasContextOnly, onHasContextOnlyChange,
+  severity,
+  onSeverityChange,
+  minConfidence,
+  onMinConfidenceChange,
+  dateRange,
+  onDateRangeChange,
+  hideHeaders,
+  onHideHeadersChange,
+  hasContextOnly,
+  onHasContextOnlyChange,
 }: {
-  severity: string; onSeverityChange: (v: string) => void;
-  minConfidence: string; onMinConfidenceChange: (v: string) => void;
-  dateRange: string; onDateRangeChange: (v: string) => void;
-  hideHeaders: boolean; onHideHeadersChange: (v: boolean) => void;
-  hasContextOnly: boolean; onHasContextOnlyChange: (v: boolean) => void;
+  severity: string;
+  onSeverityChange: (v: string) => void;
+  minConfidence: string;
+  onMinConfidenceChange: (v: string) => void;
+  dateRange: string;
+  onDateRangeChange: (v: string) => void;
+  hideHeaders: boolean;
+  onHideHeadersChange: (v: boolean) => void;
+  hasContextOnly: boolean;
+  onHasContextOnlyChange: (v: boolean) => void;
 }) {
   const { t } = useTranslation();
 
   const pillBtn = (active: boolean) =>
     `px-3 py-1 text-xs rounded-full transition-colors cursor-pointer ${
-      active ? 'bg-accent-muted text-on-surface font-medium' : 'bg-surface-high hover:bg-surface-highest text-on-surface-variant'
+      active
+        ? 'bg-accent-muted text-on-surface font-medium'
+        : 'bg-surface-high hover:bg-surface-highest text-on-surface-variant'
     }`;
 
   return (
     <div className="flex flex-wrap items-center gap-4">
       {/* Severity */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.severity')}</span>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+          {t('iocExplorer.severity')}
+        </span>
         <div className="flex gap-1">
           {['All', 'High', 'Medium', 'Low'].map((s) => (
-            <button key={s} onClick={() => onSeverityChange(s)} className={pillBtn(severity === s)}>{s}</button>
+            <button key={s} onClick={() => onSeverityChange(s)} className={pillBtn(severity === s)}>
+              {s}
+            </button>
           ))}
         </div>
       </div>
 
       {/* Confidence */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.confidence')}</span>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+          {t('iocExplorer.confidence')}
+        </span>
         <select
           value={minConfidence}
           onChange={(e) => onMinConfidenceChange(e.target.value)}
@@ -250,10 +333,18 @@ function AdvancedFilters({
 
       {/* Date range */}
       <div className="flex items-center gap-2">
-        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.dateRange')}</span>
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+          {t('iocExplorer.dateRange')}
+        </span>
         <div className="flex gap-1">
           {['7d', '30d', '90d', 'All'].map((d) => (
-            <button key={d} onClick={() => onDateRangeChange(d)} className={pillBtn(dateRange === d)}>{d}</button>
+            <button
+              key={d}
+              onClick={() => onDateRangeChange(d)}
+              className={pillBtn(dateRange === d)}
+            >
+              {d}
+            </button>
           ))}
         </div>
       </div>
@@ -309,7 +400,12 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
               <tr
                 key={ioc.obs_id}
                 onClick={() => navigate(`/ioc-explorer/${ioc.ioc_id}`)}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate(`/ioc-explorer/${ioc.ioc_id}`); } }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    navigate(`/ioc-explorer/${ioc.ioc_id}`);
+                  }
+                }}
                 tabIndex={0}
                 role="link"
                 className="transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent hover:bg-surface-high/50"
@@ -320,7 +416,9 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                 <td className="px-5 py-3">
                   <span className="text-xs uppercase text-on-surface-variant">{ioc.type}</span>
                   {ioc.has_context && (
-                    <span className="ml-1 text-accent" title="Has contextual enrichment">&#10024;</span>
+                    <span className="ml-1 text-accent" title="Has contextual enrichment">
+                      &#10024;
+                    </span>
                   )}
                 </td>
                 <td className="px-5 py-3 font-mono text-on-surface truncate max-w-[200px]">
@@ -332,12 +430,12 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                     <div className="w-16 h-1.5 bg-surface-highest rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full ${sev.barColor}`}
-                        style={{ width: `${Math.min(Math.max((ioc.score?.agg ?? 0) * 10, 0), 100)}%` }}
+                        style={{
+                          width: `${Math.min(Math.max((ioc.score?.agg ?? 0) * 10, 0), 100)}%`,
+                        }}
                       />
                     </div>
-                    <span className={`text-xs font-bold ${sev.color}`}>
-                      {ioc.score?.agg ?? 0}
-                    </span>
+                    <span className={`text-xs font-bold ${sev.color}`}>{ioc.score?.agg ?? 0}</span>
                   </div>
                 </td>
                 <td className="px-5 py-3">
@@ -352,9 +450,7 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                             style={{ width: `${Math.min(es * 100, 100)}%` }}
                           />
                         </div>
-                        <span className={`text-xs font-bold ${cc.textColor}`}>
-                          {es.toFixed(2)}
-                        </span>
+                        <span className={`text-xs font-bold ${cc.textColor}`}>{es.toFixed(2)}</span>
                       </div>
                     );
                   })()}
@@ -363,8 +459,19 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                   {timeSince(ioc.ts_observed)}
                 </td>
                 <td className="px-5 py-3 text-center text-on-surface-dim">
-                  <svg className="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                  <svg
+                    className="w-4 h-4 inline-block"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M8.25 4.5l7.5 7.5-7.5 7.5"
+                    />
                   </svg>
                 </td>
               </tr>
@@ -415,8 +522,18 @@ function ExportStixButton({ indicatorIds, count }: { indicatorIds: string[]; cou
       disabled={count === 0 || exporting}
       className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-surface-high hover:bg-surface-highest text-on-surface-variant hover:text-accent transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+      <svg
+        className="w-3.5 h-3.5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        strokeWidth={2}
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+        />
       </svg>
       {exporting ? 'Exporting...' : `STIX 2.1 (${count})`}
     </button>

@@ -44,7 +44,10 @@ interface HealthData {
   avg_cost: number;
   approval_rate: number;
   fallback_rate: number;
-  components: Record<string, { success_rate: number; skip_rate: number; error_rate: number; avg_duration_ms: number }>;
+  components: Record<
+    string,
+    { success_rate: number; skip_rate: number; error_rate: number; avg_duration_ms: number }
+  >;
   alerts: string[];
   cost_today: number;
   cost_yesterday: number;
@@ -74,7 +77,13 @@ function StatusBadge({ trace }: { trace: TraceSummary }) {
   return <Badge label="Failed" variant="closed" />;
 }
 
-function ComponentWaterfall({ components, totalDuration }: { components: ComponentTraceData[]; totalDuration: number }) {
+function ComponentWaterfall({
+  components,
+  totalDuration,
+}: {
+  components: ComponentTraceData[];
+  totalDuration: number;
+}) {
   if (totalDuration === 0) return null;
 
   return (
@@ -94,9 +103,13 @@ function ComponentWaterfall({ components, totalDuration }: { components: Compone
               )}
             </div>
             <span className="w-20 text-right text-on-surface-dim">
-              {c.status === 'skipped' ? c.skip_reason || 'skipped' : `${c.duration_ms.toFixed(0)}ms`}
+              {c.status === 'skipped'
+                ? c.skip_reason || 'skipped'
+                : `${c.duration_ms.toFixed(0)}ms`}
             </span>
-            {c.cost != null && <span className="w-16 text-right text-on-surface-dim">${c.cost.toFixed(4)}</span>}
+            {c.cost != null && (
+              <span className="w-16 text-right text-on-surface-dim">${c.cost.toFixed(4)}</span>
+            )}
           </div>
         );
       })}
@@ -118,7 +131,9 @@ export default function PipelineMonitor() {
   const fetchData = useCallback(async () => {
     try {
       const [tracesRes, healthRes] = await Promise.all([
-        client.get(ENDPOINTS.monitoring.pipelineTraces, { params: { days: period.days, limit: 50 } }),
+        client.get(ENDPOINTS.monitoring.pipelineTraces, {
+          params: { days: period.days, limit: 50 },
+        }),
         client.get(ENDPOINTS.monitoring.pipelineHealth, { params: { hours: period.hours } }),
       ]);
       setTraces(tracesRes.data.traces || []);
@@ -168,7 +183,10 @@ export default function PipelineMonitor() {
             {PERIOD_OPTIONS.map((opt) => (
               <button
                 key={opt.label}
-                onClick={() => { setPeriod(opt); setIsLoading(true); }}
+                onClick={() => {
+                  setPeriod(opt);
+                  setIsLoading(true);
+                }}
                 className={`px-3 py-1 rounded text-sm ${period.label === opt.label ? 'bg-primary text-on-primary' : 'text-on-surface-dim hover:bg-surface-highest'}`}
               >
                 {opt.label}
@@ -176,7 +194,12 @@ export default function PipelineMonitor() {
             ))}
           </div>
           <label className="flex items-center gap-2 text-sm text-on-surface-dim">
-            <input type="checkbox" checked={autoRefresh} onChange={(e) => setAutoRefresh(e.target.checked)} className="rounded" />
+            <input
+              type="checkbox"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+              className="rounded"
+            />
             Auto-refresh
           </label>
         </div>
@@ -185,10 +208,22 @@ export default function PipelineMonitor() {
       {/* Stats */}
       {health && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Replies" value={String(health.total_replies)} subtitle={`Last ${period.label}`} />
-          <StatCard label="Avg Cost" value={`$${health.avg_cost.toFixed(4)}`} subtitle={`Today: $${health.cost_today.toFixed(2)}`} />
+          <StatCard
+            label="Replies"
+            value={String(health.total_replies)}
+            subtitle={`Last ${period.label}`}
+          />
+          <StatCard
+            label="Avg Cost"
+            value={`$${health.avg_cost.toFixed(4)}`}
+            subtitle={`Today: $${health.cost_today.toFixed(2)}`}
+          />
           <StatCard label="Avg Duration" value={`${(health.avg_duration_ms / 1000).toFixed(1)}s`} />
-          <StatCard label="Approval Rate" value={`${(health.approval_rate * 100).toFixed(0)}%`} subtitle={`Fallback: ${(health.fallback_rate * 100).toFixed(0)}%`} />
+          <StatCard
+            label="Approval Rate"
+            value={`${(health.approval_rate * 100).toFixed(0)}%`}
+            subtitle={`Fallback: ${(health.fallback_rate * 100).toFixed(0)}%`}
+          />
         </div>
       )}
 
@@ -197,7 +232,9 @@ export default function PipelineMonitor() {
         <div className="bg-error/10 border border-error/30 rounded-lg p-4">
           <h3 className="text-sm font-semibold text-error mb-2">Alerts</h3>
           {health.alerts.map((alert, i) => (
-            <p key={i} className="text-sm text-error/80">{alert}</p>
+            <p key={i} className="text-sm text-error/80">
+              {alert}
+            </p>
           ))}
         </div>
       )}
@@ -209,7 +246,9 @@ export default function PipelineMonitor() {
         </div>
 
         {traces.length === 0 ? (
-          <p className="p-8 text-center text-on-surface-dim">No pipeline traces found for this period.</p>
+          <p className="p-8 text-center text-on-surface-dim">
+            No pipeline traces found for this period.
+          </p>
         ) : (
           <div className="divide-y divide-surface-highest">
             {traces.map((trace) => (
@@ -218,18 +257,29 @@ export default function PipelineMonitor() {
                   className="flex items-center gap-4 cursor-pointer hover:bg-surface-highest/50 -mx-2 px-2 py-1 rounded"
                   onClick={() => trace.msg_id && handleExpand(trace.msg_id)}
                 >
-                  <span className="font-mono text-xs text-on-surface-dim w-20 truncate">{(trace.conversation_id || '').substring(0, 8)}</span>
+                  <span className="font-mono text-xs text-on-surface-dim w-20 truncate">
+                    {(trace.conversation_id || '').substring(0, 8)}
+                  </span>
                   <Badge label={trace.persona} variant="default" />
                   <Badge label={trace.scam_type} variant="default" />
-                  <span className="text-sm text-on-surface-dim">{(trace.total_duration_ms / 1000).toFixed(1)}s</span>
-                  <span className="text-sm text-on-surface-dim">${trace.total_cost.toFixed(4)}</span>
+                  <span className="text-sm text-on-surface-dim">
+                    {(trace.total_duration_ms / 1000).toFixed(1)}s
+                  </span>
+                  <span className="text-sm text-on-surface-dim">
+                    ${trace.total_cost.toFixed(4)}
+                  </span>
                   <span className="text-xs text-on-surface-dim">×{trace.attempts}</span>
                   <StatusBadge trace={trace} />
-                  <span className="text-xs text-on-surface-dim ml-auto">{trace.created_at ? new Date(trace.created_at).toLocaleTimeString() : ''}</span>
+                  <span className="text-xs text-on-surface-dim ml-auto">
+                    {trace.created_at ? new Date(trace.created_at).toLocaleTimeString() : ''}
+                  </span>
                 </div>
 
                 {expandedId === trace.msg_id && expandedDetail && (
-                  <ComponentWaterfall components={expandedDetail.components} totalDuration={expandedDetail.total_duration_ms} />
+                  <ComponentWaterfall
+                    components={expandedDetail.components}
+                    totalDuration={expandedDetail.total_duration_ms}
+                  />
                 )}
               </div>
             ))}
@@ -255,12 +305,23 @@ export default function PipelineMonitor() {
             </thead>
             <tbody>
               {Object.entries(health.components).map(([name, stats]) => (
-                <tr key={name} className={`border-b border-surface-highest ${stats.success_rate < 0.95 ? 'bg-error/5' : ''}`}>
+                <tr
+                  key={name}
+                  className={`border-b border-surface-highest ${stats.success_rate < 0.95 ? 'bg-error/5' : ''}`}
+                >
                   <td className="px-4 py-2 font-mono text-on-surface">{name}</td>
-                  <td className="px-4 py-2 text-on-surface-dim">{(stats.success_rate * 100).toFixed(0)}%</td>
-                  <td className="px-4 py-2 text-on-surface-dim">{(stats.skip_rate * 100).toFixed(0)}%</td>
-                  <td className="px-4 py-2 text-on-surface-dim">{(stats.error_rate * 100).toFixed(0)}%</td>
-                  <td className="px-4 py-2 text-on-surface-dim">{stats.avg_duration_ms.toFixed(0)}ms</td>
+                  <td className="px-4 py-2 text-on-surface-dim">
+                    {(stats.success_rate * 100).toFixed(0)}%
+                  </td>
+                  <td className="px-4 py-2 text-on-surface-dim">
+                    {(stats.skip_rate * 100).toFixed(0)}%
+                  </td>
+                  <td className="px-4 py-2 text-on-surface-dim">
+                    {(stats.error_rate * 100).toFixed(0)}%
+                  </td>
+                  <td className="px-4 py-2 text-on-surface-dim">
+                    {stats.avg_duration_ms.toFixed(0)}ms
+                  </td>
                 </tr>
               ))}
             </tbody>

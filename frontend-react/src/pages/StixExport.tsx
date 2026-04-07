@@ -12,7 +12,8 @@ export function StixExport() {
   const exportMutation = useStixExport();
 
   if (isLoading) return <Loading message={t('stixExport.loading')} />;
-  if (error) return <ErrorMessage message={t('stixExport.failedLoad')} onRetry={() => void refetch()} />;
+  if (error)
+    return <ErrorMessage message={t('stixExport.failedLoad')} onRetry={() => void refetch()} />;
 
   const safeCandidates = candidates ?? [];
   const bundleJson = exportMutation.data?.bundle
@@ -58,7 +59,9 @@ export function StixExport() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left: Campaign list */}
         <div className="bg-surface-low rounded-lg p-6 space-y-4">
-          <h2 className="text-base font-medium text-on-surface">{t('stixExport.selectCampaign')}</h2>
+          <h2 className="text-base font-medium text-on-surface">
+            {t('stixExport.selectCampaign')}
+          </h2>
 
           {safeCandidates.length === 0 ? (
             <p className="text-sm text-on-surface-dim py-8 text-center">
@@ -72,7 +75,9 @@ export function StixExport() {
                   className="flex items-center justify-between bg-surface-base rounded-lg px-4 py-3"
                 >
                   <div>
-                    <span className="font-mono text-xs text-accent">{c.campaign_id.slice(0, 8)}</span>
+                    <span className="font-mono text-xs text-accent">
+                      {c.campaign_id.slice(0, 8)}
+                    </span>
                     <div className="flex items-center gap-3 mt-1 text-xs text-on-surface-dim">
                       <span>PPV: {(c.ppv * 100).toFixed(0)}%</span>
                       <span>{c.hits_total} hits</span>
@@ -98,7 +103,9 @@ export function StixExport() {
               <span className="w-2.5 h-2.5 rounded-full bg-error" />
               <span className="w-2.5 h-2.5 rounded-full bg-warning" />
               <span className="w-2.5 h-2.5 rounded-full bg-success" />
-              <span className="text-sm font-medium text-on-surface ml-2">{t('stixExport.bundlePreview')}</span>
+              <span className="text-sm font-medium text-on-surface ml-2">
+                {t('stixExport.bundlePreview')}
+              </span>
             </div>
             {bundleJson && (
               <button

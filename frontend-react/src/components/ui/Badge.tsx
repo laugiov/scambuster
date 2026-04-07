@@ -15,7 +15,9 @@ interface BadgeProps {
 
 export function Badge({ label, variant = 'default' }: BadgeProps) {
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium uppercase tracking-wider ${VARIANT_STYLES[variant]}`}>
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded text-xs font-medium uppercase tracking-wider ${VARIANT_STYLES[variant]}`}
+    >
       {label}
     </span>
   );

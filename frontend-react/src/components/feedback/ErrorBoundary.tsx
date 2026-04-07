@@ -38,7 +38,9 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <div className="min-h-screen bg-surface-base flex items-center justify-center px-4">
           <div className="max-w-md text-center" role="alert">
-            <h1 className="text-xl font-semibold text-on-surface mb-2">{i18next.t('common.somethingWentWrong')}</h1>
+            <h1 className="text-xl font-semibold text-on-surface mb-2">
+              {i18next.t('common.somethingWentWrong')}
+            </h1>
             <p className="text-sm text-on-surface-variant mb-4">
               {i18next.t('common.unexpectedError')}
             </p>

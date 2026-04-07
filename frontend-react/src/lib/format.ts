@@ -13,7 +13,7 @@ export function formatTokenCount(n: number): string {
 export function formatPurposeName(purpose: string): string {
   return purpose
     .split('_')
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 }
 

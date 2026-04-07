@@ -73,7 +73,7 @@ export function useCampaignMessages(campaignId: string) {
       const { data } = await client.get<{ messages: CampaignMessage[] }>(
         ENDPOINTS.campaign.messages(campaignId),
       );
-      return data.messages ?? data as unknown as CampaignMessage[];
+      return data.messages ?? (data as unknown as CampaignMessage[]);
     },
     enabled: !!campaignId,
   });
@@ -94,9 +94,7 @@ export function usePromoteRule() {
   const queryClient = useQueryClient();
   return useMutation<PromoteResult, Error, string>({
     mutationFn: async (ruleId: string) => {
-      const { data } = await client.post<PromoteResult>(
-        ENDPOINTS.campaign.promoteRule(ruleId),
-      );
+      const { data } = await client.post<PromoteResult>(ENDPOINTS.campaign.promoteRule(ruleId));
       return data;
     },
     onSuccess: () => {

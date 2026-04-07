@@ -30,12 +30,20 @@ export function Login() {
         <div className="text-center mb-8">
           <img src="/scambuster_icon.svg" alt="ScamBuster" className="w-16 h-16 mx-auto mb-4" />
           <h1 className="text-2xl font-semibold text-on-surface tracking-wide">ScamBuster</h1>
-          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-1">{t('auth.title')}</p>
+          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-1">
+            {t('auth.title')}
+          </p>
         </div>
 
-        <form onSubmit={(e) => void handleSubmit(e)} className="bg-surface-low rounded-lg p-6 space-y-5">
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="bg-surface-low rounded-lg p-6 space-y-5"
+        >
           <div>
-            <label htmlFor="email" className="block text-xs text-on-surface-dim uppercase tracking-widest mb-2">
+            <label
+              htmlFor="email"
+              className="block text-xs text-on-surface-dim uppercase tracking-widest mb-2"
+            >
               {t('auth.email')}
             </label>
             <input
@@ -44,14 +52,20 @@ export function Login() {
               autoComplete="username"
               required
               value={email}
-              onChange={(e) => { clearError(); setEmail(e.target.value); }}
+              onChange={(e) => {
+                clearError();
+                setEmail(e.target.value);
+              }}
               className="w-full bg-surface-base text-on-surface rounded px-3 py-2.5 text-sm placeholder-on-surface-dim focus:outline-none focus:ring-2 focus:ring-accent"
               placeholder={t('auth.emailPlaceholder')}
             />
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-xs text-on-surface-dim uppercase tracking-widest mb-2">
+            <label
+              htmlFor="password"
+              className="block text-xs text-on-surface-dim uppercase tracking-widest mb-2"
+            >
               {t('auth.password')}
             </label>
             <input
@@ -60,7 +74,10 @@ export function Login() {
               autoComplete="current-password"
               required
               value={password}
-              onChange={(e) => { clearError(); setPassword(e.target.value); }}
+              onChange={(e) => {
+                clearError();
+                setPassword(e.target.value);
+              }}
               className="w-full bg-surface-base text-on-surface rounded px-3 py-2.5 text-sm placeholder-on-surface-dim focus:outline-none focus:ring-2 focus:ring-accent"
               placeholder={t('auth.passwordPlaceholder')}
             />
@@ -81,9 +98,7 @@ export function Login() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-on-surface-dim mt-6">
-          {t('common.authorizedOnly')}
-        </p>
+        <p className="text-center text-xs text-on-surface-dim mt-6">{t('common.authorizedOnly')}</p>
       </div>
     </div>
   );

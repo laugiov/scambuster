@@ -1,8 +1,18 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
-  BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area,
-  XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid,
 } from 'recharts';
 import { useImpactSummary, useIocUniqueness } from '@/hooks/useImpact';
 import type { IocTypeEntry } from '@/hooks/useImpact';
@@ -10,7 +20,16 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
-const CHART_COLORS = ['#3b82f6', '#4ade80', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#adc6ff', '#fb923c'];
+const CHART_COLORS = [
+  '#3b82f6',
+  '#4ade80',
+  '#fbbf24',
+  '#f87171',
+  '#60a5fa',
+  '#a78bfa',
+  '#adc6ff',
+  '#fb923c',
+];
 const GRID_COLOR = '#31353c';
 const AXIS_COLOR = '#6b7280';
 const TOOLTIP_BG = '#181c22';
@@ -20,9 +39,7 @@ function ChartCard({ title, children }: { title: string; children: React.ReactNo
   return (
     <div className="bg-surface-low rounded-lg p-5">
       <h3 className="text-sm font-medium text-on-surface mb-4">{title}</h3>
-      <div className="h-64">
-        {children}
-      </div>
+      <div className="h-64">{children}</div>
     </div>
   );
 }
@@ -35,14 +52,26 @@ function EmptyChart({ message }: { message: string }) {
   );
 }
 
-function CustomTooltip({ active, payload, label }: { active?: boolean; payload?: { name: string; value: number; color: string }[]; label?: string }) {
+function CustomTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: { name: string; value: number; color: string }[];
+  label?: string;
+}) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-surface-low border border-outline-variant rounded px-3 py-2 text-xs shadow-lg" style={{ backgroundColor: TOOLTIP_BG }}>
+    <div
+      className="bg-surface-low border border-outline-variant rounded px-3 py-2 text-xs shadow-lg"
+      style={{ backgroundColor: TOOLTIP_BG }}
+    >
       <p className="text-on-surface-dim mb-1">{label}</p>
       {payload.map((entry, i) => (
         <p key={i} style={{ color: entry.color }} className="font-mono">
-          {entry.name}: {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
+          {entry.name}:{' '}
+          {typeof entry.value === 'number' ? entry.value.toLocaleString() : entry.value}
         </p>
       ))}
     </div>
@@ -96,7 +125,9 @@ export function Impact() {
               key={p}
               onClick={() => setPeriod(p)}
               className={`px-3 py-1.5 text-xs rounded transition-colors cursor-pointer ${
-                period === p ? 'bg-accent-muted text-on-surface font-medium' : 'text-on-surface-variant hover:bg-surface-high'
+                period === p
+                  ? 'bg-accent-muted text-on-surface font-medium'
+                  : 'text-on-surface-variant hover:bg-surface-high'
               }`}
             >
               {p === 'all' ? 'All' : p}
@@ -114,8 +145,11 @@ export function Impact() {
             <>
               {t('impact.across_conversations', { count: wasted_time.total_conversations })}
               {data.trends?.wasted_hours_delta_pct != null && (
-                <span className={`ml-2 ${data.trends.wasted_hours_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.trends.wasted_hours_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.wasted_hours_delta_pct).toFixed(1)}%
+                <span
+                  className={`ml-2 ${data.trends.wasted_hours_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}
+                >
+                  {data.trends.wasted_hours_delta_pct >= 0 ? '\u25B2' : '\u25BC'}{' '}
+                  {Math.abs(data.trends.wasted_hours_delta_pct).toFixed(1)}%
                 </span>
               )}
             </>
@@ -128,8 +162,11 @@ export function Impact() {
             <>
               {`${ioc_value.novel_iocs} ${t('impact.exclusive')}`}
               {data.trends?.novel_pct_delta != null && (
-                <span className={`ml-2 ${data.trends.novel_pct_delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.trends.novel_pct_delta >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.novel_pct_delta).toFixed(1)}pp
+                <span
+                  className={`ml-2 ${data.trends.novel_pct_delta >= 0 ? 'text-green-400' : 'text-red-400'}`}
+                >
+                  {data.trends.novel_pct_delta >= 0 ? '\u25B2' : '\u25BC'}{' '}
+                  {Math.abs(data.trends.novel_pct_delta).toFixed(1)}pp
                 </span>
               )}
             </>
@@ -142,8 +179,11 @@ export function Impact() {
             <>
               {`Total: $${cost_efficiency.total_cost_usd.toFixed(2)}`}
               {data.trends?.cost_per_ioc_delta_pct != null && (
-                <span className={`ml-2 ${data.trends.cost_per_ioc_delta_pct <= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.trends.cost_per_ioc_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.cost_per_ioc_delta_pct).toFixed(1)}%
+                <span
+                  className={`ml-2 ${data.trends.cost_per_ioc_delta_pct <= 0 ? 'text-green-400' : 'text-red-400'}`}
+                >
+                  {data.trends.cost_per_ioc_delta_pct >= 0 ? '\u25B2' : '\u25BC'}{' '}
+                  {Math.abs(data.trends.cost_per_ioc_delta_pct).toFixed(1)}%
                 </span>
               )}
             </>
@@ -163,10 +203,17 @@ export function Impact() {
                 <XAxis dataKey="week" tick={{ fill: AXIS_COLOR, fontSize: 10 }} />
                 <YAxis tick={{ fill: AXIS_COLOR, fontSize: 10 }} />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="hours" name={t('impact.wasted_time')} fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="hours"
+                  name={t('impact.wasted_time')}
+                  fill="#3b82f6"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
-          ) : <EmptyChart message={t('analytics.noData')} />}
+          ) : (
+            <EmptyChart message={t('analytics.noData')} />
+          )}
         </ChartCard>
 
         {/* IOC by type pie */}
@@ -183,7 +230,11 @@ export function Impact() {
                   innerRadius={50}
                   outerRadius={90}
                   paddingAngle={2}
-                  label={({ name, percent }: { name?: string; percent?: number }) => (percent ?? 0) >= 0.02 ? `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%` : ''}
+                  label={({ name, percent }: { name?: string; percent?: number }) =>
+                    (percent ?? 0) >= 0.02
+                      ? `${name ?? ''} ${((percent ?? 0) * 100).toFixed(0)}%`
+                      : ''
+                  }
                   labelLine={false}
                   fontSize={10}
                 >
@@ -194,7 +245,9 @@ export function Impact() {
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          ) : <EmptyChart message={t('analytics.noData')} />}
+          ) : (
+            <EmptyChart message={t('analytics.noData')} />
+          )}
         </ChartCard>
       </div>
 
@@ -202,20 +255,41 @@ export function Impact() {
       {(iocData?.daily_trend?.length ?? 0) > 0 && (
         <ChartCard title={t('impact.ioc_daily_trend', 'IOCs per Day (novel vs known)')}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={iocData!.daily_trend.map((d) => ({ date: d.date, novel: d.novel, known: d.total - d.novel }))}>
+            <AreaChart
+              data={iocData!.daily_trend.map((d) => ({
+                date: d.date,
+                novel: d.novel,
+                known: d.total - d.novel,
+              }))}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
               <XAxis dataKey="date" tick={{ fill: AXIS_COLOR, fontSize: 10 }} />
               <YAxis tick={{ fill: AXIS_COLOR, fontSize: 10 }} />
               <Tooltip content={<CustomTooltip />} />
-              <Area type="monotone" dataKey="known" stackId="1" stroke="#6b7280" fill="#6b7280" fillOpacity={0.3} name="Known" />
-              <Area type="monotone" dataKey="novel" stackId="1" stroke="#4ade80" fill="#4ade80" fillOpacity={0.4} name="Novel" />
+              <Area
+                type="monotone"
+                dataKey="known"
+                stackId="1"
+                stroke="#6b7280"
+                fill="#6b7280"
+                fillOpacity={0.3}
+                name="Known"
+              />
+              <Area
+                type="monotone"
+                dataKey="novel"
+                stackId="1"
+                stroke="#4ade80"
+                fill="#4ade80"
+                fillOpacity={0.4}
+                name="Novel"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
       )}
 
       {/* Campaign table hidden — pipeline disconnected */}
-
     </div>
   );
 }

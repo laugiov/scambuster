@@ -32,9 +32,11 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
             {detail?.persona_label ?? personaCode}
           </h2>
           {detail && (
-            <span className={`text-xs px-2 py-0.5 rounded font-medium ${
-              detail.is_active ? 'bg-success/20 text-success' : 'bg-error/20 text-error'
-            }`}>
+            <span
+              className={`text-xs px-2 py-0.5 rounded font-medium ${
+                detail.is_active ? 'bg-success/20 text-success' : 'bg-error/20 text-error'
+              }`}
+            >
               {detail.is_active ? t('common.active') : t('common.inactive', 'Inactive')}
             </span>
           )}
@@ -58,7 +60,10 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
           <div className="grid grid-cols-3 gap-3">
             <MetaField label={t('personas.code')} value={detail.persona_code} />
             <MetaField label={t('personas.createdBy', 'Created by')} value={detail.created_by} />
-            <MetaField label={t('personas.createdAt', 'Created')} value={new Date(detail.created_at).toLocaleDateString()} />
+            <MetaField
+              label={t('personas.createdAt', 'Created')}
+              value={new Date(detail.created_at).toLocaleDateString()}
+            />
           </div>
 
           {/* Tone */}
@@ -68,7 +73,10 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
             </span>
             <div className="flex flex-wrap gap-1">
               {detail.persona_tone.split(',').map((tag) => (
-                <span key={tag.trim()} className="text-xs px-2 py-0.5 rounded bg-accent/10 text-accent">
+                <span
+                  key={tag.trim()}
+                  className="text-xs px-2 py-0.5 rounded bg-accent/10 text-accent"
+                >
                   {tag.trim()}
                 </span>
               ))}
@@ -93,11 +101,18 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
               </span>
               <div className="space-y-1">
                 {performance.performance_by_scam_type.map((st) => (
-                  <div key={st.scam_type_code} className="flex items-center justify-between bg-surface-base rounded p-2">
+                  <div
+                    key={st.scam_type_code}
+                    className="flex items-center justify-between bg-surface-base rounded p-2"
+                  >
                     <span className="text-xs text-on-surface-variant">{st.scam_type_code}</span>
                     <div className="flex items-center gap-4">
-                      <span className="text-xs text-on-surface-dim">{st.sessions_count ?? st.total_pulls ?? 0} pulls</span>
-                      <span className="text-xs font-mono font-bold text-accent">{(st.reward_avg ?? st.avg_reward ?? 0).toFixed(2)}</span>
+                      <span className="text-xs text-on-surface-dim">
+                        {st.sessions_count ?? st.total_pulls ?? 0} pulls
+                      </span>
+                      <span className="text-xs font-mono font-bold text-accent">
+                        {(st.reward_avg ?? st.avg_reward ?? 0).toFixed(2)}
+                      </span>
                     </div>
                   </div>
                 ))}
@@ -106,7 +121,6 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
           )}
         </>
       )}
-
     </div>
   );
 }
@@ -114,8 +128,12 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
 function MetaField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{label}</span>
-      <div className="bg-surface-base rounded px-3 py-2 text-sm text-on-surface mt-1 truncate">{value}</div>
+      <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+        {label}
+      </span>
+      <div className="bg-surface-base rounded px-3 py-2 text-sm text-on-surface mt-1 truncate">
+        {value}
+      </div>
     </div>
   );
 }

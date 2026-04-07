@@ -88,10 +88,9 @@ client.interceptors.response.use(
     isRefreshing = true;
 
     try {
-      const { data } = await axios.post<LoginResponse>(
-        `${API_BASE}${ENDPOINTS.auth.refresh}`,
-        { refresh_token: refreshToken } satisfies RefreshRequest,
-      );
+      const { data } = await axios.post<LoginResponse>(`${API_BASE}${ENDPOINTS.auth.refresh}`, {
+        refresh_token: refreshToken,
+      } satisfies RefreshRequest);
 
       setTokens(data.access_token, data.refresh_token);
       processQueue(null, data.access_token);

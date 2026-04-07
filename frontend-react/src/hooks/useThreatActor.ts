@@ -84,7 +84,12 @@ export interface ThreatActorSummary {
   topActor: ThreatActorProfile;
 }
 
-const SOPHISTICATION_RANK: Record<string, number> = { none: 0, minimal: 1, intermediate: 2, advanced: 3 };
+const SOPHISTICATION_RANK: Record<string, number> = {
+  none: 0,
+  minimal: 1,
+  intermediate: 2,
+  advanced: 3,
+};
 
 export function useThreatActorSummary(convIds: string[]) {
   const uniqueIds = [...new Set(convIds.filter(Boolean))].slice(0, 5); // cap at 5 to limit API calls
@@ -108,7 +113,9 @@ export function useThreatActorSummary(convIds: string[]) {
 
       // Find the most sophisticated actor
       const sorted = [...profiles].sort(
-        (a, b) => (SOPHISTICATION_RANK[b.sophistication] ?? 0) - (SOPHISTICATION_RANK[a.sophistication] ?? 0),
+        (a, b) =>
+          (SOPHISTICATION_RANK[b.sophistication] ?? 0) -
+          (SOPHISTICATION_RANK[a.sophistication] ?? 0),
       );
       const topActor = sorted[0];
 
@@ -117,7 +124,9 @@ export function useThreatActorSummary(convIds: string[]) {
         scamTypes: [...new Set(profiles.map((p) => p.scamType))],
         maxSophistication: topActor.sophistication,
         allGoals: [...new Set(profiles.flatMap((p) => p.goals))],
-        attackPatterns: [...new Set(profiles.map((p) => p.attackPattern?.name).filter(Boolean) as string[])],
+        attackPatterns: [
+          ...new Set(profiles.map((p) => p.attackPattern?.name).filter(Boolean) as string[]),
+        ],
         topActor,
       };
     },

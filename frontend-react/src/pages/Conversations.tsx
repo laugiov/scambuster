@@ -22,33 +22,50 @@ export function Conversations() {
   const { data: stats } = useAutonomyStats();
 
   if (isLoading) return <Loading message={t('conversations.loading')} />;
-  if (error) return <ErrorMessage message={t('conversations.failedLoad')} onRetry={() => void refetch()} />;
+  if (error)
+    return <ErrorMessage message={t('conversations.failedLoad')} onRetry={() => void refetch()} />;
 
   const sorted = [...(conversations ?? [])].sort(
-    (a, b) => new Date(b.ts_last ?? b.updated_at ?? 0).getTime() - new Date(a.ts_last ?? a.updated_at ?? 0).getTime()
+    (a, b) =>
+      new Date(b.ts_last ?? b.updated_at ?? 0).getTime() -
+      new Date(a.ts_last ?? a.updated_at ?? 0).getTime(),
   );
 
   const filtered = search
     ? sorted.filter((c) => {
         const q = search.toLowerCase();
-        return c.conv_id.toLowerCase().includes(q)
-          || (c.scam_type ?? '').toLowerCase().includes(q)
-          || (c.persona ?? '').toLowerCase().includes(q);
+        return (
+          c.conv_id.toLowerCase().includes(q) ||
+          (c.scam_type ?? '').toLowerCase().includes(q) ||
+          (c.persona ?? '').toLowerCase().includes(q)
+        );
       })
     : sorted;
 
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const totalCount = stats?.conversations.total ?? sorted.length;
-  const activeCount = stats?.conversations.open ?? stats?.conversations.active ?? sorted.filter((c) => c.status === 'open').length;
-  const closedCount = stats?.conversations.closed ?? sorted.filter((c) => c.status === 'closed').length;
+  const activeCount =
+    stats?.conversations.open ??
+    stats?.conversations.active ??
+    sorted.filter((c) => c.status === 'open').length;
+  const closedCount =
+    stats?.conversations.closed ?? sorted.filter((c) => c.status === 'closed').length;
 
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-on-surface">{t('conversations.title')}</h1>
         <div className="flex items-center gap-4">
-          <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder="Search by ID, scam type, persona..." ariaLabel="Search conversations" />
+          <SearchBar
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by ID, scam type, persona..."
+            ariaLabel="Search conversations"
+          />
           <ExportCsvButton
             data={filtered as unknown as Record<string, unknown>[]}
             columns={[
@@ -64,13 +81,20 @@ export function Conversations() {
           />
           <div className="flex items-center gap-4 text-xs text-on-surface-dim shrink-0">
             <span>{t('conversations.total', { count: totalCount })}</span>
-            <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
+            <span className="text-success">
+              {t('conversations.activeLower', { count: activeCount })}
+            </span>
             <span>{t('conversations.closed', { count: closedCount })}</span>
           </div>
         </div>
       </header>
 
-      <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
+      <Pagination
+        page={page}
+        pageSize={PAGE_SIZE}
+        totalItems={filtered.length}
+        onPageChange={setPage}
+      />
 
       <div className="bg-surface-low rounded-lg overflow-hidden">
         <table className="w-full">
@@ -107,7 +131,11 @@ export function Conversations() {
                   {conv.message_count ?? conv.turns ?? '--'}
                 </td>
                 <td className="px-5 py-3 text-on-surface-dim text-xs">
-                  {conv.ts_last ? timeSince(conv.ts_last) : conv.updated_at ? timeSince(conv.updated_at) : '--'}
+                  {conv.ts_last
+                    ? timeSince(conv.ts_last)
+                    : conv.updated_at
+                      ? timeSince(conv.updated_at)
+                      : '--'}
                 </td>
                 <td className="px-5 py-3">
                   <Badge label={conv.status} variant={statusToBadgeVariant(conv.status)} />
@@ -123,7 +151,12 @@ export function Conversations() {
             )}
           </tbody>
         </table>
-        <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          totalItems={filtered.length}
+          onPageChange={setPage}
+        />
       </div>
     </div>
   );

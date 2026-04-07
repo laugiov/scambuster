@@ -1,7 +1,21 @@
 // Domain union types
 export type ConversationStatus = 'open' | 'closed' | 'abandoned' | 'mistake';
 export type MessageDirection = 'in' | 'out';
-export type IocType = 'email' | 'ipv4' | 'ipv6' | 'domain' | 'url' | 'sha256' | 'md5' | 'phone' | 'bitcoin_address' | 'subject' | 'message_id' | 'spf_result' | 'dkim_result' | 'dmarc_result';
+export type IocType =
+  | 'email'
+  | 'ipv4'
+  | 'ipv6'
+  | 'domain'
+  | 'url'
+  | 'sha256'
+  | 'md5'
+  | 'phone'
+  | 'bitcoin_address'
+  | 'subject'
+  | 'message_id'
+  | 'spf_result'
+  | 'dkim_result'
+  | 'dmarc_result';
 
 // Auth
 export interface LoginRequest {
@@ -257,11 +271,14 @@ export interface ConversationLifecycleStats {
   about_to_timeout: number;
   completed_today: number;
   reopened_today: number;
-  by_scam_type: Record<string, {
-    active: number;
-    about_to_timeout: number;
-    policy_timeout_hours: number;
-  }>;
+  by_scam_type: Record<
+    string,
+    {
+      active: number;
+      about_to_timeout: number;
+      policy_timeout_hours: number;
+    }
+  >;
   about_to_timeout_list: ConversationTimeoutRow[];
 }
 

@@ -30,7 +30,10 @@ export function Dashboard() {
   const { data: allIocs } = useAllIocs();
 
   if (stats.isLoading) return <Loading message={t('dashboard.loadingDashboard')} />;
-  if (stats.error) return <ErrorMessage message={t('dashboard.failedLoad')} onRetry={() => void stats.refetch()} />;
+  if (stats.error)
+    return (
+      <ErrorMessage message={t('dashboard.failedLoad')} onRetry={() => void stats.refetch()} />
+    );
 
   const data = stats.data;
   const isKillSwitch = data?.kill_switch_active ?? data?.kill_switch ?? false;
@@ -43,23 +46,30 @@ export function Dashboard() {
     .sort((a, b) => new Date(b.ts_observed).getTime() - new Date(a.ts_observed).getTime())
     .slice(0, 5);
 
-  const bestPersona = personas && personas.length > 0
-    ? personas.reduce((best, p) => p.global_avg_reward > best.global_avg_reward ? p : best)
-    : null;
+  const bestPersona =
+    personas && personas.length > 0
+      ? personas.reduce((best, p) => (p.global_avg_reward > best.global_avg_reward ? p : best))
+      : null;
 
   return (
     <div className="space-y-8">
       <header className="flex items-center justify-between">
         <h1 className="text-xl font-semibold text-on-surface">{t('dashboard.title')}</h1>
         <div className="flex items-center gap-3">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium ${
-            isKillSwitch ? 'bg-error/20 text-error' : 'bg-success/20 text-success'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${isKillSwitch ? 'bg-error' : 'bg-success'}`} />
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium ${
+              isKillSwitch ? 'bg-error/20 text-error' : 'bg-success/20 text-success'
+            }`}
+          >
+            <span
+              className={`w-1.5 h-1.5 rounded-full ${isKillSwitch ? 'bg-error' : 'bg-success'}`}
+            />
             {isKillSwitch ? t('dashboard.killSwitchActive') : t('dashboard.pipelineActive')}
           </span>
           <span className="text-xs text-on-surface-dim">
-            {t('common.lastSync', { time: data?.checked_at ? new Date(data.checked_at).toLocaleTimeString() : '--' })}
+            {t('common.lastSync', {
+              time: data?.checked_at ? new Date(data.checked_at).toLocaleTimeString() : '--',
+            })}
           </span>
         </div>
       </header>
@@ -77,21 +87,36 @@ export function Dashboard() {
         />
         <StatCard
           label={t('dashboard.bestPersonaScore')}
-          value={bestPersona?.global_avg_reward.toFixed(2) ?? data?.convergence.best_score?.toFixed(2) ?? '--'}
-          subtitle={bestPersona ? personaDisplayName(config, bestPersona.persona_code) : data?.convergence.best_persona ?? '--'}
+          value={
+            bestPersona?.global_avg_reward.toFixed(2) ??
+            data?.convergence.best_score?.toFixed(2) ??
+            '--'
+          }
+          subtitle={
+            bestPersona
+              ? personaDisplayName(config, bestPersona.persona_code)
+              : (data?.convergence.best_persona ?? '--')
+          }
           subtitleColor="text-accent"
         />
         <div className="cursor-pointer" onClick={() => navigate('/llm-costs')}>
           <StatCard
             label={t('dashboard.llmCost')}
             value={`$${(llmCosts?.current_month.total_usd ?? 0).toFixed(2)}`}
-            subtitle={llmCosts && llmCosts.current_month.limit_usd > 0
-              ? t('dashboard.ofBudget', { pct: llmCosts.current_month.pct_used.toFixed(0), limit: llmCosts.current_month.limit_usd.toFixed(0) })
-              : t('llmCosts.thisMonth')}
+            subtitle={
+              llmCosts && llmCosts.current_month.limit_usd > 0
+                ? t('dashboard.ofBudget', {
+                    pct: llmCosts.current_month.pct_used.toFixed(0),
+                    limit: llmCosts.current_month.limit_usd.toFixed(0),
+                  })
+                : t('llmCosts.thisMonth')
+            }
             subtitleColor={
-              (llmCosts?.current_month.pct_used ?? 0) >= 80 ? 'text-error'
-              : (llmCosts?.current_month.pct_used ?? 0) >= 50 ? 'text-warning'
-              : 'text-success'
+              (llmCosts?.current_month.pct_used ?? 0) >= 80
+                ? 'text-error'
+                : (llmCosts?.current_month.pct_used ?? 0) >= 50
+                  ? 'text-warning'
+                  : 'text-success'
             }
           />
         </div>
@@ -101,22 +126,30 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Activity Feed */}
         <div className="bg-surface-low rounded-lg p-6">
-          <h2 className="text-base font-medium text-on-surface mb-4">{t('dashboard.activityFeed')}</h2>
+          <h2 className="text-base font-medium text-on-surface mb-4">
+            {t('dashboard.activityFeed')}
+          </h2>
           {activityFeed?.events && activityFeed.events.length > 0 ? (
             <div className="space-y-2.5">
               {activityFeed.events.map((evt, i) => (
                 <div key={i} className="flex items-start gap-3 text-xs">
                   <ActivityIcon type={evt.event_type} />
                   <div className="flex-1 min-w-0">
-                    <span className="text-on-surface-variant">{t(`dashboard.${camelCase(evt.event_type)}`)}</span>
-                    <span className="text-on-surface-dim ml-1.5 font-mono">{evt.ref_id.slice(0, 8)}</span>
+                    <span className="text-on-surface-variant">
+                      {t(`dashboard.${camelCase(evt.event_type)}`)}
+                    </span>
+                    <span className="text-on-surface-dim ml-1.5 font-mono">
+                      {evt.ref_id.slice(0, 8)}
+                    </span>
                   </div>
                   <span className="text-on-surface-dim shrink-0">{timeSince(evt.ts)}</span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-on-surface-dim py-4 text-center">{t('dashboard.noRecentActivity')}</p>
+            <p className="text-sm text-on-surface-dim py-4 text-center">
+              {t('dashboard.noRecentActivity')}
+            </p>
           )}
         </div>
 
@@ -126,34 +159,49 @@ export function Dashboard() {
           {topIocs.length > 0 ? (
             <div className="space-y-2">
               {topIocs.map((ioc) => (
-                <div key={ioc.obs_id} className="flex items-center justify-between bg-surface-base rounded px-3 py-2">
+                <div
+                  key={ioc.obs_id}
+                  className="flex items-center justify-between bg-surface-base rounded px-3 py-2"
+                >
                   <div className="min-w-0">
                     <span className="text-[10px] text-on-surface-dim uppercase">{ioc.type}</span>
                     <p className="text-xs text-on-surface font-mono truncate">{ioc.value}</p>
                   </div>
-                  <span className="text-xs font-mono text-accent ml-2 shrink-0">{(ioc.confidence ?? 0).toFixed(2)}</span>
+                  <span className="text-xs font-mono text-accent ml-2 shrink-0">
+                    {(ioc.confidence ?? 0).toFixed(2)}
+                  </span>
                 </div>
               ))}
             </div>
           ) : (
-            <p className="text-sm text-on-surface-dim py-4 text-center">{t('dashboard.noTopIocs')}</p>
+            <p className="text-sm text-on-surface-dim py-4 text-center">
+              {t('dashboard.noTopIocs')}
+            </p>
           )}
         </div>
 
         {/* Pipeline Health Summary */}
         <div className="bg-surface-low rounded-lg p-6">
-          <h2 className="text-base font-medium text-on-surface mb-4">{t('dashboard.pipelineHealthSummary')}</h2>
+          <h2 className="text-base font-medium text-on-surface mb-4">
+            {t('dashboard.pipelineHealthSummary')}
+          </h2>
           <div className="space-y-4">
             <div>
-              <span className="text-xs text-on-surface-dim uppercase">{t('dashboard.approvalRate')}</span>
+              <span className="text-xs text-on-surface-dim uppercase">
+                {t('dashboard.approvalRate')}
+              </span>
               <p className="text-2xl font-semibold text-success mt-1">
-                {((data?.messages.outbound ?? 0) > 0 ? '~100%' : '--')}
+                {(data?.messages.outbound ?? 0) > 0 ? '~100%' : '--'}
               </p>
             </div>
             <div>
-              <span className="text-xs text-on-surface-dim uppercase">{t('dashboard.avgDuration')}</span>
+              <span className="text-xs text-on-surface-dim uppercase">
+                {t('dashboard.avgDuration')}
+              </span>
               <p className="text-2xl font-semibold text-on-surface mt-1">--</p>
-              <p className="text-xs text-on-surface-dim">{t('dashboard.weeklyTrend')}: <TrendBadge trend={trendMap.get('replies')} t={t} /></p>
+              <p className="text-xs text-on-surface-dim">
+                {t('dashboard.weeklyTrend')}: <TrendBadge trend={trendMap.get('replies')} t={t} />
+              </p>
             </div>
           </div>
         </div>
@@ -162,8 +210,14 @@ export function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 bg-surface-low rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-medium text-on-surface">{t('dashboard.activeConversations')}</h2>
-            <span className="text-xs text-on-surface-dim">{t('dashboard.activeCount', { count: data?.conversations.open ?? activeConversations.length })}</span>
+            <h2 className="text-base font-medium text-on-surface">
+              {t('dashboard.activeConversations')}
+            </h2>
+            <span className="text-xs text-on-surface-dim">
+              {t('dashboard.activeCount', {
+                count: data?.conversations.open ?? activeConversations.length,
+              })}
+            </span>
           </div>
 
           {conversations.isLoading ? (
@@ -186,7 +240,9 @@ export function Dashboard() {
                     className="hover:bg-surface-high/50 transition-colors cursor-pointer"
                     role="link"
                     tabIndex={0}
-                    onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/conversations/${conv.conv_id}`); }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') navigate(`/conversations/${conv.conv_id}`);
+                    }}
                   >
                     <td className="py-2.5 text-accent font-mono text-xs">
                       {conv.conv_id.slice(0, 8)}
@@ -214,7 +270,9 @@ export function Dashboard() {
 
         <div className="bg-surface-low rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-medium text-on-surface">{t('dashboard.banditPerformance')}</h2>
+            <h2 className="text-base font-medium text-on-surface">
+              {t('dashboard.banditPerformance')}
+            </h2>
             <span className="text-xs text-on-surface-dim">{t('dashboard.rewardWeighting')}</span>
           </div>
           <div className="space-y-2">
@@ -230,10 +288,15 @@ export function Dashboard() {
                   />
                 ))
             ) : (
-              <BanditBar label={data?.convergence.best_persona ?? 'N/A'} value={data?.convergence.best_score ?? 0} />
+              <BanditBar
+                label={data?.convergence.best_persona ?? 'N/A'}
+                value={data?.convergence.best_score ?? 0}
+              />
             )}
             <p className="text-xs text-on-surface-dim mt-3">
-              {t('dashboard.explorationRate', { rate: ((data?.convergence.exploration_rate ?? 0.15) * 100).toFixed(0) })}
+              {t('dashboard.explorationRate', {
+                rate: ((data?.convergence.exploration_rate ?? 0.15) * 100).toFixed(0),
+              })}
             </p>
             <p className="text-xs text-on-surface-dim">
               {t('dashboard.strategy', { name: 'epsilon-greedy' })}
@@ -249,7 +312,9 @@ function BanditBar({ label, value }: { label: string; value: number }) {
   const pct = Math.min(value * 100, 100);
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-on-surface-variant w-32 shrink-0 truncate" title={label}>{label}</span>
+      <span className="text-xs text-on-surface-variant w-32 shrink-0 truncate" title={label}>
+        {label}
+      </span>
       <div className="flex-1 bg-surface-high rounded-full h-2 overflow-hidden">
         <div
           className="h-full bg-accent-muted rounded-full transition-all duration-500"

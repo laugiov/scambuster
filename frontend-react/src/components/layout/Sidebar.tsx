@@ -24,13 +24,25 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 
 const NAV_ENTRIES: NavEntry[] = [
   { labelKey: 'nav.impact', path: '/', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
-  { labelKey: 'nav.conversations', path: '/conversations', icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z' },
-  { labelKey: 'nav.iocExplorer', path: '/ioc-explorer', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
+  {
+    labelKey: 'nav.conversations',
+    path: '/conversations',
+    icon: 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z',
+  },
+  {
+    labelKey: 'nav.iocExplorer',
+    path: '/ioc-explorer',
+    icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z',
+  },
   {
     labelKey: 'nav.personasGroup',
     icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
     items: [
-      { labelKey: 'nav.personas', path: '/personas', icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z' },
+      {
+        labelKey: 'nav.personas',
+        path: '/personas',
+        icon: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+      },
       { labelKey: 'nav.convergence', path: '/convergence', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
     ],
   },
@@ -38,20 +50,55 @@ const NAV_ENTRIES: NavEntry[] = [
     labelKey: 'nav.monitoringGroup',
     icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
     items: [
-      { labelKey: 'nav.operations', path: '/dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-      { labelKey: 'nav.monitoring', path: '/monitoring/conversations', icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z' },
-      { labelKey: 'nav.pipelineMonitor', path: '/monitoring/pipeline', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
-      { labelKey: 'nav.injectionMonitor', path: '/monitoring/injection', icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z' },
-      { labelKey: 'nav.llmCosts', path: '/llm-costs', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-      { labelKey: 'nav.analytics', path: '/monitoring/analytics', icon: 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+      {
+        labelKey: 'nav.operations',
+        path: '/dashboard',
+        icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6',
+      },
+      {
+        labelKey: 'nav.monitoring',
+        path: '/monitoring/conversations',
+        icon: 'M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z',
+      },
+      {
+        labelKey: 'nav.pipelineMonitor',
+        path: '/monitoring/pipeline',
+        icon: 'M13 10V3L4 14h7v7l9-11h-7z',
+      },
+      {
+        labelKey: 'nav.injectionMonitor',
+        path: '/monitoring/injection',
+        icon: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z',
+      },
+      {
+        labelKey: 'nav.llmCosts',
+        path: '/llm-costs',
+        icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
+      },
+      {
+        labelKey: 'nav.analytics',
+        path: '/monitoring/analytics',
+        icon: 'M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z',
+      },
     ],
   },
-  { labelKey: 'nav.settings', path: '/settings', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z' },
+  {
+    labelKey: 'nav.settings',
+    path: '/settings',
+    icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z',
+  },
 ];
 
 function NavIcon({ path }: { path: string }) {
   return (
-    <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+    <svg
+      className="w-5 h-5 shrink-0"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth={1.5}
+      aria-hidden="true"
+    >
       <path strokeLinecap="round" strokeLinejoin="round" d={path} />
     </svg>
   );
@@ -59,7 +106,9 @@ function NavIcon({ path }: { path: string }) {
 
 function NavGroupSection({ group, t }: { group: NavGroup; t: (key: string) => string }) {
   const location = useLocation();
-  const isAnyChildActive = group.items.some((item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/'));
+  const isAnyChildActive = group.items.some(
+    (item) => location.pathname === item.path || location.pathname.startsWith(item.path + '/'),
+  );
   const [isOpen, setIsOpen] = useState(isAnyChildActive);
 
   return (
@@ -76,7 +125,10 @@ function NavGroupSection({ group, t }: { group: NavGroup; t: (key: string) => st
         <span className="flex-1 text-left">{t(group.labelKey)}</span>
         <svg
           className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
         </svg>
@@ -110,12 +162,18 @@ export function Sidebar() {
   const logout = useAuthStore((s) => s.logout);
 
   return (
-    <aside className="fixed top-0 left-0 h-screen w-[var(--spacing-sidebar)] bg-sidebar flex flex-col z-50" role="navigation" aria-label="Main navigation">
+    <aside
+      className="fixed top-0 left-0 h-screen w-[var(--spacing-sidebar)] bg-sidebar flex flex-col z-50"
+      role="navigation"
+      aria-label="Main navigation"
+    >
       <div className="px-5 py-6 flex items-center gap-3">
         <img src="/scambuster_icon.svg" alt="ScamBuster" className="w-9 h-9" />
         <div>
           <h1 className="text-lg font-semibold text-on-surface tracking-wide">ScamBuster</h1>
-          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-0.5">{t('nav.subtitle')}</p>
+          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-0.5">
+            {t('nav.subtitle')}
+          </p>
         </div>
       </div>
 

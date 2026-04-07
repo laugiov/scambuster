@@ -8,8 +8,11 @@ import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('en-GB', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 
@@ -19,7 +22,8 @@ export function Campaigns() {
   const hunt = useHunt();
 
   if (isLoading) return <Loading message={t('campaigns.loading')} />;
-  if (error) return <ErrorMessage message={t('campaigns.failedLoad')} onRetry={() => void refetch()} />;
+  if (error)
+    return <ErrorMessage message={t('campaigns.failedLoad')} onRetry={() => void refetch()} />;
 
   const safeCandidates = candidates ?? [];
 
@@ -41,7 +45,10 @@ export function Campaigns() {
 
       {hunt.isSuccess && (
         <div className="bg-success/10 border border-success/30 rounded-md px-4 py-3 text-sm text-success">
-          {t('campaigns.huntComplete', { rules: hunt.data.total_rules, hits: hunt.data.total_hits })}
+          {t('campaigns.huntComplete', {
+            rules: hunt.data.total_rules,
+            hits: hunt.data.total_hits,
+          })}
         </div>
       )}
 
@@ -55,9 +62,14 @@ export function Campaigns() {
         <StatCard label={t('campaigns.detectedCampaigns')} value={safeCandidates.length} />
         <StatCard
           label={t('campaigns.avgPpv')}
-          value={safeCandidates.length > 0
-            ? (safeCandidates.reduce((s, c) => s + c.ppv, 0) / safeCandidates.length * 100).toFixed(1) + '%'
-            : '--'}
+          value={
+            safeCandidates.length > 0
+              ? (
+                  (safeCandidates.reduce((s, c) => s + c.ppv, 0) / safeCandidates.length) *
+                  100
+                ).toFixed(1) + '%'
+              : '--'
+          }
         />
         <StatCard
           label={t('campaigns.totalHits')}
@@ -81,21 +93,33 @@ export function Campaigns() {
           <tbody className="text-sm">
             {safeCandidates.map((c) => {
               const ppvPct = (c.ppv * 100).toFixed(1);
-              const ppvColor = c.ppv >= 0.85 ? 'text-success' : c.ppv >= 0.5 ? 'text-warning' : 'text-error';
+              const ppvColor =
+                c.ppv >= 0.85 ? 'text-success' : c.ppv >= 0.5 ? 'text-warning' : 'text-error';
               return (
                 <tr key={c.campaign_id} className="hover:bg-surface-high/50 transition-colors">
                   <td className="px-5 py-3 font-mono text-xs">
-                    <Link to={`/campaigns/${c.campaign_id}`} className="text-accent hover:underline">
+                    <Link
+                      to={`/campaigns/${c.campaign_id}`}
+                      className="text-accent hover:underline"
+                    >
                       {c.campaign_id.slice(0, 8)}
                     </Link>
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-on-surface-variant">{c.rule_id.slice(0, 8)}</td>
+                  <td className="px-5 py-3 font-mono text-xs text-on-surface-variant">
+                    {c.rule_id.slice(0, 8)}
+                  </td>
                   <td className="px-5 py-3">
                     <span className={`font-mono text-xs font-bold ${ppvColor}`}>{ppvPct}%</span>
                   </td>
-                  <td className="px-5 py-3 font-mono text-xs text-on-surface-variant">{c.hits_total}</td>
-                  <td className="px-5 py-3 text-on-surface-variant text-xs">{c.lead_time_hours}h</td>
-                  <td className="px-5 py-3 text-on-surface-dim text-xs">{formatDate(c.created_at)}</td>
+                  <td className="px-5 py-3 font-mono text-xs text-on-surface-variant">
+                    {c.hits_total}
+                  </td>
+                  <td className="px-5 py-3 text-on-surface-variant text-xs">
+                    {c.lead_time_hours}h
+                  </td>
+                  <td className="px-5 py-3 text-on-surface-dim text-xs">
+                    {formatDate(c.created_at)}
+                  </td>
                   <td className="px-5 py-3">
                     <span className="text-xs px-2 py-0.5 rounded font-medium bg-success/20 text-success">
                       {t('common.status.promotable')}

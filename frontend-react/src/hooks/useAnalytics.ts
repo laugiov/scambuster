@@ -46,9 +46,12 @@ export function useIocTimeline(days = 30) {
   return useQuery<TimeSeriesResponse>({
     queryKey: ['analytics-ioc-timeline', days],
     queryFn: async () => {
-      const { data } = await client.get<TimeSeriesResponse>(ENDPOINTS.monitoring.analyticsIocTimeline, {
-        params: { days },
-      });
+      const { data } = await client.get<TimeSeriesResponse>(
+        ENDPOINTS.monitoring.analyticsIocTimeline,
+        {
+          params: { days },
+        },
+      );
       return data;
     },
     staleTime: 60_000,
@@ -59,9 +62,12 @@ export function useConversationTimeline(days = 30) {
   return useQuery<TimeSeriesResponse>({
     queryKey: ['analytics-conversation-timeline', days],
     queryFn: async () => {
-      const { data } = await client.get<TimeSeriesResponse>(ENDPOINTS.monitoring.analyticsConversationTimeline, {
-        params: { days },
-      });
+      const { data } = await client.get<TimeSeriesResponse>(
+        ENDPOINTS.monitoring.analyticsConversationTimeline,
+        {
+          params: { days },
+        },
+      );
       return data;
     },
     staleTime: 60_000,
@@ -72,7 +78,9 @@ export function useIocDistribution() {
   return useQuery<DistributionResponse>({
     queryKey: ['analytics-ioc-distribution'],
     queryFn: async () => {
-      const { data } = await client.get<DistributionResponse>(ENDPOINTS.monitoring.analyticsIocDistribution);
+      const { data } = await client.get<DistributionResponse>(
+        ENDPOINTS.monitoring.analyticsIocDistribution,
+      );
       return data;
     },
     staleTime: 60_000,
@@ -83,7 +91,9 @@ export function useScamDistribution() {
   return useQuery<DistributionResponse>({
     queryKey: ['analytics-scam-distribution'],
     queryFn: async () => {
-      const { data } = await client.get<DistributionResponse>(ENDPOINTS.monitoring.analyticsScamDistribution);
+      const { data } = await client.get<DistributionResponse>(
+        ENDPOINTS.monitoring.analyticsScamDistribution,
+      );
       return data;
     },
     staleTime: 60_000,
@@ -94,9 +104,12 @@ export function useCostTimeline(days = 30) {
   return useQuery<TimeSeriesResponse>({
     queryKey: ['analytics-cost-timeline', days],
     queryFn: async () => {
-      const { data } = await client.get<TimeSeriesResponse>(ENDPOINTS.monitoring.analyticsCostTimeline, {
-        params: { days },
-      });
+      const { data } = await client.get<TimeSeriesResponse>(
+        ENDPOINTS.monitoring.analyticsCostTimeline,
+        {
+          params: { days },
+        },
+      );
       return data;
     },
     staleTime: 60_000,
@@ -107,9 +120,12 @@ export function usePipelineTimeline(days = 30) {
   return useQuery<TimeSeriesResponse>({
     queryKey: ['analytics-pipeline-timeline', days],
     queryFn: async () => {
-      const { data } = await client.get<TimeSeriesResponse>(ENDPOINTS.monitoring.analyticsPipelineTimeline, {
-        params: { days },
-      });
+      const { data } = await client.get<TimeSeriesResponse>(
+        ENDPOINTS.monitoring.analyticsPipelineTimeline,
+        {
+          params: { days },
+        },
+      );
       return data;
     },
     staleTime: 60_000,
@@ -120,9 +136,12 @@ export function useActivityFeed(limit = 10) {
   return useQuery<ActivityFeedResponse>({
     queryKey: ['analytics-activity-feed', limit],
     queryFn: async () => {
-      const { data } = await client.get<ActivityFeedResponse>(ENDPOINTS.monitoring.analyticsActivityFeed, {
-        params: { limit },
-      });
+      const { data } = await client.get<ActivityFeedResponse>(
+        ENDPOINTS.monitoring.analyticsActivityFeed,
+        {
+          params: { limit },
+        },
+      );
       return data;
     },
     staleTime: 30_000,
@@ -133,7 +152,9 @@ export function useWeeklyTrends() {
   return useQuery<WeeklyTrendsResponse>({
     queryKey: ['analytics-weekly-trends'],
     queryFn: async () => {
-      const { data } = await client.get<WeeklyTrendsResponse>(ENDPOINTS.monitoring.analyticsWeeklyTrends);
+      const { data } = await client.get<WeeklyTrendsResponse>(
+        ENDPOINTS.monitoring.analyticsWeeklyTrends,
+      );
       return data;
     },
     staleTime: 60_000,

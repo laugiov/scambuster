@@ -36,7 +36,9 @@ export function useConversationDetail(conversationId: string) {
   return useQuery<Conversation>({
     queryKey: ['conversation', conversationId],
     queryFn: async () => {
-      const { data } = await client.get<Conversation>(ENDPOINTS.conversations.detail(conversationId));
+      const { data } = await client.get<Conversation>(
+        ENDPOINTS.conversations.detail(conversationId),
+      );
       return data;
     },
     enabled: !!conversationId,
@@ -48,7 +50,9 @@ export function useConversationMessages(conversationId: string) {
   return useQuery<Message[]>({
     queryKey: ['conversation-messages', conversationId],
     queryFn: async () => {
-      const { data } = await client.get<Message[]>(ENDPOINTS.conversations.messages(conversationId));
+      const { data } = await client.get<Message[]>(
+        ENDPOINTS.conversations.messages(conversationId),
+      );
       return data;
     },
     enabled: !!conversationId,

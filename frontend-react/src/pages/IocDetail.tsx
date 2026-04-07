@@ -21,10 +21,14 @@ function scoreSeverity(score: number): { label: string; color: string; barColor:
 
 function tlpColor(tlp: string): string {
   switch (tlp.toUpperCase()) {
-    case 'RED': return 'bg-error text-white';
-    case 'AMBER': return 'bg-warning text-surface-base';
-    case 'GREEN': return 'bg-success text-white';
-    default: return 'bg-on-surface-dim text-white';
+    case 'RED':
+      return 'bg-error text-white';
+    case 'AMBER':
+      return 'bg-warning text-surface-base';
+    case 'GREEN':
+      return 'bg-success text-white';
+    default:
+      return 'bg-on-surface-dim text-white';
   }
 }
 
@@ -42,9 +46,10 @@ export function IocDetail() {
   const threatActorSummary = useThreatActorSummary(convIds);
 
   if (isLoading) return <Loading message={t('iocDetail.loading')} />;
-  if (error || !detail) return <ErrorMessage message={t('iocDetail.notFound')} onRetry={() => void refetch()} />;
+  if (error || !detail)
+    return <ErrorMessage message={t('iocDetail.notFound')} onRetry={() => void refetch()} />;
 
-  const sev = scoreSeverity(('agg' in detail.score) ? (detail.score.agg ?? 0) : 0);
+  const sev = scoreSeverity('agg' in detail.score ? (detail.score.agg ?? 0) : 0);
 
   const contextCount = contextData?.contexts.length ?? 0;
 
@@ -52,7 +57,11 @@ export function IocDetail() {
     { id: 'overview', label: t('iocDetail.overview') },
     { id: 'observations', label: t('iocDetail.observations'), count: detail.observations.length },
     { id: 'related', label: t('iocDetail.relatedIocs'), count: detail.related_iocs.length },
-    { id: 'context', label: t('iocDetail.context'), count: contextCount > 0 ? contextCount : undefined },
+    {
+      id: 'context',
+      label: t('iocDetail.context'),
+      count: contextCount > 0 ? contextCount : undefined,
+    },
   ];
 
   return (
@@ -62,7 +71,13 @@ export function IocDetail() {
         onClick={() => navigate('/ioc-explorer')}
         className="flex items-center gap-1 text-sm text-on-surface-dim hover:text-accent transition-colors"
       >
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <svg
+          className="w-4 h-4"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth={2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
         </svg>
         {t('iocDetail.backToExplorer')}
@@ -118,7 +133,9 @@ export function IocDetail() {
       {/* Tab content */}
       {activeTab === 'overview' && <OverviewTab detail={detail} />}
       {activeTab === 'observations' && <ObservationsTab observations={detail.observations} />}
-      {activeTab === 'related' && <RelatedTab relatedIocs={detail.related_iocs} graphData={graphData} />}
+      {activeTab === 'related' && (
+        <RelatedTab relatedIocs={detail.related_iocs} graphData={graphData} />
+      )}
       {activeTab === 'context' && <ContextTab contexts={contextData?.contexts ?? []} />}
     </div>
   );
@@ -143,39 +160,79 @@ function OverviewTab({ detail }: { detail: import('@/types/api').IocDetail }) {
     <div className="space-y-6">
       {/* Metadata grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetaField label={t('iocDetail.firstSeen')} value={new Date(detail.first_seen).toLocaleDateString('en-GB')} />
-        <MetaField label={t('iocDetail.lastSeen')} value={new Date(detail.last_seen).toLocaleDateString('en-GB')} />
+        <MetaField
+          label={t('iocDetail.firstSeen')}
+          value={new Date(detail.first_seen).toLocaleDateString('en-GB')}
+        />
+        <MetaField
+          label={t('iocDetail.lastSeen')}
+          value={new Date(detail.last_seen).toLocaleDateString('en-GB')}
+        />
         <MetaField label={t('iocDetail.occurrences')} value={String(detail.occurrences)} />
         <MetaField label={t('iocDetail.tlp')} value={`TLP:${detail.tlp}`} />
       </div>
 
       {/* Scoring */}
       <section className="bg-surface-low rounded-lg p-5 space-y-4">
-        <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocDetail.scoring')}</h3>
+        <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+          {t('iocDetail.scoring')}
+        </h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('conversationDetail.vtScore')}</label>
-            <ScoreBar value={'vt' in detail.score ? (detail.score.vt ?? 0) : 0} max={100} color="bg-error" />
+            <label className="text-xs text-on-surface-dim block mb-1">
+              {t('conversationDetail.vtScore')}
+            </label>
+            <ScoreBar
+              value={'vt' in detail.score ? (detail.score.vt ?? 0) : 0}
+              max={100}
+              color="bg-error"
+            />
           </div>
           <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('conversationDetail.urlScan')}</label>
-            <ScoreBar value={'urlscan' in detail.score ? (detail.score.urlscan ?? 0) : 0} max={100} color="bg-warning" />
+            <label className="text-xs text-on-surface-dim block mb-1">
+              {t('conversationDetail.urlScan')}
+            </label>
+            <ScoreBar
+              value={'urlscan' in detail.score ? (detail.score.urlscan ?? 0) : 0}
+              max={100}
+              color="bg-warning"
+            />
           </div>
           <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.score')}</label>
-            <ScoreBar value={'agg' in detail.score ? (detail.score.agg ?? 0) : 0} max={100} color="bg-accent" />
+            <label className="text-xs text-on-surface-dim block mb-1">
+              {t('iocExplorer.score')}
+            </label>
+            <ScoreBar
+              value={'agg' in detail.score ? (detail.score.agg ?? 0) : 0}
+              max={100}
+              color="bg-accent"
+            />
           </div>
           <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.confidence')}</label>
+            <label className="text-xs text-on-surface-dim block mb-1">
+              {t('iocExplorer.confidence')}
+            </label>
             <ScoreBar value={Math.round(detail.confidence * 100)} max={100} color="bg-success" />
           </div>
           <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.decayFactor')}</label>
-            <ScoreBar value={Math.round(detail.decay_factor * 100)} max={100} color="bg-on-surface-dim" />
+            <label className="text-xs text-on-surface-dim block mb-1">
+              {t('iocExplorer.decayFactor')}
+            </label>
+            <ScoreBar
+              value={Math.round(detail.decay_factor * 100)}
+              max={100}
+              color="bg-on-surface-dim"
+            />
           </div>
           <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.effectiveScore')}</label>
-            <ScoreBar value={Math.round(detail.effective_score * 100)} max={100} color="bg-accent" />
+            <label className="text-xs text-on-surface-dim block mb-1">
+              {t('iocExplorer.effectiveScore')}
+            </label>
+            <ScoreBar
+              value={Math.round(detail.effective_score * 100)}
+              max={100}
+              color="bg-accent"
+            />
           </div>
         </div>
         {'explain' in detail.score && detail.score.explain && (
@@ -186,22 +243,24 @@ function OverviewTab({ detail }: { detail: import('@/types/api').IocDetail }) {
       </section>
 
       {/* Observation Timeline */}
-      {detail.observations.length > 0 && (
-        <IocTimeline observations={detail.observations} />
-      )}
+      {detail.observations.length > 0 && <IocTimeline observations={detail.observations} />}
 
       {/* MISP + STIX */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {detail.misp && (
           <section className="bg-surface-low rounded-lg p-5 space-y-2">
-            <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocDetail.mispMapping')}</h3>
+            <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+              {t('iocDetail.mispMapping')}
+            </h3>
             <div className="grid grid-cols-2 gap-2">
               <MetaField label={t('conversationDetail.category')} value={detail.misp.category} />
               <MetaField label={t('iocExplorer.type')} value={detail.misp.type} />
             </div>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-xs text-on-surface-dim">to_ids:</span>
-              <span className={`text-xs font-bold ${detail.misp.to_ids ? 'text-success' : 'text-on-surface-dim'}`}>
+              <span
+                className={`text-xs font-bold ${detail.misp.to_ids ? 'text-success' : 'text-on-surface-dim'}`}
+              >
                 {detail.misp.to_ids ? 'true' : 'false'}
               </span>
             </div>
@@ -209,7 +268,9 @@ function OverviewTab({ detail }: { detail: import('@/types/api').IocDetail }) {
         )}
         {detail.stix && (
           <section className="bg-surface-low rounded-lg p-5 space-y-2">
-            <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocDetail.stixPattern')}</h3>
+            <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
+              {t('iocDetail.stixPattern')}
+            </h3>
             <pre className="p-3 bg-surface-base rounded-lg font-mono text-xs text-accent/70 overflow-auto">
               {detail.stix.pattern}
             </pre>
@@ -226,9 +287,7 @@ function ObservationsTab({ observations }: { observations: IocObservation[] }) {
 
   if (observations.length === 0) {
     return (
-      <div className="text-center py-12 text-on-surface-dim">
-        {t('iocDetail.noObservations')}
-      </div>
+      <div className="text-center py-12 text-on-surface-dim">{t('iocDetail.noObservations')}</div>
     );
   }
 
@@ -247,7 +306,9 @@ function ObservationsTab({ observations }: { observations: IocObservation[] }) {
         <tbody className="text-sm">
           {observations.map((obs) => (
             <tr key={obs.obs_id} className="hover:bg-surface-high/50 transition-colors">
-              <td className="px-5 py-3 text-on-surface-dim text-xs">{timeSince(obs.ts_observed)}</td>
+              <td className="px-5 py-3 text-on-surface-dim text-xs">
+                {timeSince(obs.ts_observed)}
+              </td>
               <td className="px-5 py-3">
                 <Link
                   to={`/conversations/${obs.conv_id}`}
@@ -261,13 +322,19 @@ function ObservationsTab({ observations }: { observations: IocObservation[] }) {
                   {obs.conv_scam_type}
                 </span>
               </td>
-              <td className="px-5 py-3 text-xs text-on-surface-dim font-mono">{obs.extraction_method}</td>
+              <td className="px-5 py-3 text-xs text-on-surface-dim font-mono">
+                {obs.extraction_method}
+              </td>
               <td className="px-5 py-3">
-                <span className={`text-xs px-2 py-0.5 rounded ${
-                  obs.conv_status === 'open' ? 'bg-success/20 text-success' :
-                  obs.conv_status === 'closed' ? 'bg-on-surface-dim/20 text-on-surface-dim' :
-                  'bg-warning/20 text-warning'
-                }`}>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded ${
+                    obs.conv_status === 'open'
+                      ? 'bg-success/20 text-success'
+                      : obs.conv_status === 'closed'
+                        ? 'bg-on-surface-dim/20 text-on-surface-dim'
+                        : 'bg-warning/20 text-warning'
+                  }`}
+                >
                   {obs.conv_status}
                 </span>
               </td>
@@ -279,16 +346,18 @@ function ObservationsTab({ observations }: { observations: IocObservation[] }) {
   );
 }
 
-function RelatedTab({ relatedIocs, graphData }: { relatedIocs: IocRelated[]; graphData?: import('@/types/api').IocGraph }) {
+function RelatedTab({
+  relatedIocs,
+  graphData,
+}: {
+  relatedIocs: IocRelated[];
+  graphData?: import('@/types/api').IocGraph;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
   if (relatedIocs.length === 0) {
-    return (
-      <div className="text-center py-12 text-on-surface-dim">
-        {t('iocDetail.noRelated')}
-      </div>
-    );
+    return <div className="text-center py-12 text-on-surface-dim">{t('iocDetail.noRelated')}</div>;
   }
 
   return (
@@ -305,44 +374,50 @@ function RelatedTab({ relatedIocs, graphData }: { relatedIocs: IocRelated[]; gra
 
       {/* Table */}
       <div className="bg-surface-low rounded-lg overflow-hidden">
-      <table className="w-full text-left">
-        <thead>
-          <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
-            <th className="px-5 py-3 font-medium">{t('iocExplorer.type')}</th>
-            <th className="px-5 py-3 font-medium">{t('iocExplorer.value')}</th>
-            <th className="px-5 py-3 font-medium">{t('iocDetail.coOccurrence')}</th>
-            <th className="px-5 py-3 font-medium">{t('iocExplorer.score')}</th>
-          </tr>
-        </thead>
-        <tbody className="text-sm">
-          {relatedIocs.map((rel) => {
-            const aggScore = 'agg' in rel.score ? (rel.score.agg ?? 0) : 0;
-            const sev = scoreSeverity(aggScore);
-            return (
-              <tr
-                key={rel.indicator_id}
-                onClick={() => navigate(`/ioc-explorer/${rel.indicator_id}`)}
-                className="hover:bg-surface-high/50 transition-colors cursor-pointer"
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/ioc-explorer/${rel.indicator_id}`); }}
-              >
-                <td className="px-5 py-3">
-                  <span className="text-xs uppercase text-on-surface-variant">{rel.type}</span>
-                </td>
-                <td className="px-5 py-3 font-mono text-on-surface truncate max-w-[300px]">{rel.value_norm}</td>
-                <td className="px-5 py-3">
-                  <span className="text-sm font-bold text-accent">{rel.co_occurrence_count}</span>
-                  <span className="text-xs text-on-surface-dim ml-1">{t('iocDetail.conversations')}</span>
-                </td>
-                <td className="px-5 py-3">
-                  <span className={`text-xs font-bold ${sev.color}`}>{aggScore}</span>
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+        <table className="w-full text-left">
+          <thead>
+            <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
+              <th className="px-5 py-3 font-medium">{t('iocExplorer.type')}</th>
+              <th className="px-5 py-3 font-medium">{t('iocExplorer.value')}</th>
+              <th className="px-5 py-3 font-medium">{t('iocDetail.coOccurrence')}</th>
+              <th className="px-5 py-3 font-medium">{t('iocExplorer.score')}</th>
+            </tr>
+          </thead>
+          <tbody className="text-sm">
+            {relatedIocs.map((rel) => {
+              const aggScore = 'agg' in rel.score ? (rel.score.agg ?? 0) : 0;
+              const sev = scoreSeverity(aggScore);
+              return (
+                <tr
+                  key={rel.indicator_id}
+                  onClick={() => navigate(`/ioc-explorer/${rel.indicator_id}`)}
+                  className="hover:bg-surface-high/50 transition-colors cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') navigate(`/ioc-explorer/${rel.indicator_id}`);
+                  }}
+                >
+                  <td className="px-5 py-3">
+                    <span className="text-xs uppercase text-on-surface-variant">{rel.type}</span>
+                  </td>
+                  <td className="px-5 py-3 font-mono text-on-surface truncate max-w-[300px]">
+                    {rel.value_norm}
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className="text-sm font-bold text-accent">{rel.co_occurrence_count}</span>
+                    <span className="text-xs text-on-surface-dim ml-1">
+                      {t('iocDetail.conversations')}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3">
+                    <span className={`text-xs font-bold ${sev.color}`}>{aggScore}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -373,11 +448,7 @@ function ContextTab({ contexts }: { contexts: IocContextEntry[] }) {
   const { t } = useTranslation();
 
   if (contexts.length === 0) {
-    return (
-      <div className="text-center py-12 text-on-surface-dim">
-        {t('iocContext.noContext')}
-      </div>
-    );
+    return <div className="text-center py-12 text-on-surface-dim">{t('iocContext.noContext')}</div>;
   }
 
   return (
@@ -449,9 +520,15 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
         {/* Metadata grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {s.scam_type && <MetaField label={t('iocContext.scamType')} value={s.scam_type} />}
-          {s.persona_code && <MetaField label={t('iocContext.persona')} value={s.persona_label ?? s.persona_code} />}
-          {s.extraction_method && <MetaField label={t('iocContext.extraction')} value={s.extraction_method} />}
-          {s.engagement_hours != null && <MetaField label={t('iocContext.engagement')} value={`${s.engagement_hours}h`} />}
+          {s.persona_code && (
+            <MetaField label={t('iocContext.persona')} value={s.persona_label ?? s.persona_code} />
+          )}
+          {s.extraction_method && (
+            <MetaField label={t('iocContext.extraction')} value={s.extraction_method} />
+          )}
+          {s.engagement_hours != null && (
+            <MetaField label={t('iocContext.engagement')} value={`${s.engagement_hours}h`} />
+          )}
         </div>
       </div>
 
@@ -464,12 +541,15 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
             </h3>
             {ctx.semantic.role && (
               <div className="flex items-center gap-3">
-                <span className={`text-sm font-bold px-3 py-1 rounded ${ROLE_COLORS[ctx.semantic.role] ?? ROLE_COLORS.UNKNOWN}`}>
+                <span
+                  className={`text-sm font-bold px-3 py-1 rounded ${ROLE_COLORS[ctx.semantic.role] ?? ROLE_COLORS.UNKNOWN}`}
+                >
                   {ctx.semantic.role}
                 </span>
                 {ctx.semantic.enrichment_confidence != null && (
                   <span className="text-xs text-on-surface-dim">
-                    {t('iocContext.confidence')}: {Math.round(ctx.semantic.enrichment_confidence * 100)}%
+                    {t('iocContext.confidence')}:{' '}
+                    {Math.round(ctx.semantic.enrichment_confidence * 100)}%
                   </span>
                 )}
               </div>
@@ -494,7 +574,9 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               {ctx.semantic.urgency_score != null && (
                 <div>
-                  <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.urgency')}</label>
+                  <label className="text-xs text-on-surface-dim block mb-1">
+                    {t('iocContext.urgency')}
+                  </label>
                   <div className="flex items-center gap-2">
                     <div className="w-20 h-1.5 bg-surface-highest rounded-full overflow-hidden">
                       <div
@@ -509,15 +591,27 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
                 </div>
               )}
               <div>
-                <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.hesitation')}</label>
-                <span className={`text-xs font-medium ${ctx.semantic.hesitation_detected ? 'text-warning' : 'text-on-surface-dim'}`}>
-                  {ctx.semantic.hesitation_detected ? t('iocContext.hesitationDetected') : t('iocContext.hesitationNotDetected')}
+                <label className="text-xs text-on-surface-dim block mb-1">
+                  {t('iocContext.hesitation')}
+                </label>
+                <span
+                  className={`text-xs font-medium ${ctx.semantic.hesitation_detected ? 'text-warning' : 'text-on-surface-dim'}`}
+                >
+                  {ctx.semantic.hesitation_detected
+                    ? t('iocContext.hesitationDetected')
+                    : t('iocContext.hesitationNotDetected')}
                 </span>
               </div>
               <div>
-                <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.languageSwitch')}</label>
-                <span className={`text-xs font-medium ${ctx.semantic.language_switch ? 'text-warning' : 'text-on-surface-dim'}`}>
-                  {ctx.semantic.language_switch ? t('iocContext.detected') : t('iocContext.notDetected')}
+                <label className="text-xs text-on-surface-dim block mb-1">
+                  {t('iocContext.languageSwitch')}
+                </label>
+                <span
+                  className={`text-xs font-medium ${ctx.semantic.language_switch ? 'text-warning' : 'text-on-surface-dim'}`}
+                >
+                  {ctx.semantic.language_switch
+                    ? t('iocContext.detected')
+                    : t('iocContext.notDetected')}
                 </span>
               </div>
             </div>
@@ -559,7 +653,10 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
           </h3>
           <div className="flex gap-2 flex-wrap">
             {s.co_revealed_types.map((type) => (
-              <span key={type} className="text-xs bg-surface-high px-2 py-0.5 rounded text-on-surface-variant">
+              <span
+                key={type}
+                className="text-xs bg-surface-high px-2 py-0.5 rounded text-on-surface-variant"
+              >
                 {type}
               </span>
             ))}
@@ -572,8 +669,14 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
 
       {/* Footer: enrichment status + computed_at */}
       <div className="border-t border-surface-high px-5 py-3 flex items-center gap-4 text-xs text-on-surface-dim">
-        <span>{t('iocContext.enrichmentStatus')}: {statusStyle.label}</span>
-        {ctx.computed_at && <span>{t('iocContext.computedAt')}: {new Date(ctx.computed_at).toLocaleString()}</span>}
+        <span>
+          {t('iocContext.enrichmentStatus')}: {statusStyle.label}
+        </span>
+        {ctx.computed_at && (
+          <span>
+            {t('iocContext.computedAt')}: {new Date(ctx.computed_at).toLocaleString()}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -582,7 +685,9 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
 function MetaField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-0.5">
-      <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">{label}</label>
+      <label className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block">
+        {label}
+      </label>
       <p className="text-sm font-medium text-on-surface">{value}</p>
     </div>
   );

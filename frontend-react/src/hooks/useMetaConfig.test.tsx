@@ -31,7 +31,7 @@ describe('useMetaConfig', () => {
     expect(config?.scam_types).toHaveLength(2);
     expect(config?.ioc_types).toContain('email');
     expect(config?.bandit.strategy).toBe('epsilon-greedy');
-    expect(config?.bandit.epsilon).toBe(0.20);
+    expect(config?.bandit.epsilon).toBe(0.2);
   });
 });
 

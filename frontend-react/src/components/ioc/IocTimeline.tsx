@@ -87,8 +87,12 @@ export function IocTimeline({ observations }: Props) {
 
               return (
                 <div className="bg-surface-base border border-surface-highest rounded-lg px-3 py-2 text-xs shadow-lg">
-                  <p className="font-bold text-on-surface">{formatDate(new Date(d.date).toISOString())}</p>
-                  <p className="text-on-surface-dim">{d.scamType} — {d.method}</p>
+                  <p className="font-bold text-on-surface">
+                    {formatDate(new Date(d.date).toISOString())}
+                  </p>
+                  <p className="text-on-surface-dim">
+                    {d.scamType} — {d.method}
+                  </p>
                   {d.subject && <p className="text-accent truncate max-w-[200px]">{d.subject}</p>}
                 </div>
               );
@@ -97,10 +101,29 @@ export function IocTimeline({ observations }: Props) {
           <Scatter
             data={data}
             fill={DEFAULT_DOT_COLOR}
-            shape={({ cx: dotCx, cy: dotCy, payload }: { cx?: number; cy?: number; payload?: Record<string, unknown> }) => {
+            shape={({
+              cx: dotCx,
+              cy: dotCy,
+              payload,
+            }: {
+              cx?: number;
+              cy?: number;
+              payload?: Record<string, unknown>;
+            }) => {
               const p = payload as (typeof data)[number] | undefined;
               const color = p ? (METHOD_COLORS[p.method] ?? DEFAULT_DOT_COLOR) : DEFAULT_DOT_COLOR;
-              return <circle cx={dotCx ?? 0} cy={dotCy ?? 0} r={8} fill={color} fillOpacity={0.85} stroke={color} strokeWidth={2} strokeOpacity={0.4} />;
+              return (
+                <circle
+                  cx={dotCx ?? 0}
+                  cy={dotCy ?? 0}
+                  r={8}
+                  fill={color}
+                  fillOpacity={0.85}
+                  stroke={color}
+                  strokeWidth={2}
+                  strokeOpacity={0.4}
+                />
+              );
             }}
           />
         </ScatterChart>
