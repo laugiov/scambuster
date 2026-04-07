@@ -31,6 +31,10 @@ final class StixBundleBuilder
     // OpenCTI extension definition for custom properties
     private const OPENCTI_EXTENSION_ID = 'extension-definition--ea279b3e-5c71-4632-ac08-831c66a786ba';
 
+    // ScamBuster custom extension definitions (STIX 2.1 section 7.3)
+    private const EXT_DEF_CONTEXT_ID = 'extension-definition--b2a37c23-41d7-4e2f-9c8a-1a5f6d3e8b90';
+    private const EXT_DEF_ACTOR_ID = 'extension-definition--c3b48d34-52e8-4f3a-ad9b-2b6a7e4f9c01';
+
     // IOC type → OpenCTI main observable type
     private const OPENCTI_OBSERVABLE_TYPE = [
         'email' => 'Email-Addr',
@@ -105,7 +109,19 @@ final class StixBundleBuilder
         // 2. Identity
         $objects[] = $this->buildIdentity($markingRef);
 
-        // 3. Indicators
+        // 3. Extension definitions (STIX 2.1 section 7.3)
+        $objects[] = $this->buildExtensionDefinition(
+            self::EXT_DEF_CONTEXT_ID,
+            'ScamBuster IOC Context Extension',
+            'Contextual enrichment for IOC indicators: scam type, persona, revelation turn, semantic role, stimulus type, urgency score, context excerpt.',
+        );
+        $objects[] = $this->buildExtensionDefinition(
+            self::EXT_DEF_ACTOR_ID,
+            'ScamBuster Threat Actor Extension',
+            'Behavioral profiling for threat actors: engagement metrics, IOC diversity, persona used, scam type.',
+        );
+
+        // 4. Indicators
         $indicatorIds = [];
 
         foreach ($iocs as $ioc) {
@@ -117,7 +133,7 @@ final class StixBundleBuilder
             }
         }
 
-        // 4. Relationships (max 100)
+        // 5. Relationships (max 100)
         $relCount = 0;
 
         foreach ($relationships as $rel) {
@@ -133,7 +149,7 @@ final class StixBundleBuilder
             }
         }
 
-        // 5. Report
+        // 6. Report
         $allObjectRefs = array_merge([self::IDENTITY_ID], $indicatorIds);
         $objects[] = [
             'type' => 'report',
@@ -154,6 +170,26 @@ final class StixBundleBuilder
             'type' => 'bundle',
             'id' => $bundleId,
             'objects' => $objects,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildExtensionDefinition(string $id, string $name, string $description): array
+    {
+        return [
+            'type' => 'extension-definition',
+            'spec_version' => '2.1',
+            'id' => $id,
+            'created_by_ref' => self::IDENTITY_ID,
+            'created' => '2025-12-01T00:00:00.000Z',
+            'modified' => '2026-04-07T00:00:00.000Z',
+            'name' => $name,
+            'description' => $description,
+            'schema' => 'https://github.com/laugiov/scambuster',
+            'version' => '1.0',
+            'extension_types' => ['property-extension'],
         ];
     }
 
