@@ -12,6 +12,8 @@ IOC indicators include the **`x_scambuster_context` STIX extension** with contex
 
 Conversation STIX exports include **`threat-actor`** objects with behavioral profiling (sophistication, goals, MITRE ATT&CK technique), linked to indicators via `indicates` relationships. The `x_scambuster_actor` extension provides engagement metrics and persona information.
 
+The **TAXII IOC collection** also includes threat-actor objects: for each batch of indicators, the server enriches the response with threat-actors from the conversations behind those IOCs, along with `attack-pattern` and `indicates` relationships. This allows TAXII consumers (OpenCTI, MISP) to automatically ingest attribution data alongside IOCs.
+
 ### Architecture
 
 ```
