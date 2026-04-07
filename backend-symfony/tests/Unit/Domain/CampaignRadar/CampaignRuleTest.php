@@ -38,27 +38,35 @@ final class CampaignRuleTest extends TestCase
         new CampaignRule($this->campaignId, '   ');
     }
 
-    public function testSetCompiledSqlStoresSql(): void
+    public function testSetCompiledDataStoresData(): void
     {
         $rule = new CampaignRule($this->campaignId, 'RULE test {}');
         $sql = "SELECT * FROM message WHERE subject ILIKE '%test%'";
 
-        $rule->setCompiledSql($sql);
+        $rule->setCompiledData(['sql' => $sql, 'params' => []]);
 
-        // Vérifie que le SQL est stocké dans la structure compiledData
         $compiledData = $rule->getCompiledData();
         $this->assertIsArray($compiledData);
         $this->assertArrayHasKey('sql', $compiledData);
         $this->assertSame($sql, $compiledData['sql']);
     }
 
-    public function testSetCompiledSqlThrowsOnEmptySql(): void
+    public function testSetCompiledDataThrowsOnEmptySql(): void
     {
         $this->expectException(DomainException::class);
         $this->expectExceptionMessage('Compiled SQL cannot be empty');
 
         $rule = new CampaignRule($this->campaignId, 'RULE test {}');
-        $rule->setCompiledSql('  ');
+        $rule->setCompiledData(['sql' => '  ', 'params' => []]);
+    }
+
+    public function testSetCompiledDataThrowsOnMissingKeys(): void
+    {
+        $this->expectException(DomainException::class);
+        $this->expectExceptionMessage('Compiled data must contain sql and params keys');
+
+        $rule = new CampaignRule($this->campaignId, 'RULE test {}');
+        $rule->setCompiledData(['sql' => 'SELECT 1']);
     }
 
     public function testUpdateMetricsCalculatesPpv(): void

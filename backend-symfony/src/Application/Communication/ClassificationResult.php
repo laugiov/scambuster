@@ -35,7 +35,7 @@ final class ClassificationResult
     }
 
     /**
-     * Get persona data if new persona was created (deprecated - use suggestedPersonaCodes)
+     * Get persona data if new persona was created.
      *
      * @return array{label_en?: string, label_fr?: string, persona_code?: string, persona_label?: string, persona_tone?: string, system_prompt?: string}|null
      */

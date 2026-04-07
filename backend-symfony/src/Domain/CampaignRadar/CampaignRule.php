@@ -104,22 +104,6 @@ class CampaignRule
     }
 
     /**
-     * Récupère le SQL compilé brut (pour compatibilité legacy).
-     *
-     * @deprecated Utiliser getCompiledData() à la place
-     */
-    public function getCompiledSql(): ?string
-    {
-        if ($this->compiledSql === null) {
-            return null;
-        }
-
-        $encoded = json_encode($this->compiledSql);
-
-        return $encoded !== false ? $encoded : null;
-    }
-
-    /**
      * Récupère les données compilées (SQL + params).
      *
      * @return array<string, mixed>|null
@@ -175,31 +159,6 @@ class CampaignRule
     }
 
     // === Méthodes Métier ===
-
-    /**
-     * Enregistre le code SQL transcompilé.
-     */
-    /**
-     * Enregistre le SQL compilé brut (pour compatibilité legacy).
-     *
-     * @deprecated Utiliser setCompiledData() à la place
-     */
-    public function setCompiledSql(string $sql): void
-    {
-        if (trim($sql) === '') {
-            throw new DomainException('Compiled SQL cannot be empty');
-        }
-
-        // Convertir la string JSON en array pour stockage
-        try {
-            $this->compiledSql = json_decode($sql, true, 512, JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            // Si ce n'est pas du JSON, créer une structure simple
-            $this->compiledSql = ['sql' => $sql, 'params' => []];
-        }
-
-        $this->updatedAt = new \DateTimeImmutable();
-    }
 
     /**
      * Enregistre les données compilées (SQL + paramètres).
