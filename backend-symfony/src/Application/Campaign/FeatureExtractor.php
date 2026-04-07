@@ -176,16 +176,14 @@ final class FeatureExtractor
      */
     private function getDomainAges(array $domains): array
     {
-        // MVP : retourner âge fictif
-        // TODO : Intégrer WHOIS lookup ou cache externe
-        return array_fill(0, count($domains), 365); // 1 an par défaut
+        // MVP stub — returns default age (WHOIS integration not implemented)
+        return array_fill(0, count($domains), 365);
     }
 
     /** @phpstan-ignore return.unusedType */
     private function getMxProvider(Message $message): ?string
     {
-        // MVP : stub
-        // TODO : Parser headers Received, détecter provider (Gmail, Office365, OVH, etc.)
+        // MVP stub — provider detection not implemented
         return null;
     }
 

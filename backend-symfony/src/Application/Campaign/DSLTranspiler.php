@@ -41,7 +41,7 @@ final class DSLTranspiler
         return [
             'sql' => $compiled['sql'],
             'params' => $compiled['params'],
-            'tests' => [], // TODO pour MVP
+            'tests' => [],
         ];
     }
 
