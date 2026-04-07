@@ -5,7 +5,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { useImpactSummary, useIocUniqueness } from '@/hooks/useImpact';
-import type { IocTypeEntry, TopCampaign } from '@/hooks/useImpact';
+import type { IocTypeEntry } from '@/hooks/useImpact';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -80,7 +80,7 @@ export function Impact() {
     );
   }
 
-  const { wasted_time, ioc_value, cost_efficiency, campaigns } = data;
+  const { wasted_time, ioc_value, cost_efficiency } = data;
   const hours = wasted_time.total_hours;
   const pieData = buildPieData(ioc_value.by_type);
 
