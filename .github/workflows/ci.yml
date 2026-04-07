@@ -413,6 +413,9 @@ jobs:
       - name: TypeScript strict check
         run: npx tsc --noEmit
 
+      - name: Format check (Prettier)
+        run: npm run format:check
+
       - name: Lint
         run: npm run lint
 
