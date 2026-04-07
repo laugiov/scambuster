@@ -149,20 +149,7 @@ export function Impact() {
             </>
           }
         />
-        <StatCard
-          label={t('impact.campaigns_exposed')}
-          value={campaigns.total}
-          subtitle={
-            <>
-              {`${campaigns.promoted} ${t('impact.promoted')}`}
-              {data.trends?.campaigns_delta != null && data.trends.campaigns_delta !== 0 && (
-                <span className={`ml-2 ${data.trends.campaigns_delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.trends.campaigns_delta >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.campaigns_delta)}
-                </span>
-              )}
-            </>
-          }
-        />
+        {/* Campaign stat hidden — pipeline disconnected */}
       </div>
 
       {/* Charts */}
@@ -227,47 +214,7 @@ export function Impact() {
         </ChartCard>
       )}
 
-      {/* Campaign table */}
-      {campaigns.top_campaigns.length > 0 && (
-        <div className="bg-surface-low rounded-lg p-5">
-          <h3 className="text-sm font-medium text-on-surface mb-4">{t('impact.top_campaigns')}</h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-on-surface-dim text-xs uppercase tracking-widest border-b border-outline-variant">
-                  <th className="text-left py-2 px-3">Campaign</th>
-                  <th className="text-center py-2 px-3">Severity</th>
-                  <th className="text-right py-2 px-3">Conversations</th>
-                  <th className="text-right py-2 px-3">IOCs</th>
-                  <th className="text-left py-2 px-3">First Seen</th>
-                  <th className="text-center py-2 px-3">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(campaigns.top_campaigns ?? []).map((c: TopCampaign, index: number) => (
-                  <tr key={c.campaign_id} className="border-b border-outline-variant/50 hover:bg-surface-high transition-colors">
-                    <td className="py-2 px-3 text-on-surface text-sm">
-                      Campaign #{index + 1} — {c.dominant_scam_type ?? 'Unknown'}
-                      <span className="block text-xs text-on-surface-dim font-mono">{c.campaign_id?.slice(0, 8)}</span>
-                    </td>
-                    <td className="py-2 px-3 text-center text-on-surface">{c.severity}</td>
-                    <td className="py-2 px-3 text-right text-on-surface">{c.conv_count}</td>
-                    <td className="py-2 px-3 text-right text-on-surface">{c.ioc_count}</td>
-                    <td className="py-2 px-3 text-on-surface-dim text-xs">{c.first_seen?.slice(0, 10) ?? '-'}</td>
-                    <td className="py-2 px-3 text-center">
-                      {c.status === 'promoted' ? (
-                        <span className="text-xs bg-green-900/30 text-green-400 px-2 py-0.5 rounded">{t('impact.promoted')}</span>
-                      ) : (
-                        <span className="text-xs bg-surface-high text-on-surface-dim px-2 py-0.5 rounded">{c.status}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {/* Campaign table hidden — pipeline disconnected */}
 
       {/* Comparison banner */}
       <div className="bg-surface-low rounded-lg px-5 py-3 text-xs text-on-surface-dim flex items-center gap-2">
