@@ -1,0 +1,2 @@
+# Prettier formatting commits — use with: git blame --ignore-revs-file .git-blame-ignore-revs
+b1f53cce679c6a828ef2d37a1a3f0c194acd5e78  # style(frontend): apply Prettier formatting
