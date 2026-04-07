@@ -211,8 +211,9 @@ final class ConversationStixExportHandler
 
         $attackPatterns = $this->threatActorBuilder->buildAttackPatterns($attckTechnique);
 
-        // Collect indicator IDs from bundle
+        // Collect indicator IDs and report ID from bundle
         $indicatorIds = [];
+        $reportId = null;
         /** @var list<array<string, mixed>> $objects */
         $objects = \is_array($bundle['objects'] ?? null) ? $bundle['objects'] : [];
 
@@ -220,16 +221,38 @@ final class ConversationStixExportHandler
             if (($obj['type'] ?? '') === 'indicator' && \is_string($obj['id'] ?? null)) {
                 $indicatorIds[] = $obj['id'];
             }
+
+            if (($obj['type'] ?? '') === 'report' && \is_string($obj['id'] ?? null)) {
+                $reportId = $obj['id'];
+            }
         }
 
         $attackPatternIds = array_map(fn (array $ap) => $ap['id'], $attackPatterns);
 
         $relationships = $this->threatActorBuilder->buildActorRelationships(
             $threatActor['id'],
-            'conversation--' . $convId,
             $indicatorIds,
             $attackPatternIds,
         );
+
+        // Add threat-actor + attack-patterns to report's object_refs
+        if ($reportId !== null) {
+            foreach ($objects as &$obj) {
+                if (($obj['type'] ?? '') === 'report' && ($obj['id'] ?? '') === $reportId) {
+                    /** @var list<string> $refs */
+                    $refs = \is_array($obj['object_refs'] ?? null) ? $obj['object_refs'] : [];
+                    $refs[] = $threatActor['id'];
+
+                    foreach ($attackPatterns as $ap) {
+                        $refs[] = $ap['id'];
+                    }
+                    $obj['object_refs'] = $refs;
+
+                    break;
+                }
+            }
+            unset($obj);
+        }
 
         // Merge
         $objects[] = $threatActor;

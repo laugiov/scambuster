@@ -175,10 +175,9 @@ final class ThreatActorStixBuilder
     }
 
     /**
-     * Build STIX relationships linking threat-actor to campaign, indicators, and attack-patterns.
+     * Build STIX relationships linking threat-actor to indicators and attack-patterns.
      *
      * @param string       $threatActorId    STIX ID of threat-actor
-     * @param string       $campaignStixId   STIX ID of campaign
      * @param list<string> $indicatorIds     STIX IDs of indicators
      * @param list<string> $attackPatternIds STIX IDs of attack-patterns
      *
@@ -186,27 +185,12 @@ final class ThreatActorStixBuilder
      */
     public function buildActorRelationships(
         string $threatActorId,
-        string $campaignStixId,
         array $indicatorIds,
         array $attackPatternIds,
         string $markingRef = self::TLP_AMBER,
     ): array {
         $relationships = [];
         $now = $this->formatTimestamp(new \DateTimeImmutable());
-
-        // campaign --attributed-to--> threat-actor
-        $relationships[] = [
-            'type' => 'relationship',
-            'spec_version' => '2.1',
-            'id' => 'relationship--' . $this->deterministicUuid('attributed-to-' . $campaignStixId . '-' . $threatActorId),
-            'created' => $now,
-            'modified' => $now,
-            'relationship_type' => 'attributed-to',
-            'source_ref' => $campaignStixId,
-            'target_ref' => $threatActorId,
-            'created_by_ref' => self::IDENTITY_ID,
-            'object_marking_refs' => [$markingRef],
-        ];
 
         // threat-actor --uses--> attack-pattern
         foreach ($attackPatternIds as $apId) {

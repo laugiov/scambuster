@@ -200,30 +200,23 @@ final class ThreatActorStixBuilderTest extends TestCase
     public function testBuildActorRelationships(): void
     {
         $threatActorId = 'threat-actor--aaa';
-        $campaignId = 'campaign--bbb';
         $indicatorIds = ['indicator--c1', 'indicator--c2'];
         $attackPatternIds = ['attack-pattern--d1'];
 
-        $rels = $this->builder->buildActorRelationships($threatActorId, $campaignId, $indicatorIds, $attackPatternIds);
+        $rels = $this->builder->buildActorRelationships($threatActorId, $indicatorIds, $attackPatternIds);
 
-        // 1 attributed-to + 1 uses + 2 indicates = 4
-        self::assertCount(4, $rels);
-
-        // Check attributed-to
-        $attributedTo = $rels[0];
-        self::assertSame('relationship', $attributedTo['type']);
-        self::assertSame('attributed-to', $attributedTo['relationship_type']);
-        self::assertSame($campaignId, $attributedTo['source_ref']);
-        self::assertSame($threatActorId, $attributedTo['target_ref']);
+        // 1 uses + 2 indicates = 3
+        self::assertCount(3, $rels);
 
         // Check uses
-        $uses = $rels[1];
+        $uses = $rels[0];
+        self::assertSame('relationship', $uses['type']);
         self::assertSame('uses', $uses['relationship_type']);
         self::assertSame($threatActorId, $uses['source_ref']);
         self::assertSame('attack-pattern--d1', $uses['target_ref']);
 
         // Check indicates
-        $indicates1 = $rels[2];
+        $indicates1 = $rels[1];
         self::assertSame('indicates', $indicates1['relationship_type']);
         self::assertSame('indicator--c1', $indicates1['source_ref']);
         self::assertSame($threatActorId, $indicates1['target_ref']);
