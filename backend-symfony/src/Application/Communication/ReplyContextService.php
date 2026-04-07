@@ -8,6 +8,7 @@ use App\Application\LLM\LanguageDetector;
 use App\Application\Scambaiting\PersonaOptimizer;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Message;
+use App\Domain\Communication\ObservedIoc;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -153,11 +154,13 @@ class ReplyContextService
         if ($this->iocHandler !== null) {
             try {
                 $iocs = $this->iocHandler->getConversationIocs($convId);
-                $extractedIocs = array_map(function ($ioc) {
+                $extractedIocs = array_map(function (ObservedIoc $ioc) {
+                    $ctx = $ioc->getContext();
+
                     return [
-                        'type' => $ioc['type'] ?? 'unknown',
-                        'value' => $ioc['value'] ?? '',
-                        'category' => $ioc['category'] ?? null,
+                        'type' => $ctx['type'] ?? 'unknown',
+                        'value' => $ctx['value'] ?? '',
+                        'category' => $ctx['category'] ?? null,
                     ];
                 }, $iocs);
             } catch (\Throwable $e) {
