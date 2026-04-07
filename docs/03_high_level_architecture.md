@@ -70,7 +70,7 @@ Scam emails are received via monitored mailboxes:
 
 **Key features**:
 - Deduplication (composite hash based)
-- Risk scoring (integration with Rspamd)
+- Risk scoring (Rspamd score extraction from headers)
 - Automatic conversation reopening on new inbound message
 
 ### 2. Orchestration Layer
@@ -143,7 +143,7 @@ Domain-Driven Design (DDD) architecture:
 ├─────────────────────────────────────────────────────────┤
 │                    Domain Layer                          │
 │  (Entities, Value Objects, Domain Services, Events)     │
-│            *** Zero framework dependencies ***           │
+│  *** Minimal framework coupling (Doctrine annotations) ***  │
 ├─────────────────────────────────────────────────────────┤
 │                 Infrastructure Layer                     │
 │    (Repositories, External APIs, Persistence)           │
@@ -156,7 +156,7 @@ Domain-Driven Design (DDD) architecture:
 - **IOC**: Extraction, classification, enrichment
 - **Adaptive**: Epsilon-greedy bandit, persona performance tracking, convergence logging
 - **Monitoring**: Lifecycle alerts, rate limit stats, LLM cost tracking, audit trail (16 event types)
-- **Evaluation**: Automated benchmark suite (9 quality metrics, 3 CLI commands)
+- **Evaluation**: Automated benchmark suite (7 quality metrics, 3 CLI commands)
 - **Tracing**: Per-reply pipeline trace (component timing, cost, approval status)
 
 ### 5. Data Layer
@@ -173,7 +173,8 @@ Standard formats for integration:
 
 | Format | Details | Use Case |
 |--------|---------|----------|
-| **STIX 2.1** | Standard bundles | Threat intelligence platforms |
+| **STIX 2.1** | Standard bundles (indicators, campaigns, threat-actors) | Threat intelligence platforms |
+| **TAXII 2.1** | Server endpoint for STIX feed consumption | Automated TIP polling |
 | **REST API** | JSON | Custom integrations |
 | **SIEM** | CEF, ECS, JSON | Enterprise SIEM/SOAR integration |
 
@@ -227,7 +228,7 @@ Standard formats for integration:
 │              ┌─────────────────┐                        │
 │              │  Selection      │                        │
 │              │  (ε-greedy:     │                        │
-│              │  80/20 explore/ │                        │
+│              │  20/80 explore/ │                        │
 │              │  exploit)       │                        │
 │              └─────────────────┘                        │
 │                       │                                  │
@@ -359,9 +360,9 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 | IOC Precision | High precision on audited samples |
 | System uptime | Continuous operation (0 incidents) |
 | Scam types supported | 13 (with per-type lifecycle policies) |
-| Frontend pages | 14 (Dashboard, Conversations, Detail, IOC Explorer, STIX Export, Personas, Campaigns, Campaign Detail, LLM Costs, Monitoring, Pipeline Monitor, Injection Monitor, Settings, Login) |
+| Frontend pages | Dashboard, Conversations, Detail, IOC Explorer, STIX Export, Personas, LLM Costs, Monitoring, Pipeline Monitor, Injection Monitor, Settings, Login |
 | Automated tests | Comprehensive test suite (unit, integration, E2E) |
-| Code coverage | 81.75% (Codecov) |
+| Code coverage | Tracked via Codecov |
 | Infrastructure | Containerized, single host |
 
 ### Proven Quality

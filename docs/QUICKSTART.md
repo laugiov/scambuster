@@ -82,7 +82,7 @@ This single command:
 - Installs backend dependencies
 - Creates and migrates the database
 - Loads fixture data (users, personas, scam types)
-- Loads demo dataset (150 conversations, 876 IOCs, 5 campaigns — all screens populated)
+- Loads demo dataset (150 conversations, 876 IOCs — all screens populated)
 - Generates JWT authentication keys
 - Creates the n8n admin account automatically
 - Imports and configures all n8n workflows
@@ -92,7 +92,7 @@ This single command:
 **Expected output** (last lines):
 
 ```
-Step 5/5: Configuring n8n (admin account, workflows, credentials)...
+Step 6/6: Configuring n8n (admin account, workflows, credentials)...
   [n8n-init] Admin account created.
   [n8n-init] Authenticated successfully.
   [n8n-init] IMAP credential created.

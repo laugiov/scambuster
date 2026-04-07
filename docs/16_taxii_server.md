@@ -62,6 +62,7 @@ Response:
 {
   "title": "ScamBuster TAXII Server",
   "description": "TAXII 2.1 server for ScamBuster threat intelligence",
+  "contact": "scambuster@localhost",
   "default": "/api/v1/taxii2/api/",
   "api_roots": ["/api/v1/taxii2/api/"]
 }
@@ -96,12 +97,12 @@ The response includes pagination headers:
 - `X-TAXII-Date-Added-First`: timestamp of the oldest object in the response
 - `X-TAXII-Date-Added-Last`: timestamp of the newest object -- use this as `added_after` for the next poll
 
-### 6. Filter by STIX type
+### 6. Filter by IOC type
 
 ```bash
-# Get only indicators (not campaigns or other objects)
+# Get only URL indicators
 curl -sS -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8081/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/?type=indicator&limit=5" \
+  "http://localhost:8081/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/?type=url&limit=5" \
   | jq .
 ```
 
@@ -173,7 +174,7 @@ The user must have the `ioc:read` permission.
 |-----------|------|---------|-------------|
 | `added_after` | ISO 8601 datetime | none | Only return objects added after this date |
 | `limit` | integer | 100 | Maximum objects to return (max: 1000) |
-| `type` | string | none | Filter by STIX object type (e.g., `indicator`) |
+| `type` | string | none | Filter by IOC type (e.g., `url`, `domain`, `email`, `ipv4`) |
 
 ### Response Format
 
@@ -211,7 +212,6 @@ The objects endpoint returns a STIX 2.1 envelope:
 | email | `[email-addr:value = '...']` |
 | sha256 | `[file:hashes.'SHA-256' = '...']` |
 | md5 | `[file:hashes.MD5 = '...']` |
-| sha1 | `[file:hashes.'SHA-1' = '...']` |
 | Other | `[x-scambuster:value = '...']` |
 
 ### Response Headers

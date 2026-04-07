@@ -37,7 +37,7 @@ Metrics in this documentation come from **controlled live deployment** (December
 | Window | Duration | Purpose | Key Metrics |
 |--------|----------|---------|-------------|
 | **Production run** | 60 days | Stability, quality metrics, uptime | Multiple unique IOCs/conv, high precision, 0 incidents |
-| **Controlled validation** | Ongoing | Precision analysis, campaign attribution | Detailed cost/value analysis |
+| **Controlled validation** | Ongoing | Precision analysis, campaign attribution (experimental, not automated) | Detailed cost/value analysis |
 
 This separation ensures appropriate context for each metric type.
 
@@ -63,7 +63,7 @@ This separation ensures appropriate context for each metric type.
 - **5.5× variance** in persona performance by scam type
 - Best conversation: **48.7 hours** (persona: `elderly_person`)
 - High-value IOCs include IBANs, phone numbers, cryptocurrency wallets
-- Campaign attribution possible through IOC clustering
+- Campaign attribution possible through IOC clustering (manual analysis; automated clustering pipeline planned)
 
 ### Experimental Validation (2,221 Conversations)
 
