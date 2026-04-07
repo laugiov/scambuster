@@ -64,8 +64,9 @@ export default function App() {
               <Route path="monitoring/pipeline" element={<PipelineMonitor />} />
               <Route path="monitoring/injection" element={<InjectionMonitoring />} />
               <Route path="monitoring/analytics" element={<Analytics />} />
-              <Route path="campaigns" element={<Campaigns />} />
-              <Route path="campaigns/:id" element={<CampaignDetail />} />
+              {/* Campaign routes hidden — pipeline disconnected */}
+              {/* <Route path="campaigns" element={<Campaigns />} /> */}
+              {/* <Route path="campaigns/:id" element={<CampaignDetail />} /> */}
               <Route path="settings" element={<Settings />} />
             </Route>
           </Routes>

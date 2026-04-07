@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { statusToBadgeVariant } from '@/components/ui/badgeUtils';
 import { Loading } from '@/components/feedback/Loading';
 import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
-import { useCampaignCandidates } from '@/hooks/useStix';
+// import { useCampaignCandidates } from '@/hooks/useStix'; // hidden: campaigns disconnected
 import { useAllPersonaPerformances } from '@/hooks/usePersonas';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { useActivityFeed, useWeeklyTrends, type WeeklyTrend } from '@/hooks/useAnalytics';
@@ -21,7 +21,7 @@ export function Dashboard() {
   const stats = useAutonomyStats();
   const conversations = useConversations();
   const { data: config } = useMetaConfig();
-  const { data: campaigns } = useCampaignCandidates();
+  // const { data: campaigns } = useCampaignCandidates(); // hidden: campaigns disconnected
   const { data: llmCosts } = useLlmCosts();
   const personaCodes = config?.personas.map((p) => p.code) ?? [];
   const { data: personas } = useAllPersonaPerformances(personaCodes);
@@ -64,11 +64,7 @@ export function Dashboard() {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatCard
-          label={t('dashboard.activeCampaigns')}
-          value={campaigns?.length ?? 0}
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label={t('dashboard.iocsExtracted')}
           value={data?.iocs.total ?? 0}
