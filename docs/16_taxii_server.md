@@ -10,6 +10,8 @@ ScamBuster includes a built-in **TAXII 2.1 server** (read-only) that enables aut
 
 IOC indicators include the **`x_scambuster_context` STIX extension** with contextual metadata: scam type, persona, revelation turn, extraction method, engagement duration, and (when LLM-enriched) semantic role, stimulus type, urgency score, and a PII-free context excerpt.
 
+Conversation STIX exports include **`threat-actor`** objects with behavioral profiling (sophistication, goals, MITRE ATT&CK technique), linked to indicators via `indicates` relationships. The `x_scambuster_actor` extension provides engagement metrics and persona information.
+
 ### Architecture
 
 ```

@@ -7,6 +7,7 @@ namespace App\UI\Http\Communication;
 use App\Application\Stix\ConversationStixExportHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
@@ -42,10 +43,12 @@ final class ExportConversationStixController
         security: [['Bearer' => []]]
     )]
     #[Route('/api/v1/conversations/{conv_id}/export/stix', name: 'export_conversation_stix', methods: ['GET'])]
-    public function __invoke(string $conv_id): JsonResponse
+    public function __invoke(string $conv_id, Request $request): JsonResponse
     {
+        $includeThreatActor = $request->query->get('include_threat_actor', 'true') !== 'false';
+
         try {
-            $bundle = $this->handler->export($conv_id);
+            $bundle = $this->handler->export($conv_id, $includeThreatActor);
         } catch (\RuntimeException) {
             return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
         }

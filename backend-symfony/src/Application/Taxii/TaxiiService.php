@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Taxii;
 
 use App\Application\Stix\IocContextStixExtensionBuilder;
+use App\Application\Stix\ThreatActorStixBuilder;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -20,6 +21,7 @@ final class TaxiiService
 
     public function __construct(
         private readonly EntityManagerInterface $em,
+        private readonly ?ThreatActorStixBuilder $threatActorBuilder = null,
     ) {
     }
 
@@ -216,6 +218,11 @@ final class TaxiiService
             $objects[] = $indicator;
         }
 
+        // Enrich with threat-actors from conversations behind these IOCs
+        if ($this->threatActorBuilder !== null && ($type === null || $type === 'threat-actor')) {
+            $this->enrichIocsWithThreatActors($objects, $rows);
+        }
+
         return [
             'envelope' => [
                 'more' => $more,
@@ -224,6 +231,148 @@ final class TaxiiService
             'firstAdded' => $firstAdded !== null ? $this->formatIso8601($firstAdded) : null,
             'lastAdded' => $lastAdded !== null ? $this->formatIso8601($lastAdded) : null,
         ];
+    }
+
+    /**
+     * Add threat-actor objects and indicates relationships for conversations behind the IOCs.
+     *
+     * @param list<array<string, mixed>>       $objects STIX objects (modified by reference)
+     * @param array<int, array<string, mixed>> $rows    Raw DB rows
+     */
+    private function enrichIocsWithThreatActors(array &$objects, array $rows): void
+    {
+        if ($this->threatActorBuilder === null || $rows === []) {
+            return;
+        }
+
+        $conn = $this->em->getConnection();
+
+        // Collect indicator IDs from this batch
+        $indicatorIds = [];
+
+        foreach ($rows as $row) {
+            if (\is_string($row['indicator_id'] ?? null)) {
+                $indicatorIds[] = $row['indicator_id'];
+            }
+        }
+
+        if ($indicatorIds === []) {
+            return;
+        }
+
+        // Find conversations for these indicators with metrics
+        $placeholders = implode(',', array_fill(0, \count($indicatorIds), '?'));
+        $convRows = $conn->fetchAllAssociative(
+            'SELECT DISTINCT c.conv_id, st.code AS scam_type, st.attck_technique,'
+            . ' c.ts_first, c.ts_last, c.turns_count, c.engagement_duration_sec,'
+            . ' p.persona_code,'
+            . ' (SELECT COUNT(DISTINCT i2.type) FROM observed_ioc oi2'
+            . '  JOIN indicator i2 ON oi2.indicator_id = i2.indicator_id'
+            . '  JOIN message m2 ON oi2.msg_id = m2.msg_id'
+            . '  WHERE m2.conv_id = c.conv_id) AS ioc_type_count'
+            . ' FROM conversation c'
+            . ' JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id'
+            . ' LEFT JOIN persona p ON c.persona_id = p.persona_id'
+            . ' WHERE c.conv_id IN ('
+            . '   SELECT DISTINCT m.conv_id FROM observed_ioc oi'
+            . '   JOIN message m ON oi.msg_id = m.msg_id'
+            . "   WHERE oi.indicator_id IN ({$placeholders})"
+            . ' )',
+            $indicatorIds,
+        );
+
+        if ($convRows === []) {
+            return;
+        }
+
+        // Build indicator→conversation mapping
+        $indicatorConvMap = $conn->fetchAllAssociative(
+            'SELECT DISTINCT oi.indicator_id, m.conv_id'
+            . ' FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id'
+            . " WHERE oi.indicator_id IN ({$placeholders})",
+            $indicatorIds,
+        );
+
+        /** @var array<string, list<string>> $convToIndicators */
+        $convToIndicators = [];
+
+        foreach ($indicatorConvMap as $mapping) {
+            $convId = \is_string($mapping['conv_id'] ?? null) ? $mapping['conv_id'] : '';
+            $indId = \is_string($mapping['indicator_id'] ?? null) ? $mapping['indicator_id'] : '';
+
+            if ($convId !== '' && $indId !== '') {
+                $convToIndicators[$convId][] = 'indicator--' . $indId;
+            }
+        }
+
+        // Build threat-actor + relationships per conversation
+        foreach ($convRows as $convRow) {
+            $convId = \is_string($convRow['conv_id'] ?? null) ? $convRow['conv_id'] : '';
+            $scamType = \is_string($convRow['scam_type'] ?? null) ? $convRow['scam_type'] : '';
+            $attckTechnique = \is_string($convRow['attck_technique'] ?? null) ? $convRow['attck_technique'] : null;
+
+            $tsFirst = \is_string($convRow['ts_first'] ?? null) ? $convRow['ts_first'] : '';
+            $tsLast = \is_string($convRow['ts_last'] ?? null) ? $convRow['ts_last'] : '';
+            $turns = \is_numeric($convRow['turns_count'] ?? null) ? (int) $convRow['turns_count'] : 0;
+            $engagementSec = \is_numeric($convRow['engagement_duration_sec'] ?? null) ? (int) $convRow['engagement_duration_sec'] : 0;
+            $personaCode = \is_string($convRow['persona_code'] ?? null) ? $convRow['persona_code'] : 'generic_user';
+            $iocTypeCount = \is_numeric($convRow['ioc_type_count'] ?? null) ? (int) $convRow['ioc_type_count'] : 0;
+
+            // Fallback engagement from timestamps
+            if ($engagementSec === 0 && $tsFirst !== '' && $tsLast !== '') {
+                try {
+                    $diff = (new \DateTimeImmutable($tsLast))->getTimestamp() - (new \DateTimeImmutable($tsFirst))->getTimestamp();
+                    $engagementSec = max($diff, 0);
+                } catch (\Exception) {
+                    // ignore
+                }
+            }
+
+            $engagementHours = $engagementSec / 3600.0;
+
+            $campaignData = [
+                'campaign_id' => $convId,
+                'scam_type' => $scamType,
+                'first_seen' => $tsFirst,
+                'last_seen' => $tsLast,
+                'tlp' => 'amber',
+            ];
+
+            $metrics = [
+                'conversation_count' => 1,
+                'avg_engagement_hours' => $engagementHours,
+                'avg_turns' => (float) $turns,
+                'unique_ioc_type_count' => $iocTypeCount,
+                'has_injection_attempts' => false,
+            ];
+
+            $actorProfile = [
+                'style_dna' => ['persona_used' => $personaCode, 'scam_type' => $scamType, 'engagement_turns' => $turns],
+                'infra_dna' => ['ioc_type_count' => $iocTypeCount, 'engagement_hours' => round($engagementHours, 2)],
+            ];
+
+            $threatActor = $this->threatActorBuilder->buildThreatActor($campaignData, $actorProfile, $metrics);
+            $objects[] = $threatActor;
+
+            $attackPatterns = $this->threatActorBuilder->buildAttackPatterns($attckTechnique);
+
+            foreach ($attackPatterns as $ap) {
+                $objects[] = $ap;
+            }
+
+            $convIndicatorIds = $convToIndicators[$convId] ?? [];
+            $attackPatternIds = array_map(fn (array $ap) => $ap['id'], $attackPatterns);
+
+            $relationships = $this->threatActorBuilder->buildActorRelationships(
+                $threatActor['id'],
+                $convIndicatorIds,
+                $attackPatternIds,
+            );
+
+            foreach ($relationships as $rel) {
+                $objects[] = $rel;
+            }
+        }
     }
 
     /**
