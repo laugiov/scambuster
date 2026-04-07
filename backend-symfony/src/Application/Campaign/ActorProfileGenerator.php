@@ -32,8 +32,8 @@ final class ActorProfileGenerator
         $messages = $this->connection->fetchAllAssociative('
             SELECT m.body_text, m.lang_detect, m.headers
             FROM message m
-            JOIN message_campaign mc ON mc.message_id = m.msg_id
-            WHERE mc.campaign_id = :campaignId AND m.direction = 3 AND m.body_text IS NOT NULL
+            JOIN message_campaign mc ON mc.msg_id = m.msg_id
+            WHERE mc.campaign_id = :campaignId AND m.direction = (SELECT dir_id FROM lkp_direction WHERE code = \'in\') AND m.body_text IS NOT NULL
         ', ['campaignId' => $campaignId]);
 
         if (count($messages) < 3) {
@@ -118,7 +118,7 @@ final class ActorProfileGenerator
             FROM indicator i
             JOIN observed_ioc oi ON oi.indicator_id = i.indicator_id
             JOIN message m ON oi.msg_id = m.msg_id
-            JOIN message_campaign mc ON mc.message_id = m.msg_id
+            JOIN message_campaign mc ON mc.msg_id = m.msg_id
             WHERE mc.campaign_id = :campaignId
         ', ['campaignId' => $campaignId]);
 
