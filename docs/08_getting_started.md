@@ -37,7 +37,7 @@ Edit `.env` and replace the `change-me` placeholders. Here are the **minimum req
 |----------|---------|------------|
 | `POSTGRES_PASSWORD` | Database password | Choose a strong password |
 | `DATABASE_URL` | Must match `POSTGRES_PASSWORD` | Update the password in the connection string |
-| `JWT_SECRET` | JWT signing key | `openssl rand -base64 64` |
+| `JWT_PASSPHRASE` | JWT signing key | `openssl rand -base64 64` |
 | `LLM_API_KEY` | OpenAI API key | From [platform.openai.com](https://platform.openai.com) |
 
 The following have safe defaults for local development but should be changed in production:
@@ -74,6 +74,7 @@ You should see the following services:
 | `postgres` | 5432 | PostgreSQL 15 database |
 | `redis` | 6379 | Cache and locks |
 | `vault` | 8200 | HashiCorp Vault (dev mode) |
+| `frontend` | 3002 | React frontend |
 | `n8n` | 5678 | Workflow automation |
 
 Verify the backend is responding:
@@ -397,6 +398,7 @@ scambuster/
 | `postgres-preprod` | postgres:15-alpine | -- | Pre-production database (port 5433) |
 | `redis` | redis:7-alpine | -- | Cache and distributed locks |
 | `vault` | hashicorp/vault | -- | Secrets management (dev mode) |
+| `frontend` | node:20-alpine | -- | React frontend (port 3002) |
 | `n8n` | n8nio/n8n | -- | Workflow automation |
 | `scheduler` | Custom (PHP 8.3) | `dev` | Automated tasks (close stale, rewards, injection detection, embeddings, bandit report, backups) |
 

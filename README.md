@@ -2,7 +2,7 @@
   <img src="frontend-react/public/scambuster_logo_horizontal.svg" alt="ScamBuster" width="500" />
 </p>
 
-<p align="center"><strong>A Defensive Engagement & Threat Intelligence Research Laboratory (Email-first)</strong></p>
+<p align="center"><strong>Automated Scambaiting Honeypot & Threat Intelligence Platform</strong></p>
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen)
 ![Stack](https://img.shields.io/badge/stack-PHP%208.3%20|%20Symfony%207.2%20|%20PostgreSQL%2015%20|%20LLM-green)
@@ -10,201 +10,102 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![CI](https://github.com/laugiov/scambuster/actions/workflows/ci.yml/badge.svg)](https://github.com/laugiov/scambuster/actions/workflows/ci.yml)
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](docker-compose.yml)
-[![STIX](https://img.shields.io/badge/STIX-2.1-red.svg)](docs/03_high_level_architecture.md)
+[![STIX](https://img.shields.io/badge/STIX-2.1-red.svg)](docs/16_taxii_server.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> **Last updated**: 2026-04-03 | **Data period**: December 2025 - ongoing
+> **Last updated**: 2026-04-07 | **Data period**: December 2025 -- ongoing
 
 <p align="center">
   <img src="frontend-react/public/scambuster_screenshots.gif" alt="ScamBuster Operations Dashboard" width="100%" />
 </p>
 
-ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**.
-
-> **Try the demo** (no install): [Live Demo](https://frontend-production-b836.up.railway.app) — login: `user@example.com` / `Un1que$trongPassword2024`
+> **Try the demo** (no install): [Live Demo](https://frontend-production-b836.up.railway.app) -- login: `user@example.com` / `Un1que$trongPassword2024`
 >
-> **Install locally in 5 minutes**: [Quickstart Guide](docs/QUICKSTART.md) — `cp .env.dist .env` → edit 4 values → `make quickstart` → done.
+> **Install locally in 5 minutes**: [Quickstart Guide](docs/QUICKSTART.md) -- `cp .env.dist .env` -> edit 4 values -> `make quickstart` -> done.
 >
-> **Run demo locally** (no API key needed): [Demo Guide](docs/DEMO.md) — `make demo-up` → http://localhost:3002
+> **Run demo locally** (no API key needed): [Demo Guide](docs/DEMO.md) -- `make demo-up` -> http://localhost:3002
 
-The project serves defensive security, fraud prevention, and applied research purposes (not offensive use). It extracts IOCs, maps campaigns, measures engagement effectiveness, and exports intelligence in STIX/MISP formats. All workflows are safety-gated, cost-aware, and fully auditable.
-
-This is an academic research project (Master's thesis, E-MSc Cybersecurity) exploring a novel intersection of conversational AI, game theory, and cyber threat intelligence.
+ScamBuster turns inbound scam emails into **actionable threat intelligence** through **controlled, policy-driven engagement**. It extracts IOCs, profiles threat actors, measures engagement effectiveness, and exports intelligence in STIX 2.1 / MISP / TAXII formats -- all safety-gated, cost-aware, and fully auditable.
 
 ---
 
-## The Problem: Email Scams Are High-Volume, and Mostly "Invisible" to Defenders
+## The Problem
 
-Email scams operate at massive scale. Most security programs are forced into a **block-and-forget** posture: the message is removed, but the attacker infrastructure, financial rails, and campaign signals remain largely unobserved. Industry estimates and sourced figures are documented in [Problem Statement](docs/01_problem_statement.md).
+Email scams operate at massive scale. Most security programs **block and forget**: the message is removed, but the attacker infrastructure, financial rails, and campaign signals remain unobserved. There is little attribution, limited visibility into evolving TTPs, and no intelligence generated from real-world interaction with threat actors.
 
-This creates a structural gap. There is little to no attribution across messages and campaigns, limited visibility into evolving TTPs and infrastructure reuse, and slow feedback loops on what actually works. Most organizations miss opportunities to generate intelligence from real-world interaction with threat actors.
-
-ScamBuster explores this gap by converting scam emails into measurable threat intelligence, safely and at scale.
-
----
-
-## ScamBuster: From Blocking to Understanding
-
-ScamBuster is a **research laboratory** that transforms email scams into actionable intelligence through controlled AI engagement.
-
-### The Vision: A Scam Observatory
-
-Instead of discarding scam emails, ScamBuster creates an **observatory** that answers critical questions:
-
-| Question | ScamBuster Insight |
-|----------|-------------------|
-| **What scam types are trending?** | Real-time classification across 13 types |
-| **Which personas maximize engagement?** | Adaptive learning identifies optimal strategies per scam type |
-| **What IOCs do scammers reveal?** | Automatic extraction of 40+ indicator types with contextual enrichment (semantic role, stimulus analysis, urgency scoring) |
-| **How do campaigns evolve?** | Clustering and attribution over time |
-| **What works against different scammers?** | Data-driven optimization, not intuition |
-
-### Three Research Dimensions
-
-```
-+---------------------------------------------------------------------+
-|                    SCAMBUSTER RESEARCH LABORATORY                    |
-+---------------------------------------------------------------------+
-|                                                                     |
-|  +------------------+  +------------------+  +------------------+   |
-|  |  CONVERSATIONAL  |  |   INTELLIGENCE   |  |    ADAPTIVE      |   |
-|  |    LABORATORY    |  |    EXTRACTION    |  |    LEARNING      |   |
-|  +------------------+  +------------------+  +------------------+   |
-|  |                  |  |                  |  |                  |   |
-|  | Test which       |  | Analyze how &    |  | Automatically    |   |
-|  | personas work    |  | when IOCs are    |  | optimize         |   |
-|  | best for each    |  | revealed during  |  | strategies via   |   |
-|  | scam type        |  | conversations    |  | reinforcement    |   |
-|  |                  |  |                  |  | learning         |   |
-|  +------------------+  +------------------+  +------------------+   |
-|                                                                     |
-+---------------------------------------------------------------------+
-```
-
----
-
-## Pilot Results (February 2026)
-
-### Controlled Live Deployment (60 Days)
-
-| Metric | Value | Notes |
-|--------|-------|-------|
-| **Unique IOCs per conversation** | Multiple unique IOCs per conversation (deduplicated) | Emails, phones, IBANs, crypto wallets |
-| **IOC Precision** | High precision on audited samples | vs 44% with regex-only baseline |
-| **Persona variance** | 5.5x between best/worst | Data-driven persona optimization |
-| **Scammer response rate** | 54% | Indistinguishable from human operators |
-| **Cost per IOC** | Low cost per IOC (with lightweight models) | Negligible operational expense |
-| **System Uptime** | Continuous operation | Zero incidents, fully automated |
-| **Max engagement** | 48.7 hours | Longest sustained interaction |
-
-> **Metrics scope**: Figures come from a **controlled live deployment** (December 2025 - ongoing).
-> Quality metrics are reproducible via the automated benchmark suite (`make evaluate-all`).
-> Detailed validation methodology in [Evaluation Methodology](docs/05_evaluation_methodology.md).
-
-### Validation Summary
-
-Adaptive strategy selection was validated on 2,221 synthetic conversations with statistically significant results (p < 0.001, Cohen's d = 0.37). Full methodology and statistical details are available in [Evaluation Methodology](docs/05_evaluation_methodology.md).
-
-### Key Discoveries
-
-**Strategy Performance Varies Significantly by Scam Type**
-
-The adaptive system discovered that:
-- Optimal strategy differs significantly across scam categories
-- Human intuition about "best" approaches is often wrong
-- Data-driven selection outperforms random assignment
-
-**Campaign Attribution**
-
-From the 60-day deployment, identified **coordinated operations**:
-- Shared infrastructure (same IBANs across conversations)
-- Common TTPs (message templates, escalation patterns)
-- Geographic clustering (phone number prefixes)
+ScamBuster explores this gap by converting scam emails into measurable threat intelligence, safely and at scale. See [Problem Statement](docs/01_problem_statement.md).
 
 ---
 
 ## How It Works
 
-### Multi-Agent LLM Architecture (5 Agents + 1 Forensic Module)
+### Multi-Agent LLM Pipeline
 
-Five specialized AI agents form the core pipeline, supported by one forensic module:
+| Agent | Role |
+|-------|------|
+| **ScamClassifier** | Categorize incoming scams (13 types) + detect language |
+| **IocExtractor** | Extract threat indicators (40+ IOC types) with contextual enrichment |
+| **Generator** | Create persona-driven responses that maximize intelligence yield |
+| **Validator** | Ensure safety & quality (PolicyGuard + LLM double validation) |
+| **Orchestrator** | Coordinate pipeline, optimize costs, track per-reply traces |
+| **InjectionDetector** | Two-layer prompt injection analysis (pattern + LLM-as-judge) |
 
-| Agent | Role | Achievement |
-|-------|------|-------------|
-| **ScamClassifier** | Categorize incoming scams + detect language | Auto-classification at ingestion, 13 types, multilingual (EN/FR/ES/DE/IT/PT) |
-| **IocExtractor** | Extract threat indicators | 97% recall, 100% precision on validation suite, 40+ IOC types |
-| **Generator** | Create contextual responses | +35% IOCs post-IBAN detection |
-| **Validator** | Ensure safety & quality | 100% first-attempt approval (PolicyGuard + multi-criteria LLM) |
-| **Orchestrator** | Coordinate & optimize costs | 3-attempt loop, best-of-3 fallback, per-reply cost tracking |
-
-| Forensic Module | Role | Notes |
-|-----------------|------|-------|
-| **InjectionDetector** | Prompt injection analysis | Two-layer detection (pattern + LLM-as-judge), non-blocking |
-
-### Human Delay Simulation
-
-ScamBuster does not reply instantly — that would immediately reveal the bot. Every reply passes through a **human delay simulation** before being sent:
-
-- **Minimum 6 hours** between replies (configurable cadence per conversation)
-- **Randomized delay** calculated by the n8n workflow `WF-REPLY-SEND-v1`: the reply is drafted immediately but held in a Wait node until the computed send time
-- **Time-of-day awareness**: replies are scheduled during plausible waking hours, not at 3 AM
-- **Rate limiting**: maximum 20 replies per day across all conversations to prevent detection
-
-This makes ScamBuster's response pattern indistinguishable from a real human who checks email a few times per day. The 54% scammer response rate confirms that scammers cannot tell they are interacting with an automated system.
+Every reply passes through **human delay simulation** (configurable cadence, randomized timing, time-of-day awareness) to mimic realistic response patterns.
 
 ### Adaptive Strategy Selection
 
-ScamBuster does not rely on a single fixed "best" conversational approach. Instead, it uses **adaptive strategy selection** to learn, per scam category, which persona maximizes **intelligence yield** under strict safety constraints.
-
-- **Epsilon-greedy**: 80% exploitation / 20% exploration with UCB1 exploration bonus
-- **Convergence detection**: 60% single-persona selection share triggers exploitation mode
-- **Thompson Sampling** (planned v2): Bayesian, zero hyperparameters, automatic convergence
-- Reward function: `0.40*duration + 0.25*iocs_total + 0.25*iocs_sensitive + 0.10*completion`
-- 27 personas across 7 archetypes (seniors, business, tech, romance, banking, lottery, generic)
-
-| Aspect | Summary |
-|--------|---------|
-| Approach | Contextual bandit / adaptive experimentation |
-| Context | One policy per scam category (13 types, extensible) |
-| Strategy space | 27 personas with tailored system prompts |
-| Objectives | Intelligence yield, safety compliance, and cost efficiency |
+ScamBuster uses **epsilon-greedy with UCB1 exploration** to learn which persona maximizes intelligence yield per scam type. Strategy performance varies significantly across categories -- data-driven selection outperforms human intuition.
 
 ---
 
-## Value for Stakeholders
+## What ScamBuster Produces
 
-### For SOC/CERT Teams
+### IOC Extraction with Contextual Enrichment
 
-| Capability | Benefit |
-|------------|---------|
-| **Automated IOC feeds** | OpenCTI-compatible STIX 2.1 bundles with TLP markings, relationships, valid_until |
-| **Campaign attribution** | Link individual scams to organized operations |
-| **Early warning** | Identify emerging threats before they scale |
-| **Reduced analyst workload** | Automated extraction vs manual review |
+Each conversation yields deduplicated IOCs (emails, domains, IPs, IBANs, crypto wallets, phones, Telegram usernames, file hashes...) enriched with **semantic context**: the role of each IOC in the scam narrative (payment destination, phishing lure, contact channel), stimulus type, urgency scoring, and a PII-free context excerpt.
 
-### For MSSPs
+### Threat Actor Profiling
 
-| Capability | Benefit |
-|------------|---------|
-| **Differentiation** | Proactive TI service vs reactive blocking |
-| **Scalability** | One deployment serves multiple clients |
-| **ROI demonstration** | Quantifiable intelligence value |
+Each conversation produces a **STIX 2.1 threat-actor** with behavioral profiling:
 
-### For Financial Institutions
+```json
+{
+  "type": "threat-actor",
+  "name": "ScamBuster Actor - INVESTMENT #02114290",
+  "sophistication": "minimal",
+  "goals": ["financial-theft"],
+  "primary_motivation": "personal-gain",
+  "threat_actor_types": ["criminal"],
+  "description": "Criminal actor operating investment scam."
+}
+```
 
-| Capability | Benefit |
-|------------|---------|
-| **BEC detection** | Early identification of business email compromise |
-| **Account protection** | Report fraudulent accounts to consortium |
-| **Fraud prevention** | Intelligence on active money mule networks |
+Threat actors include MITRE ATT&CK technique mapping, `indicates` relationships to all IOCs, and a custom `x_scambuster_actor` extension with engagement metrics. Bundles are validated for import into **OpenCTI**.
 
-### For Research
+### Automated Intelligence Feeds
 
-| Capability | Benefit |
-|------------|---------|
-| **Reproducible methodology** | Published protocol for evaluation |
-| **Dataset** | Anonymized corpus (planned 2026) |
-| **Collaboration** | Open platform for strategy experimentation |
+- **STIX 2.1 export** per conversation (indicators + threat-actor + attack-pattern + relationships)
+- **TAXII 2.1 server** with delta sync -- IOC indicators enriched with threat-actor attribution
+- **MISP Event JSON** export
+- Compatible with OpenCTI, MISP, TheHive, Splunk, QRadar, Elastic
+
+See [TAXII Server Guide](docs/16_taxii_server.md) and [API Reference](docs/12_api_quick_reference.md).
+
+---
+
+## Pilot Results
+
+### Controlled Live Deployment (60+ Days)
+
+| Metric | Result |
+|--------|--------|
+| **IOC precision** | High precision on audited samples (vs 44% with regex-only baseline) |
+| **Persona variance** | 5.5x between best and worst persona per scam type |
+| **Scammer response rate** | 54% |
+| **Max engagement** | 48.7 hours sustained interaction |
+| **Cost** | Negligible operational expense with lightweight models |
+
+Adaptive strategy selection validated on synthetic conversations with statistically significant results (p < 0.001, Cohen's d = 0.37). Full methodology in [Evaluation](docs/05_evaluation_methodology.md).
 
 ---
 
@@ -215,12 +116,14 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 | **Backend** | PHP 8.3, Symfony 7.2, DDD architecture |
 | **Database** | PostgreSQL 15, Redis 7 |
 | **Frontend** | React 19, TypeScript, TailwindCSS, i18n (EN/FR) |
-| **LLM** | Multi-provider via `LLM_PROVIDER` env var: **OpenAI** (GPT-4o), **Anthropic** (Claude), **Ollama** (Llama/Mistral -- full local, zero data exfiltration), **Mock** (dev/demo). Switch with one env var. |
-| **Orchestration** | n8n (self-hosted workflow automation) |
+| **LLM** | Multi-provider: OpenAI, Anthropic, Ollama (full local), Mock (dev) |
+| **Orchestration** | n8n (self-hosted) |
 | **Secrets** | HashiCorp Vault |
-| **Monitoring** | `/api/health`, `/api/metrics` (Prometheus), LLM cost tracking |
+| **Monitoring** | Prometheus metrics, LLM cost tracking, pipeline tracing |
 | **Infrastructure** | Docker Compose, GitHub Actions CI |
-| **SIEM** | CEF, ECS, JSON | Pluggable connector for Splunk, QRadar, Elastic |
+| **SIEM** | CEF, ECS, JSON -- pluggable connector |
+
+> **Data sovereignty**: Deploy with `LLM_PROVIDER=ollama` for 100% on-premise processing. No data leaves your infrastructure.
 
 ---
 
@@ -229,43 +132,30 @@ ScamBuster does not rely on a single fixed "best" conversational approach. Inste
 ```bash
 git clone https://github.com/laugiov/scambuster.git
 cd scambuster
-cp .env.dist .env        # Configure your environment (see below)
-make build               # Build Docker images
-make upd                 # Start Docker stack (background)
+cp .env.dist .env        # Configure (see below)
+make build && make upd   # Build and start Docker stack
 make composer-install    # Install PHP dependencies
 make migration           # Create database schema
 make fixtures-dev        # Seed reference data + default users
-make test                # Run unit + integration tests
-make validate            # Verify all services are healthy
+make test                # Run tests
 ```
 
-**Minimum `.env` configuration** before starting:
+**Minimum `.env` configuration**:
 
 | Variable | What to do |
 |----------|------------|
 | `POSTGRES_PASSWORD` | Choose a password, update `DATABASE_URL` to match |
 | `JWT_SECRET` | `openssl rand -base64 64` |
-| `LLM_API_KEY` | Your OpenAI API key (from [platform.openai.com](https://platform.openai.com)) |
+| `LLM_API_KEY` | Your OpenAI API key (or set `LLM_PROVIDER=mock` for demo) |
 
-All other `change-me` values have safe defaults for local development. Run `bash scripts/check-env.sh` to validate.
-
-**Demo mode** (no API key required):
-
-```bash
-# In .env, set LLM_PROVIDER=mock instead of openai
-make demo-load           # Load 150 synthetic conversations with IOCs
-```
-
-**LLM providers**: ScamBuster supports 4 LLM providers via a single env var -- no code change needed:
+**LLM providers** (switch with one env var):
 
 | Provider | `LLM_PROVIDER=` | Data Location | Best For |
 |----------|-----------------|---------------|----------|
-| **OpenAI** | `openai` | Cloud (US) | Best quality (GPT-4o) |
-| **Anthropic** | `anthropic` | Cloud (US) | Alternative cloud (Claude) |
-| **Ollama** | `ollama` | **100% local** | Sovereign deployment (Mistral, Llama 3) -- zero data leaves your infrastructure |
-| **Mock** | `mock` | Local | Development and demo (no API key needed, no cost) |
-
-> **Data sovereignty**: For regulated environments (NIS2, DORA, SGDSN), deploy with `LLM_PROVIDER=ollama` and a local Mistral or Llama model. All processing stays on-premise. No data is sent to external APIs.
+| **OpenAI** | `openai` | Cloud | Best quality (GPT-4o) |
+| **Anthropic** | `anthropic` | Cloud | Alternative (Claude) |
+| **Ollama** | `ollama` | **100% local** | Sovereign deployment |
+| **Mock** | `mock` | Local | Demo (no API key, no cost) |
 
 **Default credentials** (created by fixtures):
 
@@ -274,7 +164,7 @@ make demo-load           # Load 150 synthetic conversations with IOCs
 | `user@example.com` | `Un1que$trongPassword2024` | `ROLE_USER` |
 | `admin@example.com` | `Un1que$trongPassword2024` | `ROLE_ADMIN` |
 
-> **Full setup guide**: See [Getting Started](docs/08_getting_started.md) for detailed instructions, n8n workflow setup, Vault configuration, troubleshooting, and the complete Makefile reference.
+> Full setup guide: [Getting Started](docs/08_getting_started.md)
 
 ---
 
@@ -287,147 +177,45 @@ scambuster/
       Domain/              # Entities, value objects, enums, events
       Application/         # Handlers, services, orchestrators
       Infrastructure/      # Doctrine repos, external APIs, listeners
-      UI/Http/             # Final controllers (single __invoke)
+      UI/Http/             # Controllers (single __invoke)
     tests/                 # PHPUnit (unit, integration, E2E)
-    migrations/            # Doctrine migrations + reference data
-  n8n/                     # Workflow definitions (JSON)
+  frontend-react/          # React 19 dashboard
+  n8n/                     # Workflow definitions
   infra/                   # Docker configs
-  docs/                    # Detailed documentation (15 documents)
-```
-
----
-
-## API Endpoints
-
-### Authentication
-- `POST /api/v1/auth/login` -- Obtain JWT
-- `POST /api/v1/auth/refresh` -- Refresh JWT
-- `POST /api/v1/auth/logout` -- Invalidate refresh token
-- `GET  /api/v1/me` -- Current user info
-
-### Conversations & Messages
-- `POST/GET/PATCH/DELETE /api/v1/communication/conversation/{id}`
-- `POST/GET/PATCH/DELETE /api/v1/communication/message/{id}`
-- `GET /api/v1/communication/conversation/{id}/messages`
-- `GET /api/v1/communication/conversation/{id}/iocs`
-
-### Adaptive Scambaiting
-- `POST /api/v1/scambaiting/select-persona` -- Select optimal persona
-- `GET  /api/v1/scambaiting/stats` -- Aggregated performance stats
-- `POST /api/v1/scambaiting/conversation/{id}/close` -- Close and update stats
-
-### IOC Intelligence
-- `GET /api/v1/iocs` -- All IOCs with confidence/decay scoring, optional min_score filter, `has_context` flag
-- `GET /api/v1/iocs/{indicator_id}/detail` -- Full IOC detail: observations, related IOCs (co-occurrence), MISP/STIX mappings
-- `GET /api/v1/iocs/{indicator_id}/context` -- Contextual enrichment: revelation turn, scam type, persona, semantic role, stimulus type, urgency, co-revealed IOCs
-- `GET /api/v1/iocs/co-occurrence` -- IOC relationship graph (nodes + edges for visualization)
-- `GET /api/v1/communication/conversation/{id}/iocs` -- Conversation-specific IOCs (deduplicated)
-
-### STIX & MISP Export
-- `GET /api/v1/conversations/{id}/export/stix` -- OpenCTI-compatible STIX 2.1 bundle (indicators + relationships + TLP markings)
-- `POST /api/v1/campaign/{id}/export/stix` -- Campaign-level STIX export
-- `GET /api/v1/conversations/{id}/export/misp` -- MISP Event JSON export
-
-### TAXII 2.1 Server (Automated Feed)
-- `GET /api/v1/taxii2/` -- Server discovery
-- `GET /api/v1/taxii2/api/collections/` -- Available feeds (IOCs + Campaigns)
-- `GET /api/v1/taxii2/api/collections/{id}/objects/?added_after=...&limit=100` -- STIX objects with delta sync
-- See [TAXII Server Guide](docs/16_taxii_server.md) for OpenCTI/MISP/SIEM integration
-
-### Attachments
-- `POST/GET/DELETE /api/v1/communication/attachment/{id}`
-
-### Monitoring & Observability
-- `GET /api/v1/monitoring/autonomy` -- System health, convergence, kill switch, activity
-- `GET /api/v1/monitoring/llm-cost` -- LLM cost tracking (monthly, per-purpose, daily trend)
-- `GET /api/v1/monitoring/pipeline-traces` -- Per-reply pipeline execution traces
-- `GET /api/v1/monitoring/pipeline-health` -- Aggregated pipeline component health
-- `GET /api/v1/monitoring/injection` -- Prompt injection detection stats and alerts
-- `GET /api/health` -- Dependency health checks (database, Redis) with latency
-- `GET /api/metrics` -- Prometheus-compatible metrics
-- `GET /api/doc` -- Swagger UI (OpenAPI 3.0)
-
----
-
-## Frontend (React Dashboard)
-
-17 pages for operators and analysts:
-
-| Page | Purpose |
-|------|---------|
-| **Dashboard** | Operations overview with activity feed, weekly trends, top IOCs, pipeline health |
-| **Conversations** | List with search, pagination, CSV export |
-| **IOC Explorer** | Browse 40+ IOC types with advanced filters (severity, confidence, date range, hide headers), direct navigation to full detail page |
-| **IOC Detail** | Full indicator view: scoring (VT/URLScan/confidence/decay), MISP mapping, STIX pattern, observation timeline, co-occurrence graph, related IOCs table, **contextual enrichment** (semantic role, stimulus type, urgency, co-revealed IOCs) |
-| **Campaign Radar** | Campaign clustering, profiling, rule hunting |
-| **Analytics** | 7 interactive charts: IOC timeline, conversation volume, distributions, cost trend, pipeline health, convergence sparklines |
-| **Pipeline Monitor** | Per-reply tracing with component waterfall and health metrics |
-| **Injection Monitor** | Prompt injection detection coverage and alerts |
-| **Monitoring** | Conversation lifecycle, timeout alerts, by scam type |
-| **LLM Costs** | Monthly budget, per-purpose breakdown, daily trend |
-| **Personas** | 27 personas with performance matrix per scam type |
-| **Convergence** | Bandit convergence history with pagination |
-| **STIX Export** | Export campaigns or conversations as OpenCTI-compatible STIX 2.1 bundles (TLP markings, relationships, valid_until) |
-| **Settings** | System configuration, LLM provider, kill switch |
-
-Bilingual (EN/FR) with automatic language detection.
-
----
-
-## Testing
-
-Comprehensive automated test suite (unit, integration, E2E) covering:
-- **E2E**: Full API flow with real JWT, database, and fixtures
-- **Integration**: Service/repository logic, business rules
-- **Unit**: Domain logic, value objects, algorithms
-
-```bash
-make test              # Unit + integration tests
-make endToEndTest      # E2E tests
-make testOne q=MyTest  # Run a single test by filter
+  docs/                    # Documentation (16 guides)
 ```
 
 ---
 
 ## Security & Ethics
 
-ScamBuster is a **defensive research tool**, not an offensive weapon. See [SECURITY.md](SECURITY.md) for the security policy.
+ScamBuster is a **defensive research tool**, not an offensive weapon.
 
-Key principles:
-- **Inbound-only engagement**: System engages only after scammer initiates contact
-- **No unauthorized access**: Never accesses attacker systems
+- **Inbound-only**: engages only after scammer initiates contact
+- **No unauthorized access**: never accesses attacker systems
 - **Content filtering**: PolicyGuard blocks threats, illegal content, real PII
-- **Rate limiting**: Hard limits on conversations, messages, and LLM calls
-- **Kill switch**: Immediate halt at workflow, API, database, or infrastructure level
-- **GDPR considerations**: Data minimization, 6-month content retention, encryption at rest
+- **Rate limiting**: hard limits on conversations, messages, and LLM calls
+- **Kill switch**: immediate halt at workflow, API, database, or infrastructure level
+- **GDPR**: data minimization, retention policies, encryption at rest
 
-Full details in [Security & Guardrails](docs/04_security_guardrails.md).
+See [Security & Guardrails](docs/04_security_guardrails.md) and [SECURITY.md](SECURITY.md).
 
 ---
 
 ## Project Status
 
-| Phase | Status | Timeline |
-|-------|--------|----------|
-| **Phase 1**: Multi-agent LLM architecture | ✅ Complete | Oct-Nov 2025 |
-| **Phase 2**: Adaptive engagement (epsilon-greedy) | ✅ Complete | Nov-Dec 2025 |
-| **Phase 3**: Scale & Dashboards | ✅ Complete | Jan 2026 |
-| **Phase 4**: A/B Testing & Validation | ✅ Complete | Jan-Feb 2026 |
-| **Phase 5**: Quality Assurance & Observability | ✅ Complete | Mar 2026 |
-| **Phase 6**: Publication & Open Source | 🔄 In Progress | Mar 2026 |
-| **Planned**: Thompson Sampling (v2) | Roadmap | -- |
+| Phase | Status |
+|-------|--------|
+| Multi-agent LLM architecture | Complete |
+| Adaptive engagement (epsilon-greedy) | Complete |
+| Scale, dashboards & observability | Complete |
+| Quality assurance & validation | Complete |
+| Rich contextual IOC enrichment | Complete |
+| STIX threat-actor export & OpenCTI integration | Complete |
+| Threat-actor clustering (Union-Find on financial IOCs) | Planned |
+| Thompson Sampling (v2 bandit algorithm) | Planned |
 
-**Phase 5 highlights** (features 016-022):
-- Automated quality benchmark suite (9 metrics, reproducible evaluation)
-- Pipeline monitoring dashboard with per-reply tracing and component waterfall
-- Injection monitoring page with scheduled forensic detection
-- Feedback loop fixed (rewards, engagement metrics, bandit learning)
-- IOC confidence scoring activated (multi-observation boost + temporal decay)
-- Semantic embeddings and actor profile generation
-- Complete audit trail (16 event types, SIEM-forwarded)
-- System integrity audit: 99 features verified, 0 dead code remaining
-
-See [Roadmap](docs/06_roadmap.md) for detailed milestones.
+See [Roadmap](docs/06_roadmap.md) and [Changelog](CHANGELOG.md).
 
 ---
 
@@ -435,58 +223,17 @@ See [Roadmap](docs/06_roadmap.md) for detailed milestones.
 
 | Document | Description |
 |----------|-------------|
-| [Problem Statement](docs/01_problem_statement.md) | The $12.5B scam problem in depth |
-| [Value Proposition](docs/02_value_proposition.md) | Technical differentiators and ROI |
-| [Architecture](docs/03_high_level_architecture.md) | High-level system design |
-| [Security & Ethics](docs/04_security_guardrails.md) | Defensive principles, GDPR, safety |
-| [Evaluation](docs/05_evaluation_methodology.md) | Metrics, validation, statistical methods |
+| [Problem Statement](docs/01_problem_statement.md) | The email scam problem |
+| [Value Proposition](docs/02_value_proposition.md) | Technical differentiators |
+| [Architecture](docs/03_high_level_architecture.md) | System design |
+| [Security & Ethics](docs/04_security_guardrails.md) | Defensive principles, GDPR |
+| [Evaluation](docs/05_evaluation_methodology.md) | Metrics and validation |
 | [Roadmap](docs/06_roadmap.md) | Timeline and milestones |
 | [FAQ](docs/07_faq.md) | Common questions |
-| [Getting Started](docs/08_getting_started.md) | Setup, run, test -- full tutorial |
-| [DPIA Template](docs/09_dpia_template.md) | Data Protection Impact Assessment template |
-| [Threat Model](docs/10_threat_model.md) | T1-T9 threat categories and mitigations |
-| [Database Schema](docs/11_database_schema.md) | Tables, relationships, column reference |
-| [API Quick Reference](docs/12_api_quick_reference.md) | All endpoints with curl examples |
-| [MISP Integration](docs/13_misp_integration.md) | Connect to MISP, export IOCs, troubleshooting |
-| [Key Management](docs/14_key_management.md) | JWT RS256 keys, rotation, emergency response |
-| [SIEM Integration](docs/15_siem_integration.md) | Enterprise SIEM connector guide (CEF/ECS/JSON) |
-| [TAXII 2.1 Server](docs/16_taxii_server.md) | Automated CTI feed for OpenCTI, MISP, TheHive, SIEM |
-
----
-
-## Academic Context
-
-### Research Contributions
-
-1. **Methodological**: Reproducible protocol for adaptive honeypot evaluation
-2. **Technical**: Multi-agent LLM with double validation pipeline (100% first-attempt approval after hardening)
-3. **Scientific**: Empirically validated adaptive engagement (p < 0.001, N=2,221, Cohen's d = 0.37)
-4. **Practical**: Demonstrated efficiency at pilot scale (low cost per IOC with lightweight models, high extraction precision)
-
-### Validated Hypotheses (Epsilon-Greedy with UCB1)
-
-| ID | Hypothesis | Result |
-|----|------------|--------|
-| H1 | Adaptive selection improves engagement duration vs random | Validated (p < 0.001) |
-| H2 | Adaptive selection increases IOCs/conversation vs random | Validated (+51.3% median) |
-| H3 | Adaptive selection reduces early abandonment | Validated (48.6% -> 36.4%) |
-| H4 | Per-scam-type policy converges in <100 sessions | Validated (9/13 types) |
-
-### Planned (v2): Thompson Sampling
-
-Thompson Sampling is planned as a v2 upgrade to the current epsilon-greedy algorithm. It is **not implemented** in the current codebase. Expected improvements: faster convergence, no hyperparameter tuning, automatic exploration-exploitation balance.
-
-### Citation
-
-```bibtex
-@master{giovannoni2025scambuster,
-  author = {Giovannoni, Laurent},
-  title = {ScamBuster: Adaptive Controlled Engagement via Multi-Armed Bandits
-           for Automated Threat Intelligence Extraction},
-  school = {E-MSc Cybersecurity},
-  year = {2025}
-}
-```
+| [Getting Started](docs/08_getting_started.md) | Full setup tutorial |
+| [API Reference](docs/12_api_quick_reference.md) | All endpoints |
+| [TAXII Server](docs/16_taxii_server.md) | Automated CTI feed guide |
+| [SIEM Integration](docs/15_siem_integration.md) | Enterprise SIEM connector |
 
 ---
 
@@ -511,8 +258,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 | **Maintainer** | Laurent Giovannoni |
 | **LinkedIn** | [linkedin.com/in/giovannonilaurent](https://linkedin.com/in/giovannonilaurent) |
 | **Context** | E-MSc Cybersecurity, Master's Thesis |
-| **Issues & Features** | [GitHub Issues](../../issues) |
-| **Security** | See [SECURITY.md](SECURITY.md) for responsible disclosure |
+| **Issues** | [GitHub Issues](../../issues) |
+| **Security** | See [SECURITY.md](SECURITY.md) |
 
 ---
 

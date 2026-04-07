@@ -1,6 +1,6 @@
 # Database Schema
 
-> Extracted from the PostgreSQL preprod database. 21 tables, 3 views.
+> Extracted from the PostgreSQL preprod database. 22 tables, 3 views.
 
 ---
 
@@ -105,7 +105,7 @@ One message per email (inbound or outbound).
 | body_text | text | NO | | Plain text body |
 | body_html | text | YES | | HTML body |
 | headers | json | NO | | RFC822 headers |
-| composite_hash | varchar(64) | NO | | Deduplication hash (unique) |
+| composite_hash | bytea | NO | | Deduplication hash (unique) |
 | vector_id | uuid | YES | | FK to message_vector |
 | external_message_id | varchar(255) | YES | | RFC822 Message-ID header |
 | raw_source | text | YES | | Raw RFC822 source |
@@ -153,6 +153,28 @@ IOC observation linking a message to an indicator.
 | indicator_id | uuid | NO | | FK to indicator |
 | context_observation | json | NO | | Type, value, value_norm, category, score, etc. |
 | ts_observed | timestamp | NO | | |
+
+---
+
+### ioc_context
+
+Contextual enrichment for IOCs (structural + LLM semantic analysis).
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| ctx_id | uuid | PK | | Context record identifier |
+| indicator_id | uuid | NO | | FK to indicator |
+| obs_id | uuid | NO | | FK to observed_ioc |
+| enrichment_status | varchar | NO | | Enrichment pipeline status |
+| scam_type_code | varchar | YES | | Scam type code |
+| persona_code | varchar | YES | | Persona code used |
+| extraction_method | varchar | NO | | How the IOC was extracted |
+| revelation_turn | integer | YES | | Conversation turn when IOC appeared |
+| semantic_role | varchar | YES | | LLM-enriched semantic role |
+| stimulus_type | varchar | YES | | LLM-enriched stimulus type |
+| urgency_score | numeric | YES | | LLM-enriched urgency score |
+| context_excerpt | text | YES | | PII-free context excerpt |
+| enrichment_confidence | numeric | YES | | Confidence of LLM enrichment |
 
 ---
 

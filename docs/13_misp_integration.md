@@ -32,7 +32,7 @@ Each IOC is mapped to a MISP attribute using the mapping defined in `IocExportMa
 | cve | External analysis | vulnerability | No |
 | filename | Payload delivery | filename | No |
 
-34 IOC types are mapped in total. Unmapped types default to `Other / other / to_ids=false`.
+All IOC types are mapped to MISP attributes. Unmapped types default to `Other / other / to_ids=false`.
 
 ### MISP Event Structure
 
@@ -177,6 +177,10 @@ For STIX 2.1 bundle export (alternative to MISP), see the Campaign Radar endpoin
 ```bash
 # Export campaign as STIX 2.1 bundle
 curl -X POST http://localhost:8081/api/v1/campaign/<campaign_id>/export/stix \
+  -H "Authorization: Bearer $TOKEN" | jq .
+
+# Export conversation as STIX 2.1 bundle (includes threat-actor objects)
+curl -sS http://localhost:8081/api/v1/conversations/<conv_id>/export/stix \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 

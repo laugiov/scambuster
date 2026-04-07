@@ -35,7 +35,7 @@ Scam Email → Engage → Extract → Analyze → Learn → Share
 | **Scam Type Tracking** | Which fraud types are trending (13 categories) |
 | **Persona Effectiveness** | Which strategies work best per scam type |
 | **IOC Patterns** | When and how scammers reveal indicators |
-| **Campaign Attribution** | Linking individual scams to coordinated operations |
+| **Campaign Attribution (planned)** | Linking individual scams to coordinated operations |
 | **Evolution Monitoring** | How attacker TTPs change over time |
 
 ### Research Questions ScamBuster Answers
@@ -43,7 +43,7 @@ Scam Email → Engage → Extract → Analyze → Learn → Share
 1. **What makes scammers stay engaged?** → Duration analysis per persona × scam type
 2. **When do IOCs get revealed?** → Message-level extraction timing
 3. **Which personas perform best?** → 5.5× variance discovered empirically
-4. **How are campaigns organized?** → IOC clustering reveals shared infrastructure
+4. **How are campaigns organized?** → IOC clustering may reveal shared infrastructure (planned)
 
 ---
 
@@ -168,6 +168,8 @@ Generator → PolicyGuard (hard rules) → LLM Validator (quality) → Send
 
 ### Campaign Attribution Examples
 
+> **Note**: These patterns were identified through manual observation of pilot data, not through an automated attribution pipeline. Automated campaign clustering is planned for a future release.
+
 From pilot data, identified patterns suggesting coordinated operations:
 
 | Pattern | Indicator |
@@ -217,7 +219,7 @@ With lightweight models, the cost per IOC is **orders of magnitude cheaper** tha
 | Need | ScamBuster Solution |
 |------|---------------------|
 | Threat intelligence feeds | Automated STIX 2.1 / MISP export |
-| Campaign attribution | IOC clustering and analysis |
+| Campaign attribution | IOC clustering and analysis (planned) |
 | Early warning | Trend detection across scam types |
 | Analyst workload | Fully automated extraction |
 

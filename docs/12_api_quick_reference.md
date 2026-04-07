@@ -157,6 +157,8 @@ curl http://localhost:8081/api/v1/scambaiting/stats/PHISH_CREDENTIALS | jq .
 
 ## Campaign Radar
 
+> **Note**: Campaign detection pipeline is experimental and not connected to the automated message flow.
+
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/campaign/hunt` | ROLE_ADMIN | Execute shadow rules, compute PPV |
@@ -181,7 +183,7 @@ curl http://localhost:8081/api/v1/scambaiting/stats/PHISH_CREDENTIALS | jq .
 | GET | `/monitoring/conversation-lifecycle` | Yes | Active conversations, about-to-timeout list, by scam type |
 | GET | `/monitoring/rate-limits` | Yes | Rate limit stats, quarantined senders, daily limit hits |
 | GET | `/monitoring/convergence-history` | Yes | Last 30 days bandit convergence snapshots by scam type |
-| GET | `/monitoring/audit` | Yes | Structured audit trail (paginated, 16 event types) |
+| GET | `/monitoring/audit` | Yes | Structured audit trail (paginated, all event types) |
 | GET | `/monitoring/pipeline-traces` | Yes | Recent pipeline execution traces (paginated, filterable by persona/scam_type) |
 | GET | `/monitoring/pipeline-traces/{msgId}` | Yes | Full pipeline trace for a specific outbound message |
 | GET | `/monitoring/pipeline-health` | Yes | Aggregated pipeline health: per-component success rates, avg cost, avg duration |
@@ -290,10 +292,12 @@ All endpoints return JSON errors:
 | GET | `/api/v1/taxii2/api/collections/{id}/objects/` | Yes | Get STIX objects (delta sync via `added_after`) |
 
 ```bash
-# Get latest 5 IOCs as STIX indicators
+# Get latest 5 objects (indicators + threat-actors) as STIX
 curl -H "Authorization: Bearer $TOKEN" \
   "http://localhost:8081/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/?limit=5" | jq .
 ```
+
+The IOC collection serves STIX 2.1 indicators alongside threat-actor objects derived from conversation analysis.
 
 See [TAXII 2.1 Server Guide](16_taxii_server.md) for OpenCTI/MISP integration.
 
