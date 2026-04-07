@@ -7,6 +7,8 @@ import { statusToBadgeVariant } from '@/components/ui/badgeUtils';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
+import { useThreatActorProfile } from '@/hooks/useThreatActor';
+import { ThreatActorCard } from '@/components/conversation/ThreatActorCard';
 import type { Message, Ioc } from '@/types/api';
 
 function formatTime(iso: string): string {
@@ -33,6 +35,7 @@ export function ConversationDetail() {
   const conv = useConversationDetail(id ?? '');
   const messages = useConversationMessages(id ?? '');
   const iocs = useConversationIocs(id ?? '');
+  const threatActor = useThreatActorProfile(id ?? '');
   const [selectedIoc, setSelectedIoc] = useState<Ioc | null>(null);
 
   if (conv.isLoading) return <Loading message={t('conversationDetail.loadingConversation')} />;
@@ -122,6 +125,7 @@ export function ConversationDetail() {
               <>
                 <AgentDecisionLog />
                 <DoubleValidationPipeline />
+                {threatActor.data && <ThreatActorCard profile={threatActor.data} />}
               </>
             )}
           </div>
