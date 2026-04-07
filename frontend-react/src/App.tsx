@@ -16,9 +16,9 @@ const IocDetail = lazy(() => import('@/pages/IocDetail'));
 const StixExport = lazy(() => import('@/pages/StixExport'));
 const Personas = lazy(() => import('@/pages/Personas'));
 const ConvergenceHistory = lazy(() => import('@/pages/ConvergenceHistory'));
-const Campaigns = lazy(() => import('@/pages/Campaigns'));
+// const Campaigns = lazy(() => import('@/pages/Campaigns')); // hidden: campaigns disconnected
 const LlmCosts = lazy(() => import('@/pages/LlmCosts'));
-const CampaignDetail = lazy(() => import('@/pages/CampaignDetail'));
+// const CampaignDetail = lazy(() => import('@/pages/CampaignDetail')); // hidden: campaigns disconnected
 const ConversationMonitoring = lazy(() => import('@/pages/ConversationMonitoring'));
 const PipelineMonitor = lazy(() => import('@/pages/PipelineMonitor'));
 const InjectionMonitoring = lazy(() => import('@/pages/InjectionMonitoring'));
