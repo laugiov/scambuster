@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated**: 2026-03-25
+> **Last updated**: 2026-04-07
 
 ## Project Timeline Overview
 
@@ -35,7 +35,7 @@ Build the core platform with multi-agent LLM architecture and production-grade i
 | Production deployment | ✅ | Continuous operation, 0 incidents |
 | Metrics collection | ✅ | Multiple unique IOCs/conv, high precision |
 | DDD backend architecture | ✅ | Comprehensive automated test suite |
-| JWT authentication | ✅ | HS256, refresh rotation |
+| JWT authentication | ✅ | HS256 (upgraded to RS256 in Phase 5), refresh rotation |
 
 ### Key Achievements
 
@@ -205,6 +205,13 @@ Publish research findings, harden platform for production, and release anonymize
 | PostgreSQL backup (CT-10) | ✅ | Automated daily backup via scheduler |
 | MISP/ATT&CK mapping (CT-4) | ✅ | 13/13 scam types mapped |
 | Community files (CT-5/6/7) | ✅ | CODE_OF_CONDUCT, Release v1.0.0, Discussions |
+
+### Recent Additions (April 2026) ✅
+
+| Deliverable | Status | Details |
+|-------------|--------|---------|
+| Contextual IOC enrichment (Feature 043) | ✅ | ioc_context table, LLM semantic enrichment, STIX/TAXII context extensions |
+| Threat-actor STIX export (Feature 044) | ✅ | ThreatActorStixBuilder, conversation-level STIX bundles with threat-actor objects, TAXII integration |
 
 ### Paper Outline
 
