@@ -120,12 +120,15 @@ export function ConversationDetail() {
         <div className="col-span-3 overflow-y-auto pl-1">
           <div className="flex flex-col gap-6">
             {selectedIoc ? (
-              <IocDetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
+              <>
+                <IocDetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
+                {threatActor.data && <ThreatActorCard profile={threatActor.data} />}
+              </>
             ) : (
               <>
+                {threatActor.data && <ThreatActorCard profile={threatActor.data} />}
                 <AgentDecisionLog />
                 <DoubleValidationPipeline />
-                {threatActor.data && <ThreatActorCard profile={threatActor.data} />}
               </>
             )}
           </div>

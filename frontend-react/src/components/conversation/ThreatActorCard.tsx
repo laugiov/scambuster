@@ -24,7 +24,7 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
 }
 
 export function ThreatActorCard({ profile }: { profile: ThreatActorProfile }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true);
 
   const sophStyle = SOPHISTICATION_STYLES[profile.sophistication] ?? SOPHISTICATION_STYLES.none;
 

@@ -6,6 +6,8 @@ import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { IocGraph } from '@/components/ioc/IocGraph';
 import { IocTimeline } from '@/components/ioc/IocTimeline';
+import { ThreatActorSummaryCard } from '@/components/ioc/ThreatActorSummaryCard';
+import { useThreatActorSummary } from '@/hooks/useThreatActor';
 import { timeSince } from '@/lib/time';
 import type { IocObservation, IocRelated, IocContextEntry } from '@/types/api';
 
@@ -34,6 +36,10 @@ export function IocDetail() {
   const { data: graphData } = useIocGraph(indicatorId ?? '');
   const { data: contextData } = useIocContext(indicatorId ?? '');
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+
+  // Load threat-actors from conversations where this IOC was observed
+  const convIds = (detail?.observations ?? []).map((o) => o.conv_id);
+  const threatActorSummary = useThreatActorSummary(convIds);
 
   if (isLoading) return <Loading message={t('iocDetail.loading')} />;
   if (error || !detail) return <ErrorMessage message={t('iocDetail.notFound')} onRetry={() => void refetch()} />;
@@ -83,6 +89,9 @@ export function IocDetail() {
         <h1 className="text-xl font-mono font-bold text-on-surface break-all">{detail.value}</h1>
         <p className="text-sm font-mono text-on-surface-dim break-all">{detail.value_norm}</p>
       </header>
+
+      {/* Threat Actor attribution */}
+      {threatActorSummary.data && <ThreatActorSummaryCard summary={threatActorSummary.data} />}
 
       {/* Tabs */}
       <nav className="flex gap-1 border-b border-surface-high">
