@@ -103,24 +103,6 @@ final class LlmCostHandler
         ];
     }
 
-    public function isLimitExceeded(): bool
-    {
-        if ($this->monthlyLimitUsd <= 0) {
-            return false;
-        }
-
-        $firstOfMonth = (new \DateTimeImmutable('first day of this month'))->format('Y-m-d 00:00:00');
-
-        $result = $this->connection->fetchOne(
-            'SELECT COALESCE(SUM(estimated_cost_usd::numeric), 0)
-            FROM llm_usage
-            WHERE created_at >= :first_of_month',
-            ['first_of_month' => $firstOfMonth]
-        );
-
-        return $this->toFloat($result) >= $this->monthlyLimitUsd;
-    }
-
     private function toFloat(mixed $value): float
     {
         return (float) (is_numeric($value) ? $value : 0);

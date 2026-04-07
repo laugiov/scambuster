@@ -77,14 +77,4 @@ final class SenderFloodDetector
         return false;
     }
 
-    /**
-     * Get the number of currently quarantined senders (approximate).
-     * Used by monitoring endpoint.
-     */
-    public function getQuarantinedCount(): int
-    {
-        // Cache pools don't expose key listing. The monitoring endpoint
-        // will use audit_log count instead. This is a no-op placeholder.
-        return 0;
-    }
 }

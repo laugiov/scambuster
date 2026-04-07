@@ -41,20 +41,6 @@ class PersonaManager
     }
 
     /**
-     * Count personas created automatically by LLM
-     */
-    public function countAutoCreated(): int
-    {
-        return (int) $this->em->createQueryBuilder()
-            ->select('COUNT(p.personaId)')
-            ->from(Persona::class, 'p')
-            ->where('p.createdBy = :createdBy')
-            ->setParameter('createdBy', 'llm_auto')
-            ->getQuery()
-            ->getSingleScalarResult();
-    }
-
-    /**
      * Create a new persona
      *
      * @throws \RuntimeException if persona code already exists

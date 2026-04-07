@@ -157,21 +157,4 @@ class ScamTypeManager
         return $scamType;
     }
 
-    /**
-     * Link a persona to a scam type (ManyToMany relationship)
-     */
-    public function linkPersona(ScamType $scamType, Persona $persona): void
-    {
-        $scamType->addPersona($persona);
-        $this->em->flush();
-    }
-
-    /**
-     * Unlink persona from scam type (ManyToMany relationship)
-     */
-    public function unlinkPersona(ScamType $scamType, Persona $persona): void
-    {
-        $scamType->removePersona($persona);
-        $this->em->flush();
-    }
 }

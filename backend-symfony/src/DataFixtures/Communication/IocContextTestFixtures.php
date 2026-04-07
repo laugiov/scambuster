@@ -9,7 +9,6 @@ use App\Domain\Communication\ObservedIoc;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
-use Doctrine\DBAL\Connection;
 use Doctrine\Persistence\ObjectManager;
 
 /**

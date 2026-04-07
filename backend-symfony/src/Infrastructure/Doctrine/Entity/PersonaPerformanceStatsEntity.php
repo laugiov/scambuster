@@ -135,30 +135,4 @@ class PersonaPerformanceStatsEntity
         return (float) $this->rewardAvg;
     }
 
-    public function getLastUpdated(): \DateTimeImmutable
-    {
-        return $this->lastUpdated;
-    }
-
-    // Setters (pour Doctrine hydration)
-
-    public function setSessionsCount(int $sessionsCount): void
-    {
-        $this->sessionsCount = $sessionsCount;
-    }
-
-    public function setRewardSum(float $rewardSum): void
-    {
-        $this->rewardSum = number_format($rewardSum, 4, '.', '');
-    }
-
-    public function setRewardAvg(float $rewardAvg): void
-    {
-        $this->rewardAvg = number_format($rewardAvg, 4, '.', '');
-    }
-
-    public function setLastUpdated(\DateTimeImmutable $lastUpdated): void
-    {
-        $this->lastUpdated = $lastUpdated;
-    }
 }

@@ -26,6 +26,7 @@ parameters:
         - '#Access to an undefined property App\\Tests\\Integration\\Auth\\.*::\$passwordHasher#'
         - '#Call to an undefined method App\\Tests\\Integration\\Auth\\.*::getValidLoginPayload#'
         - '#Call to an undefined method App\\Tests\\Integration\\Auth\\.*::loginAndGetJwt#'
+        - '#Property App\\Infrastructure\\Doctrine\\Entity\\PersonaPerformanceStatsEntity::\$lastUpdated is never read, only written#'
     bootstrapFiles:
         - vendor/autoload.php
 
