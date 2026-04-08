@@ -87,7 +87,7 @@ describe('IocDetail', () => {
 
     expect(screen.getAllByText(/domain/i).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/TLP:AMBER/).length).toBeGreaterThan(0);
-    expect(screen.getByText('Credential_phish')).toBeDefined();
+    expect(screen.getByText('Credential Phish')).toBeDefined();
   });
 
   it('renders observations tab with conversation links', async () => {
@@ -106,8 +106,8 @@ describe('IocDetail', () => {
       expect(screen.getByText('Verify your account')).toBeDefined();
     });
 
-    expect(screen.getByText('PHISHING')).toBeDefined();
-    expect(screen.getByText('llm')).toBeDefined();
+    expect(screen.getByText('Phishing')).toBeDefined();
+    expect(screen.getByText('LLM')).toBeDefined();
   });
 
   it('renders related IOCs tab', async () => {
