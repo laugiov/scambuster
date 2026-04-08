@@ -13,10 +13,15 @@ import type { IocObservation, IocRelated, IocContextEntry } from '@/types/api';
 
 type TabId = 'overview' | 'observations' | 'related' | 'context';
 
-function scoreSeverity(score: number): { label: string; color: string; barColor: string } {
-  if (score >= 70) return { label: 'High', color: 'text-error', barColor: 'bg-error' };
-  if (score >= 40) return { label: 'Medium', color: 'text-warning', barColor: 'bg-warning' };
-  return { label: 'Low', color: 'text-on-surface-dim', barColor: 'bg-on-surface-dim' };
+import { iocSeverity as computeSeverityInfo } from '@/lib/iocSeverity';
+
+function scoreSeverity(iocType: string, vtScore: number, urlscanScore: number): { label: string; color: string; barColor: string } {
+  const sev = computeSeverityInfo(iocType, vtScore, urlscanScore);
+  switch (sev.label) {
+    case 'HIGH': return { label: 'High', color: 'text-error', barColor: 'bg-error' };
+    case 'MEDIUM': return { label: 'Medium', color: 'text-warning', barColor: 'bg-warning' };
+    default: return { label: 'Low', color: 'text-on-surface-dim', barColor: 'bg-on-surface-dim' };
+  }
 }
 
 function tlpColor(tlp: string): string {
@@ -44,7 +49,7 @@ export function IocDetail() {
   if (isLoading) return <Loading message={t('iocDetail.loading')} />;
   if (error || !detail) return <ErrorMessage message={t('iocDetail.notFound')} onRetry={() => void refetch()} />;
 
-  const sev = scoreSeverity(('agg' in detail.score) ? (detail.score.agg ?? 0) : 0);
+  const sev = scoreSeverity(detail.type, detail.score?.vt ?? 0, detail.score?.urlscan ?? 0);
 
   const contextCount = contextData?.contexts.length ?? 0;
 
@@ -316,8 +321,7 @@ function RelatedTab({ relatedIocs, graphData }: { relatedIocs: IocRelated[]; gra
         </thead>
         <tbody className="text-sm">
           {relatedIocs.map((rel) => {
-            const aggScore = 'agg' in rel.score ? (rel.score.agg ?? 0) : 0;
-            const sev = scoreSeverity(aggScore);
+            const sev = scoreSeverity(rel.type, rel.score?.vt ?? 0, rel.score?.urlscan ?? 0);
             return (
               <tr
                 key={rel.indicator_id}
