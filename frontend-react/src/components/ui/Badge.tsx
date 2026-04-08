@@ -4,7 +4,7 @@ const VARIANT_STYLES: Record<BadgeVariant, string> = {
   engaging: 'bg-status-engaging/20 text-status-engaging',
   waiting: 'bg-status-waiting/20 text-status-waiting',
   done: 'bg-surface-highest text-on-surface-variant',
-  closed: 'bg-status-closed/20 text-status-closed',
+  closed: 'bg-surface-highest text-on-surface-variant',
   default: 'bg-surface-highest text-on-surface-variant',
 };
 
