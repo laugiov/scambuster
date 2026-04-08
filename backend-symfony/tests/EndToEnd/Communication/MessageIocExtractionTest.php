@@ -35,7 +35,7 @@ class MessageIocExtractionTest extends WebTestCase
 
         // Create conversation first
         $conversation = new \App\Domain\Communication\Conversation(
-            \Ramsey\Uuid\Uuid::uuid4()->toString(),
+            \Symfony\Component\Uid\Uuid::v4()->toRfc4122(),
             $channel,
             $scamType,
             $account,
@@ -52,7 +52,7 @@ class MessageIocExtractionTest extends WebTestCase
 
         // Create message with IOCs in subject and body
         $message = new \App\Domain\Communication\Message(
-            msgId: \Ramsey\Uuid\Uuid::uuid4()->toString(),
+            msgId: \Symfony\Component\Uid\Uuid::v4()->toRfc4122(),
             conversation: $conversation,
             channel: $channel,
             direction: $direction,
@@ -234,7 +234,7 @@ class MessageIocExtractionTest extends WebTestCase
         $jwt = $this->getValidJwt($client);
 
         // Test: Try to extract IOCs from non-existent message
-        $fakeMsgId = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $fakeMsgId = \Symfony\Component\Uid\Uuid::v4()->toRfc4122();
 
         $client->request(
             'POST',

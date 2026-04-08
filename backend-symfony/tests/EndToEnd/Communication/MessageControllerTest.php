@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\EndToEnd\Communication;
 
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Ramsey\Uuid\Uuid;
 use App\Domain\Communication\ConversationStatus;
 
 class MessageControllerTest extends WebTestCase
@@ -278,7 +277,7 @@ class MessageControllerTest extends WebTestCase
         $this->assertNotNull($scamType, 'No scamType found');
         $this->assertNotNull($account, 'No mail account found');
         $conv = new \App\Domain\Communication\Conversation(
-            \Ramsey\Uuid\Uuid::uuid4()->toString(),
+            \Symfony\Component\Uid\Uuid::v4()->toRfc4122(),
             $channel,
             $scamType,
             $account,
@@ -698,7 +697,7 @@ class MessageControllerTest extends WebTestCase
         $this->assertNotNull($scamType, 'No scamType found');
         $this->assertNotNull($account, 'No mail account found');
         $conv = new \App\Domain\Communication\Conversation(
-            \Ramsey\Uuid\Uuid::uuid4()->toString(),
+            \Symfony\Component\Uid\Uuid::v4()->toRfc4122(),
             $channel,
             $scamType,
             $account,

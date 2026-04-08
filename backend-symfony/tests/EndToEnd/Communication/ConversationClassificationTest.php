@@ -73,7 +73,7 @@ class ConversationClassificationTest extends WebTestCase
 
         // Add a test message to the conversation (needed for LLM classification)
         $message = new \App\Domain\Communication\Message(
-            msgId: \Ramsey\Uuid\Uuid::uuid4()->toString(),
+            msgId: \Symfony\Component\Uid\Uuid::v4()->toRfc4122(),
             conversation: $conversation,
             channel: $channelForMsg,
             direction: $directionForMsg,
@@ -200,7 +200,7 @@ class ConversationClassificationTest extends WebTestCase
         $jwt = $this->getValidJwt($client);
 
         // Test: Try to classify non-existent conversation
-        $fakeConvId = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $fakeConvId = \Symfony\Component\Uid\Uuid::v4()->toRfc4122();
         $payload = [
             'scam_type_code' => 'PHISHING',
         ];
@@ -341,7 +341,7 @@ class ConversationClassificationTest extends WebTestCase
         $jwt = $this->getValidJwt($client);
 
         // Test: Try to auto-classify non-existent conversation
-        $fakeConvId = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $fakeConvId = \Symfony\Component\Uid\Uuid::v4()->toRfc4122();
 
         $client->request(
             'POST',

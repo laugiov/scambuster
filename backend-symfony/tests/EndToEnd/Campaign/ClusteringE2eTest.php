@@ -552,7 +552,7 @@ class ClusteringE2eTest extends WebTestCase
         $client = static::createClient();
         $jwt = $this->getValidJwt($client);
 
-        $fakeUuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $fakeUuid = \Symfony\Component\Uid\Uuid::v4()->toRfc4122();
 
         $client->request(
             'POST',
