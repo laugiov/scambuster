@@ -95,6 +95,7 @@
     "total": "{{count}} total",
     "activeLower": "{{count}} active",
     "closed": "{{count}} closed",
+    "abandoned": "{{count}} abandoned",
     "sourceId": "Source ID",
     "scamType": "Scam Type",
     "persona": "Persona",
