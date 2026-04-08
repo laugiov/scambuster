@@ -11,6 +11,8 @@ import {
 import { useConvergenceHistory } from '@/hooks/useConvergenceHistory';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { scamTypeLabel } from '@/lib/scamTypeLabels';
+import { iocTypeLabel } from '@/lib/iocTypeLabels';
 
 const CHART_COLORS = ['#3b82f6', '#4ade80', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#adc6ff', '#fb923c'];
 const GRID_COLOR = '#31353c';
@@ -132,7 +134,7 @@ export function Analytics() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={iocDist.data?.data}
+                  data={iocDist.data?.data.map((d) => ({ ...d, label: iocTypeLabel(d.label) }))}
                   dataKey="count"
                   nameKey="label"
                   cx="50%"
@@ -158,7 +160,7 @@ export function Analytics() {
         <ChartCard title={t('analytics.scamDistribution')}>
           {(scamDist.data?.data.length ?? 0) > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={scamDist.data?.data} layout="vertical" margin={{ left: 80 }}>
+              <BarChart data={scamDist.data?.data.map((d) => ({ ...d, label: scamTypeLabel(d.label) }))} layout="vertical" margin={{ left: 80 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                 <XAxis type="number" tick={{ fill: AXIS_COLOR, fontSize: 10 }} />
                 <YAxis type="category" dataKey="label" tick={{ fill: AXIS_COLOR, fontSize: 10 }} width={80} />
@@ -176,7 +178,7 @@ export function Analytics() {
               <LineChart data={costTimeline.data?.data}>
                 <CartesianGrid strokeDasharray="3 3" stroke={GRID_COLOR} />
                 <XAxis dataKey="date" tick={{ fill: AXIS_COLOR, fontSize: 10 }} tickFormatter={formatDate} />
-                <YAxis tick={{ fill: AXIS_COLOR, fontSize: 10 }} tickFormatter={(v: number) => `$${v.toFixed(3)}`} />
+                <YAxis tick={{ fill: AXIS_COLOR, fontSize: 10 }} tickFormatter={(v: number) => `$${v.toFixed(3)}`} domain={[0, 'auto']} />
                 <Tooltip content={<CustomTooltip />} />
                 <Line type="monotone" dataKey="cost_usd" name={t('analytics.costUsd')} stroke="#fbbf24" strokeWidth={2} dot={false} />
               </LineChart>
@@ -190,7 +192,7 @@ export function Analytics() {
             <div className="grid grid-cols-2 gap-3 h-full overflow-auto">
               {convergenceSparklines.map((spark) => (
                 <div key={spark.scamType} className="bg-surface-base rounded p-2">
-                  <span className="text-[10px] text-on-surface-dim block mb-1">{spark.scamType}</span>
+                  <span className="text-[10px] text-on-surface-dim block mb-1">{scamTypeLabel(spark.scamType)}</span>
                   <ResponsiveContainer width="100%" height={40}>
                     <LineChart data={spark.data}>
                       <Line type="monotone" dataKey="pct" stroke="#4ade80" strokeWidth={1.5} dot={false} />
