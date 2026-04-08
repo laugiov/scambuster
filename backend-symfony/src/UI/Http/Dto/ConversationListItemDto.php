@@ -18,6 +18,7 @@ final class ConversationListItemDto
         public int $turns = 0,
         public int $message_count = 0,
         public ?float $reward = null,
+        public int $ioc_count = 0,
     ) {
     }
 
@@ -38,6 +39,7 @@ final class ConversationListItemDto
             'turns' => $this->turns,
             'message_count' => $this->message_count,
             'reward' => $this->reward,
+            'ioc_count' => $this->ioc_count,
         ];
     }
 }

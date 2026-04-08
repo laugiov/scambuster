@@ -203,7 +203,8 @@ final class ConversationController
         $convs = $this->handler->getFilteredConversations($page, $limit, $status, $from, $to);
         $convIds = array_values(array_map(static fn ($c) => $c->getConvId(), $convs));
         $messageCounts = $this->handler->getMessageCountsForConversations($convIds);
-        $result = array_map(function ($conv) use ($messageCounts) {
+        $iocCounts = $this->handler->getIocCountsForConversations($convIds);
+        $result = array_map(function ($conv) use ($messageCounts, $iocCounts) {
             $persona = $conv->getPersona();
             $scamType = $conv->getScamType();
             $dto = new ConversationListItemDto(
@@ -218,6 +219,7 @@ final class ConversationController
                 $conv->getTurnsCount(),
                 $messageCounts[$conv->getConvId()] ?? 0,
                 $conv->getRewardValue(),
+                $iocCounts[$conv->getConvId()] ?? 0,
             );
 
             return $dto->toArray();
