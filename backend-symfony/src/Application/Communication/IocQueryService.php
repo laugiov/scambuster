@@ -121,18 +121,23 @@ class IocQueryService
             $scamTypeCode = is_string($row['scam_type_code'] ?? null) ? $row['scam_type_code'] : null;
             $displayCategory = $scamTypeCode ?? (is_string($context['category'] ?? null) ? $context['category'] : '');
 
+            $scoreArr = is_array($context['score'] ?? null) ? $context['score'] : [];
+            $vtScore = is_numeric($scoreArr['vt'] ?? null) ? (int) $scoreArr['vt'] : 0;
+            $urlscanScore = is_numeric($scoreArr['urlscan'] ?? null) ? (int) $scoreArr['urlscan'] : 0;
+
             $result[] = [
                 'obs_id' => $row['obs_id'],
                 'ioc_id' => $row['ioc_id'],
                 'type' => $context['type'] ?? '',
                 'value' => $context['value'] ?? '',
                 'value_norm' => $context['value_norm'] ?? '',
-                'score' => $context['score'] ?? [],
+                'score' => $scoreArr,
                 'category' => $displayCategory,
                 'ts_observed' => $row['ts_observed'],
                 'confidence' => round($confidenceRaw, 4),
                 'decay_factor' => round($decayFactor, 4),
                 'effective_score' => $effectiveScore,
+                'severity' => IocConfidenceCalculator::computeSeverity($iocType, $vtScore, $urlscanScore),
                 'has_context' => !empty($row['has_context']) && $row['has_context'] !== 'f',
             ];
         }

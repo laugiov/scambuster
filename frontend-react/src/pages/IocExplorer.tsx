@@ -10,6 +10,11 @@ import { Pagination } from '@/components/ui/Pagination';
 import type { Ioc } from '@/types/api';
 import { timeSince } from '@/lib/time';
 import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
+import { iocSeverity as computeIocSeverityInfo } from '@/lib/iocSeverity';
+
+function computeIocSeverity(type: string, vt: number, urlscan: number): string {
+  return computeIocSeverityInfo(type, vt, urlscan).label;
+}
 
 const IOC_PAGE_SIZE = 30;
 
@@ -94,10 +99,10 @@ export function IocExplorer() {
       if (!matchesType(ioc.type, typeFilter)) return false;
       if (search && !ioc.value.toLowerCase().includes(search.toLowerCase())) return false;
 
-      const aggScore = ioc.score?.agg ?? 0;
-      if (severity === 'High' && aggScore < 70) return false;
-      if (severity === 'Medium' && (aggScore < 40 || aggScore >= 70)) return false;
-      if (severity === 'Low' && aggScore >= 40) return false;
+      const iocSev = (ioc as { severity?: string }).severity ?? computeIocSeverity(ioc.type, ioc.score?.vt ?? 0, ioc.score?.urlscan ?? 0);
+      if (severity === 'High' && iocSev !== 'HIGH') return false;
+      if (severity === 'Medium' && iocSev !== 'MEDIUM') return false;
+      if (severity === 'Low' && iocSev !== 'LOW') return false;
 
       const effectiveScore = ioc.effective_score ?? ioc.confidence ?? 0;
       if (minConfidence === '>0.9' && effectiveScore <= 0.9) return false;

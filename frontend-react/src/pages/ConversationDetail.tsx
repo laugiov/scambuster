@@ -26,11 +26,8 @@ function formatDate(iso: string): string {
   return `${month} ${day}, ${year} · ${time}`;
 }
 
-function iocSeverity(score: number): { label: string; color: string; border: string } {
-  if (score >= 5) return { label: 'HIGH', color: 'bg-error/20 text-error', border: 'border-error' };
-  if (score >= 1) return { label: 'MEDIUM', color: 'bg-warning/20 text-warning', border: 'border-warning' };
-  return { label: 'LOW', color: 'bg-status-waiting/20 text-status-waiting', border: 'border-status-waiting' };
-}
+// Severity is now computed from IOC type + enrichment scores (shared utility)
+import { iocSeverity } from '@/lib/iocSeverity';
 
 export function ConversationDetail() {
   const { t } = useTranslation();
@@ -256,7 +253,7 @@ function ExtractedIocs({ convId, iocs, isLoading, selectedId, onSelect }: {
       </div>
       <div className="space-y-2">
         {realIocs.map((ioc) => {
-          const sev = iocSeverity(ioc.score?.agg ?? 0);
+          const sev = iocSeverity(ioc.type, ioc.score?.vt ?? 0, ioc.score?.urlscan ?? 0);
           const isSelected = ioc.obs_id === selectedId;
           return (
             <button
@@ -343,7 +340,7 @@ function MessageBubble({ message }: { message: Message }) {
 function IocDetailPanel({ ioc, onClose, threatActorSummary }: { ioc: Ioc; onClose: () => void; threatActorSummary?: string }) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
-  const sev = iocSeverity(ioc.score?.agg ?? 0);
+  const sev = iocSeverity(ioc.type, ioc.score?.vt ?? 0, ioc.score?.urlscan ?? 0);
 
   const stixPattern = `[${ioc.type}:value = '${ioc.value_norm.replace(/'/g, "\\'")}']`;
 
