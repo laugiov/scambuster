@@ -232,7 +232,7 @@ function SortHeader({ label, sortKey: key, current, dir, onSort }: {
       onClick={() => onSort(key)}
     >
       {label}
-      <span className={`ml-1 inline-block text-[0.5rem] ${isActive ? 'text-accent' : 'text-on-surface-dim/40'}`}>
+      <span className={`ml-1.5 inline-block text-[0.6rem] ${isActive ? 'text-accent' : 'text-on-surface-dim'}`}>
         {isActive ? (dir === 'desc' ? '▼' : '▲') : '⇅'}
       </span>
     </th>
