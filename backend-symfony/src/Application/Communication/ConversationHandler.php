@@ -172,8 +172,10 @@ class ConversationHandler
     {
         $offset = ($page - 1) * $limit;
         $qb = $this->em->createQueryBuilder();
-        $qb->select('c')
+        $qb->select('c', 'p', 'st')
             ->from(Conversation::class, 'c')
+            ->leftJoin('c.persona', 'p')
+            ->leftJoin('c.scamType', 'st')
             ->setFirstResult($offset)
             ->setMaxResults($limit)
             ->orderBy('c.tsLast', 'DESC');
@@ -249,6 +251,8 @@ class ConversationHandler
         $offset = ($page - 1) * $limit;
         $repo = $this->em->getRepository('App\\Domain\\Communication\\Message');
         $qb = $repo->createQueryBuilder('m')
+            ->select('m', 'd')
+            ->leftJoin('m.direction', 'd')
             ->where('m.conversation = :conv')
             ->andWhere('m.deletedAt IS NULL')
             ->setParameter('conv', $conv)

@@ -80,8 +80,9 @@ class ReplyContextService
         // Get last N messages ordered by ts_msg desc
         /** @var Message[] $messages */
         $messages = $this->em->createQueryBuilder()
-            ->select('m')
+            ->select('m', 'd')
             ->from(Message::class, 'm')
+            ->leftJoin('m.direction', 'd')
             ->where('m.conversation = :conv')
             ->andWhere('m.deletedAt IS NULL')
             ->setParameter('conv', $conversation)
