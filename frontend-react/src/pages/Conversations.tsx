@@ -115,7 +115,7 @@ export function Conversations() {
             <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
             <span>{t('conversations.closed', { count: closedCount })}</span>
             {abandonedCount > 0 && (
-              <span className="text-warning">{t('conversations.abandoned', { count: abandonedCount })}</span>
+              <span className="text-warning" title="Conversations where the scammer stopped responding after 7+ days">{t('conversations.abandoned', { count: abandonedCount })}</span>
             )}
           </div>
         </div>
