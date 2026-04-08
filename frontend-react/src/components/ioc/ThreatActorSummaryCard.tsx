@@ -1,4 +1,5 @@
 import type { ThreatActorSummary } from '@/hooks/useThreatActor';
+import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
 
 const SOPHISTICATION_STYLES: Record<string, string> = {
   none: 'bg-surface-highest text-on-surface-variant',
@@ -31,8 +32,8 @@ export function ThreatActorSummaryCard({ summary }: { summary: ThreatActorSummar
       {/* Scam types + goals */}
       <div className="flex flex-wrap gap-1.5">
         {summary.scamTypes.map((st) => (
-          <span key={st} className="px-2 py-0.5 bg-warning/10 text-warning text-xs rounded">
-            {st}
+          <span key={st} className={`px-2 py-0.5 text-xs rounded ${scamTypeColor(st)}`}>
+            {scamTypeLabel(st)}
           </span>
         ))}
         {summary.allGoals.map((goal) => (
