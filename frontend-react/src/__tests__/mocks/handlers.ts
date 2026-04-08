@@ -89,6 +89,41 @@ export const mockLlmCostReport: LlmCostReport = {
   limit_exceeded: false,
 };
 
+const emptyTimeSeries = { period_days: 30, data: [] };
+const emptyDistribution = { data: [] };
+
+export const mockImpactSummary = {
+  period_days: 30,
+  conversations: { total: 25, active: 10, closed: 12, abandoned: 3 },
+  messages: { total: 180, inbound: 90, outbound: 90 },
+  iocs: { total: 320, unique: 210, sensitive: 45 },
+  cost: { total_usd: 5.2, per_ioc_usd: 0.016 },
+  engagement: { avg_duration_sec: 43200, max_duration_sec: 172800 },
+};
+
+export const mockConvergenceHistory = {
+  history: [
+    {
+      date: '2026-03-20',
+      scam_type: 'PHISHING',
+      persona: 'elderly_person',
+      selection_share: 0.65,
+      sessions: 12,
+    },
+  ],
+};
+
+export const mockLifecycle = {
+  total: 25,
+  by_status: { open: 10, closed: 12, abandoned: 3 },
+  avg_duration_sec: 43200,
+  median_turns: 6,
+};
+
+export const mockRateLimits = {
+  violations_today: { login_ip: 0, api_global: 2, llm_calls: 0 },
+};
+
 export const handlers = [
   http.get(`${BASE}/meta/config`, () => HttpResponse.json(mockMetaConfig)),
   http.get(`${BASE}/monitoring/autonomy`, () => HttpResponse.json(mockAutonomyStats)),
@@ -100,5 +135,58 @@ export const handlers = [
       refresh_token: 'mock-refresh-token',
       expires_in: 3600,
     }),
+  ),
+  // Analytics endpoints
+  http.get(`${BASE}/monitoring/analytics/ioc-timeline`, () => HttpResponse.json(emptyTimeSeries)),
+  http.get(`${BASE}/monitoring/analytics/conversation-timeline`, () =>
+    HttpResponse.json(emptyTimeSeries),
+  ),
+  http.get(`${BASE}/monitoring/analytics/ioc-distribution`, () =>
+    HttpResponse.json(emptyDistribution),
+  ),
+  http.get(`${BASE}/monitoring/analytics/scam-distribution`, () =>
+    HttpResponse.json(emptyDistribution),
+  ),
+  http.get(`${BASE}/monitoring/analytics/cost-timeline`, () => HttpResponse.json(emptyTimeSeries)),
+  http.get(`${BASE}/monitoring/analytics/pipeline-timeline`, () =>
+    HttpResponse.json(emptyTimeSeries),
+  ),
+  http.get(`${BASE}/monitoring/analytics/activity-feed`, () => HttpResponse.json({ events: [] })),
+  http.get(`${BASE}/monitoring/analytics/weekly-trends`, () => HttpResponse.json({ trends: [] })),
+  // Impact
+  http.get(`${BASE}/impact/summary`, () => HttpResponse.json(mockImpactSummary)),
+  http.get(`${BASE}/impact/ioc-uniqueness`, () => HttpResponse.json({ data: [] })),
+  // Convergence
+  http.get(`${BASE}/monitoring/convergence-history`, () =>
+    HttpResponse.json(mockConvergenceHistory),
+  ),
+  // Lifecycle + Rate limits
+  http.get(`${BASE}/monitoring/conversation-lifecycle`, () => HttpResponse.json(mockLifecycle)),
+  http.get(`${BASE}/monitoring/rate-limits`, () => HttpResponse.json(mockRateLimits)),
+  // Conversation detail
+  http.get(`${BASE}/communication/conversation/:id`, () => HttpResponse.json(mockConversations[0])),
+  http.get(`${BASE}/communication/conversation/:id/messages`, () => HttpResponse.json([])),
+  http.get(`${BASE}/communication/conversation/:id/iocs`, () => HttpResponse.json([])),
+  // Scambaiting
+  http.get(`${BASE}/scambaiting/stats`, () => HttpResponse.json([])),
+  // Campaign
+  http.get(`${BASE}/campaign/candidates`, () => HttpResponse.json({ candidates: [] })),
+  // IOCs
+  http.get(`${BASE}/iocs`, () => HttpResponse.json([])),
+  // Personas
+  http.get(`${BASE}/scambaiting/persona/:code/performance`, () =>
+    HttpResponse.json({
+      success: true,
+      data: { persona_code: 'elderly_person', sessions: 5, reward_avg: 0.72 },
+    }),
+  ),
+  // Pipeline
+  http.get(`${BASE}/monitoring/pipeline-health`, () =>
+    HttpResponse.json({ status: 'healthy', metrics: {} }),
+  ),
+  http.get(`${BASE}/monitoring/pipeline-traces`, () => HttpResponse.json({ traces: [] })),
+  // Stix
+  http.get(`${BASE}/conversations/:id/export/stix`, () =>
+    HttpResponse.json({ type: 'bundle', objects: [] }),
   ),
 ];
