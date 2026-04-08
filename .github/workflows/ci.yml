@@ -419,13 +419,33 @@ jobs:
       - name: Lint
         run: npm run lint
 
-      - name: Tests
-        run: npm run test
+      - name: Tests with coverage
+        run: npm run test:coverage
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Production build
         run: npm run build
+
+      - name: Upload frontend coverage to Codecov
+        if: always()
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./frontend-react/coverage/coverage-final.json
+          flags: frontend
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Check bundle size
+        run: |
+          MAIN_SIZE=$(find dist/assets -name 'index-*.js' -exec stat --format='%s' {} \; | head -1)
+          MAIN_KB=$((MAIN_SIZE / 1024))
+          echo "Main bundle: ${MAIN_KB}KB"
+          if [ "$MAIN_KB" -gt 600 ]; then
+            echo "::error::Main bundle too large: ${MAIN_KB}KB (max 600KB)"
+            exit 1
+          fi
 
   container-security:
     name: Container Security (Trivy + SBOM)
