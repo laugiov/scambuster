@@ -164,7 +164,7 @@ export function IocExplorer() {
       <header className="space-y-1">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-          <span className="text-xs uppercase tracking-widest text-accent/80 font-bold">{t('iocExplorer.realTimeAnalysis')}</span>
+          <span className="text-xs uppercase tracking-widest text-accent/80 font-bold" title="IOC list updates automatically as new indicators are extracted">{t('iocExplorer.realTimeAnalysis')}</span>
         </div>
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-light text-on-surface tracking-tight">{t('iocExplorer.title')}</h1>
@@ -309,7 +309,7 @@ function AdvancedFilters({
             onChange={(e) => onHasContextOnlyChange(e.target.checked)}
             className="rounded accent-accent"
           />
-          <span className="text-xs text-on-surface-dim">&#10024; {t('iocContext.hasContext')}</span>
+          <span className="text-xs text-on-surface-dim"><span className="text-[0.5rem] px-1 py-0.5 bg-accent-muted/20 text-accent rounded font-bold mr-1">CTX</span>{t('iocContext.hasContext')}</span>
         </label>
         <label className="flex items-center gap-2 cursor-pointer">
           <input
@@ -378,7 +378,7 @@ function IocTable({ iocs, sortKey, sortDir, onSort }: { iocs: Ioc[]; sortKey: So
                 <td className="px-5 py-3">
                   <span className="text-xs text-on-surface-variant">{iocTypeLabel(ioc.type)}</span>
                   {ioc.has_context && (
-                    <span className="ml-1 text-accent" title="Has contextual enrichment">&#10024;</span>
+                    <span className="ml-1 text-[0.5rem] px-1 py-0.5 bg-accent-muted/20 text-accent rounded font-bold" title="Has contextual enrichment">CTX</span>
                   )}
                 </td>
                 <td className="px-5 py-3 font-mono text-on-surface truncate max-w-[200px]">
