@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useConversationDetail, useConversationMessages, useConversationIocs } from '@/hooks/useConversations';
+import { useConversationDetail, useConversationMessages, useConversationIocs, useAllConversations } from '@/hooks/useConversations';
 import { Badge } from '@/components/ui/Badge';
 import { statusToBadgeVariant } from '@/components/ui/badgeUtils';
 import { Loading } from '@/components/feedback/Loading';
@@ -10,16 +10,20 @@ import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
 import { useThreatActorProfile } from '@/hooks/useThreatActor';
 import { ThreatActorCard } from '@/components/conversation/ThreatActorCard';
 import type { Message, Ioc } from '@/types/api';
+import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleString('en-GB', {
-    year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '--';
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  const day = d.getDate();
+  const year = d.getFullYear();
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  return `${month} ${day}, ${year} · ${time}`;
 }
 
 function iocSeverity(score: number): { label: string; color: string; border: string } {
@@ -33,6 +37,9 @@ export function ConversationDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: config } = useMetaConfig();
   const conv = useConversationDetail(id ?? '');
+  const { data: allConversations } = useAllConversations();
+  // Detail API doesn't return scam_type/persona — get from list cache
+  const listConv = allConversations?.find((c) => c.conv_id === id);
   const messages = useConversationMessages(id ?? '');
   const iocs = useConversationIocs(id ?? '');
   const threatActor = useThreatActorProfile(id ?? '');
@@ -43,6 +50,12 @@ export function ConversationDetail() {
   if (!conv.data) return <ErrorMessage message={t('conversationDetail.notFound')} />;
 
   const c = conv.data;
+
+  const INFRA_TYPES = new Set(['dmarc_result', 'spf_result', 'dkim_result']);
+  const INFRA_DOMAINS = ['@scambuster.local'];
+  const filteredIocCount = (iocs.data ?? []).filter(
+    (ioc) => !INFRA_TYPES.has(ioc.type.toLowerCase()) && !INFRA_DOMAINS.some((d) => ioc.value.toLowerCase().includes(d)),
+  ).length;
 
   return (
     <div className="flex flex-col -m-8 h-[calc(100vh-0px)]">
@@ -77,7 +90,7 @@ export function ConversationDetail() {
       <div className="grid grid-cols-12 gap-6 p-6 flex-1 min-h-0">
         {/* Left: metadata + IOCs */}
         <div className="col-span-3 flex flex-col gap-6 overflow-y-auto pr-1">
-          <SessionMetadata conv={c} messageCount={messages.data?.length ?? 0} iocCount={iocs.data?.length ?? 0} />
+          <SessionMetadata conv={{ ...c, scam_type: c.scam_type ?? listConv?.scam_type, persona: c.persona ?? listConv?.persona }} messageCount={messages.data?.length ?? 0} iocCount={filteredIocCount} config={config} />
           <ExtractedIocs convId={id ?? ''} iocs={iocs.data ?? []} isLoading={iocs.isLoading} selectedId={selectedIoc?.obs_id ?? null} onSelect={setSelectedIoc} />
         </div>
 
@@ -116,20 +129,17 @@ export function ConversationDetail() {
           </div>
         </div>
 
-        {/* Right: agent log + pipeline OR IOC detail */}
+        {/* Right: Intelligence panel */}
         <div className="col-span-3 overflow-y-auto pl-1">
           <div className="flex flex-col gap-6">
             {selectedIoc ? (
-              <>
-                <IocDetailPanel ioc={selectedIoc} onClose={() => setSelectedIoc(null)} />
-                {threatActor.data && <ThreatActorCard profile={threatActor.data} />}
-              </>
+              <IocDetailPanel
+                ioc={selectedIoc}
+                onClose={() => setSelectedIoc(null)}
+                threatActorSummary={threatActor.data ? `${threatActor.data.sophistication} · ${c.scam_type ? scamTypeLabel(c.scam_type) : ''}` : undefined}
+              />
             ) : (
-              <>
-                {threatActor.data && <ThreatActorCard profile={threatActor.data} />}
-                <AgentDecisionLog />
-                <DoubleValidationPipeline />
-              </>
+              threatActor.data && <ThreatActorCard profile={threatActor.data} personaLabel={personaDisplayName(config, c.persona ?? listConv?.persona ?? '')} />
             )}
           </div>
         </div>
@@ -138,10 +148,11 @@ export function ConversationDetail() {
   );
 }
 
-function SessionMetadata({ conv, messageCount, iocCount }: {
+function SessionMetadata({ conv, messageCount, iocCount, config }: {
   conv: { conv_id: string; score_risk: number; ts_first?: string; ts_last?: string; created_at?: string; persona?: string | null; scam_type?: string | null };
   messageCount: number;
   iocCount: number;
+  config?: import('@/types/api').MetaConfig;
 }) {
   const { t } = useTranslation();
   const startDate = conv.ts_first ?? conv.created_at ?? '';
@@ -157,10 +168,21 @@ function SessionMetadata({ conv, messageCount, iocCount }: {
     <section className="bg-surface-low rounded-lg p-5">
       <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">{t('conversationDetail.sessionMetadata')}</h3>
       <div className="space-y-3">
+        {conv.scam_type && (
+          <div className="flex flex-col">
+            <span className="text-[0.625rem] text-accent-muted uppercase font-bold tracking-tight">{t('conversations.scamType')}</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-fit mt-0.5 ${scamTypeColor(conv.scam_type)}`}>
+              {scamTypeLabel(conv.scam_type)}
+            </span>
+          </div>
+        )}
+        {conv.persona && (
+          <MetaRow label={t('conversations.persona')} value={personaDisplayName(config, conv.persona)} />
+        )}
         <MetaRow label={t('conversationDetail.started')} value={startDate ? formatDate(startDate) : '--'} />
         <div className="grid grid-cols-2 gap-3">
           <MetaRow label={t('conversationDetail.duration')} value={duration} />
-          <MetaRow label={t('conversations.messages')} value={String(messageCount)} />
+          <MetaRow label={t('conversations.messages')} value={`${messageCount} (${Math.floor(messageCount / 2)} exch.)`} />
         </div>
         <div className="grid grid-cols-2 gap-3">
           <MetaRow label={t('conversationDetail.iocFound')} value={String(iocCount)} />
@@ -204,11 +226,20 @@ function ExtractedIocs({ convId, iocs, isLoading, selectedId, onSelect }: {
 
   if (isLoading) return <Loading message={t('conversationDetail.loadingIocs')} />;
 
+  const INFRA_TYPES = new Set(['dmarc_result', 'spf_result', 'dkim_result']);
+  const INFRA_DOMAINS = ['@scambuster.local'];
+  const isInfraIoc = (ioc: Ioc) =>
+    INFRA_TYPES.has(ioc.type.toLowerCase())
+    || INFRA_DOMAINS.some((d) => ioc.value.toLowerCase().includes(d));
+
+  const realIocs = iocs.filter((ioc) => !isInfraIoc(ioc));
+  const emailAuthIocs = iocs.filter((ioc) => isInfraIoc(ioc));
+
   return (
     <section className="bg-surface-low rounded-lg p-5 flex-1">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium">
-          {t('conversationDetail.extractedIocs')} <span className="text-on-surface-variant">({iocs.length})</span>
+          {t('conversationDetail.extractedIocs')} <span className="text-on-surface-variant">({realIocs.length})</span>
         </h3>
         {iocs.length > 0 && (
           <button
@@ -224,7 +255,7 @@ function ExtractedIocs({ convId, iocs, isLoading, selectedId, onSelect }: {
         )}
       </div>
       <div className="space-y-2">
-        {iocs.map((ioc) => {
+        {realIocs.map((ioc) => {
           const sev = iocSeverity(ioc.score?.agg ?? 0);
           const isSelected = ioc.obs_id === selectedId;
           return (
@@ -245,18 +276,34 @@ function ExtractedIocs({ convId, iocs, isLoading, selectedId, onSelect }: {
             </button>
           );
         })}
-        {iocs.length === 0 && (
+        {realIocs.length === 0 && (
           <p className="text-xs text-on-surface-dim text-center py-4">{t('conversationDetail.noIocs')}</p>
         )}
       </div>
+      {emailAuthIocs.length > 0 && (
+        <details className="mt-4">
+          <summary className="text-[0.625rem] text-on-surface-dim uppercase tracking-widest cursor-pointer hover:text-on-surface-variant">
+            Email Authentication ({emailAuthIocs.length})
+          </summary>
+          <div className="mt-2 space-y-1">
+            {emailAuthIocs.map((ioc) => (
+              <div key={ioc.obs_id} className="flex items-center justify-between p-1.5 bg-surface-base rounded text-xs">
+                <span className="font-mono text-on-surface-dim truncate">{ioc.value}</span>
+                <span className="text-[0.5rem] text-on-surface-dim uppercase ml-2 shrink-0">{ioc.type}</span>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </section>
   );
 }
 
 function MessageBubble({ message }: { message: Message }) {
-  const { t } = useTranslation();
+  const [expanded, setExpanded] = useState(false);
   const isOutbound = message.direction === 'out';
-  const bodyPreview = message.body_text.length > 500
+  const isTruncated = message.body_text.length > 500;
+  const bodyPreview = !expanded && isTruncated
     ? message.body_text.slice(0, 500) + '...'
     : message.body_text;
 
@@ -264,96 +311,61 @@ function MessageBubble({ message }: { message: Message }) {
     <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[80%] p-4 rounded-xl ${
         isOutbound
-          ? 'bg-accent-muted/10 rounded-tr-none border border-accent-muted/20'
+          ? 'bg-teal-900/20 rounded-tr-none border border-teal-700/20'
           : 'bg-surface-highest rounded-tl-none border border-surface-highest'
       }`}>
+        <span className={`text-[0.5rem] uppercase tracking-widest font-bold mb-1 block ${
+          isOutbound ? 'text-teal-400' : 'text-red-400/70'
+        }`}>
+          {isOutbound ? `Sentinel` : `Scammer`}
+        </span>
         {message.subject && (
           <p className="text-xs text-on-surface-dim font-medium mb-1">{message.subject}</p>
         )}
         <p className="text-sm leading-relaxed text-on-surface whitespace-pre-line">{bodyPreview}</p>
+        {isTruncated && (
+          <button
+            type="button"
+            onClick={() => setExpanded(!expanded)}
+            className="text-xs text-accent hover:text-accent-hover mt-1 cursor-pointer"
+          >
+            {expanded ? 'Show less' : 'Show full message'}
+          </button>
+        )}
         <span className={`text-[0.625rem] mt-2 block opacity-60 ${isOutbound ? 'text-right' : ''}`}>
-          {message.ts_msg ? formatTime(message.ts_msg) : '--:--'} · {isOutbound ? t('conversationDetail.sentinel') : t('conversationDetail.remoteAgent')}
+          {message.ts_msg ? formatTime(message.ts_msg) : '--:--'}
         </span>
       </div>
     </div>
   );
 }
 
-function AgentDecisionLog() {
+function IocDetailPanel({ ioc, onClose, threatActorSummary }: { ioc: Ioc; onClose: () => void; threatActorSummary?: string }) {
   const { t } = useTranslation();
-  const events = [
-    { time: '--:--', label: t('conversationDetail.orchestratorInit'), color: 'bg-accent-muted' },
-    { time: '--:--', label: t('conversationDetail.scamClassifierDetect'), color: 'bg-accent-muted' },
-    { time: '--:--', label: t('conversationDetail.iocExtractorFlag'), color: 'bg-warning' },
-    { time: '--:--', label: t('conversationDetail.generatorDraft'), color: 'bg-accent-muted' },
-    { time: '--:--', label: t('conversationDetail.policyGuardPass'), color: 'bg-success' },
-    { time: '--:--', label: t('conversationDetail.llmValidatorApprove'), color: 'bg-success' },
-  ];
-
-  return (
-    <section className="bg-surface-low rounded-lg p-5">
-      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-5">{t('conversationDetail.agentDecisionLog')}</h3>
-      <div className="relative space-y-4 before:absolute before:left-[7px] before:top-2 before:bottom-2 before:w-px before:bg-surface-highest">
-        {events.map((evt) => (
-          <div key={evt.label} className="relative pl-6">
-            <div className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full ${evt.color} border-2 border-surface-low`} />
-            <div className="flex flex-col">
-              <span className="text-[0.625rem] text-on-surface-dim font-mono">{evt.time}</span>
-              <span className="text-xs font-medium text-on-surface">{evt.label}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function DoubleValidationPipeline() {
-  const { t } = useTranslation();
-  const steps = [
-    { label: t('conversationDetail.generatorStep'), done: true },
-    { label: t('conversationDetail.policyGuardStep'), done: true },
-    { label: t('conversationDetail.llmValidatorStep'), done: true },
-  ];
-
-  return (
-    <section className="bg-surface-low rounded-lg p-5">
-      <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">{t('conversationDetail.doubleValidationPipeline')}</h3>
-      <div className="space-y-3">
-        {steps.map((step) => (
-          <div key={step.label} className="flex items-center gap-3 p-3 bg-surface-base rounded-lg">
-            <div className="w-5 h-5 rounded-full bg-accent-muted/20 flex items-center justify-center shrink-0">
-              {step.done && (
-                <svg className="w-3 h-3 text-accent" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              )}
-            </div>
-            <span className="text-xs font-medium text-on-surface">{step.label}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function IocDetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
-  const { t } = useTranslation();
+  const [copied, setCopied] = useState(false);
   const sev = iocSeverity(ioc.score?.agg ?? 0);
+
+  const stixPattern = `[${ioc.type}:value = '${ioc.value_norm.replace(/'/g, "\\'")}']`;
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(stixPattern);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <section className="bg-surface-low rounded-lg p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-bold text-on-surface">{t('conversationDetail.iocDetail')}</h3>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-surface-highest rounded text-on-surface-dim cursor-pointer"
-          aria-label="Close IOC detail"
+          className="text-xs text-accent hover:text-accent-hover transition-colors cursor-pointer flex items-center gap-1"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
           </svg>
+          Back to Intelligence
         </button>
+        <h3 className="text-sm font-bold text-on-surface">{t('conversationDetail.iocDetail')}</h3>
       </div>
 
       <div className="p-3 bg-surface-base rounded-lg">
@@ -382,9 +394,18 @@ function IocDetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
       </div>
 
       <div className="flex-1">
-        <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest block mb-1">{t('conversationDetail.stixPattern')}</span>
-        <pre className="p-2 bg-surface-base rounded font-mono text-[0.625rem] text-accent/70 overflow-auto">
-{`[${ioc.type}:value = '${ioc.value_norm.replace(/'/g, "\\'")}']`}
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[0.625rem] font-bold text-on-surface-dim uppercase tracking-widest">{t('conversationDetail.stixPattern')}</span>
+          <button
+            type="button"
+            onClick={() => void handleCopy()}
+            className="text-[0.625rem] text-accent hover:text-accent-hover transition-colors cursor-pointer flex items-center gap-1"
+          >
+            {copied ? '✓ Copied' : '📋 Copy'}
+          </button>
+        </div>
+        <pre className="p-2 bg-surface-base rounded font-mono text-[0.625rem] text-accent/70 overflow-x-auto whitespace-pre-wrap break-all">
+{stixPattern}
         </pre>
       </div>
 
@@ -397,6 +418,12 @@ function IocDetailPanel({ ioc, onClose }: { ioc: Ioc; onClose: () => void }) {
         </svg>
         {t('conversationDetail.viewFullDetail')}
       </Link>
+
+      {threatActorSummary && (
+        <div className="p-2 bg-surface-base rounded text-[0.625rem] text-on-surface-dim">
+          Threat Actor: {threatActorSummary}
+        </div>
+      )}
     </section>
   );
 }
