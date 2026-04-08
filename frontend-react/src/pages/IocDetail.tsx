@@ -340,7 +340,7 @@ function RelatedTab({ relatedIocs, graphData }: { relatedIocs: IocRelated[]; gra
                   <span className="text-xs text-on-surface-dim ml-1">{t('iocDetail.conversations')}</span>
                 </td>
                 <td className="px-5 py-3">
-                  <span className={`text-xs font-bold ${sev.color}`}>{aggScore}</span>
+                  <span className={`text-xs font-bold ${sev.color}`}>{sev.label}</span>
                 </td>
               </tr>
             );
