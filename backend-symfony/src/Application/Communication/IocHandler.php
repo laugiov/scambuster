@@ -125,6 +125,18 @@ class IocHandler
     }
 
     /**
+     * @param array<string>                     $indicatorIds
+     * @param array<string, float|null>         $confidenceScores
+     * @param array<string, \DateTimeImmutable> $tsObservedMap
+     *
+     * @return array<string, array{confidence: float, decay_factor: float, effective_score: float}>
+     */
+    public function batchComputeConfidenceData(array $indicatorIds, array $confidenceScores, array $tsObservedMap): array
+    {
+        return $this->queryService->batchComputeConfidenceData($indicatorIds, $confidenceScores, $tsObservedMap);
+    }
+
+    /**
      * @param array<int, string> $types
      *
      * @return array<int, array<string, mixed>>

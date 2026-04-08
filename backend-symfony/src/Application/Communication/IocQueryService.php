@@ -414,35 +414,70 @@ class IocQueryService
      */
     public function computeConfidenceData(string $indicatorId, ?float $confidenceScore, \DateTimeImmutable $tsObserved): array
     {
-        $conn = $this->em->getConnection();
-        $confidence = $confidenceScore ?? 0.80;
+        $batch = $this->batchComputeConfidenceData([$indicatorId], [$indicatorId => $confidenceScore], [$indicatorId => $tsObserved]);
 
-        $indicatorRow = $conn->executeQuery(
-            'SELECT type, last_seen FROM indicator WHERE indicator_id = :id',
-            ['id' => $indicatorId]
-        )->fetchAssociative();
-
-        if (is_array($indicatorRow) && is_string($indicatorRow['type'])) {
-            $iocType = $indicatorRow['type'];
-            $lastSeenStr = is_string($indicatorRow['last_seen']) ? $indicatorRow['last_seen'] : $tsObserved->format('Y-m-d H:i:s');
-        } else {
-            $iocType = 'unknown';
-            $lastSeenStr = $tsObserved->format('Y-m-d H:i:s');
-        }
-
-        try {
-            $lastSeen = new \DateTimeImmutable($lastSeenStr);
-        } catch (\Exception) {
-            $lastSeen = new \DateTimeImmutable();
-        }
-
-        $decayFactor = IocConfidenceCalculator::computeDecayFactor($iocType, $lastSeen);
-        $effectiveScore = round($confidence * $decayFactor, 4);
-
-        return [
-            'confidence' => round($confidence, 4),
-            'decay_factor' => round($decayFactor, 4),
-            'effective_score' => $effectiveScore,
+        return $batch[$indicatorId] ?? [
+            'confidence' => round($confidenceScore ?? 0.80, 4),
+            'decay_factor' => 1.0,
+            'effective_score' => round($confidenceScore ?? 0.80, 4),
         ];
+    }
+
+    /**
+     * Batch compute confidence data for multiple indicator IDs in a single query.
+     *
+     * @param array<string>                     $indicatorIds
+     * @param array<string, float|null>         $confidenceScores keyed by indicator_id
+     * @param array<string, \DateTimeImmutable> $tsObservedMap    keyed by indicator_id
+     *
+     * @return array<string, array{confidence: float, decay_factor: float, effective_score: float}>
+     */
+    public function batchComputeConfidenceData(array $indicatorIds, array $confidenceScores, array $tsObservedMap): array
+    {
+        if (empty($indicatorIds)) {
+            return [];
+        }
+
+        $conn = $this->em->getConnection();
+        $uniqueIds = array_unique($indicatorIds);
+
+        // Single batch query for all indicators
+        $placeholders = implode(',', array_fill(0, count($uniqueIds), '?'));
+        $rows = $conn->executeQuery(
+            "SELECT indicator_id, type, last_seen FROM indicator WHERE indicator_id IN ({$placeholders})",
+            array_values($uniqueIds)
+        )->fetchAllAssociativeIndexed();
+
+        $result = [];
+
+        foreach ($indicatorIds as $indicatorId) {
+            $confidence = $confidenceScores[$indicatorId] ?? 0.80;
+            $tsObserved = $tsObservedMap[$indicatorId] ?? new \DateTimeImmutable();
+
+            if (isset($rows[$indicatorId]) && is_string($rows[$indicatorId]['type'])) {
+                $iocType = $rows[$indicatorId]['type'];
+                $lastSeenStr = is_string($rows[$indicatorId]['last_seen']) ? $rows[$indicatorId]['last_seen'] : $tsObserved->format('Y-m-d H:i:s');
+            } else {
+                $iocType = 'unknown';
+                $lastSeenStr = $tsObserved->format('Y-m-d H:i:s');
+            }
+
+            try {
+                $lastSeen = new \DateTimeImmutable($lastSeenStr);
+            } catch (\Exception) {
+                $lastSeen = new \DateTimeImmutable();
+            }
+
+            $decayFactor = IocConfidenceCalculator::computeDecayFactor($iocType, $lastSeen);
+            $effectiveScore = round($confidence * $decayFactor, 4);
+
+            $result[$indicatorId] = [
+                'confidence' => round($confidence, 4),
+                'decay_factor' => round($decayFactor, 4),
+                'effective_score' => $effectiveScore,
+            ];
+        }
+
+        return $result;
     }
 }

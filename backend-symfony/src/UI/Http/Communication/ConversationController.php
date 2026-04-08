@@ -398,12 +398,26 @@ final class ConversationController
         // Delegate to IocHandler for deduplicated IOC list
         $iocs = $this->iocHandler->getConversationIocs($convId);
 
-        $result = array_map(function ($ioc) {
-            $confidenceData = $this->iocHandler->computeConfidenceData(
-                $ioc->getIndicatorId(),
-                $ioc->getConfidenceScore(),
-                $ioc->getTsObserved(),
-            );
+        // Batch-load confidence data for all IOCs in a single query
+        $indicatorIds = [];
+        $confidenceScores = [];
+        $tsObservedMap = [];
+
+        foreach ($iocs as $ioc) {
+            $id = $ioc->getIndicatorId();
+            $indicatorIds[] = $id;
+            $confidenceScores[$id] = $ioc->getConfidenceScore();
+            $tsObservedMap[$id] = $ioc->getTsObserved();
+        }
+
+        $confidenceBatch = $this->iocHandler->batchComputeConfidenceData($indicatorIds, $confidenceScores, $tsObservedMap);
+
+        $result = array_map(function ($ioc) use ($confidenceBatch) {
+            $confidenceData = $confidenceBatch[$ioc->getIndicatorId()] ?? [
+                'confidence' => round($ioc->getConfidenceScore() ?? 0.80, 4),
+                'decay_factor' => 1.0,
+                'effective_score' => round($ioc->getConfidenceScore() ?? 0.80, 4),
+            ];
 
             return [
                 'obs_id' => $ioc->getObsId(),
