@@ -35,16 +35,18 @@
             <directory suffix=".php">src</directory>
         </include>
         <exclude>
+            <!-- Test fixtures — not production code -->
             <directory suffix=".php">src/DataFixtures</directory>
-            <directory suffix=".php">src/Service</directory>
             <file>src/Kernel.php</file>
+            <!-- Preprod tooling — not production code -->
             <file>src/Infrastructure/Preprod/ConversationGenerator.php</file>
             <file>src/Infrastructure/Preprod/IocGenerator.php</file>
             <file>src/Infrastructure/Preprod/ScamTemplates.php</file>
-            <directory suffix=".php">src/UI/Console</directory>
+            <!-- Vault-dependent commands — require Vault service, excluded from CI -->
             <file>src/Command/VaultAddImapSecretCommand.php</file>
             <file>src/Command/VaultDeleteImapSecretCommand.php</file>
             <file>src/Command/MailAccountOnboardCommand.php</file>
+            <!-- Preprod/dev-only commands -->
             <file>src/Command/PreprodCopyConversationsCommand.php</file>
             <file>src/Command/PreprodGenerateConversationsCommand.php</file>
             <file>src/Command/TestContextCommand.php</file>
