@@ -99,8 +99,20 @@ export function IocDetail() {
             </span>
           )}
         </div>
-        <h1 className="text-xl font-mono font-bold text-on-surface break-all">{detail.value}</h1>
-        <p className="text-sm font-mono text-on-surface-dim break-all">{detail.value_norm}</p>
+        {detail.type.toLowerCase() === 'url' || detail.type.toLowerCase() === 'domain' ? (
+          <>
+            <h1 className="text-xl font-mono font-bold text-on-surface break-all">{detail.value_norm}</h1>
+            <p className="text-xs text-on-surface-dim mt-1 flex items-center gap-2">
+              <span className="text-warning">⚠ Active — do not open:</span>
+              <span className="font-mono text-on-surface-dim break-all">{detail.value}</span>
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-xl font-mono font-bold text-on-surface break-all">{detail.value}</h1>
+            <p className="text-sm font-mono text-on-surface-dim break-all">{detail.value_norm}</p>
+          </>
+        )}
       </header>
 
       {/* Threat Actor attribution */}
@@ -162,35 +174,47 @@ function OverviewTab({ detail }: { detail: import('@/types/api').IocDetail }) {
         <MetaField label={t('iocDetail.tlp')} value={`TLP:${detail.tlp}`} />
       </div>
 
-      {/* Scoring */}
+      {/* Scoring — split into External Sources + ScamBuster Scoring */}
       <section className="bg-surface-low rounded-lg p-5 space-y-4">
         <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocDetail.scoring')}</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('conversationDetail.vtScore')}</label>
-            <ScoreBar value={'vt' in detail.score ? (detail.score.vt ?? 0) : 0} max={100} color="bg-error" />
-          </div>
-          <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('conversationDetail.urlScan')}</label>
-            <ScoreBar value={'urlscan' in detail.score ? (detail.score.urlscan ?? 0) : 0} max={100} color="bg-warning" />
-          </div>
-          <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.score')}</label>
-            <ScoreBar value={'agg' in detail.score ? (detail.score.agg ?? 0) : 0} max={100} color="bg-accent" />
-          </div>
-          <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.confidence')}</label>
-            <ScoreBar value={Math.round(detail.confidence * 100)} max={100} color="bg-success" />
-          </div>
-          <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.decayFactor')}</label>
-            <ScoreBar value={Math.round(detail.decay_factor * 100)} max={100} color="bg-on-surface-dim" />
-          </div>
-          <div>
-            <label className="text-xs text-on-surface-dim block mb-1">{t('iocExplorer.effectiveScore')}</label>
-            <ScoreBar value={Math.round(detail.effective_score * 100)} max={100} color="bg-accent" />
+
+        {/* External Sources */}
+        <div>
+          <span className="text-[0.625rem] text-on-surface-dim uppercase tracking-widest">External Sources</span>
+          <div className="grid grid-cols-2 gap-4 mt-2">
+            <div>
+              <label className="text-xs text-on-surface-dim block mb-1">VirusTotal</label>
+              <ScoreBar value={'vt' in detail.score ? (detail.score.vt ?? 0) : 0} max={72} color="bg-error" />
+              <span className="text-[0.5rem] text-on-surface-dim">/ 72 engines</span>
+            </div>
+            <div>
+              <label className="text-xs text-on-surface-dim block mb-1">URLScan</label>
+              <ScoreBar value={'urlscan' in detail.score ? (detail.score.urlscan ?? 0) : 0} max={100} color="bg-warning" />
+            </div>
           </div>
         </div>
+
+        <div className="border-t border-surface-high" />
+
+        {/* ScamBuster Scoring */}
+        <div>
+          <span className="text-[0.625rem] text-on-surface-dim uppercase tracking-widest">ScamBuster Scoring</span>
+          <div className="grid grid-cols-3 gap-4 mt-2">
+            <div>
+              <label className="text-xs text-on-surface-dim block mb-1">Extraction Confidence</label>
+              <ScoreBar value={Math.round(detail.confidence * 100)} max={100} color="bg-success" />
+            </div>
+            <div>
+              <label className="text-xs text-on-surface-dim block mb-1">Decay</label>
+              <ScoreBar value={Math.round(detail.decay_factor * 100)} max={100} color={detail.decay_factor > 0.8 ? 'bg-success' : detail.decay_factor > 0.5 ? 'bg-warning' : 'bg-error'} />
+            </div>
+            <div title="Composite: confidence × decay">
+              <label className="text-xs text-on-surface-dim block mb-1">Effective Score</label>
+              <ScoreBar value={Math.round(detail.effective_score * 100)} max={100} color="bg-accent" />
+            </div>
+          </div>
+        </div>
+
         {/* eslint-disable-next-line react-hooks/purity */}
         <ScoringExplain score={detail.score} ageDays={Math.floor((Date.now() - new Date(detail.first_seen).getTime()) / 86400000)} />
       </section>
@@ -471,9 +495,22 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
         </div>
       </div>
 
-      {/* Semantic Role */}
+      {/* Enriched sections — reordered: Excerpt → Role → Signals → Metadata */}
       {status === 'enriched' && ctx.semantic && (
         <>
+          {/* Context Excerpt — first (most impactful for CTI triage) */}
+          {ctx.semantic.context_excerpt && (
+            <div className="border-t border-surface-high p-5">
+              <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest mb-2">
+                {t('iocContext.contextExcerpt')}
+              </h3>
+              <p className="text-sm text-on-surface-variant bg-surface-base rounded-lg p-3 italic">
+                &ldquo;{ctx.semantic.context_excerpt}&rdquo;
+              </p>
+            </div>
+          )}
+
+          {/* Semantic Role */}
           <div className="border-t border-surface-high p-5 space-y-4">
             <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
               {t('iocContext.semanticRole')}
@@ -538,18 +575,6 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
               </div>
             </div>
           </div>
-
-          {/* Context Excerpt */}
-          {ctx.semantic.context_excerpt && (
-            <div className="border-t border-surface-high p-5">
-              <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest mb-2">
-                {t('iocContext.contextExcerpt')}
-              </h3>
-              <p className="text-sm text-on-surface-variant bg-surface-base rounded-lg p-3 italic">
-                &ldquo;{ctx.semantic.context_excerpt}&rdquo;
-              </p>
-            </div>
-          )}
         </>
       )}
 
