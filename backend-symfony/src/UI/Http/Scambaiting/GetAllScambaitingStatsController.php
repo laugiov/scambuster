@@ -59,9 +59,14 @@ final class GetAllScambaitingStatsController extends AbstractController
     {
         $aggregatedStats = $this->statsRepository->getAggregatedStatsByScamType();
 
-        return new JsonResponse([
+        $response = new JsonResponse([
             'success' => true,
             'data' => $aggregatedStats,
         ], Response::HTTP_OK);
+
+        $response->setMaxAge(120); // Cache 2 minutes
+        $response->setPublic();
+
+        return $response;
     }
 }

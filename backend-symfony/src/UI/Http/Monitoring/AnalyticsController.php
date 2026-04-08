@@ -17,9 +17,23 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 #[OA\Tag(name: 'Analytics')]
 final class AnalyticsController
 {
+    private const CACHE_MAX_AGE = 60; // 1 minute
+
     public function __construct(
         private readonly AnalyticsHandler $handler,
     ) {
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function cachedJson(array $data): JsonResponse
+    {
+        $response = new JsonResponse($data);
+        $response->setMaxAge(self::CACHE_MAX_AGE);
+        $response->setPublic();
+
+        return $response;
     }
 
     #[OA\Get(
@@ -37,7 +51,7 @@ final class AnalyticsController
     {
         $days = (int) $request->query->get('days', '30');
 
-        return new JsonResponse($this->handler->getIocTimeline($days), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getIocTimeline($days));
     }
 
     #[OA\Get(
@@ -55,7 +69,7 @@ final class AnalyticsController
     {
         $days = (int) $request->query->get('days', '30');
 
-        return new JsonResponse($this->handler->getConversationTimeline($days), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getConversationTimeline($days));
     }
 
     #[OA\Get(
@@ -68,7 +82,7 @@ final class AnalyticsController
     #[Route('/ioc-distribution', name: 'api_analytics_ioc_distribution', methods: ['GET'])]
     public function iocDistribution(): JsonResponse
     {
-        return new JsonResponse($this->handler->getIocDistribution(), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getIocDistribution());
     }
 
     #[OA\Get(
@@ -81,7 +95,7 @@ final class AnalyticsController
     #[Route('/scam-distribution', name: 'api_analytics_scam_distribution', methods: ['GET'])]
     public function scamDistribution(): JsonResponse
     {
-        return new JsonResponse($this->handler->getScamDistribution(), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getScamDistribution());
     }
 
     #[OA\Get(
@@ -99,7 +113,7 @@ final class AnalyticsController
     {
         $days = (int) $request->query->get('days', '30');
 
-        return new JsonResponse($this->handler->getCostTimeline($days), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getCostTimeline($days));
     }
 
     #[OA\Get(
@@ -117,7 +131,7 @@ final class AnalyticsController
     {
         $days = (int) $request->query->get('days', '30');
 
-        return new JsonResponse($this->handler->getPipelineTimeline($days), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getPipelineTimeline($days));
     }
 
     #[OA\Get(
@@ -135,7 +149,7 @@ final class AnalyticsController
     {
         $limit = (int) $request->query->get('limit', '10');
 
-        return new JsonResponse($this->handler->getActivityFeed($limit), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getActivityFeed($limit));
     }
 
     #[OA\Get(
@@ -148,6 +162,6 @@ final class AnalyticsController
     #[Route('/weekly-trends', name: 'api_analytics_weekly_trends', methods: ['GET'])]
     public function weeklyTrends(): JsonResponse
     {
-        return new JsonResponse($this->handler->getWeeklyTrends(), Response::HTTP_OK);
+        return $this->cachedJson($this->handler->getWeeklyTrends());
     }
 }
