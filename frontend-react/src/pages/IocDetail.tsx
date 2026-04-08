@@ -9,6 +9,7 @@ import { IocTimeline } from '@/components/ioc/IocTimeline';
 import { ThreatActorSummaryCard } from '@/components/ioc/ThreatActorSummaryCard';
 import { useThreatActorSummary } from '@/hooks/useThreatActor';
 import { timeSince } from '@/lib/time';
+import { scamTypeLabel, scamTypeColor, humanize } from '@/lib/scamTypeLabels';
 import type { IocObservation, IocRelated, IocContextEntry } from '@/types/api';
 
 function formatNonAmbiguousDate(iso: string): string {
@@ -190,17 +191,21 @@ function OverviewTab({ detail }: { detail: import('@/types/api').IocDetail }) {
             <ScoreBar value={Math.round(detail.effective_score * 100)} max={100} color="bg-accent" />
           </div>
         </div>
-        {'explain' in detail.score && detail.score.explain && (
-          <p className="text-sm text-on-surface-variant bg-surface-base rounded-lg p-3 mt-2">
-            {detail.score.explain}
-          </p>
-        )}
+        {/* eslint-disable-next-line react-hooks/purity */}
+        <ScoringExplain score={detail.score} ageDays={Math.floor((Date.now() - new Date(detail.first_seen).getTime()) / 86400000)} />
       </section>
 
-      {/* Observation Timeline */}
-      {detail.observations.length > 0 && (
+      {/* Observation Timeline — only show chart if ≥ 3 observations */}
+      {detail.observations.length >= 3 ? (
         <IocTimeline observations={detail.observations} />
-      )}
+      ) : detail.observations.length > 0 ? (
+        <section className="bg-surface-low rounded-lg p-5">
+          <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-3">Observation Timeline</h3>
+          <p className="text-sm text-on-surface-variant">
+            Observed {detail.occurrences} time{detail.occurrences !== 1 ? 's' : ''} · First seen: {formatNonAmbiguousDate(detail.first_seen)}
+          </p>
+        </section>
+      ) : null}
 
       {/* MISP + STIX */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -259,7 +264,7 @@ function ObservationsTab({ observations }: { observations: IocObservation[] }) {
         <tbody className="text-sm">
           {observations.map((obs) => (
             <tr key={obs.obs_id} className="hover:bg-surface-high/50 transition-colors">
-              <td className="px-5 py-3 text-on-surface-dim text-xs">{timeSince(obs.ts_observed)}</td>
+              <td className="px-5 py-3 text-on-surface-dim text-xs" title={timeSince(obs.ts_observed)}>{formatNonAmbiguousDate(obs.ts_observed)}</td>
               <td className="px-5 py-3">
                 <Link
                   to={`/conversations/${obs.conv_id}`}
@@ -269,11 +274,11 @@ function ObservationsTab({ observations }: { observations: IocObservation[] }) {
                 </Link>
               </td>
               <td className="px-5 py-3">
-                <span className="text-xs uppercase bg-surface-high px-2 py-0.5 rounded text-on-surface-variant">
-                  {obs.conv_scam_type}
+                <span className={`text-xs px-2 py-0.5 rounded font-medium ${scamTypeColor(obs.conv_scam_type)}`}>
+                  {scamTypeLabel(obs.conv_scam_type)}
                 </span>
               </td>
-              <td className="px-5 py-3 text-xs text-on-surface-dim font-mono">{obs.extraction_method}</td>
+              <td className="px-5 py-3 text-xs text-on-surface-dim font-mono">{obs.extraction_method === 'llm' ? 'LLM' : obs.extraction_method === 'regex' ? 'Regex' : obs.extraction_method === 'header' ? 'Header' : obs.extraction_method}</td>
               <td className="px-5 py-3">
                 <span className={`text-xs px-2 py-0.5 rounded ${
                   obs.conv_status === 'open' ? 'bg-success/20 text-success' :
@@ -459,10 +464,10 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
 
         {/* Metadata grid */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {s.scam_type && <MetaField label={t('iocContext.scamType')} value={s.scam_type} />}
+          {s.scam_type && <MetaField label={t('iocContext.scamType')} value={scamTypeLabel(s.scam_type)} />}
           {s.persona_code && <MetaField label={t('iocContext.persona')} value={s.persona_label ?? s.persona_code} />}
-          {s.extraction_method && <MetaField label={t('iocContext.extraction')} value={s.extraction_method} />}
-          {s.engagement_hours != null && <MetaField label={t('iocContext.engagement')} value={`${s.engagement_hours}h`} />}
+          {s.extraction_method && <MetaField label={t('iocContext.extraction')} value={s.extraction_method === 'llm' ? 'LLM' : s.extraction_method === 'regex' ? 'Regex' : s.extraction_method === 'header' ? 'Header' : s.extraction_method} />}
+          {s.engagement_hours != null && <MetaField label={t('iocContext.engagement')} value={s.engagement_hours === 0 ? 'Turn 1 · Initial email' : `${s.engagement_hours}h`} />}
         </div>
       </div>
 
@@ -476,10 +481,10 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
             {ctx.semantic.role && (
               <div className="flex items-center gap-3">
                 <span className={`text-sm font-bold px-3 py-1 rounded ${ROLE_COLORS[ctx.semantic.role] ?? ROLE_COLORS.UNKNOWN}`}>
-                  {ctx.semantic.role}
+                  {humanize(ctx.semantic.role)}
                 </span>
                 {ctx.semantic.enrichment_confidence != null && (
-                  <span className="text-xs text-on-surface-dim">
+                  <span className={`text-xs ${ctx.semantic.enrichment_confidence >= 0.7 ? 'text-success' : 'text-warning'}`}>
                     {t('iocContext.confidence')}: {Math.round(ctx.semantic.enrichment_confidence * 100)}%
                   </span>
                 )}
@@ -584,7 +589,7 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
       {/* Footer: enrichment status + computed_at */}
       <div className="border-t border-surface-high px-5 py-3 flex items-center gap-4 text-xs text-on-surface-dim">
         <span>{t('iocContext.enrichmentStatus')}: {statusStyle.label}</span>
-        {ctx.computed_at && <span>{t('iocContext.computedAt')}: {new Date(ctx.computed_at).toLocaleString()}</span>}
+        {ctx.computed_at && <span>{t('iocContext.computedAt')}: {formatNonAmbiguousDate(ctx.computed_at)}</span>}
       </div>
     </div>
   );
@@ -597,6 +602,34 @@ function MetaField({ label, value }: { label: string; value: string }) {
       <p className="text-sm font-medium text-on-surface">{value}</p>
     </div>
   );
+}
+
+function ScoringExplain({ score, ageDays }: { score: { vt?: number; urlscan?: number; explain?: string }; ageDays: number }) {
+  const explain = score.explain ?? '';
+  const noExternal = (score.vt ?? 0) === 0 && (score.urlscan ?? 0) === 0;
+
+  if (noExternal && ageDays < 7) {
+    return (
+      <p className="text-sm text-warning bg-warning/10 rounded-lg p-3 mt-2">
+        No external detections — recent indicator, scanners may not have indexed it yet.
+      </p>
+    );
+  }
+  if (noExternal && ageDays > 30) {
+    return (
+      <p className="text-sm text-on-surface-dim bg-surface-base rounded-lg p-3 mt-2">
+        No external detections after {ageDays} days.
+      </p>
+    );
+  }
+  if (explain) {
+    return (
+      <p className="text-sm text-on-surface-variant bg-surface-base rounded-lg p-3 mt-2">
+        {explain}
+      </p>
+    );
+  }
+  return null;
 }
 
 export default IocDetail;

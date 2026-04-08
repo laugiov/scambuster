@@ -8,10 +8,11 @@ import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { Pagination } from '@/components/ui/Pagination';
 import type { Ioc } from '@/types/api';
-import { timeSince } from '@/lib/time';
+import { timeSince, formatShortTimestamp } from '@/lib/time';
 import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
 import { iocSeverity as computeIocSeverityInfo } from '@/lib/iocSeverity';
-import { scamTypeLabel, scamTypeColor, humanize } from '@/lib/scamTypeLabels';
+import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
+import { iocTypeLabel } from '@/lib/iocTypeLabels';
 
 function computeIocSeverity(type: string, vt: number, urlscan: number): string {
   return computeIocSeverityInfo(type, vt, urlscan).label;
@@ -87,6 +88,14 @@ export function IocExplorer() {
   const [dateRange, setDateRange] = useState<string>('All');
   const [hideHeaders, setHideHeaders] = useState(true);
   const [hasContextOnly, setHasContextOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<'ts_observed' | 'confidence' | 'severity'>('ts_observed');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    else { setSortKey(key); setSortDir('desc'); }
+    setPage(1);
+  };
 
   const filtered = useMemo(() => {
     if (!iocs) return [];
@@ -128,6 +137,23 @@ export function IocExplorer() {
     });
   }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders, hasContextOnly]);
 
+  const sorted = useMemo(() => {
+    const SEVERITY_ORDER: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+    return [...filtered].sort((a, b) => {
+      let va: number, vb: number;
+      switch (sortKey) {
+        case 'confidence': va = a.effective_score ?? a.confidence ?? 0; vb = b.effective_score ?? b.confidence ?? 0; break;
+        case 'severity': {
+          const sa = computeIocSeverity(a.type, a.score?.vt ?? 0, a.score?.urlscan ?? 0);
+          const sb = computeIocSeverity(b.type, b.score?.vt ?? 0, b.score?.urlscan ?? 0);
+          va = SEVERITY_ORDER[sa] ?? 0; vb = SEVERITY_ORDER[sb] ?? 0; break;
+        }
+        default: va = new Date(a.ts_observed).getTime(); vb = new Date(b.ts_observed).getTime();
+      }
+      return sortDir === 'desc' ? vb - va : va - vb;
+    });
+  }, [filtered, sortKey, sortDir]);
+
   if (isLoading) return <Loading message={t('iocExplorer.loading')} />;
   if (error) return <ErrorMessage message={t('iocExplorer.failedLoad')} onRetry={() => void refetch()} />;
 
@@ -143,7 +169,7 @@ export function IocExplorer() {
           <div className="ml-8 flex items-center gap-3">
             <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} placeholder={t('iocExplorer.searchPlaceholder')} ariaLabel="Search IOCs" />
             <ExportCsvButton
-              data={filtered as unknown as Record<string, unknown>[]}
+              data={sorted as unknown as Record<string, unknown>[]}
               columns={[
                 { key: 'type', header: 'Type' },
                 { key: 'value', header: 'Value' },
@@ -154,12 +180,12 @@ export function IocExplorer() {
               ]}
               filename={`scambuster-iocs-${new Date().toISOString().slice(0, 10)}.csv`}
             />
-            <ExportStixButton indicatorIds={filtered.map((ioc) => ioc.ioc_id)} count={filtered.length} />
+            <ExportStixButton indicatorIds={sorted.map((ioc) => ioc.ioc_id)} count={sorted.length} />
           </div>
         </div>
       </header>
 
-      <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={filtered.length} typeFilters={typeFilters} />
+      <FilterBar typeFilter={typeFilter} onTypeChange={setTypeFilter} total={sorted.length} typeFilters={typeFilters} />
 
       <AdvancedFilters
         severity={severity}
@@ -174,10 +200,10 @@ export function IocExplorer() {
         onHasContextOnlyChange={(v) => { setHasContextOnly(v); setPage(1); }}
       />
 
-      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
+      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={sorted.length} onPageChange={setPage} />
 
-      <IocTable iocs={filtered.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} />
-      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
+      <IocTable iocs={sorted.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+      <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={sorted.length} onPageChange={setPage} />
     </div>
   );
 }
@@ -297,7 +323,23 @@ function AdvancedFilters({
   );
 }
 
-function IocTable({ iocs }: { iocs: Ioc[] }) {
+type SortKey = 'ts_observed' | 'confidence' | 'severity';
+
+function SortTh({ label, sortKey: key, current, dir, onSort }: {
+  label: string; sortKey: SortKey; current: SortKey; dir: 'asc' | 'desc'; onSort: (k: SortKey) => void;
+}) {
+  const isActive = current === key;
+  return (
+    <th className="px-5 py-3 font-medium cursor-pointer select-none hover:text-on-surface transition-colors" onClick={() => onSort(key)}>
+      {label}
+      <span className={`ml-1.5 inline-block text-[0.6rem] ${isActive ? 'text-accent' : 'text-on-surface-dim'}`}>
+        {isActive ? (dir === 'desc' ? '▼' : '▲') : '⇅'}
+      </span>
+    </th>
+  );
+}
+
+function IocTable({ iocs, sortKey, sortDir, onSort }: { iocs: Ioc[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -310,9 +352,9 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
             <th className="px-5 py-3 font-medium">{t('iocExplorer.type')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.value')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.scamType')}</th>
-            <th className="px-5 py-3 font-medium">{t('iocExplorer.score')}</th>
-            <th className="px-5 py-3 font-medium">{t('iocExplorer.confidence')}</th>
-            <th className="px-5 py-3 font-medium">{t('iocExplorer.lastSeen')}</th>
+            <SortTh label={t('iocExplorer.score')} sortKey="severity" current={sortKey} dir={sortDir} onSort={onSort} />
+            <SortTh label={t('iocExplorer.confidence')} sortKey="confidence" current={sortKey} dir={sortDir} onSort={onSort} />
+            <SortTh label={t('iocExplorer.lastSeen')} sortKey="ts_observed" current={sortKey} dir={sortDir} onSort={onSort} />
             <th className="px-5 py-3 font-medium text-center"></th>
           </tr>
         </thead>
@@ -332,7 +374,7 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                   {ioc.obs_id.slice(0, 8)}
                 </td>
                 <td className="px-5 py-3">
-                  <span className="text-xs text-on-surface-variant">{humanize(ioc.type)}</span>
+                  <span className="text-xs text-on-surface-variant">{iocTypeLabel(ioc.type)}</span>
                   {ioc.has_context && (
                     <span className="ml-1 text-accent" title="Has contextual enrichment">&#10024;</span>
                   )}
@@ -370,7 +412,7 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                   })()}
                 </td>
                 <td className="px-5 py-3 text-on-surface-dim text-xs">
-                  {timeSince(ioc.ts_observed)}
+                  <span title={timeSince(ioc.ts_observed)}>{formatShortTimestamp(ioc.ts_observed)}</span>
                 </td>
                 <td className="px-5 py-3 text-center text-on-surface-dim">
                   <svg className="w-4 h-4 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
