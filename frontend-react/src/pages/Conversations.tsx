@@ -228,12 +228,12 @@ function SortHeader({ label, sortKey: key, current, dir, onSort }: {
   const isActive = current === key;
   return (
     <th
-      className="text-left px-5 py-3 font-medium cursor-pointer select-none hover:text-on-surface-variant transition-colors"
+      className="text-left px-5 py-3 font-medium cursor-pointer select-none hover:text-on-surface transition-colors"
       onClick={() => onSort(key)}
     >
       {label}
-      <span className="ml-1 inline-block w-3 text-center">
-        {isActive ? (dir === 'desc' ? '▼' : '▲') : ''}
+      <span className={`ml-1 inline-block text-[0.5rem] ${isActive ? 'text-accent' : 'text-on-surface-dim/40'}`}>
+        {isActive ? (dir === 'desc' ? '▼' : '▲') : '⇅'}
       </span>
     </th>
   );
