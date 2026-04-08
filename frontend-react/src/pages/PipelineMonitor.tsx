@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { StatCard } from '@/components/ui/StatCard';
+import { scamTypeLabel, humanize } from '@/lib/scamTypeLabels';
 import { Badge } from '@/components/ui/Badge';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -186,9 +187,9 @@ export default function PipelineMonitor() {
       {health && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard label="Replies" value={String(health.total_replies)} subtitle={`Last ${period.label}`} />
-          <StatCard label="Avg Cost" value={`$${health.avg_cost.toFixed(4)}`} subtitle={`Today: $${health.cost_today.toFixed(2)}`} />
-          <StatCard label="Avg Duration" value={`${(health.avg_duration_ms / 1000).toFixed(1)}s`} />
-          <StatCard label="Approval Rate" value={`${(health.approval_rate * 100).toFixed(0)}%`} subtitle={`Fallback: ${(health.fallback_rate * 100).toFixed(0)}%`} />
+          <StatCard label="Avg Cost" value={health.total_replies > 0 ? `$${health.avg_cost.toFixed(4)}` : 'N/A'} subtitle={`Today: $${health.cost_today.toFixed(2)}`} />
+          <StatCard label="Avg Duration" value={health.total_replies > 0 ? `${(health.avg_duration_ms / 1000).toFixed(1)}s` : 'N/A'} />
+          <StatCard label="Approval Rate" value={health.total_replies > 0 ? `${(health.approval_rate * 100).toFixed(0)}%` : 'N/A'} subtitle={health.total_replies > 0 ? `Fallback: ${(health.fallback_rate * 100).toFixed(0)}%` : ''} />
         </div>
       )}
 
@@ -219,8 +220,8 @@ export default function PipelineMonitor() {
                   onClick={() => trace.msg_id && handleExpand(trace.msg_id)}
                 >
                   <span className="font-mono text-xs text-on-surface-dim w-20 truncate">{(trace.conversation_id || '').substring(0, 8)}</span>
-                  <Badge label={trace.persona} variant="default" />
-                  <Badge label={trace.scam_type} variant="default" />
+                  <Badge label={humanize(trace.persona)} variant="default" />
+                  <Badge label={scamTypeLabel(trace.scam_type)} variant="default" />
                   <span className="text-sm text-on-surface-dim">{(trace.total_duration_ms / 1000).toFixed(1)}s</span>
                   <span className="text-sm text-on-surface-dim">${trace.total_cost.toFixed(4)}</span>
                   <span className="text-xs text-on-surface-dim">×{trace.attempts}</span>

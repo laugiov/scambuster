@@ -109,10 +109,17 @@ export default function InjectionMonitoring() {
 
       {/* Alerts */}
       {stats.recent_alerts.length === 0 ? (
-        <div className="bg-success/10 border border-success/30 rounded-lg p-6 text-center">
-          <p className="text-success font-semibold">No injection threats detected</p>
-          <p className="text-on-surface-dim text-sm mt-1">Last {period.label} — {stats.analyzed} messages analyzed</p>
-        </div>
+        stats.analyzed === 0 ? (
+          <div className="bg-warning/10 border border-warning/30 rounded-lg p-6 text-center">
+            <p className="text-warning font-semibold">No data available for this period</p>
+            <p className="text-on-surface-dim text-sm mt-1">Last {period.label} — 0 messages analyzed</p>
+          </div>
+        ) : (
+          <div className="bg-success/10 border border-success/30 rounded-lg p-6 text-center">
+            <p className="text-success font-semibold">No injection threats detected</p>
+            <p className="text-on-surface-dim text-sm mt-1">Last {period.label} — {stats.analyzed} messages analyzed</p>
+          </div>
+        )
       ) : (
         <div className="bg-surface-high rounded-lg overflow-hidden">
           <div className="px-4 py-3 border-b border-surface-highest">
