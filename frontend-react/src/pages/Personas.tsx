@@ -51,7 +51,7 @@ export function Personas() {
         <StatCard label={t('personas.explorationRate')} value={epsilon.toFixed(2)} subtitle={t('personas.epsilon')} />
         <StatCard label={t('personas.totalSessions')} value={totalSessions} />
         <StatCard
-          label={t('personas.convergenceRate')}
+          label="Best Avg Reward"
           value={bestPersona?.global_avg_reward.toFixed(2) ?? '--'}
           subtitle={bestPersona ? personaDisplayName(config, bestPersona.persona_code) : '--'}
           subtitleColor="text-accent"
@@ -96,6 +96,12 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
     }
   }, [onSelect]);
 
+  // Sort: pulls desc, then avg reward desc (significant data first, cold start at bottom)
+  const sorted = [...personas].sort((a, b) => {
+    if (b.total_sessions !== a.total_sessions) return b.total_sessions - a.total_sessions;
+    return b.global_avg_reward - a.global_avg_reward;
+  });
+
   return (
     <div className="bg-surface-low rounded-lg p-6">
       <div className="flex items-center justify-between mb-4">
@@ -114,8 +120,9 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
           </tr>
         </thead>
         <tbody className="text-sm">
-          {personas.map((p) => {
+          {sorted.map((p) => {
             const isSelected = p.persona_code === selectedCode;
+            const isLowPull = p.total_sessions < 3;
             return (
               <tr
                 key={p.persona_code}
@@ -126,7 +133,7 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
                 aria-pressed={isSelected}
                 className={`transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent ${
                   isSelected ? 'bg-surface-high' : 'hover:bg-surface-high/50'
-                }`}
+                } ${isLowPull ? 'opacity-50' : ''}`}
               >
                 <td className="py-3 font-medium text-on-surface">{personaDisplayName(config, p.persona_code)}</td>
                 <td className="py-3 text-on-surface-variant font-mono text-xs">{p.total_sessions}</td>
@@ -162,6 +169,7 @@ function PerformanceMatrix({ personas, selectedCode, onSelect, config }: {
           )}
         </tbody>
       </table>
+      <p className="text-[0.625rem] text-on-surface-dim mt-3 px-1">Performances with &lt; 3 sessions are indicative only (shown dimmed).</p>
     </div>
   );
 }
@@ -202,6 +210,7 @@ function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConf
         </div>
 
         <InfoField label={t('personas.minPullsBeforeExploit')} value={String(bandit?.min_sessions_for_convergence ?? 50)} />
+        <p className="text-[0.625rem] text-warning/70 italic">No persona has reached this threshold yet. Algorithm in pure exploration mode.</p>
 
         <div>
           <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">{t('personas.resetOnNewCampaign')}</span>
@@ -216,7 +225,7 @@ function BanditSettings({ epsilon, config }: { epsilon: number; config: MetaConf
         <div className="grid grid-cols-2 gap-2">
           {bandit?.reward_weights ? (
             Object.entries(bandit.reward_weights).map(([key, val]) => (
-              <RewardWeight key={key} label={key.replace(/_/g, ' ')} value={val.toFixed(2)} />
+              <RewardWeight key={key} label={key === 'iocs_sensibles' ? 'high-value IOCs' : key.replace(/_/g, ' ')} value={val.toFixed(2)} />
             ))
           ) : (
             <p className="text-xs text-on-surface-dim col-span-2">{t('personas.loadingWeights')}</p>
