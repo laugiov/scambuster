@@ -386,3 +386,27 @@ After each phase completion:
 | N+1 queries | Unknown | 0 |
 | External call timeouts configured | Unknown | 100% |
 | CI cache | No | Yes |
+| Frontend coverage in Codecov | No | Yes |
+| Bundle size CI gate | No | Yes |
+| ESLint consistent-type-imports | No | Yes |
+
+---
+
+## Scope Decisions (documented post-implementation)
+
+### Circuit breaker (P4-1): Descoped
+
+**Original spec**: Add circuit breaker pattern (CLOSED/OPEN/HALF_OPEN) with Redis-backed state.
+**Decision**: Descoped. The `ReplyOrchestrator` already implements a 3-attempt retry loop with feedback at the application level. Adding HTTP-level retry + circuit breaker inside each LLM adapter would create 3×3=9 total attempts on failure, worsening response times. For a single-user academic project, the existing retry is sufficient.
+**What was done instead**: Added explicit 30s timeouts to 2 services that were missing them (OpenAIService, EmbeddingService).
+
+### 403 authorization tests (P2-3): Descoped
+
+**Original spec**: "Add 403 authorization tests for endpoints that require specific permissions."
+**Decision**: Cannot test in current architecture. The `PermissionVoter` grants all permissions to `ROLE_USER` for `InMemoryUser` in test environment (line 51). Testing real 403 would require creating a DB user without specific permissions — a refactoring beyond consolidation scope.
+**What was done instead**: 401 (unauthorized) tests are covered for all endpoint groups.
+
+### Frontend re-render audit (P3-3): No issues found
+
+**Original spec**: "Audit unnecessary re-renders on key pages."
+**Finding**: 0 React.memo, 3 useMemo, 3 useCallback. All key props present in map() calls. TanStack Query handles data dedup. Zustand store is minimal (auth only). No re-render issues identified — the app is small enough that memoization adds complexity without measurable benefit.
