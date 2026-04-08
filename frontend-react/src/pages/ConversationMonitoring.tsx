@@ -5,6 +5,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import type { ConversationTimeoutRow } from '@/types/api';
+import { scamTypeLabel, humanize } from '@/lib/scamTypeLabels';
 
 function formatRelativeTime(isoDate: string): string {
   const diff = Date.now() - new Date(isoDate).getTime();
@@ -37,10 +38,10 @@ function TimeoutTable({ rows, t }: { rows: ConversationTimeoutRow[]; t: (key: st
               <td className="py-2 font-mono text-xs text-accent">{row.conv_id.slice(0, 8)}</td>
               <td className="py-2">
                 <span className="px-2 py-0.5 rounded-full text-xs bg-surface-high text-on-surface">
-                  {row.scam_type}
+                  {scamTypeLabel(row.scam_type)}
                 </span>
               </td>
-              <td className="py-2 text-on-surface-variant">{row.persona || '--'}</td>
+              <td className="py-2 text-on-surface-variant">{row.persona ? humanize(row.persona) : '--'}</td>
               <td className="py-2 text-on-surface-variant">{formatRelativeTime(row.last_activity)}</td>
               <td className="py-2">
                 <span className={`font-medium ${row.hours_remaining < 6 ? 'text-error' : row.hours_remaining < 12 ? 'text-warning' : 'text-on-surface'}`}>

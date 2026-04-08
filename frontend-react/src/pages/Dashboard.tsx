@@ -14,6 +14,7 @@ import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { useActivityFeed, useWeeklyTrends, type WeeklyTrend } from '@/hooks/useAnalytics';
 import { useAllIocs } from '@/hooks/useIocs';
 import { timeSince } from '@/lib/time';
+import { scamTypeLabel } from '@/lib/scamTypeLabels';
 
 export function Dashboard() {
   const { t } = useTranslation();
@@ -191,7 +192,7 @@ export function Dashboard() {
                     <td className="py-2.5 text-accent font-mono text-xs">
                       {conv.conv_id.slice(0, 8)}
                     </td>
-                    <td className="py-2.5 text-on-surface-variant">{conv.scam_type ?? '--'}</td>
+                    <td className="py-2.5 text-on-surface-variant">{conv.scam_type ? scamTypeLabel(conv.scam_type) : '--'}</td>
                     <td className="py-2.5 text-on-surface-variant">
                       {conv.persona ? personaDisplayName(config, conv.persona) : '--'}
                     </td>

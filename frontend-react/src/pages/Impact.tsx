@@ -8,6 +8,7 @@ import { useImpactSummary, useIocUniqueness } from '@/hooks/useImpact';
 import type { IocTypeEntry } from '@/hooks/useImpact';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
+import { iocTypeLabel } from '@/lib/iocTypeLabels';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
 const CHART_COLORS = ['#3b82f6', '#4ade80', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#adc6ff', '#fb923c'];
@@ -122,7 +123,7 @@ export function Impact() {
           }
         />
         <StatCard
-          label={t('impact.novel_iocs')}
+          label={<span title="IOCs with 0 VirusTotal/URLScan detections at time of extraction">{t('impact.novel_iocs')}</span>}
           value={`${ioc_value.novel_pct}%`}
           subtitle={
             <>
@@ -175,7 +176,7 @@ export function Impact() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={pieData}
+                  data={pieData.map((d) => ({ ...d, type: iocTypeLabel(d.type) }))}
                   dataKey="count"
                   nameKey="type"
                   cx="50%"
