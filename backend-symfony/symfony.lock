@@ -299,9 +299,6 @@
             "config/packages/validator.yaml"
         ]
     },
-    "symfonycasts/verify-email-bundle": {
-        "version": "v1.17.3"
-    },
     "twig/extra-bundle": {
         "version": "v3.21.0"
     }
