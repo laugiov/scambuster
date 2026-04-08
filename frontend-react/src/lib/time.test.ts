@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { timeSince } from './time';
+import { timeSince, formatShortTimestamp } from './time';
 
 describe('timeSince', () => {
   it('returns seconds ago for recent dates', () => {
@@ -30,5 +30,23 @@ describe('timeSince', () => {
   it('returns "--" for invalid dates', () => {
     expect(timeSince('not-a-date')).toBe('--');
     expect(timeSince('')).toBe('--');
+  });
+});
+
+describe('formatShortTimestamp', () => {
+  it('formats recent date with time', () => {
+    const yesterday = new Date(Date.now() - 86_400_000);
+    const result = formatShortTimestamp(yesterday.toISOString());
+    expect(result).toMatch(/\w{3} \d{1,2}, \d{2}:\d{2}/);
+  });
+
+  it('formats old date without time', () => {
+    const old = new Date(Date.now() - 10 * 86_400_000);
+    const result = formatShortTimestamp(old.toISOString());
+    expect(result).toMatch(/\w{3} \d{1,2}$/);
+  });
+
+  it('returns -- for invalid date', () => {
+    expect(formatShortTimestamp('invalid')).toBe('--');
   });
 });

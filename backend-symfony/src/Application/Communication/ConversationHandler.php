@@ -224,6 +224,33 @@ class ConversationHandler
     }
 
     /**
+     * @param list<string> $convIds
+     *
+     * @return array<string, int> conv_id => ioc count
+     */
+    public function getIocCountsForConversations(array $convIds): array
+    {
+        if (\count($convIds) === 0) {
+            return [];
+        }
+
+        /** @var list<array{conv_id: string, cnt: string}> $rows */
+        $rows = $this->em->getConnection()->fetchAllAssociative(
+            "SELECT m.conv_id, COUNT(DISTINCT oi.obs_id) as cnt FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id JOIN indicator i ON oi.indicator_id = i.indicator_id WHERE m.conv_id IN (?) AND i.type NOT IN ('dmarc_result', 'spf_result', 'dkim_result') AND i.value NOT LIKE '%@scambuster.local' GROUP BY m.conv_id",
+            [$convIds],
+            [\Doctrine\DBAL\ArrayParameterType::STRING]
+        );
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(string) $row['conv_id']] = (int) $row['cnt'];
+        }
+
+        return $counts;
+    }
+
+    /**
      * Get paginated messages for a conversation.
      *
      * @return array{total: int, messages: array<int, mixed>}
