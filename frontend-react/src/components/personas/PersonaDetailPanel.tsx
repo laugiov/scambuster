@@ -1,7 +1,14 @@
 import { useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePersonaDetail } from '@/hooks/usePersonas';
+import { scamTypeLabel } from '@/lib/scamTypeLabels';
 import type { PersonaSummary } from '@/types/api';
+
+function formatPersonaDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '--';
+  return `${d.toLocaleString('en-US', { month: 'short' })} ${d.getDate()}, ${d.getFullYear()}`;
+}
 
 interface PersonaDetailPanelProps {
   personaCode: string;
@@ -54,11 +61,31 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
 
       {detail && (
         <>
+          {/* Performance first (most analytical value) */}
+          {performance && performance.performance_by_scam_type.length > 0 && (
+            <div>
+              <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">
+                {t('personas.performanceByScamType')}
+              </span>
+              <div className="space-y-1">
+                {performance.performance_by_scam_type.map((st) => (
+                  <div key={st.scam_type_code} className={`flex items-center justify-between bg-surface-base rounded p-2 ${(st.sessions_count ?? st.total_pulls ?? 0) < 3 ? 'opacity-50' : ''}`}>
+                    <span className="text-xs text-on-surface-variant">{scamTypeLabel(st.scam_type_code)}</span>
+                    <div className="flex items-center gap-4">
+                      <span className="text-xs text-on-surface-dim">{st.sessions_count ?? st.total_pulls ?? 0} pulls</span>
+                      <span className="text-xs font-mono font-bold text-accent">{(st.reward_avg ?? st.avg_reward ?? 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Metadata */}
           <div className="grid grid-cols-3 gap-3">
             <MetaField label={t('personas.code')} value={detail.persona_code} />
-            <MetaField label={t('personas.createdBy', 'Created by')} value={detail.created_by} />
-            <MetaField label={t('personas.createdAt', 'Created')} value={new Date(detail.created_at).toLocaleDateString()} />
+            <MetaField label={t('personas.createdBy', 'Created by')} value={detail.created_by === 'fixture' ? 'System' : detail.created_by} />
+            <MetaField label={t('personas.createdAt', 'Created')} value={formatPersonaDate(detail.created_at)} />
           </div>
 
           {/* Tone */}
@@ -76,34 +103,14 @@ export function PersonaDetailPanel({ personaCode, performance, onClose }: Person
           </div>
 
           {/* System prompt */}
-          <div>
-            <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-1">
+          <details>
+            <summary className="text-xs font-bold text-on-surface-dim uppercase tracking-widest cursor-pointer mb-1">
               {t('personas.systemPrompt', 'System Prompt')}
-            </span>
-            <div className="bg-surface-base rounded p-3 text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap">
+            </summary>
+            <div className="bg-surface-base rounded p-3 text-sm text-on-surface-variant leading-relaxed whitespace-pre-wrap mt-1">
               {detail.system_prompt}
             </div>
-          </div>
-
-          {/* Performance from parent */}
-          {performance && performance.performance_by_scam_type.length > 0 && (
-            <div>
-              <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest block mb-2">
-                {t('personas.performanceByScamType')}
-              </span>
-              <div className="space-y-1">
-                {performance.performance_by_scam_type.map((st) => (
-                  <div key={st.scam_type_code} className="flex items-center justify-between bg-surface-base rounded p-2">
-                    <span className="text-xs text-on-surface-variant">{st.scam_type_code}</span>
-                    <div className="flex items-center gap-4">
-                      <span className="text-xs text-on-surface-dim">{st.sessions_count ?? st.total_pulls ?? 0} pulls</span>
-                      <span className="text-xs font-mono font-bold text-accent">{(st.reward_avg ?? st.avg_reward ?? 0).toFixed(2)}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          </details>
         </>
       )}
 
