@@ -10,6 +10,7 @@ import { ThreatActorSummaryCard } from '@/components/ioc/ThreatActorSummaryCard'
 import { useThreatActorSummary } from '@/hooks/useThreatActor';
 import { timeSince } from '@/lib/time';
 import { scamTypeLabel, scamTypeColor, humanize } from '@/lib/scamTypeLabels';
+import { iocTypeLabel } from '@/lib/iocTypeLabels';
 import type { IocObservation, IocRelated, IocContextEntry } from '@/types/api';
 
 function formatNonAmbiguousDate(iso: string): string {
@@ -85,7 +86,7 @@ export function IocDetail() {
       <header className="space-y-3">
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-xs uppercase px-2 py-0.5 bg-surface-high text-on-surface-variant rounded font-medium">
-            {detail.type}
+            {iocTypeLabel(detail.type)}
           </span>
           <span className={`text-xs px-2 py-0.5 rounded font-medium ${sev.color} bg-surface-high`}>
             {sev.label}
@@ -94,8 +95,8 @@ export function IocDetail() {
             TLP:{detail.tlp}
           </span>
           {detail.category && detail.category !== 'Unknown' && (
-            <span className="text-xs px-2 py-0.5 bg-accent-muted/20 text-accent rounded">
-              {detail.category}
+            <span className={`text-xs px-2 py-0.5 rounded ${scamTypeColor(detail.category)}`}>
+              {scamTypeLabel(detail.category)}
             </span>
           )}
         </div>
@@ -535,7 +536,7 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
               <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest mb-2">
                 {t('iocContext.stimulus')}
               </h3>
-              <span className="text-sm font-mono text-accent">{ctx.semantic.stimulus_type}</span>
+              <span className="text-sm font-mono text-accent">{humanize(ctx.semantic.stimulus_type)}</span>
             </div>
           )}
 
