@@ -9,12 +9,18 @@ use App\Application\Scambaiting\PersonaOptimizer;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Contracts\Cache\CacheInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 final class ConfigHandler
 {
+    private const CACHE_KEY = 'meta_config';
+    private const CACHE_TTL = 300; // 5 minutes
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly PersonaOptimizer $personaOptimizer,
+        private readonly CacheInterface $cache,
         private readonly string $llmProvider = 'openai',
         private readonly string $llmModel = 'gpt-4o-mini',
     ) {
@@ -24,6 +30,24 @@ final class ConfigHandler
      * @return array<string, mixed>
      */
     public function getConfig(): array
+    {
+        /** @var array<string, mixed> */
+        return $this->cache->get(self::CACHE_KEY, function (ItemInterface $item): array {
+            $item->expiresAfter(self::CACHE_TTL);
+
+            return $this->buildConfig();
+        });
+    }
+
+    public function invalidateCache(): void
+    {
+        $this->cache->delete(self::CACHE_KEY);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildConfig(): array
     {
         $personas = $this->em->getRepository(Persona::class)->findAll();
         $scamTypes = $this->em->getRepository(ScamType::class)->findAll();
