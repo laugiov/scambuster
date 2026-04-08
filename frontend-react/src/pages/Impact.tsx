@@ -122,8 +122,9 @@ export function Impact() {
             </>
           }
         />
+        <div title="IOCs with 0 VirusTotal/URLScan detections at time of extraction">
         <StatCard
-          label={<span title="IOCs with 0 VirusTotal/URLScan detections at time of extraction">{t('impact.novel_iocs')}</span>}
+          label={t('impact.novel_iocs')}
           value={`${ioc_value.novel_pct}%`}
           subtitle={
             <>
@@ -136,6 +137,7 @@ export function Impact() {
             </>
           }
         />
+        </div>
         <StatCard
           label={t('impact.cost_per_ioc')}
           value={`$${cost_efficiency.cost_per_ioc_usd.toFixed(4)}`}
