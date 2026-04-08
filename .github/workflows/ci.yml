@@ -421,6 +421,8 @@ jobs:
 
       - name: Tests
         run: npm run test
+        env:
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
       - name: Production build
         run: npm run build
