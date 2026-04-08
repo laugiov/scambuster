@@ -27,7 +27,7 @@ interface Props {
   height?: number;
 }
 
-export function IocGraph({ data, width = 700, height = 500 }: Props) {
+export function IocGraph({ data, width = 700, height = 600 }: Props) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const cx = width / 2;
@@ -111,6 +111,21 @@ export function IocGraph({ data, width = 700, height = 500 }: Props) {
         );
       })}
 
+      {/* Legend */}
+      {(() => {
+        const types = [...new Set(data.nodes.map((n) => n.type))];
+        const legendY = height - 20;
+        const legendX = 10;
+        return types.map((type, i) => (
+          <g key={type}>
+            <circle cx={legendX + i * 80} cy={legendY} r={5} fill={TYPE_COLORS[type] ?? DEFAULT_COLOR} />
+            <text x={legendX + i * 80 + 10} y={legendY + 4} className="fill-current text-on-surface-dim text-[9px]">
+              {type.charAt(0).toUpperCase() + type.slice(1)}
+            </text>
+          </g>
+        ));
+      })()}
+
       {/* Nodes */}
       {layout.nodes.map((node) => {
         const color = TYPE_COLORS[node.type] ?? DEFAULT_COLOR;
@@ -126,6 +141,7 @@ export function IocGraph({ data, width = 700, height = 500 }: Props) {
             tabIndex={node.center ? undefined : 0}
             onKeyDown={(e) => { if (!node.center && (e.key === 'Enter')) navigate(`/ioc-explorer/${node.id}`); }}
           >
+            <title>{node.value} ({node.type}{node.center ? ' — focal' : ''})</title>
             {/* Node circle */}
             <circle
               cx={node.x}
