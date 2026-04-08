@@ -66,6 +66,7 @@ final class EmbeddingService
 
         try {
             $response = $this->httpClient->request('POST', self::API_URL, [
+                'timeout' => 30,
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'Content-Type' => 'application/json',

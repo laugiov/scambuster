@@ -28,6 +28,7 @@ class OpenAIService implements LLMServiceInterface
 
         try {
             $response = $this->httpClient->request('POST', 'https://api.openai.com/v1/chat/completions', [
+                'timeout' => 30,
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'Content-Type' => 'application/json',
