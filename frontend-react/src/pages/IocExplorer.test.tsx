@@ -110,10 +110,10 @@ describe('IocExplorer Advanced Filters', () => {
     if (highBtn) fireEvent.click(highBtn);
 
     await waitFor(() => {
-      // evil.com has agg=70 (High), should be visible
+      // evil.com is domain with VT=70 → HIGH, should be visible
       expect(screen.getByText('evil.com')).toBeDefined();
-      // ipv4 has agg=45 (Medium), should be hidden
-      expect(screen.queryByText('192.0.2.1')).toBeNull();
+      // message_id with VT=0 → LOW, should be hidden by High filter
+      expect(screen.queryByText('<abc@mail.com>')).toBeNull();
     });
   });
 });
