@@ -103,7 +103,10 @@
     "lastActivity": "Derniere activite",
     "noConversations": "Aucune conversation trouvee",
     "loading": "Chargement des conversations...",
-    "failedLoad": "Echec du chargement des conversations"
+    "failedLoad": "Echec du chargement des conversations",
+    "filterStatus": "Statut",
+    "filterScamType": "Type d'arnaque",
+    "clearFilters": "Effacer les filtres"
   },
   "conversationDetail": {
     "backToConversations": "Retour aux conversations",
