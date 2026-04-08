@@ -375,8 +375,8 @@ function IocDetailPanel({ ioc, onClose, threatActorSummary }: { ioc: Ioc; onClos
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <IocField label={t('iocDetail.scamType')} value={ioc.category} />
-        <IocField label={t('conversationDetail.firstSeen')} value={new Date(ioc.ts_observed).toLocaleDateString('en-GB')} />
+        <IocField label={t('iocDetail.scamType')} value={scamTypeLabel(ioc.category)} />
+        <IocField label={t('conversationDetail.firstSeen')} value={formatDate(ioc.ts_observed)} />
         <IocField label={t('conversationDetail.vtScore')} value={String(ioc.score?.vt ?? 0)} />
         <IocField label={t('conversationDetail.urlScan')} value={String(ioc.score?.urlscan ?? 0)} />
         <IocField label={t('iocExplorer.confidence')} value={(ioc.confidence ?? 0).toFixed(3)} />
