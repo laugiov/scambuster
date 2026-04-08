@@ -11,10 +11,16 @@ import type { Ioc } from '@/types/api';
 import { timeSince } from '@/lib/time';
 import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
 import { iocSeverity as computeIocSeverityInfo } from '@/lib/iocSeverity';
+import { scamTypeLabel, scamTypeColor, humanize } from '@/lib/scamTypeLabels';
 
 function computeIocSeverity(type: string, vt: number, urlscan: number): string {
   return computeIocSeverityInfo(type, vt, urlscan).label;
 }
+
+const INFRA_IOC_FILTER = (ioc: Ioc) => {
+  const val = ioc.value.toLowerCase();
+  return !val.includes('@scambuster.local');
+};
 
 const IOC_PAGE_SIZE = 30;
 
@@ -53,10 +59,13 @@ function matchesType(iocType: string, filter: string): boolean {
   return cat === filter;
 }
 
-function scoreSeverity(score: number): { label: string; color: string; barColor: string } {
-  if (score >= 5) return { label: 'High', color: 'text-error', barColor: 'bg-error' };
-  if (score >= 1) return { label: 'Medium', color: 'text-warning', barColor: 'bg-warning' };
-  return { label: 'Low', color: 'text-on-surface-dim', barColor: 'bg-on-surface-dim' };
+function scoreSeverity(iocType: string, vtScore: number, urlscanScore: number): { label: string; color: string; barColor: string } {
+  const sev = computeIocSeverityInfo(iocType, vtScore, urlscanScore);
+  switch (sev.label) {
+    case 'HIGH': return { label: 'High', color: 'text-error', barColor: 'bg-error' };
+    case 'MEDIUM': return { label: 'Medium', color: 'text-warning', barColor: 'bg-warning' };
+    default: return { label: 'Low', color: 'text-on-surface-dim', barColor: 'bg-on-surface-dim' };
+  }
 }
 
 function confidenceColor(score: number): { barColor: string; textColor: string } {
@@ -94,7 +103,7 @@ export function IocExplorer() {
       '90d': daysAgo(90),
     };
 
-    return iocs.filter((ioc) => {
+    return iocs.filter(INFRA_IOC_FILTER).filter((ioc) => {
       if (hideHeaders && HEADER_IOC_TYPES.has(ioc.type.toLowerCase())) return false;
       if (!matchesType(ioc.type, typeFilter)) return false;
       if (search && !ioc.value.toLowerCase().includes(search.toLowerCase())) return false;
@@ -309,7 +318,7 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
         </thead>
         <tbody className="text-sm">
           {iocs.map((ioc) => {
-            const sev = scoreSeverity(ioc.score?.agg ?? 0);
+            const sev = scoreSeverity(ioc.type, ioc.score?.vt ?? 0, ioc.score?.urlscan ?? 0);
             return (
               <tr
                 key={ioc.obs_id}
@@ -323,7 +332,7 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                   {ioc.obs_id.slice(0, 8)}
                 </td>
                 <td className="px-5 py-3">
-                  <span className="text-xs uppercase text-on-surface-variant">{ioc.type}</span>
+                  <span className="text-xs text-on-surface-variant">{humanize(ioc.type)}</span>
                   {ioc.has_context && (
                     <span className="ml-1 text-accent" title="Has contextual enrichment">&#10024;</span>
                   )}
@@ -331,19 +340,15 @@ function IocTable({ iocs }: { iocs: Ioc[] }) {
                 <td className="px-5 py-3 font-mono text-on-surface truncate max-w-[200px]">
                   {ioc.value}
                 </td>
-                <td className="px-5 py-3 text-on-surface-variant text-xs">{ioc.category}</td>
                 <td className="px-5 py-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 h-1.5 bg-surface-highest rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${sev.barColor}`}
-                        style={{ width: `${Math.min(Math.max((ioc.score?.agg ?? 0) * 10, 0), 100)}%` }}
-                      />
-                    </div>
-                    <span className={`text-xs font-bold ${sev.color}`}>
-                      {ioc.score?.agg ?? 0}
+                  {ioc.category ? (
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[0.625rem] font-medium ${scamTypeColor(ioc.category)}`}>
+                      {scamTypeLabel(ioc.category)}
                     </span>
-                  </div>
+                  ) : '--'}
+                </td>
+                <td className="px-5 py-3">
+                  <span className={`text-xs font-bold ${sev.color}`}>{sev.label}</span>
                 </td>
                 <td className="px-5 py-3">
                   {(() => {

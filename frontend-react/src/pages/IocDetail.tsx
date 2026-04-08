@@ -11,6 +11,13 @@ import { useThreatActorSummary } from '@/hooks/useThreatActor';
 import { timeSince } from '@/lib/time';
 import type { IocObservation, IocRelated, IocContextEntry } from '@/types/api';
 
+function formatNonAmbiguousDate(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '--';
+  const month = d.toLocaleString('en-US', { month: 'short' });
+  return `${month} ${d.getDate()}, ${d.getFullYear()}`;
+}
+
 type TabId = 'overview' | 'observations' | 'related' | 'context';
 
 import { iocSeverity as computeSeverityInfo } from '@/lib/iocSeverity';
@@ -148,8 +155,8 @@ function OverviewTab({ detail }: { detail: import('@/types/api').IocDetail }) {
     <div className="space-y-6">
       {/* Metadata grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <MetaField label={t('iocDetail.firstSeen')} value={new Date(detail.first_seen).toLocaleDateString('en-GB')} />
-        <MetaField label={t('iocDetail.lastSeen')} value={new Date(detail.last_seen).toLocaleDateString('en-GB')} />
+        <MetaField label={t('iocDetail.firstSeen')} value={formatNonAmbiguousDate(detail.first_seen)} />
+        <MetaField label={t('iocDetail.lastSeen')} value={formatNonAmbiguousDate(detail.last_seen)} />
         <MetaField label={t('iocDetail.occurrences')} value={String(detail.occurrences)} />
         <MetaField label={t('iocDetail.tlp')} value={`TLP:${detail.tlp}`} />
       </div>
