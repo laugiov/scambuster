@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAllConversations, PAGE_SIZE } from '@/hooks/useConversations';
 import { Badge } from '@/components/ui/Badge';
@@ -22,6 +22,7 @@ export function Conversations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const navigate = useNavigate();
   const { data: conversations, isLoading, error, refetch } = useAllConversations();
   const { data: config } = useMetaConfig();
   const { data: stats } = useAutonomyStats();
@@ -116,6 +117,15 @@ export function Conversations() {
         hasActiveFilters={statusFilter !== '' || scamTypeFilter !== ''}
       />
 
+      {(statusFilter || scamTypeFilter || search) && (
+        <p className="text-xs text-on-surface-dim">
+          {filtered.length} {filtered.length === 1 ? 'conversation' : 'conversations'}
+          {statusFilter && ` · ${statusFilter}`}
+          {scamTypeFilter && ` · ${scamTypeLabel(scamTypeFilter)}`}
+          {search && ` · "${search}"`}
+        </p>
+      )}
+
       <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
 
       <div className="bg-surface-low rounded-lg overflow-hidden">
@@ -133,7 +143,7 @@ export function Conversations() {
           </thead>
           <tbody className="text-sm">
             {paged.map((conv) => (
-              <tr key={conv.conv_id} className="hover:bg-surface-high/50 transition-colors">
+              <tr key={conv.conv_id} onClick={() => navigate(`/conversations/${conv.conv_id}`)} className="hover:bg-surface-high/50 transition-colors cursor-pointer">
                 <td className="px-5 py-3">
                   <Link
                     to={`/conversations/${conv.conv_id}`}

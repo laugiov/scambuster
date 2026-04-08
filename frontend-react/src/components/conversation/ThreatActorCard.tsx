@@ -23,7 +23,7 @@ function MetaRow({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-export function ThreatActorCard({ profile }: { profile: ThreatActorProfile }) {
+export function ThreatActorCard({ profile, personaLabel }: { profile: ThreatActorProfile; personaLabel?: string }) {
   const [expanded, setExpanded] = useState(true);
 
   const sophStyle = SOPHISTICATION_STYLES[profile.sophistication] ?? SOPHISTICATION_STYLES.none;
@@ -99,11 +99,11 @@ export function ThreatActorCard({ profile }: { profile: ThreatActorProfile }) {
 
           {/* Metrics */}
           <div className="border-t border-white/5 pt-2">
-            <MetaRow label="Engagement">{formatHours(profile.engagementHours)} / {profile.engagementTurns} turns</MetaRow>
+            <MetaRow label="Engagement">{formatHours(profile.engagementHours)} / {profile.engagementTurns} exchanges</MetaRow>
             <MetaRow label="IOC diversity">{profile.iocTypeCount} types</MetaRow>
             <MetaRow label="Persona used">
               <span className="px-1.5 py-0.5 bg-surface-highest text-on-surface-variant rounded text-xs">
-                {profile.personaUsed}
+                {personaLabel ?? profile.personaUsed}
               </span>
             </MetaRow>
           </div>
