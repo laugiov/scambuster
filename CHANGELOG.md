@@ -7,6 +7,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.7.0] - 2026-04-09
+
+### Added
+
+#### UX Hardening — Expert CTI/UX Audit (Specs 051–057)
+
+Complete UX overhaul across all frontend screens, driven by a dual UX/UI + CTI expert audit (4 rounds of review, 60+ items addressed).
+
+**Conversations List (051)**
+- Scam type colored badges (PHISHING → "Phishing" amber, INVOICE_FRAUD → "Invoice Fraud" red, etc.)
+- Risk score mini progress bar (green → amber → red)
+- Persona column truncation + tooltip
+- Precise timestamps ("Apr 7, 14:23" instead of "1d ago")
+- Facet filters: Status + Scam Type dropdowns with URL persistence
+- Filtered result counter ("6 conversations · open · Phishing")
+- IOC count column (backend batch query, infra IOCs excluded)
+- Column sorting on Risk, IOCs, Messages, Last Activity with ▼/▲/⇅ indicators
+- Header counters fixed (45 active + 31 closed + 2 abandoned = 78 total)
+- Full row clickable → conversation detail
+
+**Conversation Detail (052)**
+- Scam type + Persona in Session Metadata
+- "4 messages (2 exch.)" — unified vocabulary
+- Infrastructure IOC filtering (honeypot email, DMARC/SPF/DKIM → collapsed "Email Auth" section)
+- SCAMMER / SENTINEL labels + teal tint on honeypot messages
+- STIX pattern full display + clipboard copy button
+- "← Back to Intelligence" + Threat Actor summary on IOC detail
+- Agent Decision Log + Double Validation Pipeline removed (hardcoded, no real data)
+- "Show full message" toggle on truncated messages
+
+**IOC Explorer + Detail (053, 054)**
+- IOC type acronyms normalized (IPv4, IBAN, BIC, URL, SHA256, Wallet BTC...)
+- Precise timestamps in LAST SEEN column
+- Column sorting on Score, Confidence, Last Seen
+- "No external detections" contextual message based on IOC age
+- Observation Timeline hidden for < 3 occurrences
+- Context tab format fixes (LLM, "Turn 1 · Initial email", humanized roles, confidence color)
+- Observations tab: badges for status, scam type, dates
+- Financial IOC filter category (IBAN, BIC, Wallet, Bank Account)
+- URL/Domain: defanged value as primary, active URL with warning
+- Scoring section restructured: External Sources (VT /72 engines) + ScamBuster Scoring
+- Co-occurrence graph: increased height, tooltip, color legend
+- CTX badge replacing ✨ sparkle icon
+
+**IOC Severity System (transversal)**
+- Backend `IocConfidenceCalculator::computeSeverity()` — type-based severity:
+  HIGH (IBAN, crypto wallet, phone), MEDIUM (URL, domain, email, IP), LOW (metadata)
+- Frontend shared `iocSeverity.ts` utility mirroring backend logic
+- 54 tests (26 backend + 28 frontend)
+
+**Pre-Demo Polish (055)**
+- IOC Detail header badges normalized (Wallet BTC, Phish / Malware)
+- Stimulus humanized (URGENCY_PRESSURE → "Urgency Pressure")
+- IOC inline panel: scam type + date format fixed
+- Abandoned status tooltip
+
+**Personas & Bandit (056)**
+- KPI renamed: "Convergence Rate" → "Best Avg Reward"
+- Performance Matrix sorted by pulls desc + avg reward desc
+- Low-pull lines (< 3 sessions) dimmed with statistical note
+- "iocs sensibles" → "high-value IOCs"
+- Convergence History: scam types + personas normalized, STATUS column hidden
+- **Dominance Evolution chart** with scam type selector (Recharts LineChart)
+- Persona detail: Performance BY SCAM TYPE first, System Prompt in accordion
+- "Created by: fixture" → "System", dates non-ambiguous
+- "Algorithm in pure exploration mode" note under MIN_PULLS
+
+**Monitoring & Dashboard (057)**
+- Snake_case normalization across all monitoring screens (Analytics, Conversation Monitoring, Operations Dashboard, Pipeline Monitor, Impact)
+- Injection Monitor: amber banner when 0 messages analyzed
+- Pipeline Monitor: N/A for metrics when 0 replies
+- Impact: EXCLUSIVE IOCS tooltip definition
+
+### Changed
+- CLOSED conversation badge: red → neutral gray (semantic correction)
+- IOC count in conversation list excludes infrastructure IOCs (DMARC/SPF/DKIM, @scambuster.local)
+- Conversation detail: IOC count shows filtered count (consistent with list)
+
+### Fixed
+- Bug: ObservedIoc array access in ReplyContextService (real bug found by PHPStan L7)
+- Bug: IocDetail aggScore reference breaking production build
+- Header counters: 45+31≠78 resolved (2 abandoned conversations)
+
+---
+
 ## [2.6.0] - 2026-04-07
 
 ### Added
