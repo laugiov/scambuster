@@ -1,16 +1,21 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useConvergenceHistory } from '@/hooks/useConvergenceHistory';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { Pagination } from '@/components/ui/Pagination';
+import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
+import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 const PAGE_SIZE = 25;
 
 export function ConvergenceHistory() {
   const { t } = useTranslation();
   const { data, isLoading, error, refetch } = useConvergenceHistory();
+  const { data: config } = useMetaConfig();
   const [page, setPage] = useState(1);
+  const [chartScamType, setChartScamType] = useState<string>('');
 
   if (isLoading) return <Loading message={t('convergence.loading')} />;
   if (error) return <ErrorMessage message={t('convergence.failedLoad')} onRetry={() => void refetch()} />;
@@ -38,10 +43,13 @@ export function ConvergenceHistory() {
         </div>
         <div className="flex items-center gap-4 text-xs text-on-surface-dim">
           <span>{t('convergence.totalEntries', { count: rows.length })}</span>
-          <span className="text-success">{t('convergence.converged', { count: convergedCount })}</span>
+          <span className={convergedCount > 0 ? 'text-success' : 'text-on-surface-dim'}>{t('convergence.converged', { count: convergedCount })}</span>
           <span>{t('convergence.exploring', { count: exploringCount })}</span>
         </div>
       </header>
+
+      {/* Dominance Evolution Chart */}
+      <DominanceChart entries={entries} config={config} selectedScamType={chartScamType} onScamTypeChange={setChartScamType} />
 
       <Pagination page={page} pageSize={PAGE_SIZE} totalItems={rows.length} onPageChange={setPage} />
 
@@ -54,7 +62,7 @@ export function ConvergenceHistory() {
               <th className="text-left px-5 py-3 font-medium">{t('convergence.dominantPersona')}</th>
               <th className="text-left px-5 py-3 font-medium">{t('convergence.dominance')}</th>
               <th className="text-left px-5 py-3 font-medium">{t('convergence.sessions')}</th>
-              <th className="text-left px-5 py-3 font-medium">{t('convergence.status')}</th>
+              {convergedCount > 0 && <th className="text-left px-5 py-3 font-medium">{t('convergence.status')}</th>}
             </tr>
           </thead>
           <tbody className="text-sm">
@@ -62,21 +70,23 @@ export function ConvergenceHistory() {
               <tr key={`${row.scam_type}-${row.date}-${i}`} className="hover:bg-surface-high/50 transition-colors">
                 <td className="px-5 py-3 text-on-surface-variant">{row.date}</td>
                 <td className="px-5 py-3">
-                  <span className="px-2 py-0.5 rounded-full text-xs bg-surface-high text-on-surface">{row.scam_type}</span>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${scamTypeColor(row.scam_type)}`}>{scamTypeLabel(row.scam_type)}</span>
                 </td>
-                <td className="px-5 py-3 text-on-surface">{row.dominant_persona}</td>
+                <td className="px-5 py-3 text-on-surface">{personaDisplayName(config, row.dominant_persona)}</td>
                 <td className="px-5 py-3 font-mono text-on-surface">{(row.dominant_pct * 100).toFixed(1)}%</td>
                 <td className="px-5 py-3 font-mono text-on-surface-variant">{row.sessions_count}</td>
-                <td className="px-5 py-3">
-                  {row.converged
-                    ? <span className="text-success text-xs font-medium">CONVERGED</span>
-                    : <span className="text-on-surface-dim text-xs">exploring</span>}
-                </td>
+                {convergedCount > 0 && (
+                  <td className="px-5 py-3">
+                    {row.converged
+                      ? <span className="text-success text-xs font-medium">CONVERGED</span>
+                      : <span className="text-on-surface-dim text-xs">exploring</span>}
+                  </td>
+                )}
               </tr>
             ))}
             {paged.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-5 py-12 text-center text-on-surface-dim">
+                <td colSpan={convergedCount > 0 ? 6 : 5} className="px-5 py-12 text-center text-on-surface-dim">
                   {t('convergence.noData')}
                 </td>
               </tr>
@@ -85,6 +95,80 @@ export function ConvergenceHistory() {
         </table>
         <Pagination page={page} pageSize={PAGE_SIZE} totalItems={rows.length} onPageChange={setPage} />
       </div>
+    </div>
+  );
+}
+
+const CHART_COLORS = ['#60a5fa', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#fb923c', '#94a3b8', '#e879f9'];
+
+function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }: {
+  entries: Record<string, import('@/hooks/useConvergenceHistory').ConvergenceEntry[]>;
+  config: import('@/types/api').MetaConfig | undefined;
+  selectedScamType: string;
+  onScamTypeChange: (v: string) => void;
+}) {
+  const scamTypes = Object.keys(entries);
+  const activeType = selectedScamType || scamTypes[0] || '';
+  const logsRaw = entries[activeType];
+  const logs = logsRaw ?? [];
+
+  // Build chart data: { date, [persona1]: pct, [persona2]: pct, ... }
+  const chartData = useMemo(() => {
+    const sorted = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+    return sorted.map((entry) => ({
+      date: entry.date,
+      [entry.dominant_persona]: Math.round(entry.dominant_pct * 100),
+    }));
+  }, [logs]);
+
+  // Get unique personas for this scam type
+  const personas = useMemo(() => [...new Set(logs.map((l) => l.dominant_persona))], [logs]);
+
+  if (scamTypes.length === 0) return null;
+
+  return (
+    <div className="bg-surface-low rounded-lg p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">Dominance Evolution</h3>
+        <select
+          value={activeType}
+          onChange={(e) => onScamTypeChange(e.target.value)}
+          className="text-xs bg-surface-base text-on-surface rounded px-2 py-1 border-none cursor-pointer"
+          style={{ colorScheme: 'dark' }}
+        >
+          {scamTypes.map((st) => (
+            <option key={st} value={st} className="bg-neutral-800 text-neutral-200">{scamTypeLabel(st)}</option>
+          ))}
+        </select>
+      </div>
+
+      {chartData.length < 2 ? (
+        <p className="text-sm text-on-surface-dim text-center py-8">Not enough data points to show evolution for {scamTypeLabel(activeType)}.</p>
+      ) : (
+        <ResponsiveContainer width="100%" height={250}>
+          <LineChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+            <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }} />
+            <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#9ca3af' }} unit="%" />
+            <Tooltip
+              contentStyle={{ backgroundColor: '#1e1e2e', border: 'none', borderRadius: 8, fontSize: 12 }}
+              labelStyle={{ color: '#9ca3af' }}
+            />
+            {personas.map((persona, i) => (
+              <Line
+                key={persona}
+                type="monotone"
+                dataKey={persona}
+                name={personaDisplayName(config, persona)}
+                stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                strokeWidth={2}
+                dot={{ r: 3 }}
+                connectNulls
+              />
+            ))}
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
