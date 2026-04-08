@@ -35,6 +35,8 @@ const CATEGORY_MAP: Record<string, string> = {
   md5: 'Hash', sha1: 'Hash', sha256: 'Hash',
   email: 'Email', whois_email: 'Email',
   url: 'URL',
+  iban: 'Financial', bic: 'Financial', wallet_btc: 'Financial', wallet_eth: 'Financial', wallet_xmr: 'Financial',
+  bank_account: 'Financial', credit_card: 'Financial',
 };
 
 function buildTypeFilters(iocTypes: string[]): string[] {
@@ -48,7 +50,7 @@ function buildTypeFilters(iocTypes: string[]): string[] {
       hasOther = true;
     }
   }
-  const ordered = ['IP', 'Domain', 'Hash', 'Email', 'URL'].filter((c) => categories.has(c));
+  const ordered = ['IP', 'Domain', 'Hash', 'Email', 'URL', 'Financial'].filter((c) => categories.has(c));
   if (hasOther) ordered.push('Other');
   return ['All', ...ordered];
 }
