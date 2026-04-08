@@ -22,6 +22,8 @@ export function Conversations() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState<'ts_last' | 'score_risk' | 'ioc_count' | 'message_count'>('ts_last');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const navigate = useNavigate();
   const { data: conversations, isLoading, error, refetch } = useAllConversations();
   const { data: config } = useMetaConfig();
@@ -47,9 +49,22 @@ export function Conversations() {
   if (isLoading) return <Loading message={t('conversations.loading')} />;
   if (error) return <ErrorMessage message={t('conversations.failedLoad')} onRetry={() => void refetch()} />;
 
-  const sorted = [...(conversations ?? [])].sort(
-    (a, b) => new Date(b.ts_last ?? b.updated_at ?? 0).getTime() - new Date(a.ts_last ?? a.updated_at ?? 0).getTime()
-  );
+  const toggleSort = (key: typeof sortKey) => {
+    if (sortKey === key) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+    else { setSortKey(key); setSortDir('desc'); }
+    setPage(1);
+  };
+
+  const sorted = [...(conversations ?? [])].sort((a, b) => {
+    let va: number, vb: number;
+    switch (sortKey) {
+      case 'score_risk': va = a.score_risk; vb = b.score_risk; break;
+      case 'ioc_count': va = a.ioc_count ?? 0; vb = b.ioc_count ?? 0; break;
+      case 'message_count': va = a.message_count ?? a.turns ?? 0; vb = b.message_count ?? b.turns ?? 0; break;
+      default: va = new Date(a.ts_last ?? a.updated_at ?? 0).getTime(); vb = new Date(b.ts_last ?? b.updated_at ?? 0).getTime();
+    }
+    return sortDir === 'desc' ? vb - va : va - vb;
+  });
 
   let filtered = sorted;
 
@@ -74,6 +89,7 @@ export function Conversations() {
   const totalCount = stats?.conversations.total ?? sorted.length;
   const activeCount = stats?.conversations.open ?? stats?.conversations.active ?? sorted.filter((c) => c.status === 'open').length;
   const closedCount = stats?.conversations.closed ?? sorted.filter((c) => c.status === 'closed').length;
+  const abandonedCount = stats?.conversations.abandoned ?? sorted.filter((c) => c.status === 'abandoned').length;
 
   return (
     <div className="space-y-6">
@@ -98,6 +114,9 @@ export function Conversations() {
             <span>{t('conversations.total', { count: totalCount })}</span>
             <span className="text-success">{t('conversations.activeLower', { count: activeCount })}</span>
             <span>{t('conversations.closed', { count: closedCount })}</span>
+            {abandonedCount > 0 && (
+              <span className="text-warning">{t('conversations.abandoned', { count: abandonedCount })}</span>
+            )}
           </div>
         </div>
       </header>
@@ -135,9 +154,10 @@ export function Conversations() {
               <th className="text-left px-5 py-3 font-medium">{t('conversations.sourceId')}</th>
               <th className="text-left px-5 py-3 font-medium">{t('conversations.scamType')}</th>
               <th className="text-left px-5 py-3 font-medium">{t('conversations.persona')}</th>
-              <th className="text-left px-5 py-3 font-medium">{t('conversations.risk')}</th>
-              <th className="text-left px-5 py-3 font-medium">{t('conversations.messages')}</th>
-              <th className="text-left px-5 py-3 font-medium">{t('conversations.lastActivity')}</th>
+              <SortHeader label={t('conversations.risk')} sortKey="score_risk" current={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label="IOCs" sortKey="ioc_count" current={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t('conversations.messages')} sortKey="message_count" current={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t('conversations.lastActivity')} sortKey="ts_last" current={sortKey} dir={sortDir} onSort={toggleSort} />
               <th className="text-left px-5 py-3 font-medium">{t('common.status.open')}</th>
             </tr>
           </thead>
@@ -170,6 +190,9 @@ export function Conversations() {
                   <RiskBar score={conv.score_risk} />
                 </td>
                 <td className="px-5 py-3 text-on-surface-variant font-mono text-xs">
+                  {conv.ioc_count ?? 0}
+                </td>
+                <td className="px-5 py-3 text-on-surface-variant font-mono text-xs">
                   {conv.message_count ?? conv.turns ?? '--'}
                 </td>
                 <td className="px-5 py-3 text-on-surface-dim text-xs" title={conv.ts_last ? timeSince(conv.ts_last) : ''}>
@@ -182,7 +205,7 @@ export function Conversations() {
             ))}
             {paged.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center text-on-surface-dim">
+                <td colSpan={8} className="px-5 py-12 text-center text-on-surface-dim">
                   {t('conversations.noConversations')}
                 </td>
               </tr>
@@ -192,6 +215,27 @@ export function Conversations() {
         <Pagination page={page} pageSize={PAGE_SIZE} totalItems={filtered.length} onPageChange={setPage} />
       </div>
     </div>
+  );
+}
+
+function SortHeader({ label, sortKey: key, current, dir, onSort }: {
+  label: string;
+  sortKey: 'ts_last' | 'score_risk' | 'ioc_count' | 'message_count';
+  current: string;
+  dir: 'asc' | 'desc';
+  onSort: (key: 'ts_last' | 'score_risk' | 'ioc_count' | 'message_count') => void;
+}) {
+  const isActive = current === key;
+  return (
+    <th
+      className="text-left px-5 py-3 font-medium cursor-pointer select-none hover:text-on-surface-variant transition-colors"
+      onClick={() => onSort(key)}
+    >
+      {label}
+      <span className="ml-1 inline-block w-3 text-center">
+        {isActive ? (dir === 'desc' ? '▼' : '▲') : ''}
+      </span>
+    </th>
   );
 }
 

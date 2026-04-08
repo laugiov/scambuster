@@ -95,6 +95,7 @@
     "total": "{{count}} au total",
     "activeLower": "{{count}} actives",
     "closed": "{{count}} fermees",
+    "abandoned": "{{count}} abandonnees",
     "sourceId": "ID Source",
     "scamType": "Type d'arnaque",
     "persona": "Persona",
