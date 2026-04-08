@@ -20,7 +20,7 @@ const SCAM_TYPE_MAP: Record<string, ScamTypeConfig> = {
   OTHER: { label: 'Other', color: 'bg-surface-highest text-on-surface-variant' },
 };
 
-function humanize(code: string): string {
+export function humanize(code: string): string {
   return code
     .split('_')
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
