@@ -68,6 +68,49 @@ final class IocConfidenceCalculator
         return 2.0 ** (-$ageDays / $halfLife);
     }
 
+    /** @var array<string, string> IOC types considered HIGH value by nature */
+    private const HIGH_VALUE_TYPES = [
+        'iban' => 'HIGH', 'bic' => 'HIGH', 'bank_account' => 'HIGH', 'credit_card' => 'HIGH',
+        'wallet_btc' => 'HIGH', 'wallet_eth' => 'HIGH', 'wallet_xmr' => 'HIGH',
+        'phone' => 'HIGH',
+    ];
+
+    /** @var array<string, string> IOC types considered MEDIUM value by nature */
+    private const MEDIUM_VALUE_TYPES = [
+        'url' => 'MEDIUM', 'domain' => 'MEDIUM', 'email' => 'MEDIUM', 'whois_email' => 'MEDIUM',
+        'ipv4' => 'MEDIUM', 'ipv6' => 'MEDIUM',
+        'sha256' => 'MEDIUM', 'sha1' => 'MEDIUM', 'md5' => 'MEDIUM',
+        'filename' => 'MEDIUM', 'registrar' => 'MEDIUM',
+    ];
+
+    /**
+     * Compute severity based on IOC type and enrichment score.
+     *
+     * Logic:
+     * - Financial IOCs (IBAN, crypto, phone) → HIGH regardless of VT score
+     * - Network IOCs (URL, domain, IP, email) → MEDIUM, upgraded to HIGH if VT > 0
+     * - Metadata IOCs (subject, message_id) → LOW
+     * - Unknown types → LOW
+     */
+    public static function computeSeverity(string $iocType, int $vtScore = 0, int $urlscanScore = 0): string
+    {
+        $type = strtolower($iocType);
+        $enrichmentScore = max($vtScore, $urlscanScore);
+
+        // HIGH-value types are always HIGH
+        if (isset(self::HIGH_VALUE_TYPES[$type])) {
+            return 'HIGH';
+        }
+
+        // MEDIUM types upgrade to HIGH if enrichment confirms threat
+        if (isset(self::MEDIUM_VALUE_TYPES[$type])) {
+            return $enrichmentScore > 0 ? 'HIGH' : 'MEDIUM';
+        }
+
+        // Everything else (subject, message_id, dmarc_result, etc.)
+        return 'LOW';
+    }
+
     /**
      * Compute effective score: confidence × decay factor.
      *
