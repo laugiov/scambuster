@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Taxii;
 
+use App\Application\Stix\ClusteredThreatActorStixBuilder;
 use App\Application\Stix\IocContextStixExtensionBuilder;
 use App\Application\Stix\ThreatActorStixBuilder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -18,6 +19,7 @@ final class TaxiiService
 {
     private const COLLECTION_IOC_ID = 'a1b2c3d4-0001-4000-8000-000000000001';
     private const COLLECTION_CAMPAIGN_ID = 'a1b2c3d4-0002-4000-8000-000000000002';
+    private const COLLECTION_THREAT_ACTORS_ID = 'a1b2c3d4-0003-4000-8000-000000000003';
 
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -81,6 +83,14 @@ final class TaxiiService
                     'can_write' => false,
                     'media_types' => ['application/stix+json;version=2.1'],
                 ],
+                [
+                    'id' => self::COLLECTION_THREAT_ACTORS_ID,
+                    'title' => 'ScamBuster Threat Actors',
+                    'description' => 'Consolidated threat-actor clusters from IOC-based correlation',
+                    'can_read' => true,
+                    'can_write' => false,
+                    'media_types' => ['application/stix+json;version=2.1'],
+                ],
             ],
         ];
     }
@@ -90,7 +100,7 @@ final class TaxiiService
      */
     public function isValidCollection(string $collectionId): bool
     {
-        return \in_array($collectionId, [self::COLLECTION_IOC_ID, self::COLLECTION_CAMPAIGN_ID], true);
+        return \in_array($collectionId, [self::COLLECTION_IOC_ID, self::COLLECTION_CAMPAIGN_ID, self::COLLECTION_THREAT_ACTORS_ID], true);
     }
 
     /**
@@ -108,6 +118,10 @@ final class TaxiiService
 
         if ($collectionId === self::COLLECTION_IOC_ID) {
             return $this->getIocObjects($addedAfter, $limit, $type);
+        }
+
+        if ($collectionId === self::COLLECTION_THREAT_ACTORS_ID) {
+            return $this->getClusterObjects($addedAfter, $limit, $type);
         }
 
         return $this->getCampaignObjects($addedAfter, $limit);
@@ -373,6 +387,150 @@ final class TaxiiService
                 $objects[] = $rel;
             }
         }
+    }
+
+    /**
+     * Retrieve STIX objects from the threat-actors collection (clusters).
+     *
+     * Only active clusters with conversation_count >= 2 are exposed.
+     *
+     * @return array{envelope: array<string, mixed>, firstAdded: ?string, lastAdded: ?string}
+     */
+    private function getClusterObjects(?\DateTimeImmutable $addedAfter, int $limit, ?string $type): array
+    {
+        $conn = $this->em->getConnection();
+
+        $qb = $conn->createQueryBuilder()
+            ->select(
+                'tac.cluster_id',
+                'tac.stix_id',
+                'tac.name',
+                'tac.status',
+                'tac.conversation_count',
+                'tac.anchor_ioc_count',
+                'tac.sophistication',
+                'tac.primary_scam_types',
+                'tac.goals',
+                'tac.first_seen',
+                'tac.last_seen',
+                'tac.algorithm_version',
+                'tac.updated_at',
+            )
+            ->from('threat_actor_cluster', 'tac')
+            ->where("tac.status = 'active'")
+            ->andWhere('tac.conversation_count >= 2')
+            ->orderBy('tac.updated_at', 'ASC')
+            ->setMaxResults($limit + 1);
+
+        if ($addedAfter !== null) {
+            $qb->andWhere('tac.updated_at > :added_after')
+                ->setParameter('added_after', $addedAfter->format('Y-m-d H:i:s'));
+        }
+
+        /** @var array<int, array<string, mixed>> $rows */
+        $rows = $qb->executeQuery()->fetchAllAssociative();
+
+        $more = \count($rows) > $limit;
+
+        if ($more) {
+            $rows = \array_slice($rows, 0, $limit);
+        }
+
+        $objects = [];
+        $firstAdded = null;
+        $lastAdded = null;
+        $builder = new ClusteredThreatActorStixBuilder();
+
+        foreach ($rows as $row) {
+            $updatedAt = \is_string($row['updated_at'] ?? null) ? $row['updated_at'] : '';
+
+            if ($firstAdded === null) {
+                $firstAdded = $updatedAt;
+            }
+
+            $lastAdded = $updatedAt;
+
+            $clusterId = \is_string($row['cluster_id'] ?? null) ? $row['cluster_id'] : '';
+
+            // Parse PostgreSQL arrays
+            $scamTypes = $this->parsePostgresArray(\is_string($row['primary_scam_types'] ?? null) ? $row['primary_scam_types'] : '{}');
+
+            // Get anchor IOC types for this cluster
+            $anchorIocTypes = $conn->fetchFirstColumn(
+                'SELECT DISTINCT ioc_type FROM threat_actor_cluster_ioc WHERE cluster_id = :id',
+                ['id' => $clusterId]
+            );
+
+            // Get ATT&CK techniques from scam types
+            $attckTechniques = $conn->fetchFirstColumn(
+                'SELECT DISTINCT st.attck_technique FROM lkp_scam_type st WHERE st.code = ANY(:codes) AND st.attck_technique IS NOT NULL',
+                ['codes' => '{' . implode(',', $scamTypes) . '}']
+            );
+
+            // Get indicator STIX IDs for this cluster
+            $indicatorStixIds = [];
+
+            if ($type === null || $type === 'relationship') {
+                $indicatorIds = $conn->fetchFirstColumn(
+                    'SELECT indicator_id FROM threat_actor_cluster_ioc WHERE cluster_id = :id',
+                    ['id' => $clusterId]
+                );
+
+                $indicatorStixIds = array_map(fn (mixed $id) => 'indicator--' . (\is_string($id) ? $id : ''), $indicatorIds);
+            }
+
+            $clusterData = [
+                'cluster_id' => $clusterId,
+                'stix_id' => \is_string($row['stix_id'] ?? null) ? $row['stix_id'] : '',
+                'name' => \is_string($row['name'] ?? null) ? $row['name'] : '',
+                'status' => \is_string($row['status'] ?? null) ? $row['status'] : 'active',
+                'conversation_count' => \is_numeric($row['conversation_count'] ?? null) ? (int) $row['conversation_count'] : 0,
+                'anchor_ioc_count' => \is_numeric($row['anchor_ioc_count'] ?? null) ? (int) $row['anchor_ioc_count'] : 0,
+                'sophistication' => \is_string($row['sophistication'] ?? null) ? $row['sophistication'] : 'none',
+                'primary_scam_types' => $scamTypes,
+                'goals' => ['financial-theft'],
+                'first_seen' => \is_string($row['first_seen'] ?? null) ? $row['first_seen'] : '',
+                'last_seen' => \is_string($row['last_seen'] ?? null) ? $row['last_seen'] : '',
+                'algorithm_version' => \is_string($row['algorithm_version'] ?? null) ? $row['algorithm_version'] : '1.0',
+                'anchor_ioc_types' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $anchorIocTypes),
+                'attck_techniques' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques),
+                'indicator_stix_ids' => $indicatorStixIds,
+            ];
+
+            $bundle = $builder->buildBundle($clusterData);
+
+            // Filter by type if specified
+            foreach ($bundle as $obj) {
+                if ($type === null || ($obj['type'] ?? '') === $type) {
+                    $objects[] = $obj;
+                }
+            }
+        }
+
+        return [
+            'envelope' => [
+                'more' => $more,
+                'objects' => $objects,
+            ],
+            'firstAdded' => $firstAdded !== null ? $this->formatIso8601($firstAdded) : null,
+            'lastAdded' => $lastAdded !== null ? $this->formatIso8601($lastAdded) : null,
+        ];
+    }
+
+    /**
+     * Parse a PostgreSQL array literal (e.g. '{foo,bar}') into a PHP array.
+     *
+     * @return list<string>
+     */
+    private function parsePostgresArray(string $pgArray): array
+    {
+        $trimmed = trim($pgArray, '{}');
+
+        if ($trimmed === '') {
+            return [];
+        }
+
+        return array_map('trim', explode(',', $trimmed));
     }
 
     /**

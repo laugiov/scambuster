@@ -68,15 +68,16 @@ final class IocConfidenceCalculator
         return 2.0 ** (-$ageDays / $halfLife);
     }
 
-    /** @var array<string, string> IOC types considered HIGH value by nature */
+    /** @var array<string, string> IOC types considered HIGH value by nature (used as clustering anchors) */
     private const HIGH_VALUE_TYPES = [
-        'iban' => 'HIGH', 'bic' => 'HIGH', 'bank_account' => 'HIGH', 'credit_card' => 'HIGH',
+        'iban' => 'HIGH', 'bank_account' => 'HIGH', 'credit_card' => 'HIGH',
         'wallet_btc' => 'HIGH', 'wallet_eth' => 'HIGH', 'wallet_xmr' => 'HIGH',
         'phone' => 'HIGH',
     ];
 
     /** @var array<string, string> IOC types considered MEDIUM value by nature */
     private const MEDIUM_VALUE_TYPES = [
+        'bic' => 'MEDIUM', // BIC identifies a bank (millions of clients), not a threat actor
         'url' => 'MEDIUM', 'domain' => 'MEDIUM', 'email' => 'MEDIUM', 'whois_email' => 'MEDIUM',
         'ipv4' => 'MEDIUM', 'ipv6' => 'MEDIUM',
         'sha256' => 'MEDIUM', 'sha1' => 'MEDIUM', 'md5' => 'MEDIUM',

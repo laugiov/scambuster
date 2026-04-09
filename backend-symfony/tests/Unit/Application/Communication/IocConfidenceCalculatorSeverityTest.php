@@ -29,7 +29,6 @@ final class IocConfidenceCalculatorSeverityTest extends TestCase
             'wallet_eth' => ['wallet_eth'],
             'wallet_xmr' => ['wallet_xmr'],
             'phone' => ['phone'],
-            'bic' => ['bic'],
             'bank_account' => ['bank_account'],
             'credit_card' => ['credit_card'],
         ];
@@ -58,6 +57,7 @@ final class IocConfidenceCalculatorSeverityTest extends TestCase
     public static function mediumValueTypesProvider(): array
     {
         return [
+            'bic' => ['bic'], // BIC identifies a bank, not a threat actor
             'url' => ['url'],
             'domain' => ['domain'],
             'email' => ['email'],

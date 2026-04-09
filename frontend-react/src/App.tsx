@@ -23,6 +23,8 @@ const ConversationMonitoring = lazy(() => import('@/pages/ConversationMonitoring
 const PipelineMonitor = lazy(() => import('@/pages/PipelineMonitor'));
 const InjectionMonitoring = lazy(() => import('@/pages/InjectionMonitoring'));
 const Analytics = lazy(() => import('@/pages/Analytics'));
+const Clusters = lazy(() => import('@/pages/Clusters'));
+const ClusterDetail = lazy(() => import('@/pages/ClusterDetail'));
 const Settings = lazy(() => import('@/pages/Settings'));
 
 const queryClient = new QueryClient({
@@ -64,6 +66,8 @@ export default function App() {
               <Route path="monitoring/pipeline" element={<PipelineMonitor />} />
               <Route path="monitoring/injection" element={<InjectionMonitoring />} />
               <Route path="monitoring/analytics" element={<Analytics />} />
+              <Route path="clusters" element={<Clusters />} />
+              <Route path="clusters/:id" element={<ClusterDetail />} />
               {/* Campaign routes hidden — pipeline disconnected */}
               {/* <Route path="campaigns" element={<Campaigns />} /> */}
               {/* <Route path="campaigns/:id" element={<CampaignDetail />} /> */}
