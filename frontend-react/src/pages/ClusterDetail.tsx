@@ -200,6 +200,10 @@ export function ClusterDetail() {
               </div>
             )}
           </div>
+          <div className="relative">
+          {filteredConversations.length > 12 && (
+            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-surface to-transparent pointer-events-none z-10" />
+          )}
           <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
             {filteredConversations.map((conv) => (
               <Link
@@ -226,6 +230,7 @@ export function ClusterDetail() {
                 No conversations match the current filters.
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>
