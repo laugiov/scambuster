@@ -173,7 +173,7 @@ export function ClusterDetail() {
               <select
                 value={scamTypeFilter}
                 onChange={(e) => setScamTypeFilter(e.target.value)}
-                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface"
+                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface [color-scheme:dark]"
               >
                 <option value="">All scam types</option>
                 {scamTypes.map((st) => (
@@ -183,7 +183,7 @@ export function ClusterDetail() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortField)}
-                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface"
+                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface [color-scheme:dark]"
               >
                 <option value="risk">Sort: Risk (high first)</option>
                 <option value="scam_type">Sort: Scam type</option>
