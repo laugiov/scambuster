@@ -84,14 +84,14 @@ final class ClusterController
     #[Route('/clusters/{id}/export/stix', name: 'cluster_export_stix', methods: ['GET'], requirements: ['id' => '[0-9a-f-]{36}'])]
     public function exportStix(string $id): JsonResponse
     {
-        $detail = $this->queryService->getDetail($id);
+        $exportData = $this->queryService->getStixExportData($id);
 
-        if ($detail === null) {
+        if ($exportData === null) {
             return new JsonResponse(['error' => 'Cluster not found'], Response::HTTP_NOT_FOUND);
         }
 
         $builder = new ClusteredThreatActorStixBuilder();
-        $objects = $builder->buildBundle($detail);
+        $objects = $builder->buildBundle($exportData);
 
         $bundle = [
             'type' => 'bundle',

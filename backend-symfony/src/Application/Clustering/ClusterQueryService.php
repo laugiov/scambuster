@@ -195,6 +195,64 @@ final class ClusterQueryService
     }
 
     /**
+     * Get cluster data enriched for STIX export (anchor IOC types, indicator IDs, ATT&CK techniques).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getStixExportData(string $clusterId): ?array
+    {
+        $detail = $this->getDetail($clusterId);
+
+        if ($detail === null) {
+            return null;
+        }
+
+        // Extract anchor IOC types from anchor_iocs
+        $anchorIocTypes = [];
+
+        /** @var list<array<string, mixed>> $anchors */
+        $anchors = $detail['anchor_iocs'] ?? [];
+
+        foreach ($anchors as $ioc) {
+            $type = \is_string($ioc['ioc_type'] ?? null) ? $ioc['ioc_type'] : '';
+
+            if ($type !== '' && !\in_array($type, $anchorIocTypes, true)) {
+                $anchorIocTypes[] = $type;
+            }
+        }
+
+        // Get indicator STIX IDs
+        $indicatorIds = $this->conn->fetchFirstColumn(
+            'SELECT indicator_id FROM threat_actor_cluster_ioc WHERE cluster_id = :id',
+            ['id' => $clusterId]
+        );
+
+        $indicatorStixIds = array_map(
+            fn (mixed $id) => 'indicator--' . (\is_string($id) ? $id : ''),
+            $indicatorIds
+        );
+
+        // Get ATT&CK techniques from scam types
+        /** @var list<string> $scamTypes */
+        $scamTypes = $detail['primary_scam_types'] ?? [];
+        $attckTechniques = [];
+
+        if (!empty($scamTypes)) {
+            $attckTechniques = $this->conn->fetchFirstColumn(
+                'SELECT DISTINCT st.attck_technique FROM lkp_scam_type st WHERE st.code = ANY(:codes) AND st.attck_technique IS NOT NULL',
+                ['codes' => '{' . implode(',', $scamTypes) . '}']
+            );
+            $attckTechniques = array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques);
+        }
+
+        $detail['anchor_ioc_types'] = $anchorIocTypes;
+        $detail['indicator_stix_ids'] = $indicatorStixIds;
+        $detail['attck_techniques'] = $attckTechniques;
+
+        return $detail;
+    }
+
+    /**
      * Find cluster for an indicator (anchor IOC lookup).
      *
      * @return array<string, mixed>|null
