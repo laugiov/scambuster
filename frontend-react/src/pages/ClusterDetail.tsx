@@ -63,14 +63,16 @@ export function ClusterDetail() {
   if (error || !cluster) return <ErrorMessage message="Cluster not found" onRetry={() => void refetch()} />;
 
   async function handleExportStix() {
+    if (!cluster) return;
     try {
-      const { data } = await client.get(ENDPOINTS.clusters.exportStix(cluster.cluster_id));
+      const cid = cluster.cluster_id;
+      const { data } = await client.get(ENDPOINTS.clusters.exportStix(cid));
       const json = JSON.stringify(data, null, 2);
       const blob = new Blob([json], { type: 'application/stix+json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `cluster-${cluster.cluster_id.slice(0, 8)}.stix.json`;
+      a.download = `cluster-${cid.slice(0, 8)}.stix.json`;
       a.click();
       URL.revokeObjectURL(url);
     } catch {
