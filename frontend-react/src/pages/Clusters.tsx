@@ -3,8 +3,8 @@ import { useClusters, useClusterStats } from '@/hooks/useClusters';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
-import { scamTypeLabels } from '@/lib/scamTypeLabels';
-import { iocTypeLabels } from '@/lib/iocTypeLabels';
+import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
+import { iocTypeLabel } from '@/lib/iocTypeLabels';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '--';
@@ -79,21 +79,14 @@ export function Clusters() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
-                      {c.primary_scam_types.map((st) => {
-                        const label = scamTypeLabels[st];
-                        return (
-                          <span
-                            key={st}
-                            className="px-1.5 py-0.5 text-xs rounded"
-                            style={{
-                              backgroundColor: label ? `${label.color}20` : '#66666620',
-                              color: label?.color ?? '#666',
-                            }}
-                          >
-                            {label?.label ?? st}
-                          </span>
-                        );
-                      })}
+                      {c.primary_scam_types.map((st) => (
+                        <span
+                          key={st}
+                          className={`px-1.5 py-0.5 text-xs rounded font-medium ${scamTypeColor(st)}`}
+                        >
+                          {scamTypeLabel(st)}
+                        </span>
+                      ))}
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right font-mono">{c.conversation_count}</td>
@@ -102,7 +95,7 @@ export function Clusters() {
                     <div className="flex flex-wrap gap-1">
                       {c.anchor_ioc_types.map((t) => (
                         <span key={t} className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent">
-                          {iocTypeLabels[t] ?? t}
+                          {iocTypeLabel(t)}
                         </span>
                       ))}
                     </div>

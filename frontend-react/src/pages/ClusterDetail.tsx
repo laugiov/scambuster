@@ -2,8 +2,8 @@ import { useParams, Link } from 'react-router-dom';
 import { useClusterDetail } from '@/hooks/useClusters';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
-import { scamTypeLabels } from '@/lib/scamTypeLabels';
-import { iocTypeLabels } from '@/lib/iocTypeLabels';
+import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
+import { iocTypeLabel } from '@/lib/iocTypeLabels';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '--';
@@ -67,7 +67,7 @@ export function ClusterDetail() {
               <div key={ioc.value_norm_hash} className="px-4 py-3 flex items-center justify-between">
                 <div>
                   <span className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent mr-2">
-                    {iocTypeLabels[ioc.ioc_type] ?? ioc.ioc_type}
+                    {iocTypeLabel(ioc.ioc_type)}
                   </span>
                   <span className="text-xs text-on-surface-dim font-mono">
                     {ioc.value_norm_hash.slice(0, 12)}...
@@ -90,7 +90,6 @@ export function ClusterDetail() {
           </div>
           <div className="divide-y divide-border">
             {cluster.conversations.map((conv) => {
-              const scamLabel = scamTypeLabels[conv.scam_type];
               return (
                 <Link
                   key={conv.conv_id}
@@ -101,17 +100,9 @@ export function ClusterDetail() {
                     <span className="font-mono text-xs text-on-surface">
                       {conv.conv_id.slice(0, 8)}
                     </span>
-                    {scamLabel && (
-                      <span
-                        className="px-1.5 py-0.5 text-xs rounded"
-                        style={{
-                          backgroundColor: `${scamLabel.color}20`,
-                          color: scamLabel.color,
-                        }}
-                      >
-                        {scamLabel.label}
-                      </span>
-                    )}
+                    <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${scamTypeColor(conv.scam_type)}`}>
+                      {scamTypeLabel(conv.scam_type)}
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-on-surface-dim">
                     <span className="capitalize">{conv.status}</span>
