@@ -15,6 +15,7 @@ echo "[scheduler] Starting ScamBuster scheduler (PID $$)"
 echo "[scheduler] Timezone: $(date +%Z) | UTC offset: $(date +%z)"
 echo "[scheduler] Tasks:"
 echo "  - app:close-stale-conversations  every 6h"
+echo "  - app:clustering:backfill        every 6h (catch-up)"
 echo "  - app:bandit:daily-report        daily at ~06:00 UTC"
 echo "  - app:cleanup:weekly             weekly (Sunday ~04:00 UTC)"
 echo "  - pg_dump backup                 daily at ~02:00 UTC"
@@ -52,6 +53,11 @@ while true; do
     echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running ioc:compute-context (structural + LLM)"
     php /app/bin/console app:ioc:compute-context --with-llm --budget-usd=1.00 --limit=200 --no-interaction 2>&1 || \
         echo "[scheduler] WARNING: ioc:compute-context failed"
+
+    # Threat actor clustering backfill (catches any missed during ingestion)
+    echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running clustering:backfill"
+    php /app/bin/console app:clustering:backfill --no-interaction 2>&1 || \
+        echo "[scheduler] WARNING: clustering:backfill failed"
 
     # ── Daily at 06:00 UTC: bandit convergence report + actor profiles ──
     if [ "$CURRENT_HOUR" -ge 6 ] && [ "$LAST_BANDIT_DAY" != "$CURRENT_DAY" ]; then
