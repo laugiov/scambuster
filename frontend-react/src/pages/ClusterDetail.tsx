@@ -173,21 +173,25 @@ export function ClusterDetail() {
               <select
                 value={scamTypeFilter}
                 onChange={(e) => setScamTypeFilter(e.target.value)}
-                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface [color-scheme:dark]"
+                className={`text-xs px-3 py-1.5 rounded-lg border cursor-pointer transition-colors ${
+                  scamTypeFilter ? 'border-accent bg-accent/10 text-accent' : 'border-border bg-surface-dim text-on-surface-dim'
+                }`}
+                style={{ colorScheme: 'dark' }}
               >
-                <option value="">All scam types</option>
+                <option value="" className="bg-neutral-800 text-neutral-200">All scam types</option>
                 {scamTypes.map((st) => (
-                  <option key={st} value={st}>{scamTypeLabel(st)}</option>
+                  <option key={st} value={st} className="bg-neutral-800 text-neutral-200">{scamTypeLabel(st)}</option>
                 ))}
               </select>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortField)}
-                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface [color-scheme:dark]"
+                className="text-xs px-3 py-1.5 rounded-lg border border-border bg-surface-dim text-on-surface-dim cursor-pointer"
+                style={{ colorScheme: 'dark' }}
               >
-                <option value="risk">Sort: Risk (high first)</option>
-                <option value="scam_type">Sort: Scam type</option>
-                <option value="status">Sort: Status</option>
+                <option value="risk" className="bg-neutral-800 text-neutral-200">Sort: Risk (high first)</option>
+                <option value="scam_type" className="bg-neutral-800 text-neutral-200">Sort: Scam type</option>
+                <option value="status" className="bg-neutral-800 text-neutral-200">Sort: Status</option>
               </select>
             </div>
             {selectedAnchor && (
