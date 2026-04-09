@@ -611,10 +611,14 @@ final class IocClusteringService
         }
 
         // Fictional 555 phone numbers (North American reserved range)
+        // Covers: +1-NPA-555-XXXX, (555) XXX-XXXX, 555XXXXXXX, +1555XXXXXXX
         if ($type === 'phone') {
             $digits = preg_replace('/[^0-9]/', '', $value);
 
-            if (\is_string($digits) && preg_match('/^1?555\d{7}$/', $digits)) {
+            if (\is_string($digits) && (
+                preg_match('/^1?\d{3}555\d{4}$/', $digits)  // +1-NPA-555-XXXX
+                || preg_match('/^1?555\d{7}$/', $digits)     // +1-555-XXX-XXXX or 555-XXX-XXXX
+            )) {
                 return true;
             }
         }
