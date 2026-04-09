@@ -17,6 +17,8 @@ final class ClusteredThreatActorStixBuilder
 {
     private const IDENTITY_ID = 'identity--f431f809-377b-45e0-aa1c-6a4751cae5ff';
     private const TLP_AMBER = 'marking-definition--f88d31f6-486f-44da-b317-01333bde0b82';
+    private const EXT_DEF_ACTOR_ID = 'extension-definition--c3b48d34-52e8-4f3a-ad9b-2b6a7e4f9c01';
+    private const EXT_DEF_FINANCIAL_IOC_ID = 'extension-definition--d4c59e45-63f9-5a4b-be0c-3c7b8f5a0d12';
 
     /** @var array<string, list<string>> */
     private const GOALS_MAP = [
@@ -56,6 +58,34 @@ final class ClusteredThreatActorStixBuilder
     public function buildBundle(array $clusterData): array
     {
         $objects = [];
+
+        // Extension definitions (STIX 2.1 section 7.3)
+        $objects[] = [
+            'type' => 'extension-definition',
+            'spec_version' => '2.1',
+            'id' => self::EXT_DEF_ACTOR_ID,
+            'created_by_ref' => self::IDENTITY_ID,
+            'created' => '2025-12-01T00:00:00.000Z',
+            'modified' => '2026-04-09T00:00:00.000Z',
+            'name' => 'ScamBuster Threat Actor Extension',
+            'description' => 'Cluster-level threat actor profiling: conversation count, anchor IOC types, clustering algorithm.',
+            'schema' => 'https://github.com/laugiov/scambuster',
+            'version' => '2.0',
+            'extension_types' => ['property-extension'],
+        ];
+        $objects[] = [
+            'type' => 'extension-definition',
+            'spec_version' => '2.1',
+            'id' => self::EXT_DEF_FINANCIAL_IOC_ID,
+            'created_by_ref' => self::IDENTITY_ID,
+            'created' => '2026-04-09T00:00:00.000Z',
+            'modified' => '2026-04-09T00:00:00.000Z',
+            'name' => 'ScamBuster Financial IOC Extension',
+            'description' => 'Custom STIX patterns for financial IOCs without native SCO: phone, IBAN, crypto wallets, bank accounts.',
+            'schema' => 'https://github.com/laugiov/scambuster',
+            'version' => '1.0',
+            'extension_types' => ['new-sco'],
+        ];
 
         // Build threat-actor
         $actor = $this->buildThreatActor($clusterData);
@@ -104,6 +134,7 @@ final class ClusteredThreatActorStixBuilder
                 'spec_version' => '2.1',
                 'id' => $stixId,
                 'created_by_ref' => self::IDENTITY_ID,
+                'indicator_types' => ['malicious-activity', 'attribution'],
                 'name' => "{$indType}: {$indValue}",
                 'pattern_type' => 'stix',
                 'pattern' => $this->buildStixPattern($indType, $indValue),
