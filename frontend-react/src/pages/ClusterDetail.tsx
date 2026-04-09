@@ -4,6 +4,8 @@ import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
 import { iocTypeLabel } from '@/lib/iocTypeLabels';
+import client from '@/api/client';
+import { ENDPOINTS } from '@/api/endpoints';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '--';
@@ -19,7 +21,21 @@ export function ClusterDetail() {
   if (isLoading) return <Loading message="Loading cluster..." />;
   if (error || !cluster) return <ErrorMessage message="Cluster not found" onRetry={() => void refetch()} />;
 
-  const stixExportUrl = `/api/v1/clusters/${cluster.cluster_id}/export/stix`;
+  async function handleExportStix() {
+    try {
+      const { data } = await client.get(ENDPOINTS.clusters.exportStix(cluster.cluster_id));
+      const json = JSON.stringify(data, null, 2);
+      const blob = new Blob([json], { type: 'application/stix+json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cluster-${cluster.cluster_id.slice(0, 8)}.stix.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      // silently fail
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -37,14 +53,12 @@ export function ClusterDetail() {
             <span>v{cluster.algorithm_version}</span>
           </div>
         </div>
-        <a
-          href={stixExportUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-3 py-1.5 rounded-md text-xs font-medium bg-accent text-on-accent hover:bg-accent/90 transition-colors"
+        <button
+          onClick={() => void handleExportStix()}
+          className="px-3 py-1.5 rounded-md text-xs font-medium bg-accent text-on-accent hover:bg-accent/90 transition-colors cursor-pointer"
         >
           Export STIX
-        </a>
+        </button>
       </header>
 
       <div className="flex items-center gap-2 text-xs">
