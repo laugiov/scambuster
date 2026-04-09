@@ -113,6 +113,10 @@ if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
   " --no-interaction 2>/dev/null || true
   echo "[demo] Dates shifted to current time."
 
+  # ─── Clustering backfill (populate Clusters page) ───
+  echo "[demo] Running clustering backfill..."
+  php bin/console app:clustering:backfill --no-interaction 2>&1 | tail -3
+
   echo "[demo] Database seeded."
 else
   # Still shift dates on restart to keep demo "fresh"
