@@ -158,10 +158,15 @@ final class ClusterQueryService
             return null;
         }
 
-        // Get anchor IOCs
+        // Get anchor IOCs with actual values from indicator table
         $anchors = $this->conn->fetchAllAssociative(
-            'SELECT ioc_type, value_norm_hash, conv_count, first_observed, last_observed
-             FROM threat_actor_cluster_ioc WHERE cluster_id = :id',
+            'SELECT taci.ioc_type, taci.value_norm_hash, taci.conv_count,
+                    taci.first_observed, taci.last_observed,
+                    i.value AS ioc_value, i.value_norm AS ioc_value_norm
+             FROM threat_actor_cluster_ioc taci
+             JOIN indicator i ON i.indicator_id = taci.indicator_id
+             WHERE taci.cluster_id = :id
+             ORDER BY taci.conv_count DESC',
             ['id' => $clusterId]
         );
 
@@ -245,8 +250,18 @@ final class ClusterQueryService
             $attckTechniques = array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques);
         }
 
+        // Get full indicator data for STIX indicator objects
+        $indicatorData = $this->conn->fetchAllAssociative(
+            'SELECT taci.indicator_id, i.type, i.value, i.value_norm
+             FROM threat_actor_cluster_ioc taci
+             JOIN indicator i ON i.indicator_id = taci.indicator_id
+             WHERE taci.cluster_id = :id',
+            ['id' => $clusterId]
+        );
+
         $detail['anchor_ioc_types'] = $anchorIocTypes;
         $detail['indicator_stix_ids'] = $indicatorStixIds;
+        $detail['indicator_data'] = $indicatorData;
         $detail['attck_techniques'] = $attckTechniques;
 
         return $detail;

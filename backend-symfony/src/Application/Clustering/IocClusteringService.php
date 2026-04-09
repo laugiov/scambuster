@@ -26,6 +26,20 @@ final class IocClusteringService
     /** @var array<string> Cached list of HIGH-severity IOC types (intrinsic, not enrichment-upgraded) */
     private array $anchorTypes;
 
+    /**
+     * Well-known ETH contract addresses that appear in many transactions
+     * and should NOT be used as clustering anchors (they are not scammer wallets).
+     *
+     * @var array<string, true>
+     */
+    private const EXCLUDED_ETH_CONTRACTS = [
+        '0xdac17f958d2ee523a2206206994597c13d831ec7' => true, // USDT (Tether)
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' => true, // USDC (Circle)
+        '0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2' => true, // WETH (Wrapped Ether)
+        '0x6b175474e89094c44da98b954eedeac495271d0f' => true, // DAI (MakerDAO)
+        '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce' => true, // SHIB
+    ];
+
     public function __construct(
         private readonly Connection $conn,
         private readonly LoggerInterface $logger,
@@ -472,7 +486,7 @@ final class IocClusteringService
         $placeholders = implode(',', array_fill(0, \count($this->anchorTypes), '?'));
 
         /** @var array<int, array{indicator_id: string, type: string, value: string}> */
-        return $this->conn->fetchAllAssociative(
+        $results = $this->conn->fetchAllAssociative(
             "SELECT DISTINCT i.indicator_id, i.type, i.value
              FROM indicator i
              JOIN observed_ioc oi ON i.indicator_id = oi.indicator_id
@@ -480,6 +494,8 @@ final class IocClusteringService
              WHERE m.conv_id = ? AND i.type IN ({$placeholders})",
             array_merge([$convId], $this->anchorTypes)
         );
+
+        return array_values(array_filter($results, fn (array $ioc) => !$this->isExcludedAnchor($ioc['type'], $ioc['value'])));
     }
 
     /**
@@ -578,5 +594,31 @@ final class IocClusteringService
             'first_seen' => $firstSeen ?? (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             'last_seen' => $lastSeen ?? (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Check if an anchor IOC should be excluded from clustering.
+     *
+     * Excludes:
+     * - Well-known ETH contract addresses (USDT, USDC, etc.)
+     * - Fictional North American 555 phone numbers
+     */
+    private function isExcludedAnchor(string $type, string $value): bool
+    {
+        // Well-known ETH contracts
+        if ($type === 'wallet_eth' && isset(self::EXCLUDED_ETH_CONTRACTS[strtolower($value)])) {
+            return true;
+        }
+
+        // Fictional 555 phone numbers (North American reserved range)
+        if ($type === 'phone') {
+            $digits = preg_replace('/[^0-9]/', '', $value);
+
+            if (\is_string($digits) && preg_match('/^1?555\d{7}$/', $digits)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

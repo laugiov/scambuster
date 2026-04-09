@@ -79,12 +79,49 @@ final class ClusteredThreatActorStixBuilder
             }
         }
 
-        // Build relationships: threat-actor --uses--> attack-pattern
+        // Build indicator objects from anchor IOC data
+        /** @var list<array<string, mixed>> $indicatorData */
+        $indicatorData = \is_array($clusterData['indicator_data'] ?? null) ? $clusterData['indicator_data'] : [];
+        $indicatorStixIds = [];
+
+        foreach ($indicatorData as $ind) {
+            /** @var string $indId */
+            $indId = $ind['indicator_id'] ?? '';
+            /** @var string $indType */
+            $indType = $ind['type'] ?? '';
+            /** @var string $indValue */
+            $indValue = $ind['value'] ?? '';
+
+            if ($indId === '' || $indType === '') {
+                continue;
+            }
+
+            $stixId = 'indicator--' . $indId;
+            $indicatorStixIds[] = $stixId;
+
+            $objects[] = [
+                'type' => 'indicator',
+                'spec_version' => '2.1',
+                'id' => $stixId,
+                'created_by_ref' => self::IDENTITY_ID,
+                'name' => "{$indType}: {$indValue}",
+                'pattern_type' => 'stix',
+                'pattern' => $this->buildStixPattern($indType, $indValue),
+                'valid_from' => $actor['created'],
+                'labels' => ['anchor-ioc', $indType],
+                'object_marking_refs' => [self::TLP_AMBER],
+            ];
+        }
+
+        // Fallback: use pre-built indicator_stix_ids if no indicator_data
+        if (empty($indicatorStixIds)) {
+            /** @var list<string> $indicatorStixIds */
+            $indicatorStixIds = \is_array($clusterData['indicator_stix_ids'] ?? null) ? $clusterData['indicator_stix_ids'] : [];
+        }
+
+        // Build relationships
         /** @var string $actorId */
         $actorId = $actor['id'];
-
-        /** @var list<string> $indicatorStixIds */
-        $indicatorStixIds = \is_array($clusterData['indicator_stix_ids'] ?? null) ? $clusterData['indicator_stix_ids'] : [];
 
         $relationships = $this->actorBuilder->buildActorRelationships(
             $actorId,
@@ -220,6 +257,22 @@ final class ClusteredThreatActorStixBuilder
         }
 
         return "Activity cluster of {$convCount} conversations sharing financial IOCs ({$iocStr}). Scam types: {$scamStr}.{$dateRange}";
+    }
+
+    private function buildStixPattern(string $type, string $value): string
+    {
+        $escaped = str_replace("'", "\\'", $value);
+
+        return match ($type) {
+            'iban' => "[x-scambuster:iban = '{$escaped}']",
+            'phone' => "[x-scambuster:phone = '{$escaped}']",
+            'wallet_btc' => "[x-scambuster:wallet_btc = '{$escaped}']",
+            'wallet_eth' => "[x-scambuster:wallet_eth = '{$escaped}']",
+            'wallet_xmr' => "[x-scambuster:wallet_xmr = '{$escaped}']",
+            'credit_card' => "[x-scambuster:credit_card = '{$escaped}']",
+            'bank_account' => "[x-scambuster:bank_account = '{$escaped}']",
+            default => "[x-scambuster:value = '{$escaped}']",
+        };
     }
 
     private function parseTimestamp(string $value): ?string

@@ -39,7 +39,14 @@ export function Clusters() {
           <StatCard label="Singletons" value={safeStats.singleton_conversations} />
           <StatCard
             label="TAXII Noise Reduction"
-            value={`${safeStats.taxii_noise_reduction_pct}%`}
+            value={safeStats.suspect_clusters > 0
+              ? `${safeStats.taxii_noise_reduction_pct}%*`
+              : `${safeStats.taxii_noise_reduction_pct}%`
+            }
+            subtitle={safeStats.suspect_clusters > 0
+              ? `${safeStats.suspect_clusters} suspect cluster(s) — provisional`
+              : undefined
+            }
           />
         </div>
       )}
@@ -72,7 +79,10 @@ export function Clusters() {
                       {c.name}
                     </Link>
                     {c.status === 'suspect' && (
-                      <span className="ml-2 px-1.5 py-0.5 text-xs rounded bg-warning/20 text-warning">
+                      <span
+                        className="ml-2 px-1.5 py-0.5 text-xs rounded bg-warning/20 text-warning cursor-help"
+                        title={`Cluster exceeds 50 conversations (${c.conversation_count}). Possible over-agglomeration via transitive IOC links. Review anchor IOCs for false connections.`}
+                      >
                         SUSPECT
                       </span>
                     )}
