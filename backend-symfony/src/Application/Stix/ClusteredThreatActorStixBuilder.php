@@ -197,8 +197,10 @@ final class ClusteredThreatActorStixBuilder
         /** @var string $clusterId */
         $clusterId = \is_string($clusterData['cluster_id'] ?? null) ? $clusterData['cluster_id'] : '';
 
-        // Resolve goals from scam types
-        $goals = $this->resolveGoals($scamTypes);
+        // Resolve goals from weighted scam types (>=10% threshold) or all types as fallback
+        /** @var list<array{code: string, count: int, pct: float}> $weightedTypes */
+        $weightedTypes = \is_array($clusterData['weighted_scam_types'] ?? null) ? $clusterData['weighted_scam_types'] : [];
+        $goals = !empty($weightedTypes) ? $this->resolveWeightedGoals($weightedTypes) : $this->resolveGoals($scamTypes);
 
         // Build description
         $description = $this->buildDescription($convCount, $anchorIocTypes, $scamTypes, $firstSeen, $lastSeen);
@@ -256,6 +258,34 @@ final class ClusteredThreatActorStixBuilder
 
         foreach ($scamTypes as $type) {
             $typeGoals = self::GOALS_MAP[strtoupper($type)] ?? ['financial-theft'];
+
+            foreach ($typeGoals as $g) {
+                $goals[] = $g;
+            }
+        }
+
+        return array_values(array_unique($goals)) ?: ['financial-theft'];
+    }
+
+    /**
+     * Resolve goals from weighted scam types, including only types with >= 10% frequency.
+     *
+     * @param list<array{code: string, count: int, pct: float}> $weightedTypes
+     *
+     * @return list<string>
+     */
+    private function resolveWeightedGoals(array $weightedTypes): array
+    {
+        $significantTypes = array_filter($weightedTypes, fn (array $t) => $t['pct'] >= 10.0);
+
+        if (empty($significantTypes)) {
+            $significantTypes = $weightedTypes;
+        }
+
+        $goals = [];
+
+        foreach ($significantTypes as $t) {
+            $typeGoals = self::GOALS_MAP[strtoupper($t['code'])] ?? ['financial-theft'];
 
             foreach ($typeGoals as $g) {
                 $goals[] = $g;

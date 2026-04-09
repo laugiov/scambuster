@@ -193,6 +193,73 @@ class ClusteredThreatActorStixBuilderTest extends TestCase
         $this->assertCount(0, $uses);
     }
 
+    public function testWeightedGoalsExcludesMinorityTypes(): void
+    {
+        $data = $this->sampleClusterData();
+        $data['weighted_scam_types'] = [
+            ['code' => 'INVOICE_FRAUD', 'count' => 31, 'pct' => 30.7],
+            ['code' => 'PHISHING', 'count' => 11, 'pct' => 10.9],
+            ['code' => 'INVESTMENT', 'count' => 11, 'pct' => 10.9],
+            ['code' => 'PHISH_MALWARE', 'count' => 12, 'pct' => 11.9],
+            ['code' => 'ROMANCE', 'count' => 1, 'pct' => 1.0],       // < 10% → excluded
+            ['code' => 'TECH_SUPPORT', 'count' => 2, 'pct' => 2.0],   // < 10% → excluded
+        ];
+
+        $bundle = $this->builder->buildBundle($data);
+        $actor = $this->findByType($bundle, 'threat-actor');
+
+        // INVOICE_FRAUD + PHISHING + INVESTMENT + PHISH_MALWARE → financial-theft, credential-theft, business-email-compromise, malware-deployment
+        // ROMANCE (financial-theft) excluded at 1%, TECH_SUPPORT (financial-theft, remote-access) excluded at 2%
+        $this->assertContains('financial-theft', $actor['goals']);
+        $this->assertContains('credential-theft', $actor['goals']);
+        $this->assertNotContains('remote-access', $actor['goals'], 'TECH_SUPPORT < 10% should be excluded');
+    }
+
+    public function testWeightedGoalsFallsBackToAllIfNoneAboveThreshold(): void
+    {
+        $data = $this->sampleClusterData();
+        $data['weighted_scam_types'] = [
+            ['code' => 'ROMANCE', 'count' => 3, 'pct' => 5.0],
+            ['code' => 'LOTTERY', 'count' => 2, 'pct' => 3.0],
+        ];
+
+        $bundle = $this->builder->buildBundle($data);
+        $actor = $this->findByType($bundle, 'threat-actor');
+
+        // All below 10% → fallback to using all types
+        $this->assertContains('financial-theft', $actor['goals']);
+    }
+
+    public function testBundleContainsExtensionDefinitions(): void
+    {
+        $bundle = $this->builder->buildBundle($this->sampleClusterData());
+
+        $extDefs = array_filter($bundle, fn ($o) => ($o['type'] ?? '') === 'extension-definition');
+        $this->assertCount(2, $extDefs, 'Bundle should contain 2 extension-definitions');
+
+        $names = array_map(fn ($o) => $o['name'] ?? '', $extDefs);
+        $this->assertContains('ScamBuster Threat Actor Extension', $names);
+        $this->assertContains('ScamBuster Financial IOC Extension', $names);
+    }
+
+    public function testIndicatorObjectsHaveIndicatorTypes(): void
+    {
+        $data = $this->sampleClusterData();
+        $data['indicator_data'] = [
+            ['indicator_id' => 'aaa-111', 'type' => 'iban', 'value' => 'DE89370400440532013000'],
+            ['indicator_id' => 'bbb-222', 'type' => 'phone', 'value' => '+2341545643386'],
+        ];
+
+        $bundle = $this->builder->buildBundle($data);
+
+        $indicators = array_filter($bundle, fn ($o) => ($o['type'] ?? '') === 'indicator');
+        $this->assertCount(2, $indicators);
+
+        foreach ($indicators as $ind) {
+            $this->assertSame(['malicious-activity', 'attribution'], $ind['indicator_types']);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
