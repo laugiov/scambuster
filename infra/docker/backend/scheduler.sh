@@ -15,6 +15,7 @@ echo "[scheduler] Starting ScamBuster scheduler (PID $$)"
 echo "[scheduler] Timezone: $(date +%Z) | UTC offset: $(date +%z)"
 echo "[scheduler] Tasks:"
 echo "  - app:close-stale-conversations  every 6h"
+echo "  - app:clustering:backfill        every 30min (fast loop)"
 echo "  - app:bandit:daily-report        daily at ~06:00 UTC"
 echo "  - app:cleanup:weekly             weekly (Sunday ~04:00 UTC)"
 echo "  - pg_dump backup                 daily at ~02:00 UTC"
@@ -52,6 +53,8 @@ while true; do
     echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running ioc:compute-context (structural + LLM)"
     php /app/bin/console app:ioc:compute-context --with-llm --budget-usd=1.00 --limit=200 --no-interaction 2>&1 || \
         echo "[scheduler] WARNING: ioc:compute-context failed"
+
+    # Threat actor clustering is handled in the fast loop (every 30min)
 
     # ── Daily at 06:00 UTC: bandit convergence report + actor profiles ──
     if [ "$CURRENT_HOUR" -ge 6 ] && [ "$LAST_BANDIT_DAY" != "$CURRENT_DAY" ]; then
@@ -96,7 +99,13 @@ while true; do
         LAST_CLEANUP_WEEK="$CURRENT_DAY"
     fi
 
-    # Sleep 6 hours before next cycle
-    echo "[scheduler] Next cycle in 6 hours..."
-    sleep 21600
+    # Fast inner loop: clustering backfill every 30 minutes
+    # Runs 12 times (12 × 30min = 6h) before the main cycle repeats
+    for i in $(seq 1 12); do
+        echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running clustering:backfill (cycle $i/12)"
+        php /app/bin/console app:clustering:backfill --no-interaction 2>&1 || \
+            echo "[scheduler] WARNING: clustering:backfill failed"
+        echo "[scheduler] Next clustering in 30 minutes..."
+        sleep 1800
+    done
 done
