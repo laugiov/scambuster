@@ -160,7 +160,7 @@ final class ClusterQueryService
 
         // Get anchor IOCs with actual values from indicator table
         $anchors = $this->conn->fetchAllAssociative(
-            'SELECT taci.ioc_type, taci.value_norm_hash, taci.conv_count,
+            'SELECT taci.indicator_id, taci.ioc_type, taci.value_norm_hash, taci.conv_count,
                     taci.first_observed, taci.last_observed,
                     i.value AS ioc_value, i.value_norm AS ioc_value_norm
              FROM threat_actor_cluster_ioc taci
@@ -169,6 +169,40 @@ final class ClusterQueryService
              ORDER BY taci.conv_count DESC',
             ['id' => $clusterId]
         );
+
+        // Build indicator→conversations map (for frontend filtering)
+        $indicatorIds = array_column($anchors, 'indicator_id');
+        $indicatorConvMap = [];
+
+        if (!empty($indicatorIds)) {
+            $mapRows = $this->conn->fetchAllAssociative(
+                'SELECT oi.indicator_id, m.conv_id
+                 FROM observed_ioc oi
+                 JOIN message m ON oi.msg_id = m.msg_id
+                 WHERE oi.indicator_id = ANY(:ids)
+                 AND m.conv_id IN (SELECT conv_id FROM threat_actor_cluster_conversation WHERE cluster_id = :clusterId)',
+                ['ids' => '{' . implode(',', $indicatorIds) . '}', 'clusterId' => $clusterId]
+            );
+
+            foreach ($mapRows as $mr) {
+                /** @var string $indId */
+                $indId = $mr['indicator_id'] ?? '';
+                /** @var string $cid */
+                $cid = $mr['conv_id'] ?? '';
+
+                if ($indId !== '' && $cid !== '') {
+                    $indicatorConvMap[$indId][] = $cid;
+                }
+            }
+        }
+
+        // Attach conv_ids to each anchor IOC
+        foreach ($anchors as &$anchor) {
+            /** @var string $indId */
+            $indId = $anchor['indicator_id'] ?? '';
+            $anchor['conv_ids'] = array_values(array_unique($indicatorConvMap[$indId] ?? []));
+        }
+        unset($anchor);
 
         // Get conversations
         $conversations = $this->conn->fetchAllAssociative(
@@ -259,10 +293,56 @@ final class ClusterQueryService
             ['id' => $clusterId]
         );
 
+        // Compute scam type frequency distribution for goal weighting
+        $scamDistribution = $this->conn->fetchAllAssociative(
+            'SELECT st.code, COUNT(*) as cnt
+             FROM threat_actor_cluster_conversation tacc
+             JOIN conversation c ON c.conv_id = tacc.conv_id
+             JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+             WHERE tacc.cluster_id = :id
+             GROUP BY st.code
+             ORDER BY cnt DESC',
+            ['id' => $clusterId]
+        );
+
+        $totalConvs = 0;
+        $scamCounts = [];
+
+        foreach ($scamDistribution as $row) {
+            /** @var string $code */
+            $code = $row['code'] ?? '';
+            /** @var int|string $cnt */
+            $cnt = $row['cnt'] ?? 0;
+            $scamCounts[$code] = (int) $cnt;
+            $totalConvs += (int) $cnt;
+        }
+
+        $weightedScamTypes = [];
+
+        foreach ($scamCounts as $code => $count) {
+            $pct = $totalConvs > 0 ? round($count / $totalConvs * 100, 1) : 0;
+            $weightedScamTypes[] = ['code' => $code, 'count' => $count, 'pct' => $pct];
+        }
+
+        // Only include ATT&CK techniques from significant scam types (>=10%)
+        $significantScamTypes = array_map(
+            fn (array $s) => $s['code'],
+            array_filter($weightedScamTypes, fn (array $s) => $s['pct'] >= 10.0)
+        );
+
+        if (!empty($significantScamTypes)) {
+            $attckTechniques = $this->conn->fetchFirstColumn(
+                'SELECT DISTINCT st.attck_technique FROM lkp_scam_type st WHERE st.code = ANY(:codes) AND st.attck_technique IS NOT NULL',
+                ['codes' => '{' . implode(',', $significantScamTypes) . '}']
+            );
+            $attckTechniques = array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques);
+        }
+
         $detail['anchor_ioc_types'] = $anchorIocTypes;
         $detail['indicator_stix_ids'] = $indicatorStixIds;
         $detail['indicator_data'] = $indicatorData;
         $detail['attck_techniques'] = $attckTechniques;
+        $detail['weighted_scam_types'] = $weightedScamTypes;
 
         return $detail;
     }

@@ -32,6 +32,7 @@ export interface ClusterStats {
 export interface ClusterDetail extends Cluster {
   algorithm_version: string;
   anchor_iocs: Array<{
+    indicator_id: string;
     ioc_type: string;
     ioc_value: string;
     ioc_value_norm: string;
@@ -39,6 +40,7 @@ export interface ClusterDetail extends Cluster {
     conv_count: number;
     first_observed: string;
     last_observed: string;
+    conv_ids: string[];
   }>;
   conversations: Array<{
     conv_id: string;

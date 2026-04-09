@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useClusterDetail } from '@/hooks/useClusters';
 import { Loading } from '@/components/feedback/Loading';
@@ -14,9 +15,49 @@ function formatDate(iso: string | null): string {
   });
 }
 
+type SortField = 'risk' | 'scam_type' | 'status';
+
 export function ClusterDetail() {
   const { id } = useParams<{ id: string }>();
   const { data: cluster, isLoading, error, refetch } = useClusterDetail(id ?? '');
+
+  const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortField>('risk');
+  const [scamTypeFilter, setScamTypeFilter] = useState<string>('');
+
+  const filteredConversations = useMemo(() => {
+    if (!cluster) return [];
+
+    let convs = [...cluster.conversations];
+
+    // Filter by selected anchor IOC
+    if (selectedIndicatorId) {
+      const anchor = cluster.anchor_iocs.find((a) => a.indicator_id === selectedIndicatorId);
+      if (anchor) {
+        const allowedIds = new Set(anchor.conv_ids);
+        convs = convs.filter((c) => allowedIds.has(c.conv_id));
+      }
+    }
+
+    // Filter by scam type
+    if (scamTypeFilter) {
+      convs = convs.filter((c) => c.scam_type === scamTypeFilter);
+    }
+
+    // Sort
+    convs.sort((a, b) => {
+      if (sortBy === 'risk') return b.score_risk - a.score_risk;
+      if (sortBy === 'scam_type') return a.scam_type.localeCompare(b.scam_type);
+      return a.status.localeCompare(b.status);
+    });
+
+    return convs;
+  }, [cluster, selectedIndicatorId, scamTypeFilter, sortBy]);
+
+  const scamTypes = useMemo(() => {
+    if (!cluster) return [];
+    return [...new Set(cluster.conversations.map((c) => c.scam_type))].sort();
+  }, [cluster]);
 
   if (isLoading) return <Loading message="Loading cluster..." />;
   if (error || !cluster) return <ErrorMessage message="Cluster not found" onRetry={() => void refetch()} />;
@@ -36,6 +77,13 @@ export function ClusterDetail() {
       // silently fail
     }
   }
+
+  function handleAnchorClick(indicatorId: string) {
+    setSelectedIndicatorId((prev) => (prev === indicatorId ? null : indicatorId));
+  }
+
+  const selectedAnchor = cluster.anchor_iocs.find((a) => a.indicator_id === selectedIndicatorId);
+  const hasActiveFilter = selectedIndicatorId || scamTypeFilter;
 
   return (
     <div className="space-y-6">
@@ -77,54 +125,103 @@ export function ClusterDetail() {
             </h2>
           </div>
           <div className="divide-y divide-border">
-            {cluster.anchor_iocs.map((ioc) => (
-              <div key={ioc.value_norm_hash} className="px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent shrink-0">
-                    {iocTypeLabel(ioc.ioc_type)}
-                  </span>
-                  <span className="text-xs text-on-surface font-mono truncate" title={ioc.ioc_value}>
-                    {ioc.ioc_value}
+            {cluster.anchor_iocs.map((ioc) => {
+              const isSelected = selectedIndicatorId === ioc.indicator_id;
+              return (
+                <div
+                  key={ioc.indicator_id}
+                  className={`px-4 py-3 flex items-center justify-between cursor-pointer transition-colors ${
+                    isSelected ? 'bg-accent/10 border-l-2 border-accent' : 'hover:bg-surface-dim/50'
+                  }`}
+                  onClick={() => handleAnchorClick(ioc.indicator_id)}
+                  title={`Click to filter conversations sharing this IOC`}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent shrink-0">
+                      {iocTypeLabel(ioc.ioc_type)}
+                    </span>
+                    <span className="text-xs text-on-surface font-mono truncate" title={ioc.ioc_value}>
+                      {ioc.ioc_value}
+                    </span>
+                  </div>
+                  <span className={`text-xs shrink-0 ${isSelected ? 'text-accent font-medium' : 'text-on-surface-dim'}`}>
+                    {ioc.conv_count} conv.
                   </span>
                 </div>
-                <span className="text-xs text-on-surface-dim">
-                  {ioc.conv_count} conv.
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
         {/* Conversations */}
         <div className="rounded-lg border border-border">
-          <div className="px-4 py-3 bg-surface-dim border-b border-border">
-            <h2 className="text-sm font-medium text-on-surface">
-              Conversations ({cluster.conversations.length})
-            </h2>
-          </div>
-          <div className="divide-y divide-border">
-            {cluster.conversations.map((conv) => {
-              return (
-                <Link
-                  key={conv.conv_id}
-                  to={`/conversations/${conv.conv_id}`}
-                  className="px-4 py-3 flex items-center justify-between hover:bg-surface-dim/50 transition-colors block"
+          <div className="px-4 py-3 bg-surface-dim border-b border-border space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-on-surface">
+                Conversations ({filteredConversations.length}{filteredConversations.length !== cluster.conversations.length ? ` / ${cluster.conversations.length}` : ''})
+              </h2>
+              {hasActiveFilter && (
+                <button
+                  onClick={() => { setSelectedIndicatorId(null); setScamTypeFilter(''); }}
+                  className="text-xs text-accent hover:underline cursor-pointer"
                 >
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs text-on-surface">
-                      {conv.conv_id.slice(0, 8)}
-                    </span>
-                    <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${scamTypeColor(conv.scam_type)}`}>
-                      {scamTypeLabel(conv.scam_type)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-on-surface-dim">
-                    <span className="capitalize">{conv.status}</span>
-                    <span>Risk: {conv.score_risk}</span>
-                  </div>
-                </Link>
-              );
-            })}
+                  Clear filters
+                </button>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <select
+                value={scamTypeFilter}
+                onChange={(e) => setScamTypeFilter(e.target.value)}
+                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface"
+              >
+                <option value="">All scam types</option>
+                {scamTypes.map((st) => (
+                  <option key={st} value={st}>{scamTypeLabel(st)}</option>
+                ))}
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortField)}
+                className="text-xs bg-surface border border-border rounded px-2 py-1 text-on-surface"
+              >
+                <option value="risk">Sort: Risk (high first)</option>
+                <option value="scam_type">Sort: Scam type</option>
+                <option value="status">Sort: Status</option>
+              </select>
+            </div>
+            {selectedAnchor && (
+              <div className="text-xs text-accent">
+                Filtered by: {iocTypeLabel(selectedAnchor.ioc_type)} {selectedAnchor.ioc_value}
+              </div>
+            )}
+          </div>
+          <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
+            {filteredConversations.map((conv) => (
+              <Link
+                key={conv.conv_id}
+                to={`/conversations/${conv.conv_id}`}
+                className="px-4 py-3 flex items-center justify-between hover:bg-surface-dim/50 transition-colors block"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-xs text-on-surface">
+                    {conv.conv_id.slice(0, 8)}
+                  </span>
+                  <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${scamTypeColor(conv.scam_type)}`}>
+                    {scamTypeLabel(conv.scam_type)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs text-on-surface-dim">
+                  <span className="capitalize">{conv.status}</span>
+                  <span>Risk: {conv.score_risk}</span>
+                </div>
+              </Link>
+            ))}
+            {filteredConversations.length === 0 && (
+              <div className="px-4 py-8 text-center text-xs text-on-surface-dim">
+                No conversations match the current filters.
+              </div>
+            )}
           </div>
         </div>
       </div>
