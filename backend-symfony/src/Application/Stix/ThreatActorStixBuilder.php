@@ -58,14 +58,6 @@ final class ThreatActorStixBuilder
             'name' => 'Phishing: Spearphishing via Service',
             'url' => 'https://attack.mitre.org/techniques/T1566/003/',
         ],
-        'T1566.004' => [
-            'name' => 'Phishing: Spearphishing Voice',
-            'url' => 'https://attack.mitre.org/techniques/T1566/004/',
-        ],
-        'T1534' => [
-            'name' => 'Internal Spearphishing',
-            'url' => 'https://attack.mitre.org/techniques/T1534/',
-        ],
     ];
 
     /**
