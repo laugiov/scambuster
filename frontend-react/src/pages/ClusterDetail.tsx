@@ -79,12 +79,12 @@ export function ClusterDetail() {
           <div className="divide-y divide-border">
             {cluster.anchor_iocs.map((ioc) => (
               <div key={ioc.value_norm_hash} className="px-4 py-3 flex items-center justify-between">
-                <div>
-                  <span className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent mr-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent shrink-0">
                     {iocTypeLabel(ioc.ioc_type)}
                   </span>
-                  <span className="text-xs text-on-surface-dim font-mono">
-                    {ioc.value_norm_hash.slice(0, 12)}...
+                  <span className="text-xs text-on-surface font-mono truncate" title={ioc.ioc_value}>
+                    {ioc.ioc_value}
                   </span>
                 </div>
                 <span className="text-xs text-on-surface-dim">

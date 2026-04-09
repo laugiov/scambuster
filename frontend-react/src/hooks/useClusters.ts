@@ -33,6 +33,8 @@ export interface ClusterDetail extends Cluster {
   algorithm_version: string;
   anchor_iocs: Array<{
     ioc_type: string;
+    ioc_value: string;
+    ioc_value_norm: string;
     value_norm_hash: string;
     conv_count: number;
     first_observed: string;
