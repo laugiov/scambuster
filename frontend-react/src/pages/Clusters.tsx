@@ -34,20 +34,29 @@ export function Clusters() {
 
       {safeStats && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <StatCard label="Active Clusters" value={safeStats.total_clusters} />
-          <StatCard label="Clustered Conversations" value={safeStats.clustered_conversations} />
-          <StatCard label="Singletons" value={safeStats.singleton_conversations} />
-          <StatCard
-            label="TAXII Noise Reduction"
-            value={safeStats.suspect_clusters > 0
-              ? `${safeStats.taxii_noise_reduction_pct}%*`
-              : `${safeStats.taxii_noise_reduction_pct}%`
-            }
-            subtitle={safeStats.suspect_clusters > 0
-              ? `${safeStats.suspect_clusters} suspect cluster(s) — provisional`
-              : undefined
-            }
-          />
+          <div title="Groups of conversations linked by shared financial IOCs (IBAN, crypto wallets, phone numbers)">
+            <StatCard label="Active Clusters" value={safeStats.total_clusters} />
+          </div>
+          <div title="Conversations that belong to at least one cluster (share a financial IOC with another conversation)">
+            <StatCard label="Clustered Conversations" value={safeStats.clustered_conversations} />
+          </div>
+          <div title="Conversations with no shared financial IOCs — each generates its own threat actor in the TAXII feed">
+            <StatCard
+              label="Unclustered"
+              value={safeStats.singleton_conversations}
+              subtitle="No shared financial IOCs"
+            />
+          </div>
+          <div title={`Before clustering: ${safeStats.total_conversations} threat actors (1 per conversation). After: ${safeStats.total_clusters + safeStats.singleton_conversations} actors (${safeStats.total_clusters} clusters + ${safeStats.singleton_conversations} singletons). Fewer actors = less noise for TAXII consumers (OpenCTI, MISP).`}>
+            <StatCard
+              label="Actor Deduplication"
+              value={`${safeStats.total_conversations} → ${safeStats.total_clusters + safeStats.singleton_conversations}`}
+              subtitle={safeStats.suspect_clusters > 0
+                ? `−${safeStats.taxii_noise_reduction_pct}% · ${safeStats.suspect_clusters} suspect — provisional`
+                : `−${safeStats.taxii_noise_reduction_pct}% threat actors in TAXII feed`
+              }
+            />
+          </div>
         </div>
       )}
 
