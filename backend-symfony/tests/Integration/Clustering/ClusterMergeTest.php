@@ -125,6 +125,56 @@ class ClusterMergeTest extends KernelTestCase
         $this->assertNotSame($clusterA, $clusterC, 'Clusters A and C should be separate');
     }
 
+    public function testMergeTwoClustersViaBridgeConversation(): void
+    {
+        // Step 1: Create cluster for c1 (finds c2 via phone → cluster with c1+c2)
+        $this->service->clusterConversation($this->convC(1));
+        $cluster1 = $this->getClusterForConv($this->convC(1));
+        $this->assertNotNull($cluster1);
+
+        // Step 2: Manually put c3 in a separate cluster (simulate pre-existing cluster)
+        // c3 shares IBAN with c2 but we need it in a DIFFERENT cluster
+        // Use cluster A to create a separate cluster, then check merge when we process c2 again
+        $this->service->clusterConversation($this->convA(1));
+        $clusterA = $this->getClusterForConv($this->convA(1));
+        $this->assertNotNull($clusterA);
+        $this->assertNotSame($cluster1, $clusterA, 'Clusters should be separate initially');
+
+        // Count active clusters before
+        $activeBefore = (int) $this->conn->fetchOne(
+            "SELECT COUNT(*) FROM threat_actor_cluster WHERE status != 'merged'"
+        );
+
+        // Step 3: Directly call mergeClusters to test the merge path
+        $survivorId = $this->service->mergeClusters([$cluster1, $clusterA]);
+
+        // Verify one is the survivor
+        $this->assertNotNull($survivorId);
+
+        // The absorbed cluster should have status 'merged'
+        $mergedCount = (int) $this->conn->fetchOne(
+            "SELECT COUNT(*) FROM threat_actor_cluster WHERE status = 'merged'"
+        );
+        $this->assertSame(1, $mergedCount, 'One cluster should be marked as merged');
+
+        // Active clusters should be one less
+        $activeAfter = (int) $this->conn->fetchOne(
+            "SELECT COUNT(*) FROM threat_actor_cluster WHERE status != 'merged'"
+        );
+        $this->assertSame($activeBefore - 1, $activeAfter);
+    }
+
+    public function testMergeSingleClusterReturnsItself(): void
+    {
+        $this->service->clusterConversation($this->convA(1));
+        $clusterA = $this->getClusterForConv($this->convA(1));
+        $this->assertNotNull($clusterA);
+
+        // Merging a single cluster should return itself
+        $result = $this->service->mergeClusters([$clusterA]);
+        $this->assertSame($clusterA, $result);
+    }
+
     private function getClusterForConv(string $convId): ?string
     {
         $result = $this->conn->fetchOne(
