@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.8.0] - 2026-04-09
+
+### Added
+
+#### Threat Actor Clustering (Specs 058a/b/c)
+
+Real-time IOC-based conversation clustering using Union-Find algorithm on HIGH-severity financial IOCs (IBAN, crypto wallets, phone numbers). Conversations sharing anchor IOCs are grouped into threat-actor clusters.
+
+**Domain & Algorithm (058a)**
+- `IocClusteringService`: real-time clustering during email ingestion (< 1ms overhead)
+- Union-Find with transitive merging (conversations linked via shared IOCs)
+- `NormalizedIocValue` value object (IBAN strip spaces/dashes, ETH lowercase, phone digits-only)
+- `ClusterStixIdGenerator`: deterministic UUID v5 for STIX threat-actor IDs
+- PostgreSQL advisory locks for race condition prevention
+- 3 new tables: `threat_actor_cluster`, `threat_actor_cluster_conversation`, `threat_actor_cluster_ioc`
+- Critical index `idx_observed_ioc_indicator_id` (query time: 0.53ms)
+- `app:clustering:backfill` command with `--dry-run` and `--limit` options
+- Mega-cluster guard: clusters > 50 conversations flagged as SUSPECT
+- BIC demoted from HIGH to MEDIUM (bank identifier, not threat actor indicator)
+- Whitelist: USDT/USDC/WETH contract addresses + fictional 555 phone numbers excluded
+
+**STIX Export & TAXII (058b)**
+- `ClusteredThreatActorStixBuilder`: STIX 2.1 threat-actor with `cluster_type: "consolidated"` extension
+- TAXII 3rd collection `threat-actors` (UUID `a1b2c3d4-0003-4000-8000-000000000003`)
+- Full STIX bundle: threat-actor + indicators + attack-patterns + relationships (indicates, uses)
+- `indicator_types: ["malicious-activity", "attribution"]` on all anchor indicators
+- Extension-definitions for `x_scambuster_actor` and financial IOC patterns
+- MITRE mapping corrected: removed T1534 (Internal Spearphishing) and T1566.004 (Vishing)
+- `app:clustering:export-stix` command with `--cluster-id`, `--since`, `--output` filters
+- Weighted goals: only scam types >= 10% frequency contribute to threat-actor goals
+
+**API & Frontend (058c)**
+- 5 API endpoints: `/clusters`, `/clusters/stats`, `/clusters/{id}`, `/clusters/{id}/export/stix`, `/iocs/{indicatorId}/cluster`
+- Clusters list page with KPI cards (Active Clusters, Clustered Conversations, Unclustered, Actor Deduplication)
+- Cluster detail page with anchor IOCs (real values visible) + conversations panel
+- Clickable anchor IOCs to filter conversations by shared IOC
+- Sort (Risk, Scam Type, Status) + Scam Type dropdown filter on conversations
+- SUSPECT badge with tooltip explanation
+- Conditional "Actor Deduplication" metric (124 → 24, -80.6%)
+- Hover tooltips on all KPI cards explaining each metric
+- STIX export button (authenticated download, consistent with Export CSV style)
+- Sidebar navigation entry + i18n (EN/FR)
+
+**Operations**
+- Scheduler: clustering backfill every 30 minutes (fast inner loop)
+- Demo: automatic backfill after `make demo-load` and Railway `docker-entrypoint-demo.sh`
+- IngestPostProcessor: real-time clustering after IOC extraction
+
+### Tests
+- 125 new clustering tests (96 domain + 18 STIX + 7 API + 4 audit fixes)
+- TDD strict: every test written before code
+- Core query performance: 0.53ms (EXPLAIN ANALYZE verified)
+- Coverage: NormalizedIocValue 100%, ClusterStixIdGenerator 100%, IocClusteringService 95%
+
+---
+
 ## [2.7.0] - 2026-04-09
 
 ### Added
