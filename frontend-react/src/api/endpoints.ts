@@ -58,6 +58,13 @@ export const ENDPOINTS = {
     update: (code: string) => `/personas/${code}`,
     toggleActive: (code: string) => `/personas/${code}/active`,
   },
+  clusters: {
+    list: '/clusters',
+    stats: '/clusters/stats',
+    detail: (id: string) => `/clusters/${id}`,
+    exportStix: (id: string) => `/clusters/${id}/export/stix`,
+    forIoc: (indicatorId: string) => `/iocs/${indicatorId}/cluster`,
+  },
   impact: {
     summary: '/impact/summary',
     iocUniqueness: '/impact/ioc-uniqueness',

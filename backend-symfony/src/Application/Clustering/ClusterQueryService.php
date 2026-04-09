@@ -1,0 +1,241 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Clustering;
+
+use Doctrine\DBAL\Connection;
+
+/**
+ * Read-only query service for cluster data (API layer).
+ *
+ * All methods return arrays (no entities) for direct JSON serialization.
+ */
+final class ClusterQueryService
+{
+    public function __construct(
+        private readonly Connection $conn,
+    ) {
+    }
+
+    /**
+     * List all active clusters with stats.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listClusters(): array
+    {
+        $rows = $this->conn->fetchAllAssociative(
+            "SELECT tac.cluster_id, tac.stix_id, tac.name, tac.status,
+                    tac.conversation_count, tac.anchor_ioc_count,
+                    tac.sophistication, tac.primary_scam_types,
+                    tac.first_seen, tac.last_seen
+             FROM threat_actor_cluster tac
+             WHERE tac.status IN ('active', 'suspect')
+             ORDER BY tac.conversation_count DESC, tac.last_seen DESC"
+        );
+
+        $clusters = [];
+
+        foreach ($rows as $row) {
+            $clusterId = \is_string($row['cluster_id'] ?? null) ? $row['cluster_id'] : '';
+
+            $anchorIocTypes = $this->conn->fetchFirstColumn(
+                'SELECT DISTINCT ioc_type FROM threat_actor_cluster_ioc WHERE cluster_id = :id',
+                ['id' => $clusterId]
+            );
+
+            $clusters[] = [
+                'cluster_id' => $clusterId,
+                'stix_id' => \is_string($row['stix_id'] ?? null) ? $row['stix_id'] : '',
+                'name' => \is_string($row['name'] ?? null) ? $row['name'] : '',
+                'status' => \is_string($row['status'] ?? null) ? $row['status'] : 'active',
+                'conversation_count' => \is_numeric($row['conversation_count'] ?? null) ? (int) $row['conversation_count'] : 0,
+                'anchor_ioc_count' => \is_numeric($row['anchor_ioc_count'] ?? null) ? (int) $row['anchor_ioc_count'] : 0,
+                'anchor_ioc_types' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $anchorIocTypes),
+                'sophistication' => \is_string($row['sophistication'] ?? null) ? $row['sophistication'] : 'none',
+                'primary_scam_types' => $this->parsePostgresArray(\is_string($row['primary_scam_types'] ?? null) ? $row['primary_scam_types'] : '{}'),
+                'first_seen' => \is_string($row['first_seen'] ?? null) ? $row['first_seen'] : null,
+                'last_seen' => \is_string($row['last_seen'] ?? null) ? $row['last_seen'] : null,
+            ];
+        }
+
+        return $clusters;
+    }
+
+    /**
+     * Global clustering statistics.
+     *
+     * @return array<string, mixed>
+     */
+    public function getStats(): array
+    {
+        /** @var int|string|false $totalConvs */
+        $totalConvs = $this->conn->fetchOne('SELECT COUNT(*) FROM conversation');
+        $totalConvs = (int) $totalConvs;
+
+        /** @var int|string|false $clusteredConvs */
+        $clusteredConvs = $this->conn->fetchOne(
+            "SELECT COUNT(*) FROM threat_actor_cluster_conversation tacc
+             JOIN threat_actor_cluster tac ON tac.cluster_id = tacc.cluster_id
+             WHERE tac.status != 'merged'"
+        );
+        $clusteredConvs = (int) $clusteredConvs;
+
+        /** @var int|string|false $totalClusters */
+        $totalClusters = $this->conn->fetchOne("SELECT COUNT(*) FROM threat_actor_cluster WHERE status != 'merged'");
+        $totalClusters = (int) $totalClusters;
+
+        /** @var int|string|false $suspectClusters */
+        $suspectClusters = $this->conn->fetchOne("SELECT COUNT(*) FROM threat_actor_cluster WHERE status = 'suspect'");
+        $suspectClusters = (int) $suspectClusters;
+
+        /** @var int|string|false $largestSize */
+        $largestSize = $this->conn->fetchOne("SELECT MAX(conversation_count) FROM threat_actor_cluster WHERE status != 'merged'");
+        $largestSize = (int) $largestSize;
+
+        /** @var string|false $lastClusteredAt */
+        $lastClusteredAt = $this->conn->fetchOne("SELECT MAX(last_clustered_at) FROM threat_actor_cluster WHERE status != 'merged'");
+
+        $singletonConvs = $totalConvs - $clusteredConvs;
+        $avgClusterSize = $totalClusters > 0 ? round($clusteredConvs / $totalClusters, 2) : 0;
+
+        // Noise reduction: total_convs → total_clusters + singletons (threat-actors in TAXII)
+        $actorsWithout = $totalConvs;
+        $actorsWith = $totalClusters + $singletonConvs;
+        $noiseReduction = $actorsWithout > 0 ? round((1 - $actorsWith / $actorsWithout) * 100, 1) : 0;
+
+        // Anchor IOC type coverage
+        $coverageRows = $this->conn->fetchAllAssociative(
+            "SELECT ioc_type, COUNT(*) as cnt FROM threat_actor_cluster_ioc
+             WHERE cluster_id IN (SELECT cluster_id FROM threat_actor_cluster WHERE status != 'merged')
+             GROUP BY ioc_type ORDER BY cnt DESC"
+        );
+
+        $anchorCoverage = [];
+
+        foreach ($coverageRows as $cr) {
+            /** @var string $iocType */
+            $iocType = $cr['ioc_type'] ?? '';
+            /** @var int|string $cnt */
+            $cnt = $cr['cnt'] ?? 0;
+            $anchorCoverage[$iocType] = (int) $cnt;
+        }
+
+        return [
+            'total_conversations' => $totalConvs,
+            'clustered_conversations' => $clusteredConvs,
+            'singleton_conversations' => $singletonConvs,
+            'total_clusters' => $totalClusters,
+            'suspect_clusters' => $suspectClusters,
+            'taxii_noise_reduction_pct' => $noiseReduction,
+            'avg_cluster_size' => $avgClusterSize,
+            'largest_cluster_size' => $largestSize,
+            'anchor_ioc_coverage' => $anchorCoverage,
+            'last_clustered_at' => \is_string($lastClusteredAt) ? $lastClusteredAt : null,
+        ];
+    }
+
+    /**
+     * Cluster detail with conversations and anchor IOCs.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getDetail(string $clusterId): ?array
+    {
+        $row = $this->conn->fetchAssociative(
+            "SELECT tac.cluster_id, tac.stix_id, tac.name, tac.status,
+                    tac.conversation_count, tac.anchor_ioc_count,
+                    tac.sophistication, tac.primary_scam_types, tac.goals,
+                    tac.first_seen, tac.last_seen, tac.algorithm_version,
+                    tac.created_at, tac.updated_at
+             FROM threat_actor_cluster tac
+             WHERE tac.cluster_id = :id AND tac.status != 'merged'",
+            ['id' => $clusterId]
+        );
+
+        if ($row === false) {
+            return null;
+        }
+
+        // Get anchor IOCs
+        $anchors = $this->conn->fetchAllAssociative(
+            'SELECT ioc_type, value_norm_hash, conv_count, first_observed, last_observed
+             FROM threat_actor_cluster_ioc WHERE cluster_id = :id',
+            ['id' => $clusterId]
+        );
+
+        // Get conversations
+        $conversations = $this->conn->fetchAllAssociative(
+            'SELECT c.conv_id, c.status, c.score_risk, c.ts_first, c.ts_last,
+                    st.code AS scam_type, tacc.linked_at
+             FROM threat_actor_cluster_conversation tacc
+             JOIN conversation c ON c.conv_id = tacc.conv_id
+             JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
+             WHERE tacc.cluster_id = :id
+             ORDER BY c.ts_first ASC',
+            ['id' => $clusterId]
+        );
+
+        return [
+            'cluster_id' => \is_string($row['cluster_id'] ?? null) ? $row['cluster_id'] : '',
+            'stix_id' => \is_string($row['stix_id'] ?? null) ? $row['stix_id'] : '',
+            'name' => \is_string($row['name'] ?? null) ? $row['name'] : '',
+            'status' => \is_string($row['status'] ?? null) ? $row['status'] : 'active',
+            'conversation_count' => \is_numeric($row['conversation_count'] ?? null) ? (int) $row['conversation_count'] : 0,
+            'anchor_ioc_count' => \is_numeric($row['anchor_ioc_count'] ?? null) ? (int) $row['anchor_ioc_count'] : 0,
+            'sophistication' => \is_string($row['sophistication'] ?? null) ? $row['sophistication'] : 'none',
+            'primary_scam_types' => $this->parsePostgresArray(\is_string($row['primary_scam_types'] ?? null) ? $row['primary_scam_types'] : '{}'),
+            'first_seen' => \is_string($row['first_seen'] ?? null) ? $row['first_seen'] : null,
+            'last_seen' => \is_string($row['last_seen'] ?? null) ? $row['last_seen'] : null,
+            'algorithm_version' => \is_string($row['algorithm_version'] ?? null) ? $row['algorithm_version'] : '1.0',
+            'anchor_iocs' => $anchors,
+            'conversations' => $conversations,
+        ];
+    }
+
+    /**
+     * Find cluster for an indicator (anchor IOC lookup).
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getClusterForIndicator(string $indicatorId): ?array
+    {
+        $row = $this->conn->fetchAssociative(
+            "SELECT tac.cluster_id, tac.stix_id, tac.name, tac.status,
+                    tac.conversation_count, tac.sophistication
+             FROM threat_actor_cluster_ioc taci
+             JOIN threat_actor_cluster tac ON tac.cluster_id = taci.cluster_id
+             WHERE taci.indicator_id = :id AND tac.status != 'merged'
+             LIMIT 1",
+            ['id' => $indicatorId]
+        );
+
+        if ($row === false) {
+            return null;
+        }
+
+        return [
+            'cluster_id' => \is_string($row['cluster_id'] ?? null) ? $row['cluster_id'] : '',
+            'stix_id' => \is_string($row['stix_id'] ?? null) ? $row['stix_id'] : '',
+            'name' => \is_string($row['name'] ?? null) ? $row['name'] : '',
+            'status' => \is_string($row['status'] ?? null) ? $row['status'] : 'active',
+            'conversation_count' => \is_numeric($row['conversation_count'] ?? null) ? (int) $row['conversation_count'] : 0,
+            'sophistication' => \is_string($row['sophistication'] ?? null) ? $row['sophistication'] : 'none',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function parsePostgresArray(string $pgArray): array
+    {
+        $trimmed = trim($pgArray, '{}');
+
+        if ($trimmed === '') {
+            return [];
+        }
+
+        return array_map('trim', explode(',', $trimmed));
+    }
+}
