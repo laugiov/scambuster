@@ -16,7 +16,7 @@ final class TaxiiCollectionsTest extends WebTestCase
         $this->client = static::createClient();
     }
 
-    public function testReturnsTwoCollections(): void
+    public function testReturnsThreeCollections(): void
     {
         $this->client->request('GET', '/api/v1/taxii2/api/collections/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
@@ -27,7 +27,12 @@ final class TaxiiCollectionsTest extends WebTestCase
         $data = json_decode((string) $this->client->getResponse()->getContent(), true);
         $this->assertIsArray($data);
         $this->assertArrayHasKey('collections', $data);
-        $this->assertCount(2, $data['collections']);
+        $this->assertCount(3, $data['collections']);
+
+        $titles = array_column($data['collections'], 'title');
+        $this->assertContains('ScamBuster IOCs', $titles);
+        $this->assertContains('ScamBuster Campaigns', $titles);
+        $this->assertContains('ScamBuster Threat Actors', $titles);
     }
 
     public function testCollectionsHaveCorrectPermissions(): void

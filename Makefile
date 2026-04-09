@@ -234,6 +234,7 @@ demo-load: ##@demo Load demo dataset (150 conversations, all screens populated, 
 	cp scambuster-dataset-sample.json backend-symfony/scambuster-dataset-sample.json
 	$(CONSOLE_DEV) scambuster:demo:load --purge
 	rm -f backend-symfony/scambuster-dataset-sample.json
+	$(CONSOLE_DEV) app:clustering:backfill --no-interaction
 
 demo-up: ##@demo Start self-contained demo (no API key, no config needed)
 	docker compose -f docker-compose.demo.yml up -d --build

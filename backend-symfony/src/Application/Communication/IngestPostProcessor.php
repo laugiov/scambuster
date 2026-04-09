@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\Audit\AuditLogger;
+use App\Application\Clustering\IocClusteringService;
 use App\Application\LLM\ContextualEnricher;
 use App\Application\LLM\ContextualEnrichmentRequest;
 use App\Domain\Audit\AuditEventType;
@@ -34,6 +35,7 @@ class IngestPostProcessor
         private readonly ?AuditLogger $auditLogger = null,
         private readonly ?ScamClassificationHandler $scamClassifier = null,
         private readonly ?ContextualEnricher $contextualEnricher = null,
+        private readonly ?IocClusteringService $iocClusteringService = null,
     ) {
     }
 
@@ -54,6 +56,7 @@ class IngestPostProcessor
         $this->autoClassifyScamType($message, $conversation, $detectedLang);
         $this->updateRiskScore($conversation, $message);
         $this->analyzePromptInjection($message, $conversation, $msgId);
+        $this->clusterConversation($conversation);
     }
 
     /**
@@ -357,6 +360,26 @@ class IngestPostProcessor
         } catch (\Exception $e) {
             $this->logger->error('[IngestPostProcessor] Prompt injection analysis failed', [
                 'msg_id' => $msgId,
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * Cluster the conversation based on shared HIGH-severity anchor IOCs.
+     * Non-blocking: failure does not affect ingestion.
+     */
+    private function clusterConversation(Conversation $conversation): void
+    {
+        if ($this->iocClusteringService === null) {
+            return;
+        }
+
+        try {
+            $this->iocClusteringService->clusterConversation($conversation->getConvId());
+        } catch (\Throwable $e) {
+            $this->logger->warning('[IngestPostProcessor] Clustering failed', [
+                'conv_id' => $conversation->getConvId(),
                 'error' => $e->getMessage(),
             ]);
         }
