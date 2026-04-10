@@ -457,4 +457,45 @@ final class MessageControllerTest extends WebTestCase
         $statusCode = $this->client->getResponse()->getStatusCode();
         $this->assertContains($statusCode, [Response::HTTP_OK, Response::HTTP_BAD_REQUEST]);
     }
+
+    // ──────────────────────────────────────────────
+    // SPEC 061 — direction guard on extract-iocs
+    // ──────────────────────────────────────────────
+
+    public function testExtractIocsOnOutgoingMessageReturns400(): void
+    {
+        $this->client->request('POST', self::BASE_URL . '/' . self::MSG_OUTBOUND_1 . '/extract-iocs', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['method' => 'regex']));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertStringContainsString('outgoing', strtolower($data['error']));
+        $this->assertSame(self::MSG_OUTBOUND_1, $data['msg_id'] ?? null);
+        $this->assertSame('out', $data['direction'] ?? null);
+    }
+
+    public function testExtractIocsOnIncomingMessageStillWorks(): void
+    {
+        // Regression: spec 061 must not break legitimate extraction on incoming messages.
+        $this->client->request('POST', self::BASE_URL . '/' . self::MSG_INBOUND_1 . '/extract-iocs', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['method' => 'regex']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // 200 if extraction succeeds, 400 only for non-direction reasons (existing test pattern).
+        $this->assertContains($statusCode, [Response::HTTP_OK, Response::HTTP_BAD_REQUEST]);
+
+        if ($statusCode === Response::HTTP_BAD_REQUEST) {
+            $data = json_decode($this->client->getResponse()->getContent(), true);
+            $this->assertIsArray($data);
+            // Must NOT be the spec 061 outgoing-msg error
+            $this->assertStringNotContainsString('outgoing', strtolower($data['error'] ?? ''));
+        }
+    }
 }
