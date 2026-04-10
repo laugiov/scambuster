@@ -29,6 +29,17 @@ export interface ClusterStats {
   last_clustered_at: string | null;
 }
 
+export interface BehavioralProfile {
+  dominant_stimulus: string | null;
+  dominant_stimulus_count: number;
+  avg_urgency_score: number;
+  dominant_revelation_turn: number | null;
+  hesitation_count: number;
+  language_switch_count: number;
+  templated_excerpt_count: number;
+  total_enriched_iocs: number;
+}
+
 export interface ClusterDetail extends Cluster {
   algorithm_version: string;
   anchor_iocs: Array<{
@@ -41,6 +52,9 @@ export interface ClusterDetail extends Cluster {
     first_observed: string;
     last_observed: string;
     conv_ids: string[];
+    dominant_semantic_role: string | null;
+    dominant_stimulus: string | null;
+    avg_urgency_score: number | null;
   }>;
   conversations: Array<{
     conv_id: string;
@@ -51,6 +65,12 @@ export interface ClusterDetail extends Cluster {
     scam_type: string;
     linked_at: string;
   }>;
+  sample_excerpts: Array<{
+    text: string;
+    occurrence_count: number;
+    source_conv_id: string;
+  }>;
+  behavioral_profile: BehavioralProfile | null;
 }
 
 export interface ClusterForIoc {

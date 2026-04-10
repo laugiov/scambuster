@@ -91,6 +91,7 @@ final class ClusteringFixtures
         // ─── Messages (1 per conversation) ───
         $msgIds = [];
         $msgIdx = 0;
+
         foreach ($convIds as $key => $convId) {
             $msgIdx++;
             $msgUuid = sprintf('dddddddd-0000-4000-8000-%012d', $msgIdx);
@@ -102,30 +103,49 @@ final class ClusteringFixtures
         $obsCounter = 0;
         $nextObs = function () use (&$obsCounter): string {
             $obsCounter++;
+
             return sprintf('ffffffff-0000-4000-8000-%012d', $obsCounter);
         };
 
         // Cluster A: shared IBAN in various formats
         $ibanIndicatorId = self::createIndicator($conn, 'eeeeeeee-0001-4000-8000-000000000001', 'iban', 'GB82WEST12345698765432', 'GB82WEST12345698765432', $now);
+        $clusterAObsIds = [];
+
         foreach (['a1', 'a2', 'a3', 'a4', 'a5'] as $key) {
-            self::createObservedIoc($conn, $nextObs(), $msgIds[$key], $ibanIndicatorId, 'iban', 'GB82WEST12345698765432', $now);
+            $obsId = $nextObs();
+            self::createObservedIoc($conn, $obsId, $msgIds[$key], $ibanIndicatorId, 'iban', 'GB82WEST12345698765432', $now);
+            $clusterAObsIds[] = $obsId;
         }
 
         // Also add some MEDIUM IOCs to Cluster A conversations (should NOT affect clustering)
         $domainIndicatorA = self::createIndicator($conn, 'eeeeeeee-0002-4000-8000-000000000001', 'domain', 'evil-phishing.com', 'evil-phishing[.]com', $now);
-        self::createObservedIoc($conn, $nextObs(), $msgIds['a1'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
-        self::createObservedIoc($conn, $nextObs(), $msgIds['a2'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
+        $clusterADomainObsIds = [];
+        $obsIdA1Domain = $nextObs();
+        self::createObservedIoc($conn, $obsIdA1Domain, $msgIds['a1'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
+        $clusterADomainObsIds[] = ['obs_id' => $obsIdA1Domain, 'conv_key' => 'a1'];
+        $obsIdA2Domain = $nextObs();
+        self::createObservedIoc($conn, $obsIdA2Domain, $msgIds['a2'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
+        $clusterADomainObsIds[] = ['obs_id' => $obsIdA2Domain, 'conv_key' => 'a2'];
 
         // Cluster B: shared wallet_btc
         $btcIndicatorId = self::createIndicator($conn, 'eeeeeeee-0003-4000-8000-000000000001', 'wallet_btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', $now);
+        $clusterBObsIds = [];
+
         foreach (['b1', 'b2', 'b3'] as $key) {
-            self::createObservedIoc($conn, $nextObs(), $msgIds[$key], $btcIndicatorId, 'wallet_btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', $now);
+            $obsId = $nextObs();
+            self::createObservedIoc($conn, $obsId, $msgIds[$key], $btcIndicatorId, 'wallet_btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', $now);
+            $clusterBObsIds[] = $obsId;
         }
 
         // Cluster C: transitive — c1+c2 share phone, c2+c3 share IBAN
         $phoneIndicatorId = self::createIndicator($conn, 'eeeeeeee-0004-4000-8000-000000000001', 'phone', '+33698765432', '+33698765432', $now);
-        self::createObservedIoc($conn, $nextObs(), $msgIds['c1'], $phoneIndicatorId, 'phone', '+33698765432', $now);
-        self::createObservedIoc($conn, $nextObs(), $msgIds['c2'], $phoneIndicatorId, 'phone', '+33698765432', $now);
+        $clusterCPhoneObsIds = [];
+        $obsId = $nextObs();
+        self::createObservedIoc($conn, $obsId, $msgIds['c1'], $phoneIndicatorId, 'phone', '+33698765432', $now);
+        $clusterCPhoneObsIds[] = $obsId;
+        $obsId = $nextObs();
+        self::createObservedIoc($conn, $obsId, $msgIds['c2'], $phoneIndicatorId, 'phone', '+33698765432', $now);
+        $clusterCPhoneObsIds[] = $obsId;
 
         $ibanDeIndicatorId = self::createIndicator($conn, 'eeeeeeee-0005-4000-8000-000000000001', 'iban', 'DE89370400440532013000', 'DE89370400440532013000', $now);
         self::createObservedIoc($conn, $nextObs(), $msgIds['c2'], $ibanDeIndicatorId, 'iban', 'DE89370400440532013000', $now);
@@ -133,16 +153,113 @@ final class ClusteringFixtures
 
         // Singletons: MEDIUM IOCs only (domains, emails) — some shared
         $sharedDomainId = self::createIndicator($conn, 'eeeeeeee-0006-4000-8000-000000000001', 'domain', 'phishing-kit.com', 'phishing-kit[.]com', $now);
+
         for ($i = 1; $i <= 5; $i++) {
             self::createObservedIoc($conn, $nextObs(), $msgIds["s{$i}"], $sharedDomainId, 'domain', 'phishing-kit.com', $now);
         }
 
         $emailIndicatorId = self::createIndicator($conn, 'eeeeeeee-0007-4000-8000-000000000001', 'email', 'scammer@evil.com', 'scammer@evil.com', $now);
+
         for ($i = 6; $i <= 10; $i++) {
             self::createObservedIoc($conn, $nextObs(), $msgIds["s{$i}"], $emailIndicatorId, 'email', 'scammer@evil.com', $now);
         }
 
         // conv-noioc-01 and conv-noioc-02: NO indicators at all
+
+        // ─── IOC Context (behavioral enrichment) ───
+        // Cluster A: 5 enriched contexts with urgency-pressure stimulus + Payment Destination role
+        // First 3 share an identical excerpt → templated_excerpt_count = 1
+        $ctxCounter = 0;
+        $nextCtx = function () use (&$ctxCounter): string {
+            $ctxCounter++;
+
+            return sprintf('abcdef00-0000-4000-8000-%012d', $ctxCounter);
+        };
+
+        foreach ($clusterAObsIds as $i => $obsId) {
+            // First 3 share the same excerpt (templated marker)
+            $excerpt = $i < 3
+                ? 'Wire transfer demanded urgently to avoid penalties'
+                : sprintf('Variant excerpt #%d for cluster A', $i);
+
+            // First 2 conversations show hesitation (a1, a2)
+            $hesitation = $i < 2;
+
+            self::createIocContext(
+                $conn,
+                $nextCtx(),
+                $obsId,
+                $ibanIndicatorId,
+                'INVOICE_FRAUD',
+                'Payment Destination',
+                'urgency-pressure',
+                0.80,
+                1,
+                $hesitation,
+                false,
+                $excerpt,
+                $now
+            );
+        }
+
+        // Add ioc_context for the domain IOCs of cluster A — same conversations a1, a2
+        // Hesitation = true on BOTH → if we count rows we get 4 (2 IBAN + 2 domain),
+        // but if we count distinct conversations we get 2 (a1, a2). This exposes the bug.
+        foreach ($clusterADomainObsIds as $entry) {
+            self::createIocContext(
+                $conn,
+                $nextCtx(),
+                $entry['obs_id'],
+                $domainIndicatorA,
+                'INVOICE_FRAUD',
+                'Phishing URL',
+                'urgency-pressure',
+                0.70,
+                1,
+                true, // hesitation also detected on the domain context
+                false,
+                'Click this link to confirm your details',
+                $now
+            );
+        }
+
+        // Cluster B: 3 enriched contexts with authority stimulus, 1 hesitation
+        foreach ($clusterBObsIds as $i => $obsId) {
+            self::createIocContext(
+                $conn,
+                $nextCtx(),
+                $obsId,
+                $btcIndicatorId,
+                'CEO_FRAUD',
+                'Payment Destination',
+                'authority',
+                0.45,
+                3,
+                $i === 0, // hesitation on first only
+                false,
+                'CEO approval required immediately',
+                $now
+            );
+        }
+
+        // Cluster C: 2 enriched contexts on phone with reciprocity, 1 language switch
+        foreach ($clusterCPhoneObsIds as $i => $obsId) {
+            self::createIocContext(
+                $conn,
+                $nextCtx(),
+                $obsId,
+                $phoneIndicatorId,
+                'ROMANCE',
+                'Contact Channel',
+                'reciprocity',
+                0.30,
+                2,
+                false,
+                $i === 0, // language switch on first only
+                'Please call me back I will explain everything',
+                $now
+            );
+        }
     }
 
     /**
@@ -153,6 +270,7 @@ final class ClusteringFixtures
         $conn->executeStatement("DELETE FROM threat_actor_cluster_ioc");
         $conn->executeStatement("DELETE FROM threat_actor_cluster_conversation");
         $conn->executeStatement("DELETE FROM threat_actor_cluster");
+        $conn->executeStatement("DELETE FROM ioc_context WHERE id::text LIKE 'abcdef00-%'");
         $conn->executeStatement("DELETE FROM observed_ioc WHERE obs_id::text LIKE 'ffffffff-%'");
         $conn->executeStatement("DELETE FROM indicator WHERE indicator_id::text LIKE 'eeeeeeee-%'");
         $conn->executeStatement("DELETE FROM message WHERE msg_id::text LIKE 'dddddddd-%'");
@@ -251,6 +369,50 @@ final class ClusteringFixtures
                 'msgId' => $msgId,
                 'indicatorId' => $indicatorId,
                 'context' => json_encode(['type' => $type, 'value' => $value, 'value_norm' => $value, 'score' => ['vt' => 0, 'urlscan' => 0, 'agg' => 0]]),
+                'now' => $now,
+            ]
+        );
+    }
+
+    /**
+     * Create an enriched ioc_context row for behavioral profile testing.
+     */
+    private static function createIocContext(
+        Connection $conn,
+        string $id,
+        string $obsId,
+        string $indicatorId,
+        string $scamTypeCode,
+        string $semanticRole,
+        string $stimulusType,
+        float $urgencyScore,
+        int $revelationTurn,
+        bool $hesitationDetected,
+        bool $languageSwitch,
+        string $contextExcerpt,
+        string $now,
+    ): void {
+        $conn->executeStatement(
+            "INSERT INTO ioc_context
+             (id, indicator_id, obs_id, scam_type_code, semantic_role, stimulus_type,
+              urgency_score, revelation_turn, hesitation_detected, language_switch,
+              context_excerpt, enrichment_status, computed_at, created_at)
+             VALUES (:id, :indicatorId, :obsId, :scamType, :role, :stimulus,
+                     :urgency, :revTurn, :hesitation, :langSwitch,
+                     :excerpt, 'enriched', :now, :now)
+             ON CONFLICT (id) DO NOTHING",
+            [
+                'id' => $id,
+                'indicatorId' => $indicatorId,
+                'obsId' => $obsId,
+                'scamType' => $scamTypeCode,
+                'role' => $semanticRole,
+                'stimulus' => $stimulusType,
+                'urgency' => $urgencyScore,
+                'revTurn' => $revelationTurn,
+                'hesitation' => $hesitationDetected ? 'true' : 'false',
+                'langSwitch' => $languageSwitch ? 'true' : 'false',
+                'excerpt' => $contextExcerpt,
                 'now' => $now,
             ]
         );

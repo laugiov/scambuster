@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.9.0] - 2026-04-10
+
+### Added
+
+#### Cluster Detail Enrichment (Spec 059)
+
+Enriches the cluster detail page with behavioral context from `ioc_context`
+table. Zero new LLM calls — pure aggregation of existing enrichment data.
+
+**Sprint 1 — Quick wins**
+- Navigation icon `↗` on each anchor IOC → opens IOC Detail (filter behavior preserved on row click)
+- "Campaign Excerpts" section: distinct context excerpts with `×N` occurrence count and source conversation link
+- Active anchor IOC visually highlighted (border-l-4, bg-accent, badge inversion)
+- Fix `IocDetail` Behavioral Signals: removed bullet prefix `○`/`●` rendering as `=`
+
+**Sprint 2 — Behavioral Profile**
+- New `ClusterQueryService::computeBehavioralProfile()` aggregating dominant stimulus, avg urgency, dominant revelation turn, hesitation/language switch counts, templated excerpt count
+- New `ClusterQueryService::computeAnchorBehaviors()` per-anchor IOC aggregation (semantic role, stimulus, urgency)
+- Frontend "Threat Profile" section with 6 fields, conditional on `behavioral_profile != null`
+- Per-anchor behavioral pills (semantic role + stimulus + urgency)
+- Uses PostgreSQL `MODE() WITHIN GROUP` and `FILTER (WHERE)` for aggregations
+
+**Sprint 2.5 — Bug fix + visual polish**
+- **Critical fix**: `hesitation_count`, `language_switch_count`, `dominant_stimulus_count` now use `COUNT(DISTINCT m.conv_id)` (was counting `ioc_context` rows, could exceed total conversations)
+- Primary tactic as colored stimulus badge
+- Avg urgency mini progress bar (green/amber/red)
+- Template signal as warning badge with icon
+- Anchor IOC pills as colored badges (semantic role + stimulus)
+- Campaign Excerpts with left border accent + amber `×N` badge
+- New shared `iocContextLabels.ts` lib (ROLE_COLORS, STIMULUS_COLORS, urgency helpers)
+
+### Tests
+- 12 new backend tests (Sprint 1: 6, Sprint 2: 12, Sprint 2.5: regression test for distinct count bug)
+- 13 new frontend tests
+- 2368 backend tests, 104 frontend tests, all passing
+- Zero new LLM cost (verified)
+
+### Out of scope (deferred)
+- T1566.001 mismatch on Romance/Bitcoin clusters — requires dedicated MITRE ATT&CK mapping spec
+- Cross-cluster template signal detection
+- Cluster annotations / analyst notes
+
+---
+
 ## [2.8.0] - 2026-04-09
 
 ### Added
