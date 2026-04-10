@@ -268,19 +268,23 @@ class IocHandlerTest extends KernelTestCase
         $message1 = $this->createTestMessage();
         $conv = $message1->getConversation();
 
-        // Create second message in same conversation
+        // Spec 061: a conversation may contain multiple INCOMING scammer messages.
+        // Outgoing messages must NEVER feed the IOC pipeline (the previous version of
+        // this test used direction='out' on message2, which was itself an example of
+        // the bug spec 061 fixes — the pipeline silently ingested IOCs from outgoing
+        // messages, polluting the indicator table with our own headers and 555 phones).
         $msgId2 = uuid_create(UUID_TYPE_RANDOM);
-        $direction = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'out']);
+        $direction = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'in']);
         $message2 = new Message(
             $msgId2,
             $conv,
             $message1->getChannel(),
             $direction,
             'en',
-            'Reply',
-            'Response',
-            '<p>Response</p>',
-            ['from' => 'bot@test.com'],
+            'Second scammer email',
+            'Same domain mentioned again',
+            '<p>Same domain mentioned again</p>',
+            ['from' => 'scammer-followup@evil.com'],
             bin2hex(random_bytes(32)),
             null,
             $message1,

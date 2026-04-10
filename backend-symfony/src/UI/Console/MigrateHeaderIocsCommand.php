@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\UI\Console;
 
 use App\Application\Communication\IocHandler;
+use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -44,12 +45,26 @@ final class MigrateHeaderIocsCommand extends Command
 
         $io->title('Migrating messages to extract header IOCs');
 
-        // Find all messages with headers
+        // Spec 061: IOC extraction must NEVER touch outgoing messages.
+        // Outgoing messages are LLM-generated replies and contain the honeypot's own
+        // headers + fictional 555 phone numbers. Filter on direction='in' before any
+        // extraction work.
+        $inDirection = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'in']);
+
+        if (!$inDirection) {
+            $io->error('Cannot find direction "in" in lkp_direction table.');
+
+            return Command::FAILURE;
+        }
+
+        // Find all incoming messages with headers
         /** @var list<Message> $messages */
         $messages = $this->em->getRepository(Message::class)
             ->createQueryBuilder('m')
             ->where('m.headers IS NOT NULL')
             ->andWhere('m.deletedAt IS NULL')
+            ->andWhere('m.direction = :inDir')
+            ->setParameter('inDir', $inDirection)
             ->getQuery()
             ->getResult();
 
