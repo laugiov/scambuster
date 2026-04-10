@@ -141,18 +141,22 @@ class ClusterDetailEnrichmentTest extends KernelTestCase
         $this->assertNotNull($detail);
         $profile = $detail['behavioral_profile'];
 
-        // Cluster A has 5 enriched ioc_context rows, all urgency-pressure
+        // Cluster A has 5 conversations all with urgency-pressure (IBAN contexts).
+        // The 2 extra DOMAIN contexts are in conversations a1+a2 already counted.
+        // Distinct conversations with urgency-pressure = 5.
         $this->assertSame(5, $profile['dominant_stimulus_count']);
     }
 
     public function testBehavioralProfileAvgUrgency(): void
     {
+        // 5 IBAN contexts at 0.80 + 2 domain contexts at 0.70
+        // → avg = (5 × 0.80 + 2 × 0.70) / 7 = 5.4 / 7 ≈ 0.7714
         $detail = $this->queryService->getDetail($this->getClusterAId());
 
         $this->assertNotNull($detail);
         $profile = $detail['behavioral_profile'];
 
-        $this->assertEqualsWithDelta(0.80, $profile['avg_urgency_score'], 0.001);
+        $this->assertEqualsWithDelta(0.7714, $profile['avg_urgency_score'], 0.001);
     }
 
     public function testBehavioralProfileDominantRevelationTurn(): void
@@ -165,14 +169,18 @@ class ClusterDetailEnrichmentTest extends KernelTestCase
         $this->assertSame(1, $profile['dominant_revelation_turn']);
     }
 
-    public function testBehavioralProfileHesitationCount(): void
+    public function testBehavioralProfileHesitationCountIsDistinctByConversation(): void
     {
+        // Cluster A fixture has hesitation_detected=true on:
+        //  - 2 IBAN ioc_context rows (conversations a1, a2)
+        //  - 2 DOMAIN ioc_context rows (same conversations a1, a2)
+        // Naive COUNT(*) returns 4, correct COUNT(DISTINCT m.conv_id) returns 2.
         $detail = $this->queryService->getDetail($this->getClusterAId());
 
         $this->assertNotNull($detail);
         $profile = $detail['behavioral_profile'];
 
-        $this->assertSame(0, $profile['hesitation_count']);
+        $this->assertSame(2, $profile['hesitation_count'], 'Hesitation count must be DISTINCT by conversation');
     }
 
     public function testBehavioralProfileLanguageSwitchCount(): void
@@ -192,7 +200,8 @@ class ClusterDetailEnrichmentTest extends KernelTestCase
         $this->assertNotNull($detail);
         $profile = $detail['behavioral_profile'];
 
-        $this->assertSame(5, $profile['total_enriched_iocs']);
+        // 5 IBAN contexts + 2 domain contexts = 7 enriched ioc_context rows
+        $this->assertSame(7, $profile['total_enriched_iocs']);
     }
 
     public function testBehavioralProfileTemplatedExcerptCount(): void

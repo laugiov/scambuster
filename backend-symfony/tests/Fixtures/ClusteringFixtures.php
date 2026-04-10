@@ -119,8 +119,13 @@ final class ClusteringFixtures
 
         // Also add some MEDIUM IOCs to Cluster A conversations (should NOT affect clustering)
         $domainIndicatorA = self::createIndicator($conn, 'eeeeeeee-0002-4000-8000-000000000001', 'domain', 'evil-phishing.com', 'evil-phishing[.]com', $now);
-        self::createObservedIoc($conn, $nextObs(), $msgIds['a1'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
-        self::createObservedIoc($conn, $nextObs(), $msgIds['a2'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
+        $clusterADomainObsIds = [];
+        $obsIdA1Domain = $nextObs();
+        self::createObservedIoc($conn, $obsIdA1Domain, $msgIds['a1'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
+        $clusterADomainObsIds[] = ['obs_id' => $obsIdA1Domain, 'conv_key' => 'a1'];
+        $obsIdA2Domain = $nextObs();
+        self::createObservedIoc($conn, $obsIdA2Domain, $msgIds['a2'], $domainIndicatorA, 'domain', 'evil-phishing.com', $now);
+        $clusterADomainObsIds[] = ['obs_id' => $obsIdA2Domain, 'conv_key' => 'a2'];
 
         // Cluster B: shared wallet_btc
         $btcIndicatorId = self::createIndicator($conn, 'eeeeeeee-0003-4000-8000-000000000001', 'wallet_btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa', $now);
@@ -177,6 +182,9 @@ final class ClusteringFixtures
                 ? 'Wire transfer demanded urgently to avoid penalties'
                 : sprintf('Variant excerpt #%d for cluster A', $i);
 
+            // First 2 conversations show hesitation (a1, a2)
+            $hesitation = $i < 2;
+
             self::createIocContext(
                 $conn,
                 $nextCtx(),
@@ -187,9 +195,30 @@ final class ClusteringFixtures
                 'urgency-pressure',
                 0.80,
                 1,
-                false,
+                $hesitation,
                 false,
                 $excerpt,
+                $now
+            );
+        }
+
+        // Add ioc_context for the domain IOCs of cluster A — same conversations a1, a2
+        // Hesitation = true on BOTH → if we count rows we get 4 (2 IBAN + 2 domain),
+        // but if we count distinct conversations we get 2 (a1, a2). This exposes the bug.
+        foreach ($clusterADomainObsIds as $entry) {
+            self::createIocContext(
+                $conn,
+                $nextCtx(),
+                $entry['obs_id'],
+                $domainIndicatorA,
+                'INVOICE_FRAUD',
+                'Phishing URL',
+                'urgency-pressure',
+                0.70,
+                1,
+                true, // hesitation also detected on the domain context
+                false,
+                'Click this link to confirm your details',
                 $now
             );
         }
