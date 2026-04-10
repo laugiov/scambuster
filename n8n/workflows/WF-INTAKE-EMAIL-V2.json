@@ -3,9 +3,7 @@
   "nodes": [
     {
       "parameters": {
-        "mailbox": "INBOX",
-        "format": "simple",
-        "postProcessAction": "read",
+        "downloadAttachments": true,
         "options": {
           "customEmailConfig": "[\"UNSEEN\"]"
         }
@@ -16,11 +14,11 @@
       "typeVersion": 2.1,
       "position": [
         -96,
-        360
+        368
       ],
       "credentials": {
         "imap": {
-          "id": "ScamBuster-IMAP",
+          "id": "7wXf3ypzm5SqahtM",
           "name": "ScamBuster IMAP"
         }
       }
@@ -28,15 +26,15 @@
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Extract Email Data - V3.3 (IMAP Simple + Targeted Mojibake Fix)\n// Fix: regex-based — only operates on UTF-8-via-Latin-1 sequences\n// See: https://github.com/n8n-io/n8n/issues/10230\n// ═══════════════════════════════════════════════════════════════\n\nconst item = $input.item.json;\n\n// Fix mojibake: only replace sequences that look like UTF-8 bytes misread as Latin-1\n// [lead byte C0-F7] followed by [continuation bytes 80-BF]+\n// Does NOT touch isolated chars like NBSP (\\u00A0) or © (\\u00A9)\nfunction fixMojibake(text) {\n  if (!text || typeof text !== 'string') return '';\n  return text.replace(\n    /[\\xC0-\\xF7][\\x80-\\xBF]+/g,\n    match => Buffer.from(match, 'latin1').toString('utf8')\n  );\n}\n\nconst metadata = item.metadata || {};\nconst headers = {};\n\nfor (const [key, value] of Object.entries(metadata)) {\n  if (typeof value === 'string') {\n    headers[key.toLowerCase()] = value;\n  }\n}\n\nif (item.from) headers['from'] = fixMojibake(item.from);\nif (item.to) headers['to'] = item.to;\nif (item.subject) headers['subject'] = fixMojibake(item.subject);\nif (item.date) headers['date'] = item.date;\n\nconst textContent = fixMojibake((item.textPlain || '').trim());\nconst htmlContent = fixMojibake((item.textHtml || '').trim());\n\nif (headers['subject']) headers['subject'] = fixMojibake(headers['subject']);\n\nfunction stripHtml(html) {\n  if (!html) return '';\n  return html.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nconst fullText = textContent + '\\n' + stripHtml(htmlContent);\nconst subject = headers['subject'] || '';\n\nreturn {\n  json: {\n    email_id: headers['message-id'] || null,\n    thread_id: null,\n    from: headers['from'] || null,\n    to: headers['to'] || null,\n    subject: subject,\n    date: headers['date'] || new Date().toISOString(),\n    body_text: textContent,\n    body_html: htmlContent,\n    headers: headers,\n    full_text: (subject || '') + '\\n\\n' + fullText,\n    attachments: [],\n    has_attachments: false,\n    attachment_count: 0\n  }\n};"
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Extract Email Data - V5 (IMAP Simple + Download Attachments)\n// Spec 063 fix: n8n IMAP V2 format=raw is broken (returns body only,\n// no headers — bug confirmed in n8n source code).\n// We use format=simple instead, which gives us properly-parsed\n// headers via mailparser AND downloads attachments as binaryData.\n// We compute sha256 of each attachment via Node crypto and populate\n// the attachments array, which Prepare Payload then forwards to the\n// backend (existing dto.attachments precedence path — no change to\n// Prepare Payload required).\n// ═══════════════════════════════════════════════════════════════\n\nconst crypto = require('crypto');\n\nconst item = $input.item.json;\nconst binaryParts = $input.item.binary || {};\n\n// ─── Mojibake fix (UTF-8-via-Latin-1 sequences only) ───\nfunction fixMojibake(text) {\n  if (!text || typeof text !== 'string') return '';\n  return text.replace(\n    /[\\xC0-\\xF7][\\x80-\\xBF]+/g,\n    match => Buffer.from(match, 'latin1').toString('utf8')\n  );\n}\n\n// ─── Build the headers object from n8n's parsed metadata ───\nconst metadata = item.metadata || {};\nconst headers = {};\nfor (const [key, value] of Object.entries(metadata)) {\n  if (typeof value === 'string') {\n    headers[key.toLowerCase()] = value;\n  }\n}\n\n// Override with top-level fields when present (more reliable)\nif (item.from) headers['from'] = fixMojibake(item.from);\nif (item.to) headers['to'] = item.to;\nif (item.subject) headers['subject'] = fixMojibake(item.subject);\nif (item.date) headers['date'] = item.date;\n\nconst textContent = fixMojibake((item.textPlain || '').trim());\nconst htmlContent = fixMojibake((item.textHtml || '').trim());\n\nfunction stripHtml(html) {\n  if (!html) return '';\n  return html.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nconst fullText = textContent + '\\n' + stripHtml(htmlContent);\nconst subject = headers['subject'] || '';\n\n// ─── Process attachments from n8n binaryData ───\n// n8n exposes downloaded attachments as item.binary[propertyName],\n// each with { mimeType, fileName, data (base64), fileSize }.\n// We compute sha256 ourselves via Node crypto.\nconst attachments = [];\nfor (const [propName, binData] of Object.entries(binaryParts)) {\n  if (!binData || !binData.data) continue;\n\n  try {\n    const buffer = Buffer.from(binData.data, 'base64');\n    const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');\n\n    attachments.push({\n      filename: binData.fileName || `${propName}.bin`,\n      mime_type: binData.mimeType || 'application/octet-stream',\n      size_bytes: buffer.length,\n      sha256: sha256,\n    });\n  } catch (e) {\n    console.error(`Failed to process attachment ${propName}: ${e.message}`);\n  }\n}\n\nreturn {\n  json: {\n    email_id: (headers['message-id'] || '').replace(/[<>]/g, '') || null,\n    thread_id: null,\n    from: headers['from'] || null,\n    to: headers['to'] || null,\n    subject: subject,\n    date: headers['date'] || new Date().toISOString(),\n    body_text: textContent,\n    body_html: htmlContent,\n    headers: headers,\n    full_text: (subject || '') + '\\n\\n' + fullText,\n    attachments: attachments,                  // ← NEW: populated from binaryData\n    has_attachments: attachments.length > 0,   // ← NEW: now reflects reality\n    attachment_count: attachments.length,      // ← NEW: now reflects reality\n  },\n};\n"
       },
       "id": "405ee839-6e04-45f7-8ab7-6d5b414bc6f4",
       "name": "Extract Email Data",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        352,
-        360
+        128,
+        368
       ]
     },
     {
@@ -68,20 +66,20 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1024,
+        576,
         288
       ]
     },
     {
       "parameters": {
-        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare Payload for /ingest/raw - V5 (IMAP Provider-Agnostic)\n// Reconstructs RFC822 from structured IMAP data for /ingest/raw\n// ═══════════════════════════════════════════════════════════════\n\nconst emailData = $('Loop Over Items').first().json;\nconst tokenData = $input.first().json;\nconst token = tokenData.access_token;\n\n// Reconstruct RFC822 from structured fields\n// The backend /ingest/raw expects base64-encoded RFC822\nconst headers = emailData.headers || {};\n\nlet rfc822 = '';\n\n// Build RFC822 headers\nconst headerOrder = [\n  'from', 'to', 'subject', 'date', 'message-id',\n  'in-reply-to', 'references', 'mime-version', 'content-type',\n  'content-transfer-encoding', 'return-path', 'delivered-to',\n  'received', 'received-spf', 'authentication-results',\n  'dkim-signature', 'arc-seal', 'arc-message-signature',\n  'arc-authentication-results'\n];\n\n// Add known headers in order\nfor (const key of headerOrder) {\n  if (headers[key]) {\n    const headerName = key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');\n    rfc822 += headerName + ': ' + headers[key] + '\\r\\n';\n  }\n}\n\n// Add any remaining headers not in the ordered list\nfor (const [key, value] of Object.entries(headers)) {\n  if (!headerOrder.includes(key) && typeof value === 'string' && value.length < 2000) {\n    const headerName = key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');\n    rfc822 += headerName + ': ' + value + '\\r\\n';\n  }\n}\n\n// Empty line separator\nrfc822 += '\\r\\n';\n\n// Body (prefer text, fallback to html)\nif (emailData.body_text) {\n  rfc822 += emailData.body_text;\n} else if (emailData.body_html) {\n  rfc822 += emailData.body_html;\n}\n\n// Encode to base64 for /ingest/raw\nconst rawSourceB64 = Buffer.from(rfc822, 'utf-8').toString('base64');\n\n// Gmail account ID from fixtures\nconst accountId = '12b3f7b4-8fb1-4830-82d5-58d7fd874d2a';\n\n// Extract threading headers\nconst inReplyTo = headers['in-reply-to'] || null;\nconst references = headers['references'] || null;\nconst messageId = headers['message-id'] || null;\n\nconst payload = {\n  account_id: accountId,\n  raw_source_rfc822_b64: rawSourceB64,\n  ts_received: emailData.date || new Date().toISOString(),\n  channel: 'email',\n  rspamd: { score: 0, symbols: ['N8N'] },\n  score_risk: 50,\n  thread_id: null,                     // No thread concept with IMAP\n  provider_msg_id: messageId,          // Use Message-ID as provider reference\n  in_reply_to: inReplyTo,\n  references: references,\n  message_id: messageId,\n  attachments: emailData.attachments || [],\n  parsed: {\n    headers: headers,\n    body: {\n      text: emailData.body_text || '',\n      html: emailData.body_html || '',\n      has_attachments: emailData.has_attachments || false,\n      attachment_count: emailData.attachment_count || 0,\n      text_length: (emailData.body_text || '').length,\n      html_length: (emailData.body_html || '').length,\n    }\n  }\n};\n\nreturn {\n  json: {\n    token: token,\n    payload: payload,\n    email_id: emailData.email_id,\n    full_text: emailData.full_text\n  }\n};"
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare Payload for /ingest/raw - V5 (IMAP Provider-Agnostic)\n// Reconstructs RFC822 from structured IMAP data for /ingest/raw\n// ═══════════════════════════════════════════════════════════════\n\nconst emailData = $('Loop Over Items').first().json;\nconst tokenData = $input.first().json;\nconst token = tokenData.access_token;\n\n// Reconstruct RFC822 from structured fields\n// The backend /ingest/raw expects base64-encoded RFC822\nconst headers = emailData.headers || {};\n\nlet rfc822 = '';\n\n// Build RFC822 headers\nconst headerOrder = [\n  'from', 'to', 'subject', 'date', 'message-id',\n  'in-reply-to', 'references', 'mime-version', 'content-type',\n  'content-transfer-encoding', 'return-path', 'delivered-to',\n  'received', 'received-spf', 'authentication-results',\n  'dkim-signature', 'arc-seal', 'arc-message-signature',\n  'arc-authentication-results'\n];\n\n// Add known headers in order\nfor (const key of headerOrder) {\n  if (headers[key]) {\n    const headerName = key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');\n    rfc822 += headerName + ': ' + headers[key] + '\\r\\n';\n  }\n}\n\n// Add any remaining headers not in the ordered list\nfor (const [key, value] of Object.entries(headers)) {\n  if (!headerOrder.includes(key) && typeof value === 'string' && value.length < 2000) {\n    const headerName = key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');\n    rfc822 += headerName + ': ' + value + '\\r\\n';\n  }\n}\n\n// Empty line separator\nrfc822 += '\\r\\n';\n\n// Body (prefer text, fallback to html)\nif (emailData.body_text) {\n  rfc822 += emailData.body_text;\n} else if (emailData.body_html) {\n  rfc822 += emailData.body_html;\n}\n\n// Encode to base64 for /ingest/raw\nconst rawSourceB64 = Buffer.from(rfc822, 'utf-8').toString('base64');\n\n// Gmail account ID from fixtures\nconst accountId = '12b3f7b4-8fb1-4830-82d5-58d7fd874d2a';\n\n// Extract threading headers\nconst inReplyTo = headers['in-reply-to'] || null;\nconst references = headers['references'] || null;\nconst messageId = headers['message-id'] || null;\n\nconst payload = {\n  account_id: accountId,\n  raw_source_rfc822_b64: rawSourceB64,\n  ts_received: emailData.date || new Date().toISOString(),\n  channel: 'email',\n  rspamd: { score: 0, symbols: ['N8N'] },\n  score_risk: 50,\n  thread_id: null,                     // No thread concept with IMAP\n  provider_msg_id: messageId,          // Use Message-ID as provider reference\n  in_reply_to: inReplyTo,\n  references: references,\n  message_id: messageId,\n  attachments: emailData.attachments || [],\n  parsed: {\n    headers: headers,\n    body: {\n      text: emailData.body_text || '',\n      html: emailData.body_html || '',\n      has_attachments: emailData.has_attachments || false,\n      attachment_count: emailData.attachment_count || 0,\n      text_length: (emailData.body_text || '').length,\n      html_length: (emailData.body_html || '').length,\n    }\n  }\n};\n\nreturn {\n  json: {\n    token: token,\n    payload: payload,\n    email_id: emailData.email_id,\n    full_text: emailData.full_text\n  }\n};\n"
       },
       "id": "cc4ff59e-504b-4435-a592-beca0320c078",
       "name": "Prepare Payload",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1248,
+        800,
         288
       ]
     },
@@ -118,7 +116,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1472,
+        1024,
         288
       ]
     },
@@ -147,7 +145,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1696,
+        1248,
         384
       ]
     },
@@ -168,7 +166,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1920,
+        1472,
         384
       ]
     },
@@ -181,7 +179,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2144,
+        1696,
         288
       ]
     },
@@ -203,7 +201,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        2368,
+        1920,
         288
       ]
     },
@@ -214,7 +212,7 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        2144,
+        1696,
         480
       ]
     },
@@ -227,7 +225,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2368,
+        1920,
         480
       ]
     },
@@ -240,7 +238,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1696,
+        1248,
         192
       ]
     },
@@ -258,7 +256,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.3,
       "position": [
-        1920,
+        1472,
         192
       ]
     },
@@ -269,8 +267,8 @@
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [
-        800,
-        360
+        352,
+        368
       ],
       "id": "001a60eb-96fb-4bf7-a6ed-6c293d657b24",
       "name": "Loop Over Items"
@@ -282,8 +280,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2592,
-        456
+        2144,
+        464
       ],
       "id": "4a81e6e4-0042-4d00-b1d5-7e9622386c54",
       "name": "Continue Loop"
@@ -467,11 +465,11 @@
     "saveDataSuccessExecution": "all",
     "executionOrder": "v1"
   },
-  "versionId": "c3f5cdaa-0de1-42c2-aef9-f2d255359319",
+  "versionId": "4e90a902-810e-4d95-af2d-83055c758a25",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
   },
-  "id": "Cibqm3bYOOAQz3HL",
+  "id": "MT2ieUWMHh8w6RY8",
   "tags": []
 }
