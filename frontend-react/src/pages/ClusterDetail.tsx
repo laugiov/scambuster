@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useClusterDetail } from '@/hooks/useClusters';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -19,6 +19,7 @@ type SortField = 'risk' | 'scam_type' | 'status';
 
 export function ClusterDetail() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const { data: cluster, isLoading, error, refetch } = useClusterDetail(id ?? '');
 
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
@@ -121,6 +122,45 @@ export function ClusterDetail() {
         </code>
       </div>
 
+      {cluster.sample_excerpts && cluster.sample_excerpts.length > 0 && (
+        <section className="rounded-lg border border-border bg-surface-low/30">
+          <div className="px-4 py-2 border-b border-border flex items-center justify-between">
+            <h2 className="text-xs uppercase tracking-widest text-on-surface-dim">Campaign Excerpts</h2>
+            <span className="text-xs text-on-surface-dim">
+              {cluster.sample_excerpts.length} unique excerpt{cluster.sample_excerpts.length > 1 ? 's' : ''}
+            </span>
+          </div>
+          <ul className="px-4 py-3 space-y-2">
+            {cluster.sample_excerpts.slice(0, 5).map((excerpt, idx) => (
+              <li key={idx} className="text-xs flex items-start justify-between gap-3">
+                <span className="text-on-surface-dim italic flex-1">
+                  &ldquo;{excerpt.text}&rdquo;
+                </span>
+                <span className="flex items-center gap-2 shrink-0 mt-0.5">
+                  {excerpt.occurrence_count > 1 && (
+                    <span
+                      className="px-1.5 py-0.5 rounded bg-accent/20 text-accent text-[0.625rem] font-medium"
+                      title={`Repeated in ${excerpt.occurrence_count} conversations — templated campaign signal`}
+                    >
+                      ×{excerpt.occurrence_count}
+                    </span>
+                  )}
+                  {excerpt.source_conv_id && (
+                    <Link
+                      to={`/conversations/${excerpt.source_conv_id}`}
+                      className="text-accent hover:underline font-mono text-[0.625rem]"
+                      title="Open source conversation"
+                    >
+                      {excerpt.source_conv_id.slice(0, 8)}
+                    </Link>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Anchor IOCs */}
         <div className="rounded-lg border border-border">
@@ -135,23 +175,42 @@ export function ClusterDetail() {
               return (
                 <div
                   key={ioc.indicator_id}
-                  className={`px-4 py-3 flex items-center justify-between cursor-pointer transition-colors ${
-                    isSelected ? 'bg-accent/10 border-l-2 border-accent' : 'hover:bg-surface-dim/50'
+                  className={`px-4 py-3 flex items-center justify-between cursor-pointer transition-colors border-l-4 ${
+                    isSelected
+                      ? 'bg-accent/15 border-accent shadow-inner'
+                      : 'border-transparent hover:bg-surface-dim/50'
                   }`}
                   onClick={() => handleAnchorClick(ioc.indicator_id)}
                   title={`Click to filter conversations sharing this IOC`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <span className="px-1.5 py-0.5 text-xs rounded bg-accent/10 text-accent shrink-0">
+                    <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 ${
+                      isSelected ? 'bg-accent text-on-accent font-medium' : 'bg-accent/10 text-accent'
+                    }`}>
                       {iocTypeLabel(ioc.ioc_type)}
                     </span>
-                    <span className="text-xs text-on-surface font-mono truncate" title={ioc.ioc_value}>
+                    <span className={`text-xs font-mono truncate ${isSelected ? 'text-on-surface font-medium' : 'text-on-surface'}`} title={ioc.ioc_value}>
                       {ioc.ioc_value}
                     </span>
                   </div>
-                  <span className={`text-xs shrink-0 ${isSelected ? 'text-accent font-medium' : 'text-on-surface-dim'}`}>
-                    {ioc.conv_count} conv.
-                  </span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs ${isSelected ? 'text-accent font-medium' : 'text-on-surface-dim'}`}>
+                      {ioc.conv_count} conv.
+                    </span>
+                    <button
+                      type="button"
+                      title="View IOC details"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/ioc-explorer/${ioc.indicator_id}`);
+                      }}
+                      className="p-1 rounded hover:bg-accent/20 text-on-surface-dim hover:text-accent transition-colors cursor-pointer"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
               );
             })}
