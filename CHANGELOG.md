@@ -7,6 +7,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.14.0] - 2026-04-10
+
+### Added
+
+#### Attachment SHA256 linked into IOC pipeline (Spec 064)
+
+Closes the spec 063 SC-008 known follow-up. Persisted attachments now
+generate `observed_ioc` rows of type `sha256`, linked to the message
+that carried them, immediately visible in the IOC Explorer UI and
+included in STIX exports — no frontend change required.
+
+**Why**: Spec 063 restored attachment **persistence** end-to-end, but
+explicitly documented a known gap: the sha256 of persisted attachments
+was NOT inserted as `observed_ioc` rows. As a result, attachments were
+visible in the conversation detail view and via `AttachmentController::download`
+but did **not** appear in the IOC Explorer. This was a P1 visible UX
+gap — an analyst monitoring file-hash IOCs in real time could not see
+new malicious files arriving via the honeypot.
+
+**Implementation**: A new private method
+`IngestHandler::linkAttachmentsAsIocs(?array $attachmentDataList, string $msgId, DateTimeImmutable $now): void`
+iterates the original `dto.attachments` payload (post within-message
+dedup, pre cross-message dedup) and calls the existing
+`IocUpsertService::upsertEnrichedIoc()` for each attachment, with
+payload:
+
+```
+[
+  'msg_id' => $msgId,
+  'ioc' => [
+    'type' => 'sha256',
+    'value' => $contentHash,
+    'value_norm' => strtolower($contentHash),
+    'source' => 'attachment',
+    'first_seen' => $now->format(DATE_ATOM),
+  ],
+  'enrichment' => [
+    'filename' => ..., 'mime_type' => ..., 'size_bytes' => ...,
+  ],
+  'category' => 'file-hash',
+  'tags' => ['attachment'],
+  'tlp' => 'AMBER',
+]
+```
+
+The new method is invoked from `IngestHandler::ingest()` **after**
+`em->flush()` (the message must be in DB for `IocUpsertService` to
+resolve it via the repository). The `IngestHandler` constructor gains
+an optional `?IocUpsertService` injected via Symfony autowiring (no
+`services.yaml` change). The `?` preserves backwards compat with
+existing tests that may instantiate `IngestHandler` manually without
+the new dependency.
+
+**Defensive**: per-attachment try/catch on `InvalidArgumentException`
+(logged at DEBUG, expected on outgoing messages thanks to spec 061
+guards) and `\Throwable` (logged at WARNING for any other failure).
+The mail ingestion has already succeeded by this point — losing IOC
+linkage for one attachment is acceptable, losing the entire mail is
+not.
+
+**Spec 061 compliance**: `IocUpsertService` already enforces the
+outgoing-message guard (Layer 1) and the honeypot filter (Layer 2).
+The new linkage method does not duplicate these checks — it relies on
+the existing service-level enforcement, with the catch making the
+rejection silent for the legitimate outgoing-message case. The
+permanent regression sentinel `NoIocFromOutgoingMessageTest` still
+passes unchanged.
+
+**Tests**: +3 EndToEnd tests on `IngestControllerTest`:
+1. `test_ingest_raw_attachment_sha256_creates_observed_ioc` — single
+   PDF, asserts 1 sha256 row in `observed_ioc` with correct `value_norm`
+2. `test_ingest_raw_three_attachments_creates_three_observed_iocs` —
+   PDF + DOCX + ZIP with 3 distinct hashes, asserts 3 rows
+3. `test_ingest_raw_same_attachment_two_mails_creates_two_observed_iocs`
+   — same PDF in 2 distinct mails, asserts 1 attachment row + 1 indicator
+   + **2 observed_ioc rows** (one per message), proving the option B fix
+   restores full pivot capability across mails despite the shared
+   attachment row
+
+The 13-assertion `test_ingest_raw_with_attachments` regression sentinel
+from spec 063 continues to pass **unchanged**.
+
+**Quality gates**: PHPStan L6 src clean (`make stan`), CS-Fixer clean,
+audit grep clean, full unit suite **1473/1473** green, EndToEnd ingest
+**41/41** green (4 unrelated pre-existing LLM-determinism failures on
+`MessageIocExtractionTest` + `SummaryExclusion*` confirmed identical
+on clean main HEAD).
+
+**Manual smoke validated on dev** (2026-04-10, real n8n IMAP pipeline):
+mail #1 with 1 PJ → 3 IOCs visible in conversation detail; mail #2
+with 3 PJ → 5 IOCs; both sha256 entries appear immediately in the IOC
+Explorer with correct timestamps. The new sha256 indicators are also
+included in STIX exports and queryable via IOC search/filter endpoints.
+
+##### Cross-mail pivot capability — option B
+
+The `attachment` table has a pre-existing `UNIQUE(content_hash)`
+constraint (predates spec 063). The naive implementation (iterate
+`$message->getAttachments()`) would lose IOC linkage for any mail
+sharing a sha256 with an earlier mail, because `processAttachments()`
+skips persisting a duplicate `attachment` row and the second message
+ends up with zero attached entities.
+
+**Option B (implemented)**: `linkAttachmentsAsIocs()` iterates the
+original `dto.attachments` payload (post within-message dedup, pre
+cross-message dedup). `IocUpsertService` deduplicates indicators by
+`(type, value_norm)` and `observed_ioc` rows by `(msg_id, indicator_id)`,
+so 50 mails carrying the same malicious PDF produce **1 indicator + 50
+`observed_ioc` rows**, restoring full pivot capability for analysts.
+The shared `attachment` row remains an acceptable storage optimization
+that does not impair detection.
+
+`enrichment.attachment_id` was dropped from the IOC payload because
+the persisted `Attachment` entity for a given `content_hash` may belong
+to a different mail under the dedup constraint — passing it would be
+misleading. `filename`, `mime_type`, and `size_bytes` remain.
+
+Within-message dedup is preserved inline (the same sha256 listed twice
+in `dto.attachments` still produces a single IOC).
+
+##### Files changed
+
+- `backend-symfony/src/Application/Communication/IngestHandler.php`
+  (+ optional `?IocUpsertService` constructor parameter, + new private
+  `linkAttachmentsAsIocs(?array, string, DateTimeImmutable)` method,
+  + 1 call site after `em->flush()` passing `$dto->attachments`)
+- `backend-symfony/tests/EndToEnd/Communication/IngestControllerTest.php`
+  (+ 3 tests)
+
+**No schema change. No new dependency. No modification to
+`IocUpsertService` itself.**
+
+#### Actor Deduplication stat card on Impact page
+
+New 4th `StatCard` in the Impact page top row, populated from the
+existing `useClusterStats()` hook:
+`{total_conversations} → {total_clusters}` with subtitle
+`−{taxii_noise_reduction_pct}% threat actors in TAXII feed`.
+
+Fills the previously empty `lg:grid-cols-4` slot. Renders only when
+`clusterStats` is available and there is at least one conversation,
+keeping the empty state clean. i18n keys added in en/fr.
+
+**Files changed**:
+- `frontend-react/src/pages/Impact.tsx` (+ `useClusterStats` import,
+  + 1 conditional `StatCard`)
+- `frontend-react/src/i18n/locales/{en,fr}.json` (+ 2 keys each)
+
+Frontend CI green: `npm run typecheck`, `npm run lint`, `npm run build`
+all pass clean.
+
+---
+
 ## [2.13.0] - 2026-04-10
 
 ### Fixed
