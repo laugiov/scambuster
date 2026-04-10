@@ -50,6 +50,7 @@ tests/
 PHP 8.3 / Symfony 7.2: Follow standard conventions
 
 ## Recent Changes
+- 060-stix-export-hardening: Removed O(n^2) related-to indicator mesh from conversation + IOC explorer exports (Sprint 1). Conversation exports now attribute to cluster threat-actor when conversation belongs to a cluster, singleton actor renamed "Unattributed Scam Actor (Type)" otherwise (Sprint 2). 27 new tests, validated visually on 7 STIX bundles. Honeypot/MITRE issues deferred to specs 061/062.
 - 059-cluster-detail-enrichment: Threat Profile + Campaign Excerpts on cluster detail. ClusterQueryService computeBehavioralProfile/computeAnchorBehaviors aggregations from ioc_context (MODE WITHIN GROUP, COUNT DISTINCT). Reused IocDetail badge palette. Zero new LLM calls. 25 new tests.
 - 058a/b/c-clustering: Real-time threat actor clustering via Union-Find on financial IOCs. IocClusteringService, ClusteredThreatActorStixBuilder, TAXII 3rd collection, API + React pages, scheduler 30min backfill. 125 new tests (TDD).
 - 050-consolidation-hardening: Added PHP 8.3 / Symfony 7.2 (backend), TypeScript 5.9 / React 19 (frontend) + Doctrine ORM 3.3, Lexik JWT 3.1, TanStack Query 5.91, Zustand 5.0, Recharts 3.8, TailwindCSS 4.2

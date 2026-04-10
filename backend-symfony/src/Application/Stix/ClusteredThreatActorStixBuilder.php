@@ -168,6 +168,65 @@ final class ClusteredThreatActorStixBuilder
     }
 
     /**
+     * Spec 060 Sprint 2: build embeddable threat-actor objects for inclusion
+     * inside a CONVERSATION export bundle (not a cluster export).
+     *
+     * Returns the cluster threat-actor + its attack-patterns + the relationships
+     * (uses + indicates) ready to be appended to a conversation bundle. The
+     * `indicates` relationships target the conversation's own indicator IDs
+     * (passed as the second argument), NOT the cluster's anchor indicators.
+     *
+     * Indicator OBJECTS are NOT returned (those belong to the conversation
+     * bundle, which already has them).
+     *
+     * @param array<string, mixed> $clusterData                  Same shape as buildBundle() expects
+     * @param list<string>         $conversationIndicatorStixIds STIX IDs of the conversation's own indicators
+     *
+     * @return array{threat_actor: array<string, mixed>, attack_patterns: list<array<string, mixed>>, relationships: list<array<string, mixed>>}
+     */
+    public function buildThreatActorObjects(array $clusterData, array $conversationIndicatorStixIds): array
+    {
+        $threatActor = $this->buildThreatActor($clusterData);
+
+        // Build attack-patterns from MITRE techniques
+        /** @var list<string> $techniques */
+        $techniques = \is_array($clusterData['attck_techniques'] ?? null) ? $clusterData['attck_techniques'] : [];
+        $attackPatterns = [];
+        $attackPatternIds = [];
+
+        foreach ($techniques as $technique) {
+            if ($technique === '') {
+                continue;
+            }
+
+            $aps = $this->actorBuilder->buildAttackPatterns($technique);
+
+            foreach ($aps as $ap) {
+                $attackPatterns[] = $ap;
+                $attackPatternIds[] = \is_string($ap['id']) ? $ap['id'] : '';
+            }
+        }
+
+        // Build relationships:
+        //   - threat-actor --uses--> attack-pattern (one per attack-pattern)
+        //   - conversation_indicator --indicates--> threat-actor (one per conv indicator)
+        /** @var string $actorId */
+        $actorId = $threatActor['id'];
+
+        $relationships = $this->actorBuilder->buildActorRelationships(
+            $actorId,
+            $conversationIndicatorStixIds,
+            $attackPatternIds,
+        );
+
+        return [
+            'threat_actor' => $threatActor,
+            'attack_patterns' => $attackPatterns,
+            'relationships' => $relationships,
+        ];
+    }
+
+    /**
      * Build the STIX threat-actor object for a cluster.
      *
      * @param array<string, mixed> $clusterData

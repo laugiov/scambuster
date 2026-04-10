@@ -260,6 +260,119 @@ class ClusteredThreatActorStixBuilderTest extends TestCase
         }
     }
 
+    // ============================================================================
+    // Spec 060 Sprint 2 — buildThreatActorObjects() for embeddable use
+    // ============================================================================
+    //
+    // The new public method buildThreatActorObjects() returns a 3-key array
+    // (threat_actor, attack_patterns, relationships) ready to be embedded in
+    // a conversation export bundle. It does NOT include the cluster's anchor
+    // indicator objects (those belong to the cluster export only) and the
+    // `indicates` relationships target the conversation's own indicator IDs
+    // passed as the second argument.
+
+    public function testBuildThreatActorObjectsReturnsExpectedShape(): void
+    {
+        $data = $this->sampleClusterData();
+        $convIndicatorIds = ['indicator--conv-001', 'indicator--conv-002'];
+
+        $result = $this->builder->buildThreatActorObjects($data, $convIndicatorIds);
+
+        $this->assertArrayHasKey('threat_actor', $result);
+        $this->assertArrayHasKey('attack_patterns', $result);
+        $this->assertArrayHasKey('relationships', $result);
+
+        $this->assertSame('threat-actor', $result['threat_actor']['type']);
+        $this->assertSame($data['stix_id'], $result['threat_actor']['id']);
+        $this->assertIsArray($result['attack_patterns']);
+        $this->assertIsArray($result['relationships']);
+    }
+
+    public function testBuildThreatActorObjectsIsIdempotentForSameClusterId(): void
+    {
+        $data = $this->sampleClusterData();
+
+        $result1 = $this->builder->buildThreatActorObjects($data, ['indicator--x']);
+        $result2 = $this->builder->buildThreatActorObjects($data, ['indicator--x']);
+
+        $this->assertSame($result1['threat_actor']['id'], $result2['threat_actor']['id']);
+        $this->assertSame($result1['threat_actor']['name'], $result2['threat_actor']['name']);
+    }
+
+    public function testBuildThreatActorObjectsIncludesAttackPatterns(): void
+    {
+        $data = $this->sampleClusterData();
+        // Sample uses T1566 which is in the MITRE_TECHNIQUES constant
+        $result = $this->builder->buildThreatActorObjects($data, []);
+
+        $this->assertCount(1, $result['attack_patterns']);
+        $this->assertSame('attack-pattern', $result['attack_patterns'][0]['type']);
+    }
+
+    public function testBuildThreatActorObjectsIncludesUsesRelationships(): void
+    {
+        $data = $this->sampleClusterData();
+        $result = $this->builder->buildThreatActorObjects($data, []);
+
+        $usesRels = array_values(array_filter(
+            $result['relationships'],
+            fn (array $r) => ($r['relationship_type'] ?? '') === 'uses',
+        ));
+
+        $this->assertNotEmpty($usesRels);
+
+        foreach ($usesRels as $rel) {
+            $this->assertSame($data['stix_id'], $rel['source_ref']);
+            $this->assertStringStartsWith('attack-pattern--', $rel['target_ref']);
+        }
+    }
+
+    public function testBuildThreatActorObjectsIncludesIndicatesRelationshipsForConvIndicators(): void
+    {
+        $data = $this->sampleClusterData();
+        $convIndicatorIds = ['indicator--conv-001', 'indicator--conv-002', 'indicator--conv-003'];
+
+        $result = $this->builder->buildThreatActorObjects($data, $convIndicatorIds);
+
+        $indicatesRels = array_values(array_filter(
+            $result['relationships'],
+            fn (array $r) => ($r['relationship_type'] ?? '') === 'indicates',
+        ));
+
+        $this->assertCount(3, $indicatesRels);
+
+        foreach ($indicatesRels as $rel) {
+            $this->assertStringStartsWith('indicator--conv-', $rel['source_ref']);
+            $this->assertSame($data['stix_id'], $rel['target_ref']);
+        }
+    }
+
+    public function testBuildThreatActorObjectsDoesNotIncludeIndicatorObjects(): void
+    {
+        $data = $this->sampleClusterData();
+        $data['indicator_data'] = [
+            ['indicator_id' => 'aaa-111', 'type' => 'iban', 'value' => 'DE89370400440532013000'],
+        ];
+        $convIndicatorIds = ['indicator--conv-001'];
+
+        $result = $this->builder->buildThreatActorObjects($data, $convIndicatorIds);
+
+        // The result must NOT contain a top-level 'indicators' key — those are conversation-owned.
+        $this->assertArrayNotHasKey('indicators', $result);
+        $this->assertArrayNotHasKey('indicator_data', $result);
+    }
+
+    public function testBuildThreatActorObjectsHonoursClusterTypeConsolidatedExtension(): void
+    {
+        $data = $this->sampleClusterData();
+        $result = $this->builder->buildThreatActorObjects($data, []);
+
+        $ext = $result['threat_actor']['extensions']['x_scambuster_actor'] ?? null;
+        $this->assertIsArray($ext);
+        $this->assertSame('consolidated', $ext['cluster_type']);
+        $this->assertSame($data['cluster_id'], $ext['cluster_id']);
+    }
+
     /**
      * @return array<string, mixed>
      */
