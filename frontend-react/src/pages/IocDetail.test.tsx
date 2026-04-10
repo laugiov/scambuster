@@ -51,8 +51,43 @@ const mockIocDetail: IocDetailType = {
   ],
 };
 
+const mockContextResponse = {
+  contexts: [
+    {
+      obs_id: 'obs-1',
+      enrichment_status: 'enriched',
+      structural: {
+        revelation_turn: 1,
+        revelation_turn_ratio: 1.0,
+        total_turns: 3,
+        engagement_hours: 2.5,
+        reward_value: 0.8,
+        co_revealed_types: [],
+        co_revealed_count: 0,
+        scam_type: 'PHISHING',
+        scam_type_attck: 'T1566',
+        persona_used: 'generic_user',
+        extraction_method: 'llm',
+      },
+      semantic: {
+        semantic_role: 'Payment Destination',
+        stimulus_type: 'urgency-pressure',
+        urgency_score: 0.8,
+        language_switch: false,
+        hesitation_detected: false,
+        context_excerpt: 'Test excerpt',
+        enrichment_confidence: 0.9,
+      },
+    },
+  ],
+};
+
 const detailHandler = http.get(`${BASE}/iocs/:indicatorId/detail`, () =>
   HttpResponse.json(mockIocDetail)
+);
+
+const contextHandler = http.get(`${BASE}/iocs/:indicatorId/context`, () =>
+  HttpResponse.json(mockContextResponse)
 );
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
@@ -127,6 +162,29 @@ describe('IocDetail', () => {
     });
 
     expect(screen.getByText('3')).toBeDefined();
+  });
+
+  it('renders Behavioral Signals "Not detected" without bullet prefix character', async () => {
+    server.use(detailHandler, contextHandler);
+    render(<IocDetail />, { wrapper: createWrapper('/ioc-explorer/aaa-bbb-ccc') });
+
+    await waitFor(() => {
+      expect(screen.getByText('evil-phishing.com')).toBeDefined();
+    });
+
+    // Click Context tab
+    const ctxTab = screen.getByText(/Context/);
+    ctxTab.click();
+
+    // Wait for "Not detected" to appear (hesitation + language switch)
+    await waitFor(() => {
+      const matches = screen.getAllByText('Not detected');
+      expect(matches.length).toBeGreaterThanOrEqual(2);
+    });
+
+    // Assert no element contains "= Not detected" or "○ Not detected"
+    expect(screen.queryByText(/=\s*Not detected/)).toBeNull();
+    expect(screen.queryByText(/○\s*Not detected/)).toBeNull();
   });
 
   it('shows 404 for nonexistent indicator', async () => {
