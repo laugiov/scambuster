@@ -305,8 +305,8 @@ final class ClusterQueryService
                 MODE() WITHIN GROUP (ORDER BY ic.stimulus_type) AS dominant_stimulus,
                 AVG(ic.urgency_score) AS avg_urgency_score,
                 MODE() WITHIN GROUP (ORDER BY ic.revelation_turn) AS dominant_revelation_turn,
-                COUNT(*) FILTER (WHERE ic.hesitation_detected = TRUE) AS hesitation_count,
-                COUNT(*) FILTER (WHERE ic.language_switch = TRUE) AS language_switch_count,
+                COUNT(DISTINCT m.conv_id) FILTER (WHERE ic.hesitation_detected = TRUE) AS hesitation_count,
+                COUNT(DISTINCT m.conv_id) FILTER (WHERE ic.language_switch = TRUE) AS language_switch_count,
                 COUNT(*) AS total_enriched_iocs
              FROM ioc_context ic
              JOIN observed_ioc oi ON ic.obs_id = oi.obs_id
@@ -335,7 +335,7 @@ final class ClusterQueryService
         if ($dominantStimulus !== null) {
             /** @var int|string|false $countRow */
             $countRow = $this->conn->fetchOne(
-                "SELECT COUNT(*)
+                "SELECT COUNT(DISTINCT m.conv_id)
                  FROM ioc_context ic
                  JOIN observed_ioc oi ON ic.obs_id = oi.obs_id
                  JOIN message m ON oi.msg_id = m.msg_id
