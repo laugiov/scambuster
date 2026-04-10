@@ -7,6 +7,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.14.0] - 2026-04-10
+
+### Added
+
+#### Attachment SHA256 linked into IOC pipeline (Spec 064)
+
+Closes the spec 063 SC-008 known follow-up. Persisted attachments now
+generate `observed_ioc` rows of type `sha256`, linked to the message
+that carried them, immediately visible in the IOC Explorer UI and
+included in STIX exports — no frontend change required.
+
+**Why**: Spec 063 restored attachment **persistence** end-to-end, but
+explicitly documented a known gap: the sha256 of persisted attachments
+was NOT inserted as `observed_ioc` rows. As a result, attachments were
+visible in the conversation detail view and via `AttachmentController::download`
+but did **not** appear in the IOC Explorer. This was a P1 visible UX
+gap — an analyst monitoring file-hash IOCs in real time could not see
+new malicious files arriving via the honeypot.
+
+**Implementation**: A new private method
+`IngestHandler::linkAttachmentsAsIocs(Message, string $msgId, DateTimeImmutable $now): void`
+iterates `$message->getAttachments()` and calls the existing
+`IocUpsertService::upsertEnrichedIoc()` for each attachment, with
+payload:
+
+```
+[
+  'msg_id' => $msgId,
+  'ioc' => [
+    'type' => 'sha256',
+    'value' => $contentHash,
+    'value_norm' => strtolower($contentHash),
+    'source' => 'attachment',
+    'first_seen' => $now->format(DATE_ATOM),
+  ],
+  'enrichment' => [
+    'attachment_id' => ..., 'filename' => ..., 'mime_type' => ..., 'size_bytes' => ...,
+  ],
+  'category' => 'file-hash',
+  'tags' => ['attachment'],
+  'tlp' => 'AMBER',
+]
+```
+
+The new method is invoked from `IngestHandler::ingest()` **after**
+`em->flush()` (the message must be in DB for `IocUpsertService` to
+resolve it via the repository). The `IngestHandler` constructor gains
+an optional `?IocUpsertService` injected via Symfony autowiring (no
+`services.yaml` change). The `?` preserves backwards compat with
+existing tests that may instantiate `IngestHandler` manually without
+the new dependency.
+
+**Defensive**: per-attachment try/catch on `InvalidArgumentException`
+(logged at DEBUG, expected on outgoing messages thanks to spec 061
+guards) and `\Throwable` (logged at WARNING for any other failure).
+The mail ingestion has already succeeded by this point — losing IOC
+linkage for one attachment is acceptable, losing the entire mail is
+not.
+
+**Spec 061 compliance**: `IocUpsertService` already enforces the
+outgoing-message guard (Layer 1) and the honeypot filter (Layer 2).
+The new linkage method does not duplicate these checks — it relies on
+the existing service-level enforcement, with the catch making the
+rejection silent for the legitimate outgoing-message case. The
+permanent regression sentinel `NoIocFromOutgoingMessageTest` still
+passes unchanged.
+
+**Tests**: +3 EndToEnd tests on `IngestControllerTest`:
+1. `test_ingest_raw_attachment_sha256_creates_observed_ioc` — single
+   PDF, asserts 1 sha256 row in `observed_ioc` with correct `value_norm`
+2. `test_ingest_raw_three_attachments_creates_three_observed_iocs` —
+   PDF + DOCX + ZIP with 3 distinct hashes, asserts 3 rows
+3. `test_ingest_raw_same_attachment_two_mails_documents_dedup_limitation`
+   — sentinel test that documents an existing architectural quirk
+   (see Known Limitation below)
+
+The 13-assertion `test_ingest_raw_with_attachments` regression sentinel
+from spec 063 continues to pass **unchanged**.
+
+**Quality gates**: PHPStan L6 src clean (`make stan`), CS-Fixer clean,
+audit grep clean, full unit+integration suite **2430/2430** green,
+EndToEnd ingest **41/41** green (was 38, +3 new).
+
+**Manual smoke validated on dev**: POST a mail with 1 PDF via curl →
+`observed_ioc` contains the sha256 row linked to `msg_id` within
+seconds. The new sha256 indicators are immediately visible in the IOC
+Explorer UI, included in STIX exports, and queryable via the IOC
+search/filter endpoints.
+
+##### Known limitation — same PJ across multiple mails
+
+The `attachment` table has a pre-existing `UNIQUE(content_hash)`
+constraint (predates spec 063). Consequently, when two distinct mails
+carry the same PDF (same sha256), `IngestHandler::processAttachments()`
+**skips the second one entirely** at the existence check before persist.
+The second message's `getAttachments()` returns empty, so the spec 064
+linkage is a no-op for it.
+
+**Result with the current schema**:
+- 1 attachment row (the first mail wins)
+- 1 `observed_ioc` row of type sha256 (linked to the FIRST message only)
+- 1 indicator row with the sha256
+
+**Threat-intel impact**: an analyst seeing 50 mails with the same
+malicious PDF will see only 1 sha256 indicator linked to 1 message
+instead of 50. This is a known limitation of the attachment dedup
+strategy and is **out of scope for spec 064**. A future spec could
+either:
+- (a) introduce a many-to-many `message_attachment` join table, or
+- (b) extend `processAttachments` to create per-message `observed_ioc`
+  rows that point to the existing shared `attachment` row even when
+  no new Attachment entity is created.
+
+The new test `test_ingest_raw_same_attachment_two_mails_documents_dedup_limitation`
+serves as a sentinel: it documents the current behavior in code and
+will start failing if/when option (a) or (b) is implemented, forcing
+the future author to update the assertions explicitly.
+
+##### Files changed
+
+- `backend-symfony/src/Application/Communication/IngestHandler.php`
+  (+ optional `?IocUpsertService` constructor parameter, + new private
+  `linkAttachmentsAsIocs()` method, + 1 call site after `em->flush()`)
+- `backend-symfony/tests/EndToEnd/Communication/IngestControllerTest.php`
+  (+ 3 tests)
+
+**No schema change. No new dependency. No frontend change. No
+modification to `IocUpsertService` itself.**
+
+---
+
 ## [2.13.0] - 2026-04-10
 
 ### Fixed
