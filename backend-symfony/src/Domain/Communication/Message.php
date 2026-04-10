@@ -139,6 +139,19 @@ class Message
         return $this->direction;
     }
 
+    /**
+     * Spec 061: IOC extraction is allowed only on incoming messages.
+     *
+     * Outgoing messages are produced by ScamBuster (LLM replies) and contain
+     * zero attacker-controlled IOCs. Extracting from them pollutes the
+     * indicator table with the honeypot's own headers and any fictional
+     * 555-range phone numbers the persona invents in the reply body.
+     */
+    public function canExtractIocs(): bool
+    {
+        return $this->direction->getCode() === 'in';
+    }
+
     public function getLangDetect(): string
     {
         return $this->langDetect;
