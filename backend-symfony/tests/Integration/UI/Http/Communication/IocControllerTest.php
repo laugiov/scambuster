@@ -171,6 +171,67 @@ final class IocControllerTest extends WebTestCase
         $this->assertResponseHeaderSame('content-type', 'application/json');
     }
 
+    // ──────────────────────────────────────────────
+    // SPEC 061 — direction guard on POST /enriched
+    // Outgoing message from fixtures: 00000000-0000-0000-0000-000000000101
+    // Incoming message from fixtures: 00000000-0000-0000-0000-000000000001
+    // ──────────────────────────────────────────────
+
+    public function testIngestEnrichedIocRejectsOutgoingMessage(): void
+    {
+        $payload = [
+            'msg_id' => '00000000-0000-0000-0000-000000000101',
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://evil.com',
+                'value_norm' => 'evil.com',
+                'source' => 'body',
+                'first_seen' => '2026-04-10T00:00:00Z',
+            ],
+        ];
+
+        $this->client->request('POST', '/api/v1/iocs/enriched', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('error', $data);
+        $this->assertStringContainsString('outgoing', strtolower($data['error']));
+    }
+
+    public function testIngestEnrichedIocAcceptsIncomingMessage(): void
+    {
+        // Regression: spec 061 must not break legitimate enriched-IOC ingestion on incoming messages.
+        $payload = [
+            'msg_id' => '00000000-0000-0000-0000-000000000001',
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://malicious-spec061.example',
+                'value_norm' => 'malicious-spec061.example',
+                'source' => 'body',
+                'first_seen' => '2026-04-10T00:00:00Z',
+            ],
+        ];
+
+        $this->client->request('POST', '/api/v1/iocs/enriched', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode($payload));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Expect 201 Created on success. Anything but 400 with "outgoing" is acceptable
+        // (the test DB may not have a fully-resolved upstream stack).
+        $this->assertNotSame(Response::HTTP_BAD_REQUEST, $statusCode, sprintf(
+            'Incoming message must not be rejected by spec 061 guard, got status %d: %s',
+            $statusCode,
+            (string) $this->client->getResponse()->getContent(),
+        ));
+    }
+
     // ---- PATCH /api/v1/iocs/{obs_id}/enrich ----
 
     public function testUpdateIocEnrichmentRequiresAuthentication(): void

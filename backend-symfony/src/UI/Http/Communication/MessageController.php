@@ -568,6 +568,22 @@ final class MessageController
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
         }
 
+        // Spec 061: refuse extraction on outgoing messages.
+        // Outgoing messages are LLM replies and pollute the indicator table with our
+        // own headers + fictional 555 phone numbers invented by the persona.
+        if (!$message->canExtractIocs()) {
+            $this->logger->warning('[IOC-EXTRACT] Refused outgoing message extraction (spec 061)', [
+                'msg_id' => $msgId,
+                'direction' => $message->getDirection()->getCode(),
+            ]);
+
+            return new JsonResponse([
+                'error' => 'IOC extraction is not allowed on outgoing messages',
+                'msg_id' => $msgId,
+                'direction' => $message->getDirection()->getCode(),
+            ], Response::HTTP_BAD_REQUEST);
+        }
+
         $this->logger->info('[IOC-EXTRACT-DEBUG] Message found', [
             'msg_id' => $msgId,
             'body_length' => strlen($message->getBodyText()),

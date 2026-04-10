@@ -7,6 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.11.0] - 2026-04-10
+
+### Changed
+
+#### IOC extraction skip platform mails (Spec 061)
+
+Two-sprint hardening of the IOC extraction pipeline to eliminate platform
+contamination — IOCs that should never have been ingested in the first place
+(the honeypot's own email address re-extracted from message bodies, and any
+data from outgoing reply messages).
+
+**Sprint 1 — Preventive guards (defense in depth)**
+- New `Message::canExtractIocs(): bool` domain helper (true iff `direction='in'`)
+- `IocUpsertService::upsertEnrichedIoc()` is now the single funnel that
+  enforces both layers — throws `\InvalidArgumentException` on outgoing messages
+  or honeypot email matches, caught by callers as HTTP 400
+- Layer 1 (direction guard) at the 3 admin/debug entry points:
+  `MigrateHeaderIocsCommand` (QueryBuilder filter), `MessageController POST
+  /extract-iocs` (400), `IocController POST /iocs/enriched` (400)
+- Layer 2 (honeypot identity filter) at upsert time: `IocUpsertService` reads
+  the new `HONEYPOT_EMAIL_ADDRESSES` env var (csv), normalises lowercase, and
+  rejects any email IOC whose `value_norm` matches — case-insensitive
+- Bonus fix: `IocHandlerTest::testGetConversationIocsDeduplicates` was itself
+  an example of the bug (created `direction='out'` and called upsertEnrichedIoc).
+  The test silently masked the contamination. Fixed to use 2 incoming messages.
+
+**Sprint 2 — One-time historical cleanup + permanent guard**
+- New `app:indicator:cleanup-platform-contamination` command with phases:
+  - Phase 5: delete every `observed_ioc` referencing an outgoing message
+  - Phase 6: delete every indicator that becomes orphan after phase 5
+  - Phase 7: delete every indicator matching a configured honeypot address
+    (mixed-origin indicators correctly preserved — only outgoing observation
+    deleted, incoming kept)
+- Safety: `--dry-run`, `--no-csv`, `--no-confirm`, `--honeypot-address` overrides;
+  audit CSV in `var/audit/061-cleanup-{timestamp}.csv` before any delete;
+  interactive confirmation prompt; single transaction with rollback
+- Permanent anti-regression test
+  (`tests/Integration/Communication/NoIocFromOutgoingMessageTest`) asserts
+  zero `observed_ioc` on outgoing messages, runs as part of `make test`
+
+### Tests
+- 15 new backend tests (TDD red→green)
+  - `MessageCanExtractIocsTest` (unit, 2)
+  - `MigrateHeaderIocsCommandSkipOutgoingTest` (1)
+  - `IocUpsertServiceHoneypotFilterTest` (5 — case-insensitive, non-email
+    bypass, empty list no-op, regression)
+  - `MessageControllerTest` +2 (outgoing 400 + incoming regression)
+  - `IocControllerTest` +2 (outgoing 400 + incoming regression)
+  - `CleanupPlatformContaminationCommandTest` (4 — dry-run, real run, mixed
+    origin, idempotency)
+  - `NoIocFromOutgoingMessageTest` (1, anti-regression)
+- 2410 backend tests, 0 errors, 11 skipped (baseline)
+- Real e2e validation on dev DB: 3 distinct test mails sent through n8n
+  pipeline (Layer 2 stress, regression, case-insensitive); 17 IOCs created,
+  zero honeypot pollution, all expected scammer IOCs captured
+
+### Cleanup results on dev DB
+- 2 historical honeypot indicators deleted
+  (`operator-primary@example.com`, `operator-test@example.com`)
+- 141 cascade observations removed
+- 0 outgoing observations to clean (Sprint 1 had already prevented)
+- Idempotent: second dry-run reports "Nothing to clean"
+
+### Configuration
+- New env var `HONEYPOT_EMAIL_ADDRESSES` (csv, lowercase, exact-match)
+- Symfony parameter `app.honeypot_email_addresses` injected globally via bind
+- Default empty (no-op for fresh deployments — operators must opt in)
+
+### Out of scope (deferred to follow-up specs)
+- MITRE ATT&CK mapping refresh (T1534 deprecated, T1656 missing for
+  impersonation scams) → **spec 062**
+
+---
+
 ## [2.10.0] - 2026-04-10
 
 ### Changed

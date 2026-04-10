@@ -1,6 +1,10 @@
 parameters:
     jwt_secret: '%env(string:JWT_SECRET)%'
     conversation_history.excluded_emails: '%env(csv:CONVERSATION_HISTORY_EXCLUDED_EMAILS)%'
+    # Spec 061: comma-separated list of honeypot email addresses to NEVER ingest as IOCs.
+    # Defaults to empty list (filter is a no-op for fresh deployments). Operators should
+    # set HONEYPOT_EMAIL_ADDRESSES in .env to enable the filter.
+    app.honeypot_email_addresses: '%env(default::csv:HONEYPOT_EMAIL_ADDRESSES)%'
 
 services:
     _defaults:
@@ -9,6 +13,7 @@ services:
         bind:
             $projectDir: '%kernel.project_dir%'
             $monthlyLimitUsd: '%llm.max_cost_usd_month%'
+            $honeypotEmailAddresses: '%app.honeypot_email_addresses%'
 
     App\:
         resource: '../src/'
