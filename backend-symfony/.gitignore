@@ -30,6 +30,6 @@
 .phpunit.result.cache
 /phpunit.xml
 ###< symfony/phpunit-bridge ###
-scambuster-dataset-sample.json
 
-scheduler.sh
+# Temporary file copied by `make demo-load`, deleted after use
+scambuster-dataset-sample.json

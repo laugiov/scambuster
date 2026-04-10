@@ -565,13 +565,13 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
               <div>
                 <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.hesitation')}</label>
                 <span className={`text-xs font-medium ${ctx.semantic.hesitation_detected ? 'text-warning' : 'text-on-surface-dim'}`}>
-                  {ctx.semantic.hesitation_detected ? '● Detected' : '○ Not detected'}
+                  {ctx.semantic.hesitation_detected ? 'Detected' : 'Not detected'}
                 </span>
               </div>
               <div>
                 <label className="text-xs text-on-surface-dim block mb-1">{t('iocContext.languageSwitch')}</label>
                 <span className={`text-xs font-medium ${ctx.semantic.language_switch ? 'text-warning' : 'text-on-surface-dim'}`}>
-                  {ctx.semantic.language_switch ? '● Detected' : '○ Not detected'}
+                  {ctx.semantic.language_switch ? 'Detected' : 'Not detected'}
                 </span>
               </div>
             </div>
