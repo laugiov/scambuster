@@ -570,6 +570,26 @@ final class ClusterQueryService
     }
 
     /**
+     * Get the active cluster ID a conversation belongs to, or null if singleton.
+     *
+     * Spec 060 Sprint 2: used by ConversationStixExportHandler to decide whether
+     * to delegate threat-actor production to ClusteredThreatActorStixBuilder
+     * (clustered) or ThreatActorStixBuilder::buildSingleton() (unclustered).
+     */
+    public function getClusterIdForConversation(string $convId): ?string
+    {
+        $result = $this->conn->fetchOne(
+            'SELECT tacc.cluster_id FROM threat_actor_cluster_conversation tacc
+             JOIN threat_actor_cluster tac ON tac.cluster_id = tacc.cluster_id
+             WHERE tacc.conv_id = :convId AND tac.merged_into_id IS NULL
+             LIMIT 1',
+            ['convId' => $convId]
+        );
+
+        return \is_string($result) ? $result : null;
+    }
+
+    /**
      * @return list<string>
      */
     private function parsePostgresArray(string $pgArray): array

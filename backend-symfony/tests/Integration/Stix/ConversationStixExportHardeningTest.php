@@ -127,6 +127,79 @@ final class ConversationStixExportHardeningTest extends WebTestCase
         }
     }
 
+    // ============================================================================
+    // Spec 060 Sprint 2 — singleton conversation naming
+    // ============================================================================
+    //
+    // The clustered conversation tests live in
+    // ConversationStixExportClusterDelegationTest because they require
+    // ClusteringFixtures setup. The singleton tests below run against the
+    // standard test fixtures which contain unclustered conversations.
+
+    /**
+     * Picks any conversation with IOCs that does NOT belong to any cluster.
+     */
+    private function getSingletonConvId(): string
+    {
+        $container = static::getContainer();
+        /** @var \Doctrine\DBAL\Connection $conn */
+        $conn = $container->get('doctrine.dbal.default_connection');
+
+        $convId = $conn->fetchOne(
+            'SELECT c.conv_id FROM conversation c'
+            . ' JOIN message m ON c.conv_id = m.conv_id'
+            . ' JOIN observed_ioc oi ON m.msg_id = oi.msg_id'
+            . ' WHERE NOT EXISTS ('
+            . '   SELECT 1 FROM threat_actor_cluster_conversation tacc'
+            . '   JOIN threat_actor_cluster tac ON tac.cluster_id = tacc.cluster_id'
+            . '   WHERE tacc.conv_id = c.conv_id AND tac.merged_into_id IS NULL'
+            . ' )'
+            . ' GROUP BY c.conv_id LIMIT 1',
+        );
+
+        if (!\is_string($convId) || $convId === '') {
+            $this->markTestSkipped('No singleton conversation with IOCs in test database');
+        }
+
+        return $convId;
+    }
+
+    public function testSingletonConversationUsesUnattributedNamingConvention(): void
+    {
+        $convId = $this->getSingletonConvId();
+
+        $this->client->request('GET', '/api/v1/conversations/' . $convId . '/export/stix', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+        $data = $this->decodeResponse();
+
+        $actors = array_values(array_filter($data['objects'], fn (array $o) => ($o['type'] ?? '') === 'threat-actor'));
+        $this->assertCount(1, $actors, 'Singleton conversation must contain exactly one threat-actor.');
+
+        $name = \is_string($actors[0]['name'] ?? null) ? $actors[0]['name'] : '';
+        $this->assertStringStartsWith(
+            'Unattributed Scam Actor',
+            $name,
+            'Singleton conversation must use the new unattributed naming convention.',
+        );
+    }
+
+    public function testSingletonConversationStillHasSingleThreatActor(): void
+    {
+        $convId = $this->getSingletonConvId();
+
+        $this->client->request('GET', '/api/v1/conversations/' . $convId . '/export/stix', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $data = $this->decodeResponse();
+        $actors = array_filter($data['objects'], fn (array $o) => ($o['type'] ?? '') === 'threat-actor');
+
+        $this->assertCount(1, $actors);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -139,4 +212,5 @@ final class ConversationStixExportHardeningTest extends WebTestCase
 
         return $data;
     }
+
 }

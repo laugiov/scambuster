@@ -222,6 +222,92 @@ final class ThreatActorStixBuilderTest extends TestCase
         self::assertSame($threatActorId, $indicates1['target_ref']);
     }
 
+    // ============================================================================
+    // Spec 060 Sprint 2 — buildSingleton() for un-clustered conversation exports
+    // ============================================================================
+    //
+    // When a conversation does not belong to any cluster, the conversation
+    // export emits a per-conversation threat-actor with a human-readable name
+    // that does NOT embed the campaign UUID:
+    //   "Unattributed Scam Actor (Invoice Fraud)" instead of
+    //   "ScamBuster Actor - INVOICE_FRAUD #12d9071c"
+    // The STIX `id` still embeds the deterministic UUID for OpenCTI dedup.
+
+    public function testBuildSingletonNamingConventionInvoiceFraud(): void
+    {
+        $campaign = ['campaign_id' => '12d9071c-849d-4f31-a9c1-ea53e1a0a84c', 'scam_type' => 'INVOICE_FRAUD'];
+        $actor = $this->builder->buildSingleton($campaign, null, ['conversation_count' => 1]);
+
+        self::assertSame('Unattributed Scam Actor (Invoice Fraud)', $actor['name']);
+    }
+
+    public function testBuildSingletonNamingConventionCeoFraud(): void
+    {
+        $campaign = ['campaign_id' => 'abc123', 'scam_type' => 'CEO_FRAUD'];
+        $actor = $this->builder->buildSingleton($campaign, null, ['conversation_count' => 1]);
+
+        self::assertSame('Unattributed Scam Actor (CEO Fraud)', $actor['name']);
+    }
+
+    public function testBuildSingletonNamingConventionRomance(): void
+    {
+        $campaign = ['campaign_id' => 'xyz', 'scam_type' => 'ROMANCE'];
+        $actor = $this->builder->buildSingleton($campaign, null, []);
+
+        self::assertSame('Unattributed Scam Actor (Romance)', $actor['name']);
+    }
+
+    public function testBuildSingletonNamingConventionUnknown(): void
+    {
+        $campaign = ['campaign_id' => 'no-type'];
+        $actor = $this->builder->buildSingleton($campaign, null, []);
+
+        self::assertSame('Unattributed Scam Actor (Unknown)', $actor['name']);
+    }
+
+    public function testBuildSingletonStillEmitsValidStixObject(): void
+    {
+        $campaign = [
+            'campaign_id' => 'abc-123',
+            'scam_type' => 'PHISHING',
+            'first_seen' => '2026-04-01 12:00:00',
+            'last_seen' => '2026-04-02 14:00:00',
+        ];
+        $actor = $this->builder->buildSingleton($campaign, null, ['conversation_count' => 1]);
+
+        self::assertSame('threat-actor', $actor['type']);
+        self::assertSame('2.1', $actor['spec_version']);
+        self::assertStringStartsWith('threat-actor--', $actor['id']);
+        self::assertSame(['criminal'], $actor['threat_actor_types']);
+        self::assertSame('personal-gain', $actor['primary_motivation']);
+        self::assertArrayHasKey('sophistication', $actor);
+        self::assertArrayHasKey('goals', $actor);
+        self::assertArrayHasKey('extensions', $actor);
+        self::assertArrayHasKey('x_scambuster_actor', $actor['extensions']);
+    }
+
+    public function testBuildSingletonProducesDeterministicId(): void
+    {
+        $campaign = ['campaign_id' => 'same-id', 'scam_type' => 'PHISHING'];
+
+        $a = $this->builder->buildSingleton($campaign, null, []);
+        $b = $this->builder->buildSingleton($campaign, null, []);
+
+        self::assertSame($a['id'], $b['id']);
+    }
+
+    public function testBuildSingletonAndBuildThreatActorShareSameIdForSameCampaign(): void
+    {
+        // The singleton uses the same deterministic UUID strategy as buildThreatActor
+        // so OpenCTI sees them as the same actor across migrations.
+        $campaign = ['campaign_id' => 'shared-id', 'scam_type' => 'PHISHING'];
+
+        $singleton = $this->builder->buildSingleton($campaign, null, []);
+        $regular = $this->builder->buildThreatActor($campaign, null, []);
+
+        self::assertSame($singleton['id'], $regular['id']);
+    }
+
     /**
      * Helper to check string contains substring (PHP 8.3 compatible).
      */
