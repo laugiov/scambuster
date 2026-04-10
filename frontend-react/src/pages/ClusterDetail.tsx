@@ -15,6 +15,13 @@ function formatDate(iso: string | null): string {
   });
 }
 
+function humanizeStimulus(value: string): string {
+  return value
+    .split(/[-_]/)
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 type SortField = 'risk' | 'scam_type' | 'status';
 
 export function ClusterDetail() {
@@ -122,6 +129,66 @@ export function ClusterDetail() {
         </code>
       </div>
 
+      {cluster.behavioral_profile && cluster.behavioral_profile.total_enriched_iocs > 0 && (
+        <section className="rounded-lg border border-border bg-surface-low/30">
+          <div className="px-4 py-2 border-b border-border">
+            <h2 className="text-xs uppercase tracking-widest text-on-surface-dim">Threat Profile</h2>
+          </div>
+          <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+            {cluster.behavioral_profile.dominant_stimulus && (
+              <div className="flex items-center justify-between">
+                <span className="text-on-surface-dim">Primary tactic</span>
+                <span className="text-on-surface font-medium">
+                  {humanizeStimulus(cluster.behavioral_profile.dominant_stimulus)}
+                  {cluster.behavioral_profile.dominant_stimulus_count > 0 && (
+                    <span className="text-on-surface-dim ml-1">
+                      ({cluster.behavioral_profile.dominant_stimulus_count}/{cluster.behavioral_profile.total_enriched_iocs})
+                    </span>
+                  )}
+                </span>
+              </div>
+            )}
+            {cluster.behavioral_profile.dominant_revelation_turn !== null && (
+              <div className="flex items-center justify-between">
+                <span className="text-on-surface-dim">IOC revelation</span>
+                <span className="text-on-surface font-medium">
+                  Turn {cluster.behavioral_profile.dominant_revelation_turn}
+                  {cluster.behavioral_profile.dominant_revelation_turn === 1 && (
+                    <span className="text-on-surface-dim ml-1">· Initial email</span>
+                  )}
+                </span>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-dim">Avg scammer urgency</span>
+              <span className="text-on-surface font-medium">
+                {Math.round(cluster.behavioral_profile.avg_urgency_score * 100)}%
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-dim">Hesitation detected</span>
+              <span className={cluster.behavioral_profile.hesitation_count > 0 ? 'text-warning font-medium' : 'text-on-surface-dim'}>
+                {cluster.behavioral_profile.hesitation_count} conversation{cluster.behavioral_profile.hesitation_count !== 1 ? 's' : ''}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-on-surface-dim">Language switches</span>
+              <span className={cluster.behavioral_profile.language_switch_count > 0 ? 'text-warning font-medium' : 'text-on-surface-dim'}>
+                {cluster.behavioral_profile.language_switch_count} conversation{cluster.behavioral_profile.language_switch_count !== 1 ? 's' : ''}
+              </span>
+            </div>
+            {cluster.behavioral_profile.templated_excerpt_count > 0 && (
+              <div className="flex items-center justify-between md:col-span-2">
+                <span className="text-on-surface-dim">Template signal</span>
+                <span className="text-accent font-medium">
+                  {cluster.behavioral_profile.templated_excerpt_count} IOCs share identical excerpt
+                </span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {cluster.sample_excerpts && cluster.sample_excerpts.length > 0 && (
         <section className="rounded-lg border border-border bg-surface-low/30">
           <div className="px-4 py-2 border-b border-border flex items-center justify-between">
@@ -183,15 +250,34 @@ export function ClusterDetail() {
                   onClick={() => handleAnchorClick(ioc.indicator_id)}
                   title={`Click to filter conversations sharing this IOC`}
                 >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 ${
-                      isSelected ? 'bg-accent text-on-accent font-medium' : 'bg-accent/10 text-accent'
-                    }`}>
-                      {iocTypeLabel(ioc.ioc_type)}
-                    </span>
-                    <span className={`text-xs font-mono truncate ${isSelected ? 'text-on-surface font-medium' : 'text-on-surface'}`} title={ioc.ioc_value}>
-                      {ioc.ioc_value}
-                    </span>
+                  <div className="flex flex-col gap-1 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 ${
+                        isSelected ? 'bg-accent text-on-accent font-medium' : 'bg-accent/10 text-accent'
+                      }`}>
+                        {iocTypeLabel(ioc.ioc_type)}
+                      </span>
+                      <span className={`text-xs font-mono truncate ${isSelected ? 'text-on-surface font-medium' : 'text-on-surface'}`} title={ioc.ioc_value}>
+                        {ioc.ioc_value}
+                      </span>
+                    </div>
+                    {ioc.dominant_semantic_role && (
+                      <div className="flex items-center gap-1.5 text-[0.625rem] text-on-surface-dim ml-1">
+                        <span>{ioc.dominant_semantic_role}</span>
+                        {ioc.dominant_stimulus && (
+                          <>
+                            <span>·</span>
+                            <span>{humanizeStimulus(ioc.dominant_stimulus)}</span>
+                          </>
+                        )}
+                        {ioc.avg_urgency_score !== null && ioc.avg_urgency_score > 0 && (
+                          <>
+                            <span>·</span>
+                            <span>{Math.round(ioc.avg_urgency_score * 100)}%</span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className={`text-xs ${isSelected ? 'text-accent font-medium' : 'text-on-surface-dim'}`}>

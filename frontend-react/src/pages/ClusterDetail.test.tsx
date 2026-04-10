@@ -44,6 +44,9 @@ const mockClusterDetail = {
       first_observed: '2026-02-01T00:00:00Z',
       last_observed: '2026-04-01T00:00:00Z',
       conv_ids: ['conv-1', 'conv-2', 'conv-3'],
+      dominant_semantic_role: null,
+      dominant_stimulus: null,
+      avg_urgency_score: null,
     },
     {
       indicator_id: 'ind-phone-1',
@@ -55,6 +58,9 @@ const mockClusterDetail = {
       first_observed: '2026-02-01T00:00:00Z',
       last_observed: '2026-04-01T00:00:00Z',
       conv_ids: ['conv-1', 'conv-2', 'conv-3'],
+      dominant_semantic_role: null,
+      dominant_stimulus: null,
+      avg_urgency_score: null,
     },
   ],
   conversations: [
@@ -63,6 +69,7 @@ const mockClusterDetail = {
     { conv_id: 'conv-3', status: 'closed', score_risk: 80, ts_first: '2026-02-20T00:00:00Z', ts_last: '2026-02-25T00:00:00Z', scam_type: 'INVOICE_FRAUD', linked_at: '2026-02-25T00:00:00Z' },
   ],
   sample_excerpts: [],
+  behavioral_profile: null,
 };
 
 const detailHandler = http.get(`${BASE}/clusters/:id`, () => HttpResponse.json(mockClusterDetail));
@@ -245,6 +252,110 @@ describe('ClusterDetail — Campaign Excerpts (Task 1.3 + audit fixes)', () => {
     const link = screen.getByText('abcdef12');
     expect(link).toBeDefined();
     expect(link.getAttribute('href')).toBe('/conversations/abcdef1234567890');
+  });
+});
+
+describe('ClusterDetail — Threat Profile section (Sprint 2)', () => {
+  it('renders Threat Profile section when behavioral_profile present', async () => {
+    server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
+      ...mockClusterDetail,
+      behavioral_profile: {
+        dominant_stimulus: 'urgency-pressure',
+        dominant_stimulus_count: 8,
+        avg_urgency_score: 0.76,
+        dominant_revelation_turn: 1,
+        hesitation_count: 0,
+        language_switch_count: 0,
+        templated_excerpt_count: 3,
+        total_enriched_iocs: 10,
+      },
+    })));
+
+    render(<ClusterDetail />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Threat Profile/i)).toBeDefined();
+    });
+
+    expect(screen.getByText(/Urgency Pressure/i)).toBeDefined();
+    expect(screen.getByText(/76%/)).toBeDefined();
+    expect(screen.getByText(/Turn 1/)).toBeDefined();
+  });
+
+  it('hides Threat Profile when no enriched IOCs', async () => {
+    server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
+      ...mockClusterDetail,
+      behavioral_profile: null,
+    })));
+
+    render(<ClusterDetail />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
+    });
+
+    expect(screen.queryByText(/Threat Profile/i)).toBeNull();
+  });
+
+  it('shows templated excerpt count when > 0', async () => {
+    server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
+      ...mockClusterDetail,
+      behavioral_profile: {
+        dominant_stimulus: 'urgency-pressure',
+        dominant_stimulus_count: 8,
+        avg_urgency_score: 0.76,
+        dominant_revelation_turn: 1,
+        hesitation_count: 0,
+        language_switch_count: 0,
+        templated_excerpt_count: 3,
+        total_enriched_iocs: 10,
+      },
+    })));
+
+    render(<ClusterDetail />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Threat Profile/i)).toBeDefined();
+    });
+
+    expect(screen.getByText(/3 IOCs share identical/i)).toBeDefined();
+  });
+});
+
+describe('ClusterDetail — anchor IOC behavioral pills (Sprint 2)', () => {
+  it('displays semantic role pill when present', async () => {
+    server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
+      ...mockClusterDetail,
+      anchor_iocs: [
+        {
+          ...mockClusterDetail.anchor_iocs[0],
+          dominant_semantic_role: 'Payment Destination',
+          dominant_stimulus: 'urgency-pressure',
+          avg_urgency_score: 0.78,
+        },
+        mockClusterDetail.anchor_iocs[1],
+      ],
+    })));
+
+    render(<ClusterDetail />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
+    });
+
+    expect(screen.getByText('Payment Destination')).toBeDefined();
+    expect(screen.getByText(/78%/)).toBeDefined();
+  });
+
+  it('hides pills when no behavioral data on anchor', async () => {
+    server.use(detailHandler);
+    render(<ClusterDetail />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
+    });
+
+    expect(screen.queryByText('Payment Destination')).toBeNull();
   });
 });
 
