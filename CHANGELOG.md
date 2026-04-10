@@ -27,8 +27,9 @@ gap — an analyst monitoring file-hash IOCs in real time could not see
 new malicious files arriving via the honeypot.
 
 **Implementation**: A new private method
-`IngestHandler::linkAttachmentsAsIocs(Message, string $msgId, DateTimeImmutable $now): void`
-iterates `$message->getAttachments()` and calls the existing
+`IngestHandler::linkAttachmentsAsIocs(?array $attachmentDataList, string $msgId, DateTimeImmutable $now): void`
+iterates the original `dto.attachments` payload (post within-message
+dedup, pre cross-message dedup) and calls the existing
 `IocUpsertService::upsertEnrichedIoc()` for each attachment, with
 payload:
 
@@ -43,7 +44,7 @@ payload:
     'first_seen' => $now->format(DATE_ATOM),
   ],
   'enrichment' => [
-    'attachment_id' => ..., 'filename' => ..., 'mime_type' => ..., 'size_bytes' => ...,
+    'filename' => ..., 'mime_type' => ..., 'size_bytes' => ...,
   ],
   'category' => 'file-hash',
   'tags' => ['attachment'],
@@ -79,62 +80,83 @@ passes unchanged.
    PDF, asserts 1 sha256 row in `observed_ioc` with correct `value_norm`
 2. `test_ingest_raw_three_attachments_creates_three_observed_iocs` —
    PDF + DOCX + ZIP with 3 distinct hashes, asserts 3 rows
-3. `test_ingest_raw_same_attachment_two_mails_documents_dedup_limitation`
-   — sentinel test that documents an existing architectural quirk
-   (see Known Limitation below)
+3. `test_ingest_raw_same_attachment_two_mails_creates_two_observed_iocs`
+   — same PDF in 2 distinct mails, asserts 1 attachment row + 1 indicator
+   + **2 observed_ioc rows** (one per message), proving the option B fix
+   restores full pivot capability across mails despite the shared
+   attachment row
 
 The 13-assertion `test_ingest_raw_with_attachments` regression sentinel
 from spec 063 continues to pass **unchanged**.
 
 **Quality gates**: PHPStan L6 src clean (`make stan`), CS-Fixer clean,
-audit grep clean, full unit+integration suite **2430/2430** green,
-EndToEnd ingest **41/41** green (was 38, +3 new).
+audit grep clean, full unit suite **1473/1473** green, EndToEnd ingest
+**41/41** green (4 unrelated pre-existing LLM-determinism failures on
+`MessageIocExtractionTest` + `SummaryExclusion*` confirmed identical
+on clean main HEAD).
 
-**Manual smoke validated on dev**: POST a mail with 1 PDF via curl →
-`observed_ioc` contains the sha256 row linked to `msg_id` within
-seconds. The new sha256 indicators are immediately visible in the IOC
-Explorer UI, included in STIX exports, and queryable via the IOC
-search/filter endpoints.
+**Manual smoke validated on dev** (2026-04-10, real n8n IMAP pipeline):
+mail #1 with 1 PJ → 3 IOCs visible in conversation detail; mail #2
+with 3 PJ → 5 IOCs; both sha256 entries appear immediately in the IOC
+Explorer with correct timestamps. The new sha256 indicators are also
+included in STIX exports and queryable via IOC search/filter endpoints.
 
-##### Known limitation — same PJ across multiple mails
+##### Cross-mail pivot capability — option B
 
 The `attachment` table has a pre-existing `UNIQUE(content_hash)`
-constraint (predates spec 063). Consequently, when two distinct mails
-carry the same PDF (same sha256), `IngestHandler::processAttachments()`
-**skips the second one entirely** at the existence check before persist.
-The second message's `getAttachments()` returns empty, so the spec 064
-linkage is a no-op for it.
+constraint (predates spec 063). The naive implementation (iterate
+`$message->getAttachments()`) would lose IOC linkage for any mail
+sharing a sha256 with an earlier mail, because `processAttachments()`
+skips persisting a duplicate `attachment` row and the second message
+ends up with zero attached entities.
 
-**Result with the current schema**:
-- 1 attachment row (the first mail wins)
-- 1 `observed_ioc` row of type sha256 (linked to the FIRST message only)
-- 1 indicator row with the sha256
+**Option B (implemented)**: `linkAttachmentsAsIocs()` iterates the
+original `dto.attachments` payload (post within-message dedup, pre
+cross-message dedup). `IocUpsertService` deduplicates indicators by
+`(type, value_norm)` and `observed_ioc` rows by `(msg_id, indicator_id)`,
+so 50 mails carrying the same malicious PDF produce **1 indicator + 50
+`observed_ioc` rows**, restoring full pivot capability for analysts.
+The shared `attachment` row remains an acceptable storage optimization
+that does not impair detection.
 
-**Threat-intel impact**: an analyst seeing 50 mails with the same
-malicious PDF will see only 1 sha256 indicator linked to 1 message
-instead of 50. This is a known limitation of the attachment dedup
-strategy and is **out of scope for spec 064**. A future spec could
-either:
-- (a) introduce a many-to-many `message_attachment` join table, or
-- (b) extend `processAttachments` to create per-message `observed_ioc`
-  rows that point to the existing shared `attachment` row even when
-  no new Attachment entity is created.
+`enrichment.attachment_id` was dropped from the IOC payload because
+the persisted `Attachment` entity for a given `content_hash` may belong
+to a different mail under the dedup constraint — passing it would be
+misleading. `filename`, `mime_type`, and `size_bytes` remain.
 
-The new test `test_ingest_raw_same_attachment_two_mails_documents_dedup_limitation`
-serves as a sentinel: it documents the current behavior in code and
-will start failing if/when option (a) or (b) is implemented, forcing
-the future author to update the assertions explicitly.
+Within-message dedup is preserved inline (the same sha256 listed twice
+in `dto.attachments` still produces a single IOC).
 
 ##### Files changed
 
 - `backend-symfony/src/Application/Communication/IngestHandler.php`
   (+ optional `?IocUpsertService` constructor parameter, + new private
-  `linkAttachmentsAsIocs()` method, + 1 call site after `em->flush()`)
+  `linkAttachmentsAsIocs(?array, string, DateTimeImmutable)` method,
+  + 1 call site after `em->flush()` passing `$dto->attachments`)
 - `backend-symfony/tests/EndToEnd/Communication/IngestControllerTest.php`
   (+ 3 tests)
 
-**No schema change. No new dependency. No frontend change. No
-modification to `IocUpsertService` itself.**
+**No schema change. No new dependency. No modification to
+`IocUpsertService` itself.**
+
+#### Actor Deduplication stat card on Impact page
+
+New 4th `StatCard` in the Impact page top row, populated from the
+existing `useClusterStats()` hook:
+`{total_conversations} → {total_clusters}` with subtitle
+`−{taxii_noise_reduction_pct}% threat actors in TAXII feed`.
+
+Fills the previously empty `lg:grid-cols-4` slot. Renders only when
+`clusterStats` is available and there is at least one conversation,
+keeping the empty state clean. i18n keys added in en/fr.
+
+**Files changed**:
+- `frontend-react/src/pages/Impact.tsx` (+ `useClusterStats` import,
+  + 1 conditional `StatCard`)
+- `frontend-react/src/i18n/locales/{en,fr}.json` (+ 2 keys each)
+
+Frontend CI green: `npm run typecheck`, `npm run lint`, `npm run build`
+all pass clean.
 
 ---
 
