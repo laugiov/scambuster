@@ -7,6 +7,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.12.0] - 2026-04-10
+
+### Changed
+
+#### MITRE ATT&CK mapping refresh (Spec 062)
+
+Refresh of `lkp_scam_type.attck_technique` to remove deprecated and
+semantically wrong technique IDs identified by the CTI expert audit
+(2026-04-10). Previously, several scam types referenced techniques that
+were either retired from MITRE ATT&CK or semantically incorrect, causing
+the exported STIX bundles to either reference invalid IDs or to silently
+omit the attack-pattern object entirely (when the wrong ID wasn't in
+`ThreatActorStixBuilder::MITRE_TECHNIQUES`).
+
+**Mapping changes**
+
+| Scam type | Old | New |
+|---|---|---|
+| `INVOICE_FRAUD` | `T1534` (insider, wrong) | `T1566.002` (Spearphishing Link) |
+| `CEO_FRAUD` | `T1534` | `T1566.002` |
+| `TECH_SUPPORT` | `T1566.004` (retired) | `T1656` (Impersonation) |
+| `ROMANCE` | `T1566.001` (wrong, no attachment) | `T1656` |
+| `LOTTERY` | `T1566.001` | `T1656` |
+| `CHARITY` | `T1566.001` | `T1656` |
+| `ADVANCE_FEE_419` | `T1566.001` | `T1656` |
+| `INVESTMENT` | `T1566.002` | `T1656` |
+
+`PHISHING`, `PHISH_CREDENTIALS`, `PHISH_MALWARE`, `JOB_OFFER` mappings
+unchanged (already correct).
+
+**Implementation**
+- New irreversible forward migration `Version2026041100000000.php` with two
+  UPDATE statements. `down()` throws `IrreversibleMigration` — restoring
+  incorrect mappings would damage the credibility of the STIX feed
+- `ScamTypeFixtures.php` updated to seed the new mapping for the test DB
+- `ThreatActorStixBuilder::MITRE_TECHNIQUES` adds `T1656` (Impersonation,
+  added in MITRE ATT&CK v14, October 2023). Previously, when a scam type
+  was mapped to T1534/T1566.004, `buildAttackPatterns()` returned `[]`
+  silently and the resulting STIX bundle had a missing attack-pattern.
+  Now the new mappings produce real attack-pattern objects.
+- `preprod_reference_data.sql` updated to remove the explicit T1566.004
+  reference and fill in previously NULL `attack_id` values
+
+### Tests
+- 5 new backend tests in `MitreMappingTest`:
+  - `testNoT1534InAnyScamType`
+  - `testNoT1566004InAnyScamType`
+  - `testT1656MappedForImpersonationScams` (6 scam types)
+  - `testInvoiceAndCeoFraudMappedToT1566002`
+  - `testThreatActorStixBuilderEmitsT1656AttackPattern`
+- 2416 backend tests, 0 errors, 11 skipped (baseline)
+
+### Compatibility
+- `T1656` (Impersonation) was added to MITRE ATT&CK v14 (October 2023).
+  Modern OpenCTI releases (≥ 5.10) support it. Operators on older versions
+  should upgrade before consuming the refreshed bundles.
+
+### Out of scope
+- Historical migrations `Version20260325151254` and `Version20260406180000`
+  are immutable by Doctrine convention. The new forward migration corrects
+  the live state without rewriting them.
+- `observed_ioc.context_observation` JSON cached values are not rewritten.
+  New extractions use the corrected mapping; analysts re-export STIX
+  bundles regularly so the correction propagates naturally.
+
+---
+
 ## [2.11.0] - 2026-04-10
 
 ### Changed
