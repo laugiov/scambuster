@@ -7,6 +7,7 @@ namespace App\Application\Communication;
 use App\Application\LLM\LanguageDetector;
 use Psr\Log\LoggerInterface;
 use ZBateson\MailMimeParser\MailMimeParser;
+use ZBateson\MailMimeParser\Message\IMessagePart;
 
 /**
  * Parses RFC822 email messages and extracts structured data.
@@ -17,10 +18,22 @@ use ZBateson\MailMimeParser\MailMimeParser;
  */
 class EmailParsingService
 {
+    /**
+     * Spec 063 — Default maximum size (in bytes) of an attachment that the
+     * parser fallback will persist. Larger attachments are skipped with a
+     * WARNING. Default: 25 MB (Gmail's max attachment size — a sane upper
+     * bound for email-borne content). Overridable via constructor for tests.
+     */
+    public const DEFAULT_MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024;
+
+    private readonly int $maxAttachmentSizeBytes;
+
     public function __construct(
         private readonly LoggerInterface $logger,
         private readonly ?LanguageDetector $languageDetector = null,
+        ?int $maxAttachmentSizeBytes = null,
     ) {
+        $this->maxAttachmentSizeBytes = $maxAttachmentSizeBytes ?? self::DEFAULT_MAX_ATTACHMENT_SIZE_BYTES;
     }
 
     /**
@@ -161,6 +174,143 @@ class EmailParsingService
             'inReplyToRaw' => $inReplyToHeader,
             'referencesRaw' => $referencesHeader,
         ];
+    }
+
+    /**
+     * Spec 063 — Extract attachments from a base64-encoded RFC822 mail.
+     *
+     * Returns an array of attachment metadata in the shape expected by
+     * `IngestHandler::processAttachments()`. Inline parts, multipart
+     * containers, text/plain and text/html parts (when not flagged as
+     * attachment) are excluded. The method is defensive: any parser failure
+     * is caught, logged as a warning, and an empty array is returned —
+     * never an exception.
+     *
+     * Used as a fallback by `IngestHandler::ingest()` when the upstream
+     * collector (n8n) does not pre-populate `dto.attachments`.
+     *
+     * @return list<array{filename: string, mime_type: string, size_bytes: int, sha256: string}>
+     */
+    public function extractAttachments(string $rawRfc822Base64): array
+    {
+        if ($rawRfc822Base64 === '') {
+            return [];
+        }
+
+        $rawSource = base64_decode($rawRfc822Base64, true);
+
+        if ($rawSource === false) {
+            $this->logger->warning('[EmailParsingService] extractAttachments: invalid base64, returning empty');
+
+            return [];
+        }
+
+        try {
+            $parser = new MailMimeParser();
+            $message = $parser->parse($rawSource, false);
+        } catch (\Throwable $e) {
+            $this->logger->warning('[EmailParsingService] extractAttachments: parser failed', [
+                'exception' => $e::class,
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($message->getAllAttachmentParts() as $index => $part) {
+            try {
+                if (!$this->isExtractableAttachment($part)) {
+                    continue;
+                }
+
+                $stream = $part->getBinaryContentStream();
+
+                if ($stream === null) {
+                    continue;
+                }
+
+                // Read the stream in chunks and bail out as soon as we exceed
+                // the size limit. The MailMimeParser stream is lazy
+                // (getSize() returns null), so we cannot pre-check.
+                $content = '';
+                $oversized = false;
+                $chunkSize = 65536; // 64 KB
+
+                while (!$stream->eof()) {
+                    $content .= $stream->read($chunkSize);
+
+                    if (strlen($content) > $this->maxAttachmentSizeBytes) {
+                        $oversized = true;
+
+                        break;
+                    }
+                }
+
+                if ($oversized) {
+                    $this->logger->warning('[EmailParsingService] extractAttachments: attachment exceeds size limit, skipping', [
+                        'part_index' => $index,
+                        'size_bytes_read_so_far' => strlen($content),
+                        'limit_bytes' => $this->maxAttachmentSizeBytes,
+                        'filename' => $part->getFilename(),
+                    ]);
+
+                    unset($content);
+
+                    continue;
+                }
+
+                $size = strlen($content);
+
+                if ($size === 0) {
+                    continue;
+                }
+
+                $filename = $part->getFilename() ?? sprintf('attachment-%d.bin', $index);
+                $mimeType = $part->getContentType() ?? 'application/octet-stream';
+
+                $result[] = [
+                    'filename' => $filename,
+                    'mime_type' => $mimeType,
+                    'size_bytes' => $size,
+                    'sha256' => hash('sha256', $content),
+                ];
+            } catch (\Throwable $e) {
+                $this->logger->warning('[EmailParsingService] extractAttachments: part failed, skipping', [
+                    'part_index' => $index,
+                    'exception' => $e::class,
+                    'message' => $e->getMessage(),
+                ]);
+
+                continue;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Spec 063 — Decide whether a MailMimeParser attachment part should be
+     * persisted as an Attachment entity.
+     *
+     * Excludes inline images (Content-Disposition: inline). Includes
+     * `text/calendar` and any non-inline part with a filename or attachment
+     * disposition. The library's `getAllAttachmentParts()` already filters
+     * out multipart containers and text/plain|text/html parts that are not
+     * flagged as attachments — this method only adds the inline-image
+     * exclusion on top.
+     */
+    private function isExtractableAttachment(IMessagePart $part): bool
+    {
+        $disposition = strtolower($part->getContentDisposition() ?? '');
+
+        // Inline parts are display assets (embedded HTML images, etc.), not threat intel.
+        if (str_starts_with($disposition, 'inline')) {
+            return false;
+        }
+
+        return true;
     }
 
     /**
