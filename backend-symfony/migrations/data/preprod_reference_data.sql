@@ -30,19 +30,23 @@ INSERT INTO lkp_channel (channel_id, code, label_en, label_fr) VALUES
 TRUNCATE TABLE lkp_scam_type CASCADE;
 ALTER SEQUENCE lkp_scam_type_scam_type_id_seq RESTART WITH 1;
 
+-- Spec 062: MITRE ATT&CK mapping refresh.
+-- T1534 (insider) is forbidden. T1566.004 was retired. T1656 (Impersonation,
+-- added in MITRE ATT&CK v14) is the correct technique for social-engineering
+-- scams that rely on identity impersonation rather than payload delivery.
 INSERT INTO lkp_scam_type (scam_type_id, code, label_en, label_fr, attack_id) VALUES
     (DEFAULT, 'UNKNOWN', 'Unclassified', 'Non classifié', NULL),
     (DEFAULT, 'PHISHING', 'Phishing', 'Hameçonnage', 'T1566'),
     (DEFAULT, 'PHISH_CREDENTIALS', 'Credential Phishing', 'Phishing d''identifiants', 'T1566.002'),
     (DEFAULT, 'PHISH_MALWARE', 'Malware Phishing', 'Phishing avec malware', 'T1566.001'),
-    (DEFAULT, 'INVOICE_FRAUD', 'Invoice Fraud', 'Fraude à la facture', NULL),
-    (DEFAULT, 'ROMANCE', 'Romance Scam', 'Arnaque sentimentale', NULL),
-    (DEFAULT, 'TECH_SUPPORT', 'Tech Support Scam', 'Faux support technique', 'T1566.004'),
-    (DEFAULT, 'CEO_FRAUD', 'CEO Fraud', 'Fraude au président', NULL),
-    (DEFAULT, 'INVESTMENT', 'Investment Scam', 'Arnaque à l''investissement', NULL),
-    (DEFAULT, 'LOTTERY', 'Lottery Scam', 'Fausse loterie', NULL),
-    (DEFAULT, 'JOB_OFFER', 'Fake Job Offer', 'Fausse offre d''emploi', NULL),
-    (DEFAULT, 'CHARITY', 'Charity Scam', 'Fausse charité', NULL);
+    (DEFAULT, 'INVOICE_FRAUD', 'Invoice Fraud', 'Fraude à la facture', 'T1566.002'),
+    (DEFAULT, 'ROMANCE', 'Romance Scam', 'Arnaque sentimentale', 'T1656'),
+    (DEFAULT, 'TECH_SUPPORT', 'Tech Support Scam', 'Faux support technique', 'T1656'),
+    (DEFAULT, 'CEO_FRAUD', 'CEO Fraud', 'Fraude au président', 'T1566.002'),
+    (DEFAULT, 'INVESTMENT', 'Investment Scam', 'Arnaque à l''investissement', 'T1656'),
+    (DEFAULT, 'LOTTERY', 'Lottery Scam', 'Fausse loterie', 'T1656'),
+    (DEFAULT, 'JOB_OFFER', 'Fake Job Offer', 'Fausse offre d''emploi', 'T1566.003'),
+    (DEFAULT, 'CHARITY', 'Charity Scam', 'Fausse charité', 'T1656');
 
 -- ==============================================================================
 -- 4. PERSONAS (persona)
