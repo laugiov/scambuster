@@ -88,6 +88,7 @@ export function IocExplorer() {
   const [severity, setSeverity] = useState<string>('All');
   const [minConfidence, setMinConfidence] = useState<string>('All');
   const [dateRange, setDateRange] = useState<string>('All');
+  const [scamTypeFilter, setScamTypeFilter] = useState<string>('All');
   const [hideHeaders, setHideHeaders] = useState(true);
   const [hasContextOnly, setHasContextOnly] = useState(false);
   const [sortKey, setSortKey] = useState<'ts_observed' | 'confidence' | 'severity'>('ts_observed');
@@ -135,9 +136,22 @@ export function IocExplorer() {
 
       if (hasContextOnly && !ioc.has_context) return false;
 
+      if (scamTypeFilter !== 'All' && (ioc.category ?? '') !== scamTypeFilter) return false;
+
       return true;
     });
-  }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders, hasContextOnly]);
+  }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders, hasContextOnly, scamTypeFilter]);
+
+  // Available scam types in current dataset (alphabetically sorted by label)
+  const availableScamTypes = useMemo(() => {
+    if (!iocs) return [] as string[];
+    const codes = new Set<string>();
+    for (const ioc of iocs) {
+      const c = (ioc.category ?? '').trim();
+      if (c) codes.add(c);
+    }
+    return Array.from(codes).sort((a, b) => scamTypeLabel(a).localeCompare(scamTypeLabel(b)));
+  }, [iocs]);
 
   const sorted = useMemo(() => {
     const SEVERITY_ORDER: Record<string, number> = { HIGH: 3, MEDIUM: 2, LOW: 1 };
@@ -196,6 +210,9 @@ export function IocExplorer() {
         onMinConfidenceChange={(v) => { setMinConfidence(v); setPage(1); }}
         dateRange={dateRange}
         onDateRangeChange={(v) => { setDateRange(v); setPage(1); }}
+        scamTypeFilter={scamTypeFilter}
+        onScamTypeChange={(v) => { setScamTypeFilter(v); setPage(1); }}
+        availableScamTypes={availableScamTypes}
         hideHeaders={hideHeaders}
         onHideHeadersChange={(v) => { setHideHeaders(v); setPage(1); }}
         hasContextOnly={hasContextOnly}
@@ -247,12 +264,14 @@ function AdvancedFilters({
   severity, onSeverityChange,
   minConfidence, onMinConfidenceChange,
   dateRange, onDateRangeChange,
+  scamTypeFilter, onScamTypeChange, availableScamTypes,
   hideHeaders, onHideHeadersChange,
   hasContextOnly, onHasContextOnlyChange,
 }: {
   severity: string; onSeverityChange: (v: string) => void;
   minConfidence: string; onMinConfidenceChange: (v: string) => void;
   dateRange: string; onDateRangeChange: (v: string) => void;
+  scamTypeFilter: string; onScamTypeChange: (v: string) => void; availableScamTypes: string[];
   hideHeaders: boolean; onHideHeadersChange: (v: boolean) => void;
   hasContextOnly: boolean; onHasContextOnlyChange: (v: boolean) => void;
 }) {
@@ -287,6 +306,21 @@ function AdvancedFilters({
           <option value=">0.9">&gt; 0.9</option>
           <option value=">0.7">&gt; 0.7</option>
           <option value=">0.5">&gt; 0.5</option>
+        </select>
+      </div>
+
+      {/* Scam type */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">{t('iocExplorer.scamType')}:</span>
+        <select
+          value={scamTypeFilter}
+          onChange={(e) => onScamTypeChange(e.target.value)}
+          className="text-xs bg-surface-high text-on-surface rounded px-2 py-1 border-none cursor-pointer"
+        >
+          <option value="All">{t('iocExplorer.all')}</option>
+          {availableScamTypes.map((code) => (
+            <option key={code} value={code}>{scamTypeLabel(code)}</option>
+          ))}
         </select>
       </div>
 
