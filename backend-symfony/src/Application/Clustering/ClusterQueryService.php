@@ -246,6 +246,22 @@ final class ClusterQueryService
             $sampleExcerptsRows
         );
 
+        // Cluster-level behavioral profile (aggregated from ioc_context)
+        $behavioralProfile = $this->computeBehavioralProfile($clusterId);
+
+        // Per-anchor behavioral aggregation (semantic role, stimulus, urgency)
+        $anchorBehaviors = $this->computeAnchorBehaviors($clusterId);
+
+        foreach ($anchors as &$anchor) {
+            /** @var string $indId */
+            $indId = $anchor['indicator_id'] ?? '';
+            $behavior = $anchorBehaviors[$indId] ?? null;
+            $anchor['dominant_semantic_role'] = $behavior['dominant_semantic_role'] ?? null;
+            $anchor['dominant_stimulus'] = $behavior['dominant_stimulus'] ?? null;
+            $anchor['avg_urgency_score'] = $behavior['avg_urgency_score'] ?? null;
+        }
+        unset($anchor);
+
         return [
             'cluster_id' => \is_string($row['cluster_id'] ?? null) ? $row['cluster_id'] : '',
             'stix_id' => \is_string($row['stix_id'] ?? null) ? $row['stix_id'] : '',
@@ -261,7 +277,151 @@ final class ClusterQueryService
             'anchor_iocs' => $anchors,
             'conversations' => $conversations,
             'sample_excerpts' => $sampleExcerpts,
+            'behavioral_profile' => $behavioralProfile,
         ];
+    }
+
+    /**
+     * Compute cluster-level behavioral profile from ioc_context.
+     *
+     * Aggregates dominant stimulus, average urgency, dominant revelation turn,
+     * hesitation/language switch counts, and templated excerpt count.
+     *
+     * @return array{
+     *     dominant_stimulus: string|null,
+     *     dominant_stimulus_count: int,
+     *     avg_urgency_score: float,
+     *     dominant_revelation_turn: int|null,
+     *     hesitation_count: int,
+     *     language_switch_count: int,
+     *     templated_excerpt_count: int,
+     *     total_enriched_iocs: int
+     * }|null Null if no enriched ioc_context rows for the cluster
+     */
+    private function computeBehavioralProfile(string $clusterId): ?array
+    {
+        $row = $this->conn->fetchAssociative(
+            "SELECT
+                MODE() WITHIN GROUP (ORDER BY ic.stimulus_type) AS dominant_stimulus,
+                AVG(ic.urgency_score) AS avg_urgency_score,
+                MODE() WITHIN GROUP (ORDER BY ic.revelation_turn) AS dominant_revelation_turn,
+                COUNT(*) FILTER (WHERE ic.hesitation_detected = TRUE) AS hesitation_count,
+                COUNT(*) FILTER (WHERE ic.language_switch = TRUE) AS language_switch_count,
+                COUNT(*) AS total_enriched_iocs
+             FROM ioc_context ic
+             JOIN observed_ioc oi ON ic.obs_id = oi.obs_id
+             JOIN message m ON oi.msg_id = m.msg_id
+             JOIN threat_actor_cluster_conversation tacc ON tacc.conv_id = m.conv_id
+             WHERE tacc.cluster_id = :clusterId
+               AND ic.enrichment_status = 'enriched'",
+            ['clusterId' => $clusterId]
+        );
+
+        if ($row === false) {
+            return null;
+        }
+
+        $totalEnriched = \is_numeric($row['total_enriched_iocs'] ?? null) ? (int) $row['total_enriched_iocs'] : 0;
+
+        if ($totalEnriched === 0) {
+            return null;
+        }
+
+        $dominantStimulus = \is_string($row['dominant_stimulus'] ?? null) ? $row['dominant_stimulus'] : null;
+
+        // Count occurrences of the dominant stimulus
+        $dominantStimulusCount = 0;
+
+        if ($dominantStimulus !== null) {
+            /** @var int|string|false $countRow */
+            $countRow = $this->conn->fetchOne(
+                "SELECT COUNT(*)
+                 FROM ioc_context ic
+                 JOIN observed_ioc oi ON ic.obs_id = oi.obs_id
+                 JOIN message m ON oi.msg_id = m.msg_id
+                 JOIN threat_actor_cluster_conversation tacc ON tacc.conv_id = m.conv_id
+                 WHERE tacc.cluster_id = :clusterId
+                   AND ic.enrichment_status = 'enriched'
+                   AND ic.stimulus_type = :stimulus",
+                ['clusterId' => $clusterId, 'stimulus' => $dominantStimulus]
+            );
+            $dominantStimulusCount = (int) $countRow;
+        }
+
+        // Templated excerpt count: distinct excerpts repeated >= 3 times
+        /** @var int|string|false $templatedRow */
+        $templatedRow = $this->conn->fetchOne(
+            "SELECT COUNT(*) FROM (
+                SELECT ic.context_excerpt
+                FROM ioc_context ic
+                JOIN observed_ioc oi ON ic.obs_id = oi.obs_id
+                JOIN message m ON oi.msg_id = m.msg_id
+                JOIN threat_actor_cluster_conversation tacc ON tacc.conv_id = m.conv_id
+                WHERE tacc.cluster_id = :clusterId
+                  AND ic.enrichment_status = 'enriched'
+                  AND ic.context_excerpt IS NOT NULL
+                  AND ic.context_excerpt != ''
+                GROUP BY ic.context_excerpt
+                HAVING COUNT(*) >= 3
+             ) sub",
+            ['clusterId' => $clusterId]
+        );
+
+        return [
+            'dominant_stimulus' => $dominantStimulus,
+            'dominant_stimulus_count' => $dominantStimulusCount,
+            'avg_urgency_score' => \is_numeric($row['avg_urgency_score'] ?? null) ? (float) $row['avg_urgency_score'] : 0.0,
+            'dominant_revelation_turn' => \is_numeric($row['dominant_revelation_turn'] ?? null) ? (int) $row['dominant_revelation_turn'] : null,
+            'hesitation_count' => \is_numeric($row['hesitation_count'] ?? null) ? (int) $row['hesitation_count'] : 0,
+            'language_switch_count' => \is_numeric($row['language_switch_count'] ?? null) ? (int) $row['language_switch_count'] : 0,
+            'templated_excerpt_count' => (int) $templatedRow,
+            'total_enriched_iocs' => $totalEnriched,
+        ];
+    }
+
+    /**
+     * Compute per-anchor IOC behavioral aggregations from ioc_context.
+     *
+     * @return array<string, array{
+     *     dominant_semantic_role: string|null,
+     *     dominant_stimulus: string|null,
+     *     avg_urgency_score: float
+     * }>
+     */
+    private function computeAnchorBehaviors(string $clusterId): array
+    {
+        $rows = $this->conn->fetchAllAssociative(
+            "SELECT
+                ic.indicator_id,
+                MODE() WITHIN GROUP (ORDER BY ic.semantic_role) AS dominant_semantic_role,
+                MODE() WITHIN GROUP (ORDER BY ic.stimulus_type) AS dominant_stimulus,
+                AVG(ic.urgency_score) AS avg_urgency_score
+             FROM ioc_context ic
+             JOIN threat_actor_cluster_ioc taci ON taci.indicator_id = ic.indicator_id
+             WHERE taci.cluster_id = :clusterId
+               AND ic.enrichment_status = 'enriched'
+             GROUP BY ic.indicator_id",
+            ['clusterId' => $clusterId]
+        );
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            /** @var string $indicatorId */
+            $indicatorId = $row['indicator_id'] ?? '';
+
+            if ($indicatorId === '') {
+                continue;
+            }
+
+            $result[$indicatorId] = [
+                'dominant_semantic_role' => \is_string($row['dominant_semantic_role'] ?? null) ? $row['dominant_semantic_role'] : null,
+                'dominant_stimulus' => \is_string($row['dominant_stimulus'] ?? null) ? $row['dominant_stimulus'] : null,
+                'avg_urgency_score' => \is_numeric($row['avg_urgency_score'] ?? null) ? (float) $row['avg_urgency_score'] : 0.0,
+            ];
+        }
+
+        return $result;
     }
 
     /**
