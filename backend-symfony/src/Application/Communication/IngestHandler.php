@@ -179,7 +179,28 @@ class IngestHandler
 
         $this->em->persist($messageEntity);
 
-        // 6. Handle attachments (tightly coupled to entity creation)
+        // 6a. Spec 063 — Backend-side parser fallback for attachments.
+        // If the upstream collector did not pre-populate dto.attachments
+        // (e.g., n8n IMAP node since the 2026-03-31 Gmail->IMAP migration),
+        // extract attachments by parsing the raw RFC822 source ourselves.
+        // The fallback is invoked only when dto.attachments is null or empty,
+        // so existing producers that already provide attachments (with
+        // strelka/sandbox metadata) keep full control. Defensive: any
+        // parser failure is caught and logged in extractAttachments(),
+        // never propagated to the HTTP response.
+        if ($dto->attachments === null || $dto->attachments === []) {
+            $extracted = $this->emailParser->extractAttachments($rawSourceB64);
+
+            if ($extracted !== []) {
+                $this->logger->info('[IngestHandler] Parser fallback extracted attachments', [
+                    'msg_id' => $msgId,
+                    'count' => count($extracted),
+                ]);
+                $dto->attachments = $extracted;
+            }
+        }
+
+        // 6b. Handle attachments (tightly coupled to entity creation)
         $this->processAttachments($dto, $messageEntity, $msgId, $now);
 
         // 7. Flush message + attachments

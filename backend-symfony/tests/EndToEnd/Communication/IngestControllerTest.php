@@ -1869,6 +1869,381 @@ MAIL;
         $this->assertSame(3, $metadata['sandbox']['score']);
     }
 
+    /**
+     * Spec 063 — Backend-side parser fallback.
+     *
+     * Verifies that when the upstream collector (n8n) does not pre-populate
+     * `dto.attachments`, the backend extracts attachments by parsing the
+     * raw RFC822 body itself, using EmailParsingService::extractAttachments().
+     *
+     * Regression context: from 2026-03-31 (commit b090e31, Gmail->IMAP
+     * migration), n8n stopped extracting attachments and forwards
+     * `attachments: []`. The backend used to silently no-op. After this
+     * spec, the backend extracts them itself from raw_source.
+     */
+    public function test_ingest_raw_fallback_extracts_attachments_when_dto_empty(): void
+    {
+        $accountId = uuid_create(UUID_TYPE_RANDOM);
+        $mailAccount = new MailAccount(
+            $accountId,
+            '55555555-5555-5555-5555-555555555555',
+            'IMAP',
+            'imap.example.com',
+            'dummyhash063a',
+            ['mail.read'],
+            true
+        );
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($mailAccount);
+        $em->flush();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Message m')->execute();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Conversation c')->execute();
+
+        $jwt = $this->getValidJwt($client);
+
+        $pdfBytes = "%PDF-1.4\nspec 063 fallback test pdf\n%%EOF";
+        $pdfB64 = chunk_split(base64_encode($pdfBytes), 76, "\n");
+        $expectedSha256 = hash('sha256', $pdfBytes);
+        $expectedSize = strlen($pdfBytes);
+
+        $uniqueId = uniqid('e2e-063a-', true);
+        $mailRaw = <<<MAIL
+Subject: Spec 063 fallback test
+From: "Scammer" <scammer@bar.com>
+To: bar@foo.com
+Date: Thu, 10 Apr 2026 10:00:00 +0000
+Message-ID: <{$uniqueId}@bar.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="bnd063a"
+
+--bnd063a
+Content-Type: text/plain; charset=UTF-8
+
+See the attached PDF.
+
+--bnd063a
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="fallback.pdf"
+Content-Transfer-Encoding: base64
+
+{$pdfB64}
+--bnd063a--
+MAIL;
+
+        $payload = [
+            'account_id' => $accountId,
+            'raw_source' => base64_encode($mailRaw),
+            'ts_received' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'channel' => 'email',
+            'rspamd' => ['score' => 5.0, 'symbols' => ['ATTACH']],
+            'score_risk' => 50,
+            // CRITICAL: empty attachments array triggers the parser fallback
+            'attachments' => [],
+        ];
+
+        $client->request('POST', '/api/v1/communication/ingest/raw', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('msg_id', $data);
+        $this->assertSame('ingested', $data['status']);
+
+        // Verify that the attachment was extracted by the parser fallback and persisted
+        $em->clear();
+        $messageRepo = $em->getRepository(\App\Domain\Communication\Message::class);
+        $message = $messageRepo->find($data['msg_id']);
+        $this->assertNotNull($message, 'Message should be persisted');
+
+        $attachments = $message->getAttachments();
+        $this->assertCount(1, $attachments, 'Parser fallback should have extracted 1 attachment');
+
+        $attachment = $attachments[0];
+        $this->assertSame('fallback.pdf', $attachment->getFilename());
+        $this->assertSame('application/pdf', $attachment->getMimeType());
+        $this->assertSame($expectedSize, $attachment->getSizeBytes());
+        $this->assertSame($expectedSha256, $attachment->getContentHash());
+    }
+
+    /**
+     * Spec 063 — Multi-attachment parser fallback.
+     */
+    public function test_ingest_raw_fallback_extracts_three_attachments_when_dto_empty(): void
+    {
+        $accountId = uuid_create(UUID_TYPE_RANDOM);
+        $mailAccount = new MailAccount(
+            $accountId,
+            '66666666-6666-6666-6666-666666666666',
+            'IMAP',
+            'imap.example.com',
+            'dummyhash063b',
+            ['mail.read'],
+            true
+        );
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($mailAccount);
+        $em->flush();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Message m')->execute();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Conversation c')->execute();
+
+        $jwt = $this->getValidJwt($client);
+
+        $pdfBytes = "%PDF-1.4\npdf1 spec 063b\n%%EOF";
+        $docxBytes = "PK\x03\x04docx1 spec 063b";
+        $zipBytes = "PK\x03\x04zip1 spec 063b";
+
+        $pdfB64 = chunk_split(base64_encode($pdfBytes), 76, "\n");
+        $docxB64 = chunk_split(base64_encode($docxBytes), 76, "\n");
+        $zipB64 = chunk_split(base64_encode($zipBytes), 76, "\n");
+
+        $uniqueId = uniqid('e2e-063b-', true);
+        $mailRaw = <<<MAIL
+Subject: Three attachments fallback
+From: "Scammer" <scammer@bar.com>
+To: bar@foo.com
+Date: Thu, 10 Apr 2026 10:00:00 +0000
+Message-ID: <{$uniqueId}@bar.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="bnd063b"
+
+--bnd063b
+Content-Type: text/plain; charset=UTF-8
+
+Three files attached.
+
+--bnd063b
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="report.pdf"
+Content-Transfer-Encoding: base64
+
+{$pdfB64}
+--bnd063b
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+Content-Disposition: attachment; filename="contract.docx"
+Content-Transfer-Encoding: base64
+
+{$docxB64}
+--bnd063b
+Content-Type: application/zip
+Content-Disposition: attachment; filename="archive.zip"
+Content-Transfer-Encoding: base64
+
+{$zipB64}
+--bnd063b--
+MAIL;
+
+        $payload = [
+            'account_id' => $accountId,
+            'raw_source' => base64_encode($mailRaw),
+            'ts_received' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'channel' => 'email',
+            'rspamd' => ['score' => 5.0, 'symbols' => ['ATTACH']],
+            'score_risk' => 50,
+            'attachments' => [],
+        ];
+
+        $client->request('POST', '/api/v1/communication/ingest/raw', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+
+        $em->clear();
+        $messageRepo = $em->getRepository(\App\Domain\Communication\Message::class);
+        $message = $messageRepo->find($data['msg_id']);
+        $attachments = $message->getAttachments();
+
+        $this->assertCount(3, $attachments, 'Parser fallback should have extracted 3 attachments');
+
+        $byName = [];
+
+        foreach ($attachments as $att) {
+            $byName[$att->getFilename()] = $att;
+        }
+
+        $this->assertArrayHasKey('report.pdf', $byName);
+        $this->assertArrayHasKey('contract.docx', $byName);
+        $this->assertArrayHasKey('archive.zip', $byName);
+        $this->assertSame(hash('sha256', $pdfBytes), $byName['report.pdf']->getContentHash());
+        $this->assertSame(hash('sha256', $docxBytes), $byName['contract.docx']->getContentHash());
+        $this->assertSame(hash('sha256', $zipBytes), $byName['archive.zip']->getContentHash());
+    }
+
+    /**
+     * Spec 063 — Regression sentinel: when dto.attachments IS populated, the
+     * parser fallback MUST NOT be invoked. The DTO array takes precedence
+     * even if the raw_source contains parser-extractable attachments.
+     *
+     * This guards against accidentally double-counting or losing producer
+     * metadata (strelka, sandbox).
+     */
+    public function test_ingest_raw_fallback_not_invoked_when_dto_has_attachments(): void
+    {
+        $accountId = uuid_create(UUID_TYPE_RANDOM);
+        $mailAccount = new MailAccount(
+            $accountId,
+            '77777777-7777-7777-7777-777777777777',
+            'IMAP',
+            'imap.example.com',
+            'dummyhash063c',
+            ['mail.read'],
+            true
+        );
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($mailAccount);
+        $em->flush();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Message m')->execute();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Conversation c')->execute();
+
+        $jwt = $this->getValidJwt($client);
+
+        $pdfBytes = "%PDF-1.4\nfallback should NOT be triggered\n%%EOF";
+        $pdfB64 = chunk_split(base64_encode($pdfBytes), 76, "\n");
+
+        // The raw mail contains a parser-extractable attachment
+        $uniqueId = uniqid('e2e-063c-', true);
+        $mailRaw = <<<MAIL
+Subject: DTO precedence
+From: "Scammer" <scammer@bar.com>
+To: bar@foo.com
+Date: Thu, 10 Apr 2026 10:00:00 +0000
+Message-ID: <{$uniqueId}@bar.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="bnd063c"
+
+--bnd063c
+Content-Type: text/plain; charset=UTF-8
+
+Body.
+
+--bnd063c
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="from-raw-source.pdf"
+Content-Transfer-Encoding: base64
+
+{$pdfB64}
+--bnd063c--
+MAIL;
+
+        // BUT the DTO declares a different attachment with marker metadata.
+        // The fallback must NOT be invoked → only the DTO entry is persisted.
+        $dtoSha256 = hash('sha256', 'declared by DTO marker');
+        $payload = [
+            'account_id' => $accountId,
+            'raw_source' => base64_encode($mailRaw),
+            'ts_received' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'channel' => 'email',
+            'rspamd' => ['score' => 5.0, 'symbols' => ['ATTACH']],
+            'score_risk' => 50,
+            'attachments' => [
+                [
+                    'filename' => 'from-dto.pdf',
+                    'mime_type' => 'application/pdf',
+                    'size_bytes' => 999,
+                    'sha256' => $dtoSha256,
+                    'strelka' => ['yara_hits' => ['DTO_marker']],
+                ],
+            ],
+        ];
+
+        $client->request('POST', '/api/v1/communication/ingest/raw', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+
+        $em->clear();
+        $messageRepo = $em->getRepository(\App\Domain\Communication\Message::class);
+        $message = $messageRepo->find($data['msg_id']);
+        $attachments = $message->getAttachments();
+
+        $this->assertCount(1, $attachments, 'Only the DTO-declared attachment should be persisted, not the parser fallback one');
+
+        $attachment = $attachments[0];
+        $this->assertSame('from-dto.pdf', $attachment->getFilename(), 'The DTO entry must take precedence over the parser fallback');
+        $this->assertSame($dtoSha256, $attachment->getContentHash());
+
+        // Verify the strelka marker survived (proves the DTO array was used, not the parser)
+        $metadata = $attachment->getMetadata();
+        $this->assertNotNull($metadata, 'DTO metadata should be persisted');
+        $this->assertArrayHasKey('strelka', $metadata);
+        $this->assertSame(['DTO_marker'], $metadata['strelka']['yara_hits']);
+    }
+
+    /**
+     * Spec 063 — Defensive: garbage raw_source must not break ingestion.
+     */
+    public function test_ingest_raw_fallback_handles_garbage_raw_source_gracefully(): void
+    {
+        $accountId = uuid_create(UUID_TYPE_RANDOM);
+        $mailAccount = new MailAccount(
+            $accountId,
+            '88888888-8888-8888-8888-888888888888',
+            'IMAP',
+            'imap.example.com',
+            'dummyhash063d',
+            ['mail.read'],
+            true
+        );
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($mailAccount);
+        $em->flush();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Message m')->execute();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Conversation c')->execute();
+
+        $jwt = $this->getValidJwt($client);
+
+        // Build a "minimally valid" RFC822 with no multipart, no attachments,
+        // and a body that is not base64-encoded multipart content.
+        // The parser should successfully parse the headers + body but find
+        // zero attachments. No exception, message persisted normally.
+        $uniqueId = uniqid('e2e-063d-', true);
+        $mailRaw = <<<MAIL
+Subject: Plain mail no attachments
+From: "Scammer" <scammer@bar.com>
+To: bar@foo.com
+Date: Thu, 10 Apr 2026 10:00:00 +0000
+Message-ID: <{$uniqueId}@bar.com>
+Content-Type: text/plain; charset=UTF-8
+
+Just a plain text body, no attachments.
+MAIL;
+
+        $payload = [
+            'account_id' => $accountId,
+            'raw_source' => base64_encode($mailRaw),
+            'ts_received' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'channel' => 'email',
+            'rspamd' => ['score' => 0.0, 'symbols' => []],
+            'score_risk' => 50,
+            'attachments' => [],
+        ];
+
+        $client->request('POST', '/api/v1/communication/ingest/raw', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+
+        $em->clear();
+        $messageRepo = $em->getRepository(\App\Domain\Communication\Message::class);
+        $message = $messageRepo->find($data['msg_id']);
+        $this->assertNotNull($message);
+        $this->assertCount(0, $message->getAttachments(), 'Plain text mail should have zero attachments');
+    }
+
     public function test_ingest_raw_with_raw_headers_b64(): void
     {
         $accountId = uuid_create(UUID_TYPE_RANDOM);
