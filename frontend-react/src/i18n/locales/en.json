@@ -478,7 +478,9 @@
     "empty_state": "No data available. Set up honeypots to start collecting intelligence.",
     "promoted": "promoted",
     "exclusive": "exclusive to ScamBuster",
-    "across_conversations": "across {{count}} conversations"
+    "across_conversations": "across {{count}} conversations",
+    "actor_dedup": "Actor Deduplication",
+    "actor_dedup_subtitle": "−{{pct}}% threat actors in TAXII feed"
   },
   "monitoring": {
     "title": "Conversation Monitoring",
