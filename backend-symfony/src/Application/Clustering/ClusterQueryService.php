@@ -216,6 +216,36 @@ final class ClusterQueryService
             ['id' => $clusterId]
         );
 
+        // Sample reveals: distinct context excerpts grouped by text, with occurrence count
+        // and the first conversation that produced each excerpt (for navigation).
+        $sampleExcerptsRows = $this->conn->fetchAllAssociative(
+            "SELECT
+                ic.context_excerpt AS text,
+                COUNT(*) AS occurrence_count,
+                (array_agg(m.conv_id ORDER BY ic.created_at ASC))[1] AS source_conv_id
+             FROM ioc_context ic
+             JOIN observed_ioc oi ON ic.obs_id = oi.obs_id
+             JOIN message m ON oi.msg_id = m.msg_id
+             JOIN threat_actor_cluster_conversation tacc ON tacc.conv_id = m.conv_id
+             WHERE tacc.cluster_id = :clusterId
+               AND ic.context_excerpt IS NOT NULL
+               AND ic.context_excerpt != ''
+               AND ic.enrichment_status = 'enriched'
+             GROUP BY ic.context_excerpt
+             ORDER BY MIN(ic.created_at) ASC
+             LIMIT 5",
+            ['clusterId' => $clusterId]
+        );
+
+        $sampleExcerpts = array_map(
+            fn (array $row) => [
+                'text' => \is_string($row['text'] ?? null) ? $row['text'] : '',
+                'occurrence_count' => \is_numeric($row['occurrence_count'] ?? null) ? (int) $row['occurrence_count'] : 1,
+                'source_conv_id' => \is_string($row['source_conv_id'] ?? null) ? $row['source_conv_id'] : '',
+            ],
+            $sampleExcerptsRows
+        );
+
         return [
             'cluster_id' => \is_string($row['cluster_id'] ?? null) ? $row['cluster_id'] : '',
             'stix_id' => \is_string($row['stix_id'] ?? null) ? $row['stix_id'] : '',
@@ -230,6 +260,7 @@ final class ClusterQueryService
             'algorithm_version' => \is_string($row['algorithm_version'] ?? null) ? $row['algorithm_version'] : '1.0',
             'anchor_iocs' => $anchors,
             'conversations' => $conversations,
+            'sample_excerpts' => $sampleExcerpts,
         ];
     }
 

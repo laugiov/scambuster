@@ -51,6 +51,11 @@ export interface ClusterDetail extends Cluster {
     scam_type: string;
     linked_at: string;
   }>;
+  sample_excerpts: Array<{
+    text: string;
+    occurrence_count: number;
+    source_conv_id: string;
+  }>;
 }
 
 export interface ClusterForIoc {
