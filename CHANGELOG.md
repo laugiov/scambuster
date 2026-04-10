@@ -7,6 +7,96 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.13.0] - 2026-04-10
+
+### Fixed
+
+#### Backend-side attachment extraction from raw RFC822 (Spec 063)
+
+Restores attachment capture that was silently lost on **2026-03-31** by
+commit `b090e31` ("feat(n8n): replace Gmail nodes with IMAP trigger").
+The migration from the Gmail node (which fetched the full RFC822 with
+multipart binary parts) to the IMAP node with `format: "simple"` (which
+only returns structured fields) caused the n8n workflow to forward
+`attachments: []` for every mail. The backend `processAttachments()`
+path silently no-op'd, leaving the `attachment` table empty for
+**10 days** (2026-03-31 → 2026-04-10) despite real mails with
+attachments arriving in the honeypot mailbox.
+
+**Diagnosis confirmed by**:
+- 0 rows in `attachment` table out of 521 messages persisted
+- 0 file-hash IOCs (sha256/md5) on test mails injected with 1, 2, 3 PJ
+- The historical `Extract Email Data V2 "WITH ATTACHMENTS"` JS node
+  (~200 lines parsing multipart and computing SHA256) was deleted in
+  favor of a new V3 node that explicitly hardcodes `attachments: []`
+  with the comment `// Simple format does not include attachments inline`
+
+**Fix (hybrid approach, Option 3)**:
+
+1. New public method `EmailParsingService::extractAttachments(string $rawRfc822Base64): array`
+   uses the existing `zbateson/mail-mime-parser` instance to extract
+   attachments from raw multipart RFC822. Reuses
+   `MailMimeParser::getAllAttachmentParts()` (which already filters out
+   multipart containers, signature parts, and text/plain|html parts not
+   flagged as attachments). Adds an explicit exclusion for `inline`
+   parts to avoid persisting embedded HTML images. Reads attachment
+   streams in 64KB chunks with a configurable max-size guard
+   (default 25 MB). Defensive: any parser failure is caught, logged as
+   a WARNING, and returns `[]`. Never throws.
+
+2. `IngestHandler::ingest()` now invokes the parser fallback **only**
+   when the upstream-provided `dto.attachments` is null or empty.
+   Producers that already populate the array (the historical Gmail
+   workflow, the existing `test_ingest_raw_with_attachments` E2E test
+   with strelka/sandbox metadata, any future producer) keep full
+   precedence. Backwards-compatible: zero breaking change to the
+   `/ingest/raw` API contract.
+
+**Tests**: +12 unit tests on `extractAttachments()` covering empty
+cases, single PDF, three mixed attachments, inline image ignored,
+text/calendar persisted, deeply nested multipart, defensive malformed
+input, and size-limit enforcement (with injectable limit to avoid OOM
+in tests). +4 EndToEnd tests on `IngestControllerTest` covering the
+full POST → fallback → DB persistence chain (1 PJ, 3 PJ, regression
+sentinel for non-empty DTO with strelka marker, defensive plain-text
+mail). The pre-existing 13-assertion `test_ingest_raw_with_attachments`
+sentinel continues to pass **unchanged**.
+
+**Manual smoke validated** on dev backend:
+- 1 PDF mail (`smoke063.pdf`, 47 B) → 1 row in `attachment`, correct
+  sha256, av_status pending
+- 3 mixed PJ mail (PDF + DOCX + ZIP) → 3 rows, distinct hashes, correct
+  mime types and sizes
+
+**Known follow-up — file hashes NOT yet linked into the IOC pipeline**:
+the sha256 of persisted attachments is NOT yet inserted as `observed_ioc`
+rows. The spec assumed an existing `processAttachments → IocUpsertService`
+chain that does not actually exist in the codebase — the linkage was
+never implemented. This is a separate gap (would require a future spec
+~064) and is intentionally **out of scope for spec 063**, which only
+restored the attachment **persistence** capability. Attachments are
+visible in `AttachmentController::download` and the conversation detail
+API today.
+
+**n8n side not updated**: this spec deliberately does not modify the
+n8n workflow. The backend is now self-sufficient for any producer that
+forwards the **full** RFC822 bytes in `raw_source_rfc822_b64`. The
+current n8n "Prepare Payload V5" node still reconstructs a fake RFC822
+from headers + text body only (without the multipart bytes), so the
+backend fallback cannot fully recover attachments from real n8n traffic
+**until n8n is updated separately** to forward the original RFC822
+bytes. This is a known limitation documented for follow-up.
+
+**Files changed**:
+- `backend-symfony/src/Application/Communication/EmailParsingService.php` (+ method, + constructor parameter)
+- `backend-symfony/src/Application/Communication/IngestHandler.php` (+ fallback substitution)
+- `backend-symfony/tests/Unit/Application/Communication/EmailParsingServiceExtractAttachmentsTest.php` (new, 12 tests)
+- `backend-symfony/tests/EndToEnd/Communication/IngestControllerTest.php` (+ 4 tests)
+
+**No schema change. No new dependency. No frontend change.**
+
+---
+
 ## [2.12.0] - 2026-04-10
 
 ### Changed
