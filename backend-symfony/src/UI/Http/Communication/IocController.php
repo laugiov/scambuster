@@ -269,6 +269,9 @@ final class IocController
             );
 
             return new JsonResponse($dto->toArray(), Response::HTTP_CREATED);
+        } catch (\InvalidArgumentException $e) {
+            // Spec 061: outgoing-message guard or honeypot-address filter rejection
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         } catch (\RuntimeException $e) {
             // Message not found or other business error
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
