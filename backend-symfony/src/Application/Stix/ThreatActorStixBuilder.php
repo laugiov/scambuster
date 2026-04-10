@@ -135,6 +135,59 @@ final class ThreatActorStixBuilder
     }
 
     /**
+     * Spec 060 Sprint 2: build a singleton threat-actor for a conversation
+     * that does NOT belong to any cluster.
+     *
+     * Identical to buildThreatActor() except for the human-readable name,
+     * which uses the new convention `Unattributed Scam Actor (Title Case Type)`
+     * instead of the old `ScamBuster Actor - {SCAM_TYPE} #{shortId}` (which
+     * embedded a UUID and was unreadable in OpenCTI's graph view).
+     *
+     * The STIX `id` is identical to buildThreatActor() (same deterministic
+     * UUID v5) so OpenCTI dedup still works across migrations.
+     *
+     * @param array<string, mixed>      $campaignData
+     * @param array<string, mixed>|null $actorProfile
+     * @param array<string, mixed>      $metrics
+     *
+     * @return array<string, mixed>
+     */
+    public function buildSingleton(array $campaignData, ?array $actorProfile, array $metrics): array
+    {
+        $actor = $this->buildThreatActor($campaignData, $actorProfile, $metrics);
+
+        $scamType = \is_string($campaignData['scam_type'] ?? null) ? strtoupper($campaignData['scam_type']) : 'UNKNOWN';
+        $actor['name'] = sprintf('Unattributed Scam Actor (%s)', self::formatScamTypeForName($scamType));
+
+        return $actor;
+    }
+
+    /**
+     * Convert a scam type code (UPPER_SNAKE_CASE) into a human-readable
+     * Title Case label suitable for display in OpenCTI.
+     *
+     * Special-cases:
+     *   - CEO_FRAUD -> "CEO Fraud" (CEO stays uppercase, not "Ceo")
+     */
+    private static function formatScamTypeForName(string $scamType): string
+    {
+        if ($scamType === '' || $scamType === 'UNKNOWN') {
+            return 'Unknown';
+        }
+
+        $words = explode('_', strtolower($scamType));
+        $titled = array_map(
+            static fn (string $w): string => match ($w) {
+                'ceo' => 'CEO',
+                default => ucfirst($w),
+            },
+            $words,
+        );
+
+        return implode(' ', $titled);
+    }
+
+    /**
      * Build STIX attack-pattern objects for a MITRE technique.
      *
      * @return list<array<string, mixed>> Array of attack-pattern objects (usually 1)
