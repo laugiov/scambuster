@@ -478,7 +478,9 @@
     "empty_state": "Aucune donnee disponible. Configurez vos honeypots pour commencer a collecter du renseignement.",
     "promoted": "promues",
     "exclusive": "exclusifs a ScamBuster",
-    "across_conversations": "sur {{count}} conversations"
+    "across_conversations": "sur {{count}} conversations",
+    "actor_dedup": "Deduplication d'acteurs",
+    "actor_dedup_subtitle": "−{{pct}}% d'acteurs dans le feed TAXII"
   },
   "monitoring": {
     "title": "Monitoring des Conversations",
