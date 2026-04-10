@@ -262,9 +262,12 @@ class IocQueryService
             ];
         }
 
-        // 6. Get related IOCs (co-occurring in same conversations)
+        // 6. Get related IOCs (co-occurring in same conversations).
+        // Excludes header IOC types — they're authentication metadata, not real
+        // attacker-controlled artifacts. Must match the same filter applied in
+        // getCoOccurrenceGraph() so the badge count matches the graph node count.
         $relatedIocs = $conn->executeQuery(
-            'SELECT
+            "SELECT
                 i.indicator_id,
                 i.type,
                 i.value_norm,
@@ -282,9 +285,10 @@ class IocQueryService
                 WHERE oi2.indicator_id = :indicatorId
             )
             AND i.indicator_id != :indicatorId
+            AND i.type NOT IN ('message_id','subject','spf_result','dkim_result','dmarc_result','x_mailer','return_path')
             GROUP BY i.indicator_id, i.type, i.value_norm, i.score::text
             ORDER BY co_occurrence_count DESC
-            LIMIT 50',
+            LIMIT 50",
             ['indicatorId' => $indicatorId]
         )->fetchAllAssociative();
 
