@@ -17,15 +17,48 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class IocUpsertService
 {
+    /** @var array<string, true> */
+    private readonly array $honeypotAddressesIndex;
+
+    /**
+     * @param list<string>|null $honeypotEmailAddresses Spec 061: canonical honeypot addresses to never ingest as IOCs.
+     *                                                  Null or empty array → filter is a no-op.
+     */
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly RiskScorer $riskScorer,
         private readonly IocCategorizer $categorizer,
         private readonly IocExportMapper $exportMapper,
         private readonly HeaderIocExtractor $headerExtractor,
+        ?array $honeypotEmailAddresses = null,
         private readonly ?AuditLogger $auditLogger = null,
         private readonly ?IocContextService $contextService = null,
     ) {
+        // Normalize once (lowercase, deduplicated, indexed for O(1) lookup)
+        $index = [];
+
+        foreach ($honeypotEmailAddresses ?? [] as $address) {
+            $normalized = strtolower(trim($address));
+
+            if ($normalized !== '') {
+                $index[$normalized] = true;
+            }
+        }
+        $this->honeypotAddressesIndex = $index;
+    }
+
+    /**
+     * Spec 061 — Layer 2: refuse to upsert any email IOC matching a configured
+     * honeypot address. Catches the case where a scammer quotes our reply,
+     * causing our own address to be re-extracted from an incoming message body.
+     */
+    private function isHoneypotAddress(string $type, string $valueNorm): bool
+    {
+        if ($type !== 'email') {
+            return false;
+        }
+
+        return isset($this->honeypotAddressesIndex[strtolower($valueNorm)]);
     }
 
     /**
@@ -58,9 +91,29 @@ class IocUpsertService
             ));
         }
 
+        // Spec 061 — Layer 1: refuse extraction on outgoing messages.
+        // Single funnel: this guard catches all callers (HTTP /enriched, MigrateHeaderIocs,
+        // IngestPostProcessor, future entry points).
+        if (!$message->canExtractIocs()) {
+            throw new \InvalidArgumentException(sprintf(
+                'IOC extraction is not allowed on outgoing messages (msg_id=%s, direction=%s)',
+                $message->getMsgId(),
+                $message->getDirection()->getCode(),
+            ));
+        }
+
         $iocData = $data['ioc'];
         $type = $iocData['type'];
         $valueNorm = $iocData['value_norm'];
+
+        // Spec 061 — Layer 2: refuse honeypot addresses (case-insensitive).
+        // Catches scammers quoting our reply email back at us in an incoming message body.
+        if ($this->isHoneypotAddress($type, $valueNorm)) {
+            throw new \InvalidArgumentException(sprintf(
+                'Refused to upsert honeypot email "%s" as IOC (spec 061)',
+                $valueNorm,
+            ));
+        }
 
         $existingIoc = $this->findExistingIoc($message->getMsgId(), $type, $valueNorm);
 
