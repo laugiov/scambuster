@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.10.0] - 2026-04-10
+
+### Changed
+
+#### STIX Export Hardening (Spec 060)
+
+Two-sprint hardening of conversation, IOC explorer, and cluster STIX exports
+based on three independent CTI expert audits. Eliminates O(n²) graph noise and
+correctly attributes clustered conversations to their shared threat-actor.
+
+**Sprint 1 — Mesh removal**
+- `ConversationStixExportHandler`: dropped the double-for loop that emitted a
+  full mesh of `relationship_type=related-to` between every pair of indicators
+  in a conversation (O(n²) growth, OpenCTI graph pollution)
+- `IocStixExportHandler`: deleted private `buildRelationships()` and its
+  co-occurrence SQL query (capped at LIMIT 100 but still useless noise)
+- Conversation `report.object_refs` already conveys co-occurrence — no
+  information lost
+- Bulk IOC export of 2139 indicators went from ~2M potential relationships to 0
+
+**Sprint 2 — Cluster attribution**
+- `ConversationStixExportHandler` now resolves the cluster (if any) for the
+  exported conversation via new `ClusterQueryService::getClusterIdForConversation()`
+- Clustered conversations attach `indicates` relationships to the **cluster**
+  threat-actor (shared with all sibling conversations) instead of producing a
+  per-conversation singleton — OpenCTI graph collapses to 1 actor node
+- New `ClusteredThreatActorStixBuilder::buildThreatActorObjects()` returns
+  `{threat_actor, attack_patterns, relationships}` for embedding in a
+  conversation bundle (no indicator objects — they belong to the conv bundle)
+- Singleton branch (unclustered conversations) now uses
+  `ThreatActorStixBuilder::buildSingleton()` with new naming convention
+  `Unattributed Scam Actor (Title Case Type)` instead of the unreadable
+  `ScamBuster Actor - SCAM_TYPE #shortid`
+- STIX `id` unchanged across both branches (deterministic UUID v5) — OpenCTI
+  dedup preserved across migration
+
+### Tests
+- 27 new backend tests (TDD red/green per sprint)
+  - Sprint 1: 6 integration tests (`ConversationStixExportHardeningTest`,
+    `IocStixExportHardeningTest`) — assert zero `related-to` indicator↔indicator
+  - Sprint 2: 4 cluster delegation integration tests
+    (`ConversationStixExportClusterDelegationTest`), 7 unit tests for
+    `buildThreatActorObjects`, 7 unit tests for `buildSingleton`
+- Visual validation on 7 STIX bundles exported from production UI:
+  3 cluster exports, 1 bulk IOC export (2139 IOCs), 2 singleton conv exports,
+  1 clustered conv export — all green
+- 2374 → 2394 backend tests, 0 regression
+- Zero new LLM cost (verified)
+
+### Out of scope (deferred to follow-up specs)
+- Honeypot/platform-mail IOCs still leak into exports
+  (`scamtest.scambuster@gmail.com`, `+555*` phone numbers) → **spec 061**
+  (preventive ingestion fix + historical cleanup command)
+- MITRE ATT&CK mapping refresh (T1534 deprecated, T1656 missing for
+  impersonation scams) → **spec 062**
+
+---
+
 ## [2.9.0] - 2026-04-10
 
 ### Added
