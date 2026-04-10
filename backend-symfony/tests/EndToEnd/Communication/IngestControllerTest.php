@@ -2453,36 +2453,32 @@ MAIL;
     }
 
     /**
-     * Spec 064 — Same PJ across two mails: documents the existing
-     * architectural limitation.
+     * Spec 064 — Same PJ across two mails: full threat-intel linkage.
      *
      * The `attachment` table has a UNIQUE constraint on content_hash
      * (pre-existing since the original Attachment entity, predating
      * spec 063). Consequently, when two distinct mails carry the same
      * PDF (same sha256), `IngestHandler::processAttachments()` skips
-     * the second one entirely (lines 274-289: existence check before
-     * persist). The second message's `getAttachments()` returns empty,
-     * so the spec 064 linkage is a no-op for the second message.
+     * persisting a second `attachment` row.
+     *
+     * Spec 064 (option B) decouples IOC linkage from attachment-row
+     * persistence: `linkAttachmentsAsIocs()` now iterates the original
+     * `dto.attachments` payload (post within-message dedup, pre
+     * cross-message dedup), so each mail produces its own `observed_ioc`
+     * row even when the underlying `attachment` row is shared.
      *
      * RESULT (current schema):
-     *   - 1 attachment row (the first mail wins)
-     *   - 1 observed_ioc row of type sha256 (linked to the FIRST message only)
-     *   - 1 indicator row with the sha256
+     *   - 1 attachment row (the first mail wins, UNIQUE constraint)
+     *   - 1 indicator row with the sha256 (IocUpsertService dedup by type+value_norm)
+     *   - 2 observed_ioc rows of type sha256 (one per message — IocUpsertService
+     *     dedup is per (msg_id, indicator_id), so two distinct mails create two)
      *
-     * THREAT-INTEL LIMITATION: an analyst seeing 50 mails with the same
-     * malicious PDF will only see 1 sha256 indicator linked to 1 message,
-     * not 50. This is a known limitation of the attachment dedup strategy
-     * and is OUT OF SCOPE for spec 064. A future spec could either:
-     *   (a) introduce a many-to-many `message_attachment` join table, or
-     *   (b) extend `processAttachments` to create a per-message `observed_ioc`
-     *       row that points to the existing shared `attachment` row even
-     *       when no new Attachment entity is created.
-     *
-     * This test serves as a sentinel: it documents the current behavior
-     * and will start failing if/when option (a) or (b) is implemented,
-     * forcing the future author to update the assertions explicitly.
+     * THREAT-INTEL: an analyst seeing N mails with the same malicious PDF
+     * sees 1 indicator with N observed_ioc rows — full pivot capability
+     * across all mails carrying that file. The shared attachment row is
+     * an acceptable storage optimization that does NOT impair detection.
      */
-    public function test_ingest_raw_same_attachment_two_mails_documents_dedup_limitation(): void
+    public function test_ingest_raw_same_attachment_two_mails_creates_two_observed_iocs(): void
     {
         $accountId = uuid_create(UUID_TYPE_RANDOM);
         $mailAccount = new MailAccount(
@@ -2573,19 +2569,20 @@ MAIL;
         )->fetchAllAssociative();
         $this->assertCount(1, $indicatorRows, 'Spec 064: same sha256 → exactly 1 indicator row');
 
-        // Spec 064 known limitation: only 1 observed_ioc row (linked to the
-        // FIRST message). The second mail's processAttachments skipped the
-        // attachment, so its message has 0 attachments and the linkage is
-        // a no-op for it.
+        // Spec 064 (option B): both mails produce an observed_ioc row,
+        // even though they share the same underlying attachment row.
         $obsRows = $conn->executeQuery(
             "SELECT oi.msg_id::text AS msg_id, oi.indicator_id
              FROM observed_ioc oi
              JOIN indicator i ON oi.indicator_id = i.indicator_id
-             WHERE i.value_norm = :v AND i.type = 'sha256'",
+             WHERE i.value_norm = :v AND i.type = 'sha256'
+             ORDER BY oi.msg_id",
             ['v' => $expectedSha256]
         )->fetchAllAssociative();
-        $this->assertCount(1, $obsRows, 'Documented limitation: only the FIRST mail gets the observed_ioc row');
-        $this->assertSame($resp1['msg_id'], $obsRows[0]['msg_id'], 'The observed_ioc must be linked to mail 1, not mail 2');
+        $this->assertCount(2, $obsRows, 'Spec 064: both mails must produce an observed_ioc row for the shared sha256');
+        $observedMsgIds = array_column($obsRows, 'msg_id');
+        $this->assertContains($resp1['msg_id'], $observedMsgIds, 'Mail 1 must have its own observed_ioc row');
+        $this->assertContains($resp2['msg_id'], $observedMsgIds, 'Mail 2 must have its own observed_ioc row');
     }
 
     public function test_ingest_raw_with_raw_headers_b64(): void

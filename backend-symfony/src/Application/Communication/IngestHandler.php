@@ -225,12 +225,19 @@ class IngestHandler
             $this->handleUniqueConstraintViolation($e);
         }
 
-        // 7b. Spec 064 — Link persisted attachments' sha256 into the IOC
+        // 7b. Spec 064 — Link the mail's attachments' sha256 into the IOC
         // pipeline as observed_ioc rows of type sha256. Must run AFTER
         // em->flush() because IocUpsertService resolves the message via
         // the database. The method is defensive: failures per attachment
         // are caught and logged, never propagated to the HTTP response.
-        $this->linkAttachmentsAsIocs($messageEntity, $msgId, $now);
+        //
+        // Iterates $dto->attachments (post within-message dedup, pre
+        // cross-message dedup) instead of $message->getAttachments() so
+        // that two distinct mails carrying the same PDF each produce
+        // their own observed_ioc row even though processAttachments
+        // skipped persisting a duplicate attachment row (UNIQUE on
+        // content_hash).
+        $this->linkAttachmentsAsIocs($dto->attachments, $msgId, $now);
 
         // 8. Post-processing (IOCs, classification, risk, injection)
         $this->postProcessor->processAfterIngest($messageEntity, $conversation, $parsed['langDetect']);
@@ -336,41 +343,56 @@ class IngestHandler
     }
 
     /**
-     * Spec 064 — Link persisted attachments' sha256 hashes into the IOC
+     * Spec 064 — Link the mail's attachments' sha256 hashes into the IOC
      * pipeline as observed_ioc rows of type sha256.
      *
-     * Iterates the message's attachments and calls IocUpsertService for
-     * each. The service handles indicator deduplication by (type, value_norm),
-     * observed_ioc dedup by (msg_id, type, value_norm), and the spec 061
-     * outgoing-message + honeypot guards.
+     * Iterates the DTO attachment payload (not the persisted entities) so
+     * that cross-message attachment dedup at the `attachment` table level
+     * does not impair IOC pivot capability. IocUpsertService handles:
+     *   - indicator dedup by (type, value_norm)
+     *   - observed_ioc dedup by (msg_id, indicator_id) → 1 row per mail
+     *   - spec 061 outgoing-message + honeypot guards
+     *
+     * Within-message dedup is performed inline below (same sha256 listed
+     * twice in dto.attachments → 1 observed_ioc row). Cross-message dedup
+     * is intentionally NOT applied here: 50 mails carrying the same
+     * malicious PDF must produce 50 observed_ioc rows linked to 1
+     * indicator, so analysts retain full pivot capability.
      *
      * Defensive: any per-attachment failure (InvalidArgumentException from
      * the spec 061 guards, RuntimeException from a missing message, or any
-     * other Throwable) is caught and logged at WARNING level, then the loop
-     * continues with the next attachment. The mail ingestion has already
-     * succeeded at this point — losing the IOC linkage for one attachment
-     * is acceptable, losing the entire mail is not.
+     * other Throwable) is caught and logged, then the loop continues with
+     * the next attachment. The mail ingestion has already succeeded at
+     * this point — losing the IOC linkage for one attachment is
+     * acceptable, losing the entire mail is not.
+     *
+     * @param array<int, array<string, mixed>>|null $attachmentDataList
      */
-    private function linkAttachmentsAsIocs(Message $message, string $msgId, \DateTimeImmutable $now): void
+    private function linkAttachmentsAsIocs(?array $attachmentDataList, string $msgId, \DateTimeImmutable $now): void
     {
-        if ($this->iocUpsertService === null) {
-            return;
-        }
-
-        $attachments = $message->getAttachments();
-
-        if (count($attachments) === 0) {
+        if ($this->iocUpsertService === null || $attachmentDataList === null || $attachmentDataList === []) {
             return;
         }
 
         $firstSeen = $now->format(\DateTimeImmutable::ATOM);
+        $seenHashes = [];
 
-        foreach ($attachments as $attachment) {
-            $contentHash = $attachment->getContentHash();
+        foreach ($attachmentDataList as $attData) {
+            $contentHash = $attData['sha256'] ?? null;
 
-            if ($contentHash === '') {
+            if (!is_string($contentHash) || $contentHash === '') {
                 continue;
             }
+
+            // Within-message dedup: same sha256 listed twice → 1 IOC.
+            if (isset($seenHashes[$contentHash])) {
+                continue;
+            }
+            $seenHashes[$contentHash] = true;
+
+            $filename = isset($attData['filename']) && is_string($attData['filename']) ? $attData['filename'] : null;
+            $mimeType = isset($attData['mime_type']) && is_string($attData['mime_type']) ? $attData['mime_type'] : null;
+            $sizeBytes = isset($attData['size_bytes']) && is_int($attData['size_bytes']) ? $attData['size_bytes'] : null;
 
             try {
                 $this->iocUpsertService->upsertEnrichedIoc([
@@ -383,10 +405,9 @@ class IngestHandler
                         'first_seen' => $firstSeen,
                     ],
                     'enrichment' => [
-                        'attachment_id' => $attachment->getAttachmentId(),
-                        'filename' => $attachment->getFilename(),
-                        'mime_type' => $attachment->getMimeType(),
-                        'size_bytes' => $attachment->getSizeBytes(),
+                        'filename' => $filename,
+                        'mime_type' => $mimeType,
+                        'size_bytes' => $sizeBytes,
                     ],
                     'category' => 'file-hash',
                     'tags' => ['attachment'],
@@ -397,7 +418,7 @@ class IngestHandler
                 // Expected on outgoing messages — silent no-op, log at DEBUG.
                 $this->logger->debug('[IngestHandler] Spec 061 guard blocked attachment IOC linkage', [
                     'msg_id' => $msgId,
-                    'filename' => $attachment->getFilename(),
+                    'filename' => $filename,
                     'reason' => $e->getMessage(),
                 ]);
             } catch (\Throwable $e) {
@@ -405,7 +426,7 @@ class IngestHandler
                 // and continue with the next attachment.
                 $this->logger->warning('[IngestHandler] Failed to link attachment sha256 as IOC', [
                     'msg_id' => $msgId,
-                    'filename' => $attachment->getFilename(),
+                    'filename' => $filename,
                     'sha256' => $contentHash,
                     'exception' => $e::class,
                     'message' => $e->getMessage(),
