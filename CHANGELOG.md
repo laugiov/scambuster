@@ -11,89 +11,203 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-#### Backend-side attachment extraction from raw RFC822 (Spec 063)
+#### End-to-end attachment capture restored (Spec 063)
 
-Restores attachment capture that was silently lost on **2026-03-31** by
-commit `b090e31` ("feat(n8n): replace Gmail nodes with IMAP trigger").
-The migration from the Gmail node (which fetched the full RFC822 with
-multipart binary parts) to the IMAP node with `format: "simple"` (which
-only returns structured fields) caused the n8n workflow to forward
-`attachments: []` for every mail. The backend `processAttachments()`
-path silently no-op'd, leaving the `attachment` table empty for
-**10 days** (2026-03-31 → 2026-04-10) despite real mails with
-attachments arriving in the honeypot mailbox.
+Restores attachment capture that was **silently lost for 10 days**
+(2026-03-31 → 2026-04-10) after commit `b090e31`
+(`feat(n8n): replace Gmail nodes with IMAP trigger + backend /send-email`)
+migrated the n8n intake workflow from the Gmail node (which fetched
+full RFC822 with multipart binary parts) to the IMAP node with
+`format: "simple"` (structured fields only). The replacement workflow
+hardcoded `attachments: []` for every mail, the backend
+`processAttachments()` silently no-op'd, and the `attachment` table
+stayed empty (0 rows for 521 messages persisted) despite real mails
+with attachments arriving in the honeypot mailbox.
 
-**Diagnosis confirmed by**:
-- 0 rows in `attachment` table out of 521 messages persisted
-- 0 file-hash IOCs (sha256/md5) on test mails injected with 1, 2, 3 PJ
-- The historical `Extract Email Data V2 "WITH ATTACHMENTS"` JS node
-  (~200 lines parsing multipart and computing SHA256) was deleted in
-  favor of a new V3 node that explicitly hardcodes `attachments: []`
-  with the comment `// Simple format does not include attachments inline`
+Diagnosis confirmed by injecting test mails with 1 / 2 / 3 attachments
+on 2026-04-10: zero rows in `attachment`, zero file-hash IOCs, zero
+exception in any log — the attachment processing path was simply
+never executed because the DTO arrived empty.
 
-**Fix (hybrid approach, Option 3)**:
+The fix is delivered in **4 atomic commits** on the
+`063-backend-side-attachment` branch:
 
-1. New public method `EmailParsingService::extractAttachments(string $rawRfc822Base64): array`
-   uses the existing `zbateson/mail-mime-parser` instance to extract
-   attachments from raw multipart RFC822. Reuses
-   `MailMimeParser::getAllAttachmentParts()` (which already filters out
-   multipart containers, signature parts, and text/plain|html parts not
-   flagged as attachments). Adds an explicit exclusion for `inline`
-   parts to avoid persisting embedded HTML images. Reads attachment
-   streams in 64KB chunks with a configurable max-size guard
-   (default 25 MB). Defensive: any parser failure is caught, logged as
-   a WARNING, and returns `[]`. Never throws.
+##### Step 1/4 — Backend `EmailParsingService::extractAttachments()`
 
-2. `IngestHandler::ingest()` now invokes the parser fallback **only**
-   when the upstream-provided `dto.attachments` is null or empty.
-   Producers that already populate the array (the historical Gmail
-   workflow, the existing `test_ingest_raw_with_attachments` E2E test
-   with strelka/sandbox metadata, any future producer) keep full
-   precedence. Backwards-compatible: zero breaking change to the
-   `/ingest/raw` API contract.
+New public method that uses the existing `zbateson/mail-mime-parser`
+instance to extract attachments from raw multipart RFC822. Reuses
+`MailMimeParser::getAllAttachmentParts()` (which already filters out
+multipart containers, signature parts, and text/plain|html parts not
+flagged as attachments). Adds an explicit exclusion for `inline` parts
+to avoid persisting embedded HTML images. Reads attachment streams in
+64 KB chunks with a configurable max-size guard
+(default `DEFAULT_MAX_ATTACHMENT_SIZE_BYTES = 25 MB`). Defensive: any
+parser failure is caught, logged as a WARNING, and returns `[]` —
+never throws.
 
-**Tests**: +12 unit tests on `extractAttachments()` covering empty
-cases, single PDF, three mixed attachments, inline image ignored,
-text/calendar persisted, deeply nested multipart, defensive malformed
-input, and size-limit enforcement (with injectable limit to avoid OOM
-in tests). +4 EndToEnd tests on `IngestControllerTest` covering the
-full POST → fallback → DB persistence chain (1 PJ, 3 PJ, regression
-sentinel for non-empty DTO with strelka marker, defensive plain-text
-mail). The pre-existing 13-assertion `test_ingest_raw_with_attachments`
-sentinel continues to pass **unchanged**.
++12 unit tests covering empty cases, single PDF, three mixed
+attachments, inline image ignored, text/calendar persisted, deeply
+nested multipart, defensive malformed input, defensive random garbage,
+size-limit enforcement (with injectable limit to avoid OOM in tests).
 
-**Manual smoke validated** on dev backend:
-- 1 PDF mail (`smoke063.pdf`, 47 B) → 1 row in `attachment`, correct
-  sha256, av_status pending
-- 3 mixed PJ mail (PDF + DOCX + ZIP) → 3 rows, distinct hashes, correct
-  mime types and sizes
+##### Step 2/4 — Backend `IngestHandler::ingest()` hybrid fallback
 
-**Known follow-up — file hashes NOT yet linked into the IOC pipeline**:
-the sha256 of persisted attachments is NOT yet inserted as `observed_ioc`
-rows. The spec assumed an existing `processAttachments → IocUpsertService`
-chain that does not actually exist in the codebase — the linkage was
-never implemented. This is a separate gap (would require a future spec
-~064) and is intentionally **out of scope for spec 063**, which only
-restored the attachment **persistence** capability. Attachments are
-visible in `AttachmentController::download` and the conversation detail
-API today.
+Wires the parser fallback into the ingestion pipeline. When the
+upstream collector forwards an empty (or null) `attachments` array on
+the DTO, `IngestHandler::ingest()` invokes
+`EmailParsingService::extractAttachments()` on the raw RFC822 source
+and substitutes the result before calling `processAttachments()`. When
+the DTO already contains a non-empty array, the fallback is **skipped**
+— the producer's array (which may carry strelka YARA hits, sandbox
+results, etc.) keeps full precedence. Backwards-compatible: zero
+breaking change to the `/ingest/raw` API contract.
 
-**n8n side not updated**: this spec deliberately does not modify the
-n8n workflow. The backend is now self-sufficient for any producer that
-forwards the **full** RFC822 bytes in `raw_source_rfc822_b64`. The
-current n8n "Prepare Payload V5" node still reconstructs a fake RFC822
-from headers + text body only (without the multipart bytes), so the
-backend fallback cannot fully recover attachments from real n8n traffic
-**until n8n is updated separately** to forward the original RFC822
-bytes. This is a known limitation documented for follow-up.
++4 EndToEnd tests on `IngestControllerTest` covering:
+- 1 PDF in raw_source with `dto.attachments=[]` → 1 row persisted
+- 3 mixed PJ in raw_source with `dto.attachments=[]` → 3 rows persisted
+- Regression sentinel: `dto.attachments` non-empty (with strelka marker)
+  → fallback NOT invoked, DTO entry persisted with marker preserved
+- Defensive: garbage raw_source → HTTP 201, 0 attachments, no crash
 
-**Files changed**:
-- `backend-symfony/src/Application/Communication/EmailParsingService.php` (+ method, + constructor parameter)
-- `backend-symfony/src/Application/Communication/IngestHandler.php` (+ fallback substitution)
-- `backend-symfony/tests/Unit/Application/Communication/EmailParsingServiceExtractAttachmentsTest.php` (new, 12 tests)
-- `backend-symfony/tests/EndToEnd/Communication/IngestControllerTest.php` (+ 4 tests)
+The pre-existing 13-assertion `test_ingest_raw_with_attachments`
+sentinel continues to pass **unchanged** — its strelka/sandbox metadata
+assertions prove the parser fallback is correctly skipped when
+`dto.attachments` is non-empty.
 
-**No schema change. No new dependency. No frontend change.**
+##### Step 3/4 — Path-aware payload size limit + n8n crypto access
+
+The backend `PayloadSizeLimitListener` previously enforced a global
+1 MB hard cap on all HTTP request bodies. Appropriate for auth/admin
+endpoints (DoS protection) but rejected real-world mail ingestion: a
+single PDF attachment of 1 MB binary expands to ~1.4 MB after base64
++ JSON envelope overhead, immediately tripping the limit and causing
+n8n to **silently drop the mail** (the IMAP node had already marked
+it SEEN at fetch time, so no retry).
+
+The listener now applies a path-aware limit:
+- 1 MB default for all generic API endpoints (unchanged for security)
+- **50 MB for `/api/v1/communication/ingest/*`** (matches the 25 MB
+  binary attachment cap with headroom for base64 expansion + JSON
+  envelope). Both limits are constructor-injectable for tests.
+
+The listener also gained an injected `LoggerInterface` and now emits
+a structured WARNING log entry on every 413 rejection (path, method,
+content-length, remote addr, user-agent, hint), making oversized
+rejections greppable in `var/log` instead of being silently dropped.
+The 413 response body now also includes `received_bytes` and a `hint`
+field so n8n logs and ops dashboards can correlate failures with
+their source.
+
++2 new tests on `PayloadSizeLimitListenerTest`:
+- `testIngestEndpointAcceptsLargePayload`: 5 MB POST on `/ingest/raw`
+  is NOT 413 (path-aware higher limit applies)
+- `testIngestEndpointRejectsExtremelyLargePayload`: 60 MB POST IS 413
+  with `max_bytes=52428800` in the response
+
+Infrastructure: `docker-compose.yml` n8n service gets a new env var
+`NODE_FUNCTION_ALLOW_BUILTIN=crypto` so the new V5 Extract Email Data
+node can `require('crypto')` to compute SHA256 of attachments. n8n's
+vm2 sandbox blocks all built-in module requires by default; this
+whitelists `crypto` specifically (scoped, not `*`) to keep the sandbox
+tight.
+
+##### Step 4/4 — n8n workflow `WF-INTAKE-EMAIL-V2` V5
+
+Replaces the V3.3 nodes that lost attachment capture. The new V5 path:
+
+1. **`IMAP Email Trigger`** — `format: simple` + `downloadAttachments: true`
+   (NEW). n8n downloads each attachment as binaryData accessible via
+   `item.binary[propertyName]`. We deliberately do **not** use
+   `format: raw` even though it sounded appealing: the n8n IMAP V2 raw
+   mode is **broken** — it does
+   `find(message.parts, { which: 'TEXT' })` which in IMAP RFC 3501
+   returns ONLY the body, not the headers. Confirmed by inspecting
+   `EmailReadImap/v2/utils.js:147`. Without headers, the backend
+   cannot parse from / subject / date and reply generation fails
+   with `Cannot determine reply recipient`.
+
+2. **`Extract Email Data`** node — V3.3 → V5 (~95 lines, +18 vs V3.3):
+   - Reads `item.metadata` + `item.from` + `item.subject` +
+     `item.textPlain` (parsed by n8n via mailparser, no manual MIME
+     walking required)
+   - Iterates `$input.item.binary` to access downloaded attachments
+   - Computes sha256 of each attachment via `require('crypto')`
+     (Node built-in, enabled by step 3/4)
+   - Populates `attachments: [{filename, mime_type, size_bytes, sha256}]`
+     in the output JSON
+
+3. **`Prepare Payload`** node — **UNCHANGED**. The existing V5 already
+   had `attachments: emailData.attachments || []` so it automatically
+   picks up the now-populated array from Extract Email Data without
+   any modification. Clean separation of concerns.
+
+End-to-end behavior: n8n downloads attachments via mailparser → exposes
+as binaryData → Extract Email Data computes sha256 in JS via Node
+crypto → Prepare Payload forwards the populated `attachments` DTO +
+the reconstructed-headers RFC822 (no multipart binary inside, payload
+stays small ~2-5 KB regardless of attachment size) → backend uses the
+existing DTO precedence path.
+
+The spec 063 backend parser fallback (steps 1-2) is **not invoked**
+for this workflow specifically (DTO precedence wins) but remains
+valuable as defense in depth for any other producer that forwards
+full RFC822 bytes with empty `attachments`. Both code paths are
+covered by tests.
+
+##### End-to-end validation on live dev backend
+
+- Mail with 1 PDF (`sample.pdf`, 18 KB) → 1 attachment row, correct
+  sha256, subject + from correctly parsed, reply generation works
+- Mail with 3 attachments (1 STIX 17 KB + 1 STIX **1.01 MB** + 1 STIX
+  27 KB) → 3 attachment rows, all sha256 distinct, all sizes match
+  source files. The 1.01 MB STIX bundle previously triggered the 1 MB
+  hard cap; now passes cleanly.
+
+##### Quality gates
+
+- PHPUnit 2430 / 2430 unit+integration green (was 2428, +2 listener
+  tests)
+- 38 / 38 EndToEnd ingest tests green (was 34, +4 fallback tests)
+- 12 / 12 unit tests on the new `extractAttachments()` method
+- Existing 13-assertion `test_ingest_raw_with_attachments` regression
+  sentinel still green, **unchanged**
+- PHPStan L6 src clean (`make stan`)
+- PHP-CS-Fixer clean on touched files
+- Audit grep clean
+- n8n workflow validator clean (placeholders restored after live export)
+
+##### Known follow-up — spec 064 (separate)
+
+The sha256 of persisted attachments is NOT yet inserted as
+`observed_ioc` rows of type `sha256`. The spec assumed an existing
+`processAttachments → IocUpsertService` chain that does not actually
+exist in the codebase. This is a separate gap (~spec 064) and is
+intentionally **out of scope for spec 063**, which only restored the
+attachment **persistence** capability. Attachments are visible in
+`AttachmentController::download` and the conversation detail API
+today, but do not yet appear in the IOC Explorer.
+
+##### Files changed
+
+- `backend-symfony/src/Application/Communication/EmailParsingService.php`
+  (+ method, + constructor parameter, + 25 MB default size constant)
+- `backend-symfony/src/Application/Communication/IngestHandler.php`
+  (+ fallback substitution between parseEmail and processAttachments)
+- `backend-symfony/src/EventListener/Security/PayloadSizeLimitListener.php`
+  (+ path-aware ingest limit, + injected logger, + structured 413
+  response body)
+- `backend-symfony/tests/Unit/Application/Communication/EmailParsingServiceExtractAttachmentsTest.php`
+  (new, 12 tests)
+- `backend-symfony/tests/EndToEnd/Communication/IngestControllerTest.php`
+  (+ 4 fallback tests)
+- `backend-symfony/tests/Integration/Security/PayloadSizeLimitListenerTest.php`
+  (+ 2 ingest endpoint tests)
+- `n8n/workflows/WF-INTAKE-EMAIL-V2.json` (IMAP node:
+  `downloadAttachments: true`; Extract Email Data: V3.3 → V5 with
+  Node crypto sha256)
+- `docker-compose.yml` (n8n service: `+NODE_FUNCTION_ALLOW_BUILTIN=crypto`)
+
+**No schema change. No new Composer/npm dependency. No frontend change.**
 
 ---
 
