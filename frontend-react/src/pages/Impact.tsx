@@ -5,6 +5,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import { useImpactSummary, useIocUniqueness } from '@/hooks/useImpact';
+import { useClusterStats } from '@/hooks/useClusters';
 import type { IocTypeEntry } from '@/hooks/useImpact';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
@@ -64,6 +65,7 @@ export function Impact() {
 
   const { data, isLoading, error, refetch } = useImpactSummary(period);
   const { data: iocData } = useIocUniqueness(period);
+  const { data: clusterStats } = useClusterStats();
 
   if (isLoading) return <Loading message={t('common.loading')} />;
   if (error) return <ErrorMessage message={t('common.error')} onRetry={() => void refetch()} />;
@@ -152,7 +154,13 @@ export function Impact() {
             </>
           }
         />
-        {/* Campaign stat hidden — pipeline disconnected */}
+        {clusterStats && clusterStats.total_conversations > 0 && (
+          <StatCard
+            label={t('impact.actor_dedup')}
+            value={`${clusterStats.total_conversations} \u2192 ${clusterStats.total_clusters}`}
+            subtitle={t('impact.actor_dedup_subtitle', { pct: clusterStats.taxii_noise_reduction_pct.toFixed(1) })}
+          />
+        )}
       </div>
 
       {/* Charts */}

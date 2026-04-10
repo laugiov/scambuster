@@ -2244,6 +2244,347 @@ MAIL;
         $this->assertCount(0, $message->getAttachments(), 'Plain text mail should have zero attachments');
     }
 
+    /**
+     * Spec 064 — Single attachment sha256 should appear in observed_ioc.
+     *
+     * Closes the spec 063 SC-008 known follow-up: after spec 064, every
+     * persisted attachment with a sha256 produces an observed_ioc row of
+     * type sha256, linked to the message via msg_id, visible in the IOC
+     * Explorer.
+     */
+    public function test_ingest_raw_attachment_sha256_creates_observed_ioc(): void
+    {
+        $accountId = uuid_create(UUID_TYPE_RANDOM);
+        $mailAccount = new MailAccount(
+            $accountId,
+            '99999999-9999-9999-9999-999999999999',
+            'IMAP',
+            'imap.example.com',
+            'dummyhash064a',
+            ['mail.read'],
+            true
+        );
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($mailAccount);
+        $em->flush();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Message m')->execute();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Conversation c')->execute();
+
+        $jwt = $this->getValidJwt($client);
+
+        $pdfBytes = "%PDF-1.4\nspec 064 sha256 linkage test\n%%EOF";
+        $pdfB64 = chunk_split(base64_encode($pdfBytes), 76, "\n");
+        $expectedSha256 = hash('sha256', $pdfBytes);
+
+        $uniqueId = uniqid('e2e-064a-', true);
+        $mailRaw = <<<MAIL
+Subject: Spec 064 sha256 linkage
+From: "Scammer" <scammer@bar.com>
+To: bar@foo.com
+Date: Thu, 10 Apr 2026 10:00:00 +0000
+Message-ID: <{$uniqueId}@bar.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="bnd064a"
+
+--bnd064a
+Content-Type: text/plain; charset=UTF-8
+
+See the attached PDF.
+
+--bnd064a
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="linkage.pdf"
+Content-Transfer-Encoding: base64
+
+{$pdfB64}
+--bnd064a--
+MAIL;
+
+        $payload = [
+            'account_id' => $accountId,
+            'raw_source' => base64_encode($mailRaw),
+            'ts_received' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'channel' => 'email',
+            'rspamd' => ['score' => 5.0, 'symbols' => ['ATTACH']],
+            'score_risk' => 50,
+            'attachments' => [],
+        ];
+
+        $client->request('POST', '/api/v1/communication/ingest/raw', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $msgId = $data['msg_id'];
+
+        // Verify the attachment is persisted (spec 063 path)
+        $em->clear();
+        $messageRepo = $em->getRepository(\App\Domain\Communication\Message::class);
+        $message = $messageRepo->find($msgId);
+        $this->assertCount(1, $message->getAttachments(), 'Attachment must be persisted (spec 063)');
+        $this->assertSame($expectedSha256, $message->getAttachments()[0]->getContentHash());
+
+        // Spec 064 — Verify the sha256 IOC is created and linked
+        $conn = $em->getConnection();
+        $rows = $conn->executeQuery(
+            "SELECT i.value, i.type, i.value_norm
+             FROM observed_ioc oi
+             JOIN indicator i ON oi.indicator_id = i.indicator_id
+             WHERE oi.msg_id = :msgId AND i.type = 'sha256'",
+            ['msgId' => $msgId]
+        )->fetchAllAssociative();
+
+        $this->assertCount(1, $rows, 'Spec 064: expected exactly 1 sha256 observed_ioc row for the attachment');
+        $this->assertSame($expectedSha256, $rows[0]['value']);
+        $this->assertSame($expectedSha256, $rows[0]['value_norm']);
+    }
+
+    /**
+     * Spec 064 — Multi-attachment: each PJ produces its own sha256 IOC.
+     */
+    public function test_ingest_raw_three_attachments_creates_three_observed_iocs(): void
+    {
+        $accountId = uuid_create(UUID_TYPE_RANDOM);
+        $mailAccount = new MailAccount(
+            $accountId,
+            'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',
+            'IMAP',
+            'imap.example.com',
+            'dummyhash064b',
+            ['mail.read'],
+            true
+        );
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($mailAccount);
+        $em->flush();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Message m')->execute();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Conversation c')->execute();
+
+        $jwt = $this->getValidJwt($client);
+
+        $pdfBytes = "%PDF-1.4\nspec 064 multi pdf\n%%EOF";
+        $docxBytes = "PK\x03\x04docx 064 multi";
+        $zipBytes = "PK\x03\x04zip 064 multi";
+
+        $pdfB64 = chunk_split(base64_encode($pdfBytes), 76, "\n");
+        $docxB64 = chunk_split(base64_encode($docxBytes), 76, "\n");
+        $zipB64 = chunk_split(base64_encode($zipBytes), 76, "\n");
+
+        $expectedHashes = [
+            hash('sha256', $pdfBytes),
+            hash('sha256', $docxBytes),
+            hash('sha256', $zipBytes),
+        ];
+        sort($expectedHashes);
+
+        $uniqueId = uniqid('e2e-064b-', true);
+        $mailRaw = <<<MAIL
+Subject: Spec 064 three attachments
+From: "Scammer" <scammer@bar.com>
+To: bar@foo.com
+Date: Thu, 10 Apr 2026 10:00:00 +0000
+Message-ID: <{$uniqueId}@bar.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="bnd064b"
+
+--bnd064b
+Content-Type: text/plain; charset=UTF-8
+
+Three files.
+
+--bnd064b
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="report.pdf"
+Content-Transfer-Encoding: base64
+
+{$pdfB64}
+--bnd064b
+Content-Type: application/vnd.openxmlformats-officedocument.wordprocessingml.document
+Content-Disposition: attachment; filename="contract.docx"
+Content-Transfer-Encoding: base64
+
+{$docxB64}
+--bnd064b
+Content-Type: application/zip
+Content-Disposition: attachment; filename="archive.zip"
+Content-Transfer-Encoding: base64
+
+{$zipB64}
+--bnd064b--
+MAIL;
+
+        $payload = [
+            'account_id' => $accountId,
+            'raw_source' => base64_encode($mailRaw),
+            'ts_received' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'channel' => 'email',
+            'rspamd' => ['score' => 5.0, 'symbols' => []],
+            'score_risk' => 50,
+            'attachments' => [],
+        ];
+
+        $client->request('POST', '/api/v1/communication/ingest/raw', [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+        ], json_encode($payload));
+
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $msgId = $data['msg_id'];
+
+        $em->clear();
+        $conn = $em->getConnection();
+        $rows = $conn->executeQuery(
+            "SELECT i.value_norm
+             FROM observed_ioc oi
+             JOIN indicator i ON oi.indicator_id = i.indicator_id
+             WHERE oi.msg_id = :msgId AND i.type = 'sha256'
+             ORDER BY i.value_norm",
+            ['msgId' => $msgId]
+        )->fetchAllAssociative();
+
+        $this->assertCount(3, $rows, 'Spec 064: expected 3 sha256 observed_ioc rows for the 3 attachments');
+        $actualHashes = array_column($rows, 'value_norm');
+        $this->assertSame($expectedHashes, $actualHashes);
+    }
+
+    /**
+     * Spec 064 — Same PJ across two mails: full threat-intel linkage.
+     *
+     * The `attachment` table has a UNIQUE constraint on content_hash
+     * (pre-existing since the original Attachment entity, predating
+     * spec 063). Consequently, when two distinct mails carry the same
+     * PDF (same sha256), `IngestHandler::processAttachments()` skips
+     * persisting a second `attachment` row.
+     *
+     * Spec 064 (option B) decouples IOC linkage from attachment-row
+     * persistence: `linkAttachmentsAsIocs()` now iterates the original
+     * `dto.attachments` payload (post within-message dedup, pre
+     * cross-message dedup), so each mail produces its own `observed_ioc`
+     * row even when the underlying `attachment` row is shared.
+     *
+     * RESULT (current schema):
+     *   - 1 attachment row (the first mail wins, UNIQUE constraint)
+     *   - 1 indicator row with the sha256 (IocUpsertService dedup by type+value_norm)
+     *   - 2 observed_ioc rows of type sha256 (one per message — IocUpsertService
+     *     dedup is per (msg_id, indicator_id), so two distinct mails create two)
+     *
+     * THREAT-INTEL: an analyst seeing N mails with the same malicious PDF
+     * sees 1 indicator with N observed_ioc rows — full pivot capability
+     * across all mails carrying that file. The shared attachment row is
+     * an acceptable storage optimization that does NOT impair detection.
+     */
+    public function test_ingest_raw_same_attachment_two_mails_creates_two_observed_iocs(): void
+    {
+        $accountId = uuid_create(UUID_TYPE_RANDOM);
+        $mailAccount = new MailAccount(
+            $accountId,
+            'cccccccc-dddd-eeee-ffff-000000000000',
+            'IMAP',
+            'imap.example.com',
+            'dummyhash064c',
+            ['mail.read'],
+            true
+        );
+        $client = static::createClient();
+        $em = $client->getContainer()->get(EntityManagerInterface::class);
+        $em->persist($mailAccount);
+        $em->flush();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Message m')->execute();
+        $em->createQuery('DELETE FROM App\\Domain\\Communication\\Conversation c')->execute();
+
+        $jwt = $this->getValidJwt($client);
+
+        // Same PDF in 2 different mails (different message-id)
+        $pdfBytes = "%PDF-1.4\nspec 064 dedup test pdf unique\n%%EOF";
+        $pdfB64 = chunk_split(base64_encode($pdfBytes), 76, "\n");
+        $expectedSha256 = hash('sha256', $pdfBytes);
+
+        $sendMail = function (string $uniqueId, string $fromAddr) use ($accountId, $client, $jwt, $pdfB64) {
+            $mailRaw = <<<MAIL
+Subject: Spec 064 dedup test
+From: "Scammer" <{$fromAddr}>
+To: bar@foo.com
+Date: Thu, 10 Apr 2026 10:00:00 +0000
+Message-ID: <{$uniqueId}@bar.com>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="bnd064c"
+
+--bnd064c
+Content-Type: text/plain; charset=UTF-8
+
+Re-used phishing PDF.
+
+--bnd064c
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="phish.pdf"
+Content-Transfer-Encoding: base64
+
+{$pdfB64}
+--bnd064c--
+MAIL;
+
+            $payload = [
+                'account_id' => $accountId,
+                'raw_source' => base64_encode($mailRaw),
+                'ts_received' => (new \DateTimeImmutable())->format(DATE_ATOM),
+                'channel' => 'email',
+                'rspamd' => ['score' => 5.0, 'symbols' => []],
+                'score_risk' => 50,
+                'attachments' => [],
+            ];
+            $client->request('POST', '/api/v1/communication/ingest/raw', [], [], [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+            ], json_encode($payload));
+
+            return json_decode($client->getResponse()->getContent(), true);
+        };
+
+        $resp1 = $sendMail(uniqid('e2e-064c1-', true), 'scammer1@bar.com');
+        $resp2 = $sendMail(uniqid('e2e-064c2-', true), 'scammer2@baz.com');
+
+        $this->assertSame('ingested', $resp1['status']);
+        $this->assertSame('ingested', $resp2['status']);
+        $this->assertNotSame($resp1['msg_id'], $resp2['msg_id'], 'Both mails must have distinct msg_ids');
+
+        $em->clear();
+        $conn = $em->getConnection();
+
+        // Existing schema: exactly 1 attachment row (UNIQUE on content_hash).
+        $attachmentRows = $conn->executeQuery(
+            "SELECT attachment_id FROM attachment WHERE encode(content_hash, 'escape') = :v",
+            ['v' => $expectedSha256]
+        )->fetchAllAssociative();
+        $this->assertCount(1, $attachmentRows, 'Existing schema: same content_hash → exactly 1 attachment row (UNIQUE constraint)');
+
+        // Exactly 1 indicator row for that sha256.
+        $indicatorRows = $conn->executeQuery(
+            "SELECT indicator_id FROM indicator WHERE type = 'sha256' AND value_norm = :v",
+            ['v' => $expectedSha256]
+        )->fetchAllAssociative();
+        $this->assertCount(1, $indicatorRows, 'Spec 064: same sha256 → exactly 1 indicator row');
+
+        // Spec 064 (option B): both mails produce an observed_ioc row,
+        // even though they share the same underlying attachment row.
+        $obsRows = $conn->executeQuery(
+            "SELECT oi.msg_id::text AS msg_id, oi.indicator_id
+             FROM observed_ioc oi
+             JOIN indicator i ON oi.indicator_id = i.indicator_id
+             WHERE i.value_norm = :v AND i.type = 'sha256'
+             ORDER BY oi.msg_id",
+            ['v' => $expectedSha256]
+        )->fetchAllAssociative();
+        $this->assertCount(2, $obsRows, 'Spec 064: both mails must produce an observed_ioc row for the shared sha256');
+        $observedMsgIds = array_column($obsRows, 'msg_id');
+        $this->assertContains($resp1['msg_id'], $observedMsgIds, 'Mail 1 must have its own observed_ioc row');
+        $this->assertContains($resp2['msg_id'], $observedMsgIds, 'Mail 2 must have its own observed_ioc row');
+    }
+
     public function test_ingest_raw_with_raw_headers_b64(): void
     {
         $accountId = uuid_create(UUID_TYPE_RANDOM);
