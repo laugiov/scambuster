@@ -187,6 +187,12 @@ services:
       - HONEYPOT_IMAP_SECURE=${HONEYPOT_IMAP_SECURE:-true}
       - N8N_DEFAULT_USER_EMAIL=${N8N_DEFAULT_USER_EMAIL:-admin@scambuster.local}
       - N8N_DEFAULT_USER_PASSWORD=${N8N_DEFAULT_USER_PASSWORD:-}
+      # Spec 063 — Allow Code nodes to require Node built-in modules.
+      # Used by WF-INTAKE-EMAIL-V2's Extract Email Data node which calls
+      # require('crypto') to compute SHA256 of attachments downloaded
+      # from IMAP. Without this, n8n's vm2 sandbox blocks the require.
+      # Scoped to 'crypto' only (not '*') to keep the sandbox tight.
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
     entrypoint: ["/bin/sh", "/home/node/n8n-init.sh"]
     ports:
       - "${N8N_HTTP_PORT:-5678}:${N8N_PORT:-5678}"
