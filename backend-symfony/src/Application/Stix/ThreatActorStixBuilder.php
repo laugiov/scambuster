@@ -58,6 +58,14 @@ final class ThreatActorStixBuilder
             'name' => 'Phishing: Spearphishing via Service',
             'url' => 'https://attack.mitre.org/techniques/T1566/003/',
         ],
+        // Spec 062: T1656 (Impersonation) added in MITRE ATT&CK v14 (Oct 2023).
+        // Maps the social-engineering scams whose primary technique is identity
+        // impersonation rather than payload delivery (TECH_SUPPORT, ROMANCE,
+        // LOTTERY, CHARITY, ADVANCE_FEE_419, INVESTMENT).
+        'T1656' => [
+            'name' => 'Impersonation',
+            'url' => 'https://attack.mitre.org/techniques/T1656/',
+        ],
     ];
 
     /**
