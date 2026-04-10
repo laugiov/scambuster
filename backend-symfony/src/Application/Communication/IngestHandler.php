@@ -32,6 +32,7 @@ class IngestHandler
         private readonly ThreadResolverService $threadResolver,
         private readonly IngestPostProcessor $postProcessor,
         private readonly ?AuditLogger $auditLogger = null,
+        private readonly ?IocUpsertService $iocUpsertService = null,
     ) {
     }
 
@@ -224,6 +225,13 @@ class IngestHandler
             $this->handleUniqueConstraintViolation($e);
         }
 
+        // 7b. Spec 064 — Link persisted attachments' sha256 into the IOC
+        // pipeline as observed_ioc rows of type sha256. Must run AFTER
+        // em->flush() because IocUpsertService resolves the message via
+        // the database. The method is defensive: failures per attachment
+        // are caught and logged, never propagated to the HTTP response.
+        $this->linkAttachmentsAsIocs($messageEntity, $msgId, $now);
+
         // 8. Post-processing (IOCs, classification, risk, injection)
         $this->postProcessor->processAfterIngest($messageEntity, $conversation, $parsed['langDetect']);
 
@@ -324,6 +332,85 @@ class IngestHandler
                 'deduplicated_count' => count($attachmentsToProcess),
                 'duplicates_removed' => count($dto->attachments) - count($attachmentsToProcess),
             ]);
+        }
+    }
+
+    /**
+     * Spec 064 — Link persisted attachments' sha256 hashes into the IOC
+     * pipeline as observed_ioc rows of type sha256.
+     *
+     * Iterates the message's attachments and calls IocUpsertService for
+     * each. The service handles indicator deduplication by (type, value_norm),
+     * observed_ioc dedup by (msg_id, type, value_norm), and the spec 061
+     * outgoing-message + honeypot guards.
+     *
+     * Defensive: any per-attachment failure (InvalidArgumentException from
+     * the spec 061 guards, RuntimeException from a missing message, or any
+     * other Throwable) is caught and logged at WARNING level, then the loop
+     * continues with the next attachment. The mail ingestion has already
+     * succeeded at this point — losing the IOC linkage for one attachment
+     * is acceptable, losing the entire mail is not.
+     */
+    private function linkAttachmentsAsIocs(Message $message, string $msgId, \DateTimeImmutable $now): void
+    {
+        if ($this->iocUpsertService === null) {
+            return;
+        }
+
+        $attachments = $message->getAttachments();
+
+        if (count($attachments) === 0) {
+            return;
+        }
+
+        $firstSeen = $now->format(\DateTimeImmutable::ATOM);
+
+        foreach ($attachments as $attachment) {
+            $contentHash = $attachment->getContentHash();
+
+            if ($contentHash === '') {
+                continue;
+            }
+
+            try {
+                $this->iocUpsertService->upsertEnrichedIoc([
+                    'msg_id' => $msgId,
+                    'ioc' => [
+                        'type' => 'sha256',
+                        'value' => $contentHash,
+                        'value_norm' => strtolower($contentHash),
+                        'source' => 'attachment',
+                        'first_seen' => $firstSeen,
+                    ],
+                    'enrichment' => [
+                        'attachment_id' => $attachment->getAttachmentId(),
+                        'filename' => $attachment->getFilename(),
+                        'mime_type' => $attachment->getMimeType(),
+                        'size_bytes' => $attachment->getSizeBytes(),
+                    ],
+                    'category' => 'file-hash',
+                    'tags' => ['attachment'],
+                    'tlp' => 'AMBER',
+                ]);
+            } catch (\InvalidArgumentException $e) {
+                // Spec 061 outgoing-message guard or honeypot filter.
+                // Expected on outgoing messages — silent no-op, log at DEBUG.
+                $this->logger->debug('[IngestHandler] Spec 061 guard blocked attachment IOC linkage', [
+                    'msg_id' => $msgId,
+                    'filename' => $attachment->getFilename(),
+                    'reason' => $e->getMessage(),
+                ]);
+            } catch (\Throwable $e) {
+                // Any other failure (DB, missing message, etc.) — log WARNING
+                // and continue with the next attachment.
+                $this->logger->warning('[IngestHandler] Failed to link attachment sha256 as IOC', [
+                    'msg_id' => $msgId,
+                    'filename' => $attachment->getFilename(),
+                    'sha256' => $contentHash,
+                    'exception' => $e::class,
+                    'message' => $e->getMessage(),
+                ]);
+            }
         }
     }
 
