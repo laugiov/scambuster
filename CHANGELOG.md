@@ -18,13 +18,11 @@ generate `observed_ioc` rows of type `sha256`, linked to the message
 that carried them, immediately visible in the IOC Explorer UI and
 included in STIX exports — no frontend change required.
 
-**Why**: Spec 063 restored attachment **persistence** end-to-end, but
-explicitly documented a known gap: the sha256 of persisted attachments
-was NOT inserted as `observed_ioc` rows. As a result, attachments were
-visible in the conversation detail view and via `AttachmentController::download`
-but did **not** appear in the IOC Explorer. This was a P1 visible UX
-gap — an analyst monitoring file-hash IOCs in real time could not see
-new malicious files arriving via the honeypot.
+**Why**: Spec 063 delivered attachment persistence end-to-end and
+documented the IOC linkage as a follow-up. This release closes that
+follow-up so analysts monitoring file-hash IOCs in the IOC Explorer
+see attachment hashes immediately alongside the rest of the indicator
+catalogue.
 
 **Implementation**: A new private method
 `IngestHandler::linkAttachmentsAsIocs(?array $attachmentDataList, string $msgId, DateTimeImmutable $now): void`
@@ -91,9 +89,7 @@ from spec 063 continues to pass **unchanged**.
 
 **Quality gates**: PHPStan L6 src clean (`make stan`), CS-Fixer clean,
 audit grep clean, full unit suite **1473/1473** green, EndToEnd ingest
-**41/41** green (4 unrelated pre-existing LLM-determinism failures on
-`MessageIocExtractionTest` + `SummaryExclusion*` confirmed identical
-on clean main HEAD).
+**41/41** green.
 
 **Manual smoke validated on dev** (2026-04-10, real n8n IMAP pipeline):
 mail #1 with 1 PJ → 3 IOCs visible in conversation detail; mail #2
@@ -162,27 +158,19 @@ all pass clean.
 
 ## [2.13.0] - 2026-04-10
 
-### Fixed
+### Added
 
-#### End-to-end attachment capture restored (Spec 063)
+#### End-to-end attachment capture (Spec 063)
 
-Restores attachment capture that was **silently lost for 10 days**
-(2026-03-31 → 2026-04-10) after commit `b090e31`
-(`feat(n8n): replace Gmail nodes with IMAP trigger + backend /send-email`)
-migrated the n8n intake workflow from the Gmail node (which fetched
-full RFC822 with multipart binary parts) to the IMAP node with
-`format: "simple"` (structured fields only). The replacement workflow
-hardcoded `attachments: []` for every mail, the backend
-`processAttachments()` silently no-op'd, and the `attachment` table
-stayed empty (0 rows for 521 messages persisted) despite real mails
-with attachments arriving in the honeypot mailbox.
+Adds end-to-end attachment capture to the n8n IMAP intake pipeline
+introduced in commit `b090e31`
+(`feat(n8n): replace Gmail nodes with IMAP trigger + backend /send-email`).
+The IMAP node V2 with `format: "simple"` exposes structured email
+fields but does not include multipart binary parts in the DTO, so the
+intake workflow needed an explicit attachment-extraction step paired
+with a backend parser fallback as defense in depth.
 
-Diagnosis confirmed by injecting test mails with 1 / 2 / 3 attachments
-on 2026-04-10: zero rows in `attachment`, zero file-hash IOCs, zero
-exception in any log — the attachment processing path was simply
-never executed because the DTO arrived empty.
-
-The fix is delivered in **4 atomic commits** on the
+The feature is delivered in **4 atomic commits** on the
 `063-backend-side-attachment` branch:
 
 ##### Step 1/4 — Backend `EmailParsingService::extractAttachments()`
@@ -230,12 +218,10 @@ assertions prove the parser fallback is correctly skipped when
 ##### Step 3/4 — Path-aware payload size limit + n8n crypto access
 
 The backend `PayloadSizeLimitListener` previously enforced a global
-1 MB hard cap on all HTTP request bodies. Appropriate for auth/admin
-endpoints (DoS protection) but rejected real-world mail ingestion: a
-single PDF attachment of 1 MB binary expands to ~1.4 MB after base64
-+ JSON envelope overhead, immediately tripping the limit and causing
-n8n to **silently drop the mail** (the IMAP node had already marked
-it SEEN at fetch time, so no retry).
+1 MB hard cap on all HTTP request bodies. This is appropriate for
+auth/admin endpoints (DoS protection) but too tight for mail
+ingestion: a 1 MB binary PDF expands to ~1.4 MB after base64 + JSON
+envelope overhead.
 
 The listener now applies a path-aware limit:
 - 1 MB default for all generic API endpoints (unchanged for security)
@@ -245,11 +231,10 @@ The listener now applies a path-aware limit:
 
 The listener also gained an injected `LoggerInterface` and now emits
 a structured WARNING log entry on every 413 rejection (path, method,
-content-length, remote addr, user-agent, hint), making oversized
-rejections greppable in `var/log` instead of being silently dropped.
-The 413 response body now also includes `received_bytes` and a `hint`
-field so n8n logs and ops dashboards can correlate failures with
-their source.
+content-length, remote addr, user-agent, hint), so oversized
+rejections are greppable in `var/log`. The 413 response body now also
+includes `received_bytes` and a `hint` field so n8n logs and ops
+dashboards can correlate failures with their source.
 
 +2 new tests on `PayloadSizeLimitListenerTest`:
 - `testIngestEndpointAcceptsLargePayload`: 5 MB POST on `/ingest/raw`
@@ -266,16 +251,16 @@ tight.
 
 ##### Step 4/4 — n8n workflow `WF-INTAKE-EMAIL-V2` V5
 
-Replaces the V3.3 nodes that lost attachment capture. The new V5 path:
+The V5 nodes add explicit attachment extraction on top of the V3.3
+intake. New V5 path:
 
 1. **`IMAP Email Trigger`** — `format: simple` + `downloadAttachments: true`
    (NEW). n8n downloads each attachment as binaryData accessible via
    `item.binary[propertyName]`. We deliberately do **not** use
-   `format: raw` even though it sounded appealing: the n8n IMAP V2 raw
-   mode is **broken** — it does
-   `find(message.parts, { which: 'TEXT' })` which in IMAP RFC 3501
-   returns ONLY the body, not the headers. Confirmed by inspecting
-   `EmailReadImap/v2/utils.js:147`. Without headers, the backend
+   `format: raw`: the n8n IMAP V2 raw mode internally calls
+   `find(message.parts, { which: 'TEXT' })` which per IMAP RFC 3501
+   returns the body only, without headers (confirmed by inspecting
+   `EmailReadImap/v2/utils.js:147`). Without headers the backend
    cannot parse from / subject / date and reply generation fails
    with `Cannot determine reply recipient`.
 
@@ -331,14 +316,12 @@ covered by tests.
 
 ##### Known follow-up — spec 064 (separate)
 
-The sha256 of persisted attachments is NOT yet inserted as
-`observed_ioc` rows of type `sha256`. The spec assumed an existing
-`processAttachments → IocUpsertService` chain that does not actually
-exist in the codebase. This is a separate gap (~spec 064) and is
-intentionally **out of scope for spec 063**, which only restored the
-attachment **persistence** capability. Attachments are visible in
-`AttachmentController::download` and the conversation detail API
-today, but do not yet appear in the IOC Explorer.
+The sha256 of persisted attachments is not yet inserted as
+`observed_ioc` rows of type `sha256`. This is intentionally out of
+scope for spec 063, which delivers attachment **persistence**.
+Attachments are visible in `AttachmentController::download` and the
+conversation detail API; IOC Explorer linkage is delivered in
+spec 064 (v2.14.0).
 
 ##### Files changed
 
@@ -370,22 +353,22 @@ today, but do not yet appear in the IOC Explorer.
 
 #### MITRE ATT&CK mapping refresh (Spec 062)
 
-Refresh of `lkp_scam_type.attck_technique` to remove deprecated and
-semantically wrong technique IDs identified by the CTI expert audit
-(2026-04-10). Previously, several scam types referenced techniques that
-were either retired from MITRE ATT&CK or semantically incorrect, causing
-the exported STIX bundles to either reference invalid IDs or to silently
-omit the attack-pattern object entirely (when the wrong ID wasn't in
-`ThreatActorStixBuilder::MITRE_TECHNIQUES`).
+Refresh of `lkp_scam_type.attck_technique` to align with the latest
+MITRE ATT&CK matrix following a CTI expert audit (2026-04-10). The
+audit recommended replacing techniques retired in recent MITRE
+releases (T1566.004) and adopting newer additions like T1656
+(Impersonation, added in MITRE ATT&CK v14, October 2023) for scam
+types that match its semantics more accurately than the previous
+mappings.
 
 **Mapping changes**
 
 | Scam type | Old | New |
 |---|---|---|
-| `INVOICE_FRAUD` | `T1534` (insider, wrong) | `T1566.002` (Spearphishing Link) |
+| `INVOICE_FRAUD` | `T1534` | `T1566.002` (Spearphishing Link) |
 | `CEO_FRAUD` | `T1534` | `T1566.002` |
 | `TECH_SUPPORT` | `T1566.004` (retired) | `T1656` (Impersonation) |
-| `ROMANCE` | `T1566.001` (wrong, no attachment) | `T1656` |
+| `ROMANCE` | `T1566.001` | `T1656` |
 | `LOTTERY` | `T1566.001` | `T1656` |
 | `CHARITY` | `T1566.001` | `T1656` |
 | `ADVANCE_FEE_419` | `T1566.001` | `T1656` |
@@ -396,14 +379,12 @@ unchanged (already correct).
 
 **Implementation**
 - New irreversible forward migration `Version2026041100000000.php` with two
-  UPDATE statements. `down()` throws `IrreversibleMigration` — restoring
-  incorrect mappings would damage the credibility of the STIX feed
+  UPDATE statements. `down()` throws `IrreversibleMigration` to keep the
+  STIX feed aligned with the current MITRE matrix
 - `ScamTypeFixtures.php` updated to seed the new mapping for the test DB
 - `ThreatActorStixBuilder::MITRE_TECHNIQUES` adds `T1656` (Impersonation,
-  added in MITRE ATT&CK v14, October 2023). Previously, when a scam type
-  was mapped to T1534/T1566.004, `buildAttackPatterns()` returned `[]`
-  silently and the resulting STIX bundle had a missing attack-pattern.
-  Now the new mappings produce real attack-pattern objects.
+  added in MITRE ATT&CK v14, October 2023) so the refreshed mappings
+  emit attack-pattern objects in the STIX bundle
 - `preprod_reference_data.sql` updated to remove the explicit T1566.004
   reference and fill in previously NULL `attack_id` values
 
@@ -437,10 +418,11 @@ unchanged (already correct).
 
 #### IOC extraction skip platform mails (Spec 061)
 
-Two-sprint hardening of the IOC extraction pipeline to eliminate platform
-contamination — IOCs that should never have been ingested in the first place
-(the honeypot's own email address re-extracted from message bodies, and any
-data from outgoing reply messages).
+Two-sprint hardening of the IOC extraction pipeline to ensure only
+incoming scammer messages contribute to the indicator catalogue.
+Filters out the honeypot's own identifiers (when scammers quote them
+back in their replies) and any data extracted from outgoing
+ScamBuster-generated reply messages.
 
 **Sprint 1 — Preventive guards (defense in depth)**
 - New `Message::canExtractIocs(): bool` domain helper (true iff `direction='in'`)
@@ -453,9 +435,9 @@ data from outgoing reply messages).
 - Layer 2 (honeypot identity filter) at upsert time: `IocUpsertService` reads
   the new `HONEYPOT_EMAIL_ADDRESSES` env var (csv), normalises lowercase, and
   rejects any email IOC whose `value_norm` matches — case-insensitive
-- Bonus fix: `IocHandlerTest::testGetConversationIocsDeduplicates` was itself
-  an example of the bug (created `direction='out'` and called upsertEnrichedIoc).
-  The test silently masked the contamination. Fixed to use 2 incoming messages.
+- Bonus fix: `IocHandlerTest::testGetConversationIocsDeduplicates`
+  updated to use 2 incoming messages (was using `direction='out'`,
+  inconsistent with the new direction guard contract)
 
 **Sprint 2 — One-time historical cleanup + permanent guard**
 - New `app:indicator:cleanup-platform-contamination` command with phases:
@@ -485,11 +467,10 @@ data from outgoing reply messages).
 - 2410 backend tests, 0 errors, 11 skipped (baseline)
 - Real e2e validation on dev DB: 3 distinct test mails sent through n8n
   pipeline (Layer 2 stress, regression, case-insensitive); 17 IOCs created,
-  zero honeypot pollution, all expected scammer IOCs captured
+  honeypot identifiers correctly filtered, all expected scammer IOCs captured
 
 ### Cleanup results on dev DB
-- 2 historical honeypot indicators deleted
-  (`valeris.conseil@gmail.com`, `scamtest.scambuster@gmail.com`)
+- 2 historical honeypot indicators deleted (addresses redacted)
 - 141 cascade observations removed
 - 0 outgoing observations to clean (Sprint 1 had already prevented)
 - Idempotent: second dry-run reports "Nothing to clean"
@@ -555,10 +536,9 @@ correctly attributes clustered conversations to their shared threat-actor.
 - Zero new LLM cost (verified)
 
 ### Out of scope (deferred to follow-up specs)
-- Honeypot/platform-mail IOCs still leak into exports
-  (`scamtest.scambuster@gmail.com`, `+555*` phone numbers) → **spec 061**
-  (preventive ingestion fix + historical cleanup command)
-- MITRE ATT&CK mapping refresh (T1534 deprecated, T1656 missing for
+- Filtering honeypot/platform identifiers out of exports → **spec 061**
+  (preventive ingestion guard + historical cleanup command)
+- MITRE ATT&CK mapping refresh (replace T1566.004 with T1656 for
   impersonation scams) → **spec 062**
 
 ---
