@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Stix;
 
+use App\Application\Clustering\ClusterQueryService;
 use App\Application\Communication\IocHandler;
 use App\Domain\Communication\Conversation;
 use Doctrine\ORM\EntityManagerInterface;
@@ -15,6 +16,8 @@ final class ConversationStixExportHandler
         private readonly IocHandler $iocHandler,
         private readonly StixBundleBuilder $bundleBuilder,
         private readonly ?ThreatActorStixBuilder $threatActorBuilder = null,
+        private readonly ?ClusterQueryService $clusterQueryService = null,
+        private readonly ?ClusteredThreatActorStixBuilder $clusteredActorBuilder = null,
     ) {
     }
 
@@ -62,34 +65,14 @@ final class ConversationStixExportHandler
             ];
         }
 
-        // Build relationships from co-occurrence (IOCs in same conversation are related)
-        $relationships = [];
-
-        for ($i = 0; $i < \count($iocs); ++$i) {
-            for ($j = $i + 1; $j < \count($iocs); ++$j) {
-                $headerTypes = ['message_id', 'subject', 'spf_result', 'dkim_result', 'dmarc_result', 'x_mailer', 'return_path'];
-
-                if (\in_array($iocs[$i]['type'], $headerTypes, true) || \in_array($iocs[$j]['type'], $headerTypes, true)) {
-                    continue;
-                }
-
-                $relationships[] = [
-                    'source_indicator_id' => $iocs[$i]['indicator_id'],
-                    'target_indicator_id' => $iocs[$j]['indicator_id'],
-                    'source_type' => $iocs[$i]['type'],
-                    'source_value_norm' => $iocs[$i]['value_norm'],
-                    'target_type' => $iocs[$j]['type'],
-                    'target_value_norm' => $iocs[$j]['value_norm'],
-                    'weight' => 1,
-                ];
-            }
-        }
-
+        // Spec 060 S1.1: indicator-to-indicator co-occurrence is no longer materialised as
+        // related-to relationships. The conversation `report` object's object_refs already
+        // conveys co-occurrence to OpenCTI without the O(n^2) graph noise.
         $scamType = $conversation->getScamType()->getCode();
 
         $bundle = $this->bundleBuilder->buildBundle(
             $iocs,
-            $relationships,
+            [],
             $conversation->getTlp(),
             "ScamBuster - {$scamType} conversation {$convId}",
             "IOCs extracted from {$scamType} scam conversation tracked by ScamBuster honeypot",
@@ -106,17 +89,80 @@ final class ConversationStixExportHandler
     /**
      * Add threat-actor, attack-pattern, and relationships to the STIX bundle.
      *
+     * Spec 060 Sprint 2: if the conversation belongs to a cluster, the
+     * embedded threat-actor is the CLUSTER threat-actor (not a per-conversation
+     * one) and `indicates` relationships target it. Otherwise a singleton
+     * threat-actor is built with the new "Unattributed Scam Actor (Type)"
+     * naming convention.
+     *
      * @param array<string, mixed> $bundle
      *
      * @return array<string, mixed>
      */
     private function enrichWithThreatActor(Conversation $bundle_conversation, array $bundle): array
     {
-        $conn = $this->em->getConnection();
         $convId = $bundle_conversation->getConvId();
-        $scamType = $bundle_conversation->getScamType();
 
-        // Get MITRE technique
+        // Collect indicator IDs and report ID from the bundle (shared by both branches)
+        $indicatorIds = [];
+        $reportId = null;
+        /** @var list<array<string, mixed>> $objects */
+        $objects = \is_array($bundle['objects'] ?? null) ? $bundle['objects'] : [];
+
+        foreach ($objects as $obj) {
+            if (($obj['type'] ?? '') === 'indicator' && \is_string($obj['id'] ?? null)) {
+                $indicatorIds[] = $obj['id'];
+            }
+
+            if (($obj['type'] ?? '') === 'report' && \is_string($obj['id'] ?? null)) {
+                $reportId = $obj['id'];
+            }
+        }
+
+        // Spec 060 Sprint 2: cluster delegation
+        $clusterId = $this->clusterQueryService?->getClusterIdForConversation($convId);
+
+        if ($clusterId !== null && $this->clusteredActorBuilder !== null && $this->clusterQueryService !== null) {
+            $clusterData = $this->clusterQueryService->getStixExportData($clusterId);
+
+            if ($clusterData !== null) {
+                $clusterObjects = $this->clusteredActorBuilder->buildThreatActorObjects($clusterData, $indicatorIds);
+                $threatActor = $clusterObjects['threat_actor'];
+                $attackPatterns = $clusterObjects['attack_patterns'];
+                $relationships = $clusterObjects['relationships'];
+
+                return $this->mergeActorIntoBundle($bundle, $objects, $reportId, $threatActor, $attackPatterns, $relationships);
+            }
+        }
+
+        // Fallback: singleton threat-actor (conversation not clustered or cluster lookup failed)
+        return $this->buildAndMergeSingletonActor($bundle_conversation, $bundle, $objects, $reportId, $indicatorIds);
+    }
+
+    /**
+     * Build a singleton threat-actor for an unclustered conversation and merge
+     * it into the bundle.
+     *
+     * @param array<string, mixed>       $bundle
+     * @param list<array<string, mixed>> $objects
+     * @param list<string>               $indicatorIds
+     *
+     * @return array<string, mixed>
+     */
+    private function buildAndMergeSingletonActor(
+        Conversation $conversation,
+        array $bundle,
+        array $objects,
+        ?string $reportId,
+        array $indicatorIds,
+    ): array {
+        if ($this->threatActorBuilder === null) {
+            return $bundle;
+        }
+
+        $conn = $this->em->getConnection();
+        $convId = $conversation->getConvId();
+        $scamType = $conversation->getScamType();
         $attckTechnique = $scamType->getAttckTechnique();
 
         // Build description from IOC context excerpts
@@ -153,12 +199,11 @@ final class ConversationStixExportHandler
         $uniqueIocTypeCount = \count($iocTypesRow);
 
         // Conversation metrics
-        $engagementSec = $bundle_conversation->getEngagementDurationSec();
-        $turns = $bundle_conversation->getTurnsCount();
+        $engagementSec = $conversation->getEngagementDurationSec();
+        $turns = $conversation->getTurnsCount();
 
-        // Fallback: compute engagement from timestamps if metrics not yet calculated (open conversations)
         if ($engagementSec === 0) {
-            $diff = $bundle_conversation->getTsLast()->getTimestamp() - $bundle_conversation->getTsFirst()->getTimestamp();
+            $diff = $conversation->getTsLast()->getTimestamp() - $conversation->getTsFirst()->getTimestamp();
             $engagementSec = max($diff, 0);
         }
 
@@ -180,20 +225,18 @@ final class ConversationStixExportHandler
             'has_injection_attempts' => false,
         ];
 
-        // Persona info for extension
-        $persona = $bundle_conversation->getPersona();
+        $persona = $conversation->getPersona();
         $personaCode = $persona !== null ? $persona->getPersonaCode() : 'generic_user';
 
         $campaignData = [
             'campaign_id' => $convId,
             'scam_type' => $scamType->getCode(),
-            'first_seen' => $bundle_conversation->getTsFirst()->format('Y-m-d H:i:s'),
-            'last_seen' => $bundle_conversation->getTsLast()->format('Y-m-d H:i:s'),
+            'first_seen' => $conversation->getTsFirst()->format('Y-m-d H:i:s'),
+            'last_seen' => $conversation->getTsLast()->format('Y-m-d H:i:s'),
             'profile_yaml' => null,
-            'tlp' => $bundle_conversation->getTlp(),
+            'tlp' => $conversation->getTlp(),
         ];
 
-        // Build actor profile from conversation data
         $actorProfile = [
             'style_dna' => [
                 'persona_used' => $personaCode,
@@ -206,45 +249,57 @@ final class ConversationStixExportHandler
             ],
         ];
 
-        $threatActor = $this->threatActorBuilder->buildThreatActor($campaignData, $actorProfile, $metrics);
+        // Spec 060 Sprint 2: use buildSingleton() (new naming convention) instead of buildThreatActor()
+        $threatActor = $this->threatActorBuilder->buildSingleton($campaignData, $actorProfile, $metrics);
         $threatActor['description'] = mb_substr($description, 0, 400);
 
         $attackPatterns = $this->threatActorBuilder->buildAttackPatterns($attckTechnique);
-
-        // Collect indicator IDs and report ID from bundle
-        $indicatorIds = [];
-        $reportId = null;
-        /** @var list<array<string, mixed>> $objects */
-        $objects = \is_array($bundle['objects'] ?? null) ? $bundle['objects'] : [];
-
-        foreach ($objects as $obj) {
-            if (($obj['type'] ?? '') === 'indicator' && \is_string($obj['id'] ?? null)) {
-                $indicatorIds[] = $obj['id'];
-            }
-
-            if (($obj['type'] ?? '') === 'report' && \is_string($obj['id'] ?? null)) {
-                $reportId = $obj['id'];
-            }
-        }
-
-        $attackPatternIds = array_map(fn (array $ap) => $ap['id'], $attackPatterns);
+        $attackPatternIds = array_map(fn (array $ap) => \is_string($ap['id']) ? $ap['id'] : '', $attackPatterns);
 
         $relationships = $this->threatActorBuilder->buildActorRelationships(
-            $threatActor['id'],
+            \is_string($threatActor['id']) ? $threatActor['id'] : '',
             $indicatorIds,
             $attackPatternIds,
         );
 
-        // Add threat-actor + attack-patterns to report's object_refs
+        return $this->mergeActorIntoBundle($bundle, $objects, $reportId, $threatActor, $attackPatterns, $relationships);
+    }
+
+    /**
+     * Append the threat-actor, attack-patterns, and relationships into the
+     * bundle and update the report's object_refs.
+     *
+     * @param array<string, mixed>       $bundle
+     * @param list<array<string, mixed>> $objects
+     * @param array<string, mixed>       $threatActor
+     * @param list<array<string, mixed>> $attackPatterns
+     * @param list<array<string, mixed>> $relationships
+     *
+     * @return array<string, mixed>
+     */
+    private function mergeActorIntoBundle(
+        array $bundle,
+        array $objects,
+        ?string $reportId,
+        array $threatActor,
+        array $attackPatterns,
+        array $relationships,
+    ): array {
+        // Update report.object_refs with the threat-actor + attack-patterns
         if ($reportId !== null) {
             foreach ($objects as &$obj) {
                 if (($obj['type'] ?? '') === 'report' && ($obj['id'] ?? '') === $reportId) {
                     /** @var list<string> $refs */
                     $refs = \is_array($obj['object_refs'] ?? null) ? $obj['object_refs'] : [];
-                    $refs[] = $threatActor['id'];
+
+                    if (\is_string($threatActor['id'] ?? null)) {
+                        $refs[] = $threatActor['id'];
+                    }
 
                     foreach ($attackPatterns as $ap) {
-                        $refs[] = $ap['id'];
+                        if (\is_string($ap['id'] ?? null)) {
+                            $refs[] = $ap['id'];
+                        }
                     }
                     $obj['object_refs'] = $refs;
 
@@ -254,7 +309,6 @@ final class ConversationStixExportHandler
             unset($obj);
         }
 
-        // Merge
         $objects[] = $threatActor;
 
         foreach ($attackPatterns as $ap) {

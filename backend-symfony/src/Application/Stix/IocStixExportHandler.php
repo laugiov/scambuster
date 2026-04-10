@@ -107,83 +107,16 @@ final class IocStixExportHandler
             return $this->bundleBuilder->buildBundle([], [], $tlp, 'ScamBuster IOC Export (empty)');
         }
 
-        // Build relationships: find co-occurrence among selected IOCs
-        $relationships = $this->buildRelationships($indicatorIds, $iocs);
-
+        // Spec 060 S1.2: indicator-to-indicator co-occurrence is no longer materialised as
+        // related-to relationships in the bulk feed. The bundle `report` object already
+        // conveys co-occurrence via object_refs without the O(n^2) graph noise.
         return $this->bundleBuilder->buildBundle(
             $iocs,
-            $relationships,
+            [],
             $tlp,
             sprintf('ScamBuster IOC Export - %d indicators', \count($iocs)),
             sprintf('Exported %d indicators from ScamBuster IOC Explorer', \count($iocs)),
         );
-    }
-
-    /**
-     * Build co-occurrence relationships among selected indicator IDs.
-     *
-     * @param array<int, string>               $indicatorIds
-     * @param array<int, array<string, mixed>> $iocs
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function buildRelationships(array $indicatorIds, array $iocs): array
-    {
-        if (\count($indicatorIds) < 2) {
-            return [];
-        }
-
-        $conn = $this->em->getConnection();
-        $placeholders = implode(',', array_fill(0, \count($indicatorIds), '?'));
-
-        $pairs = $conn->executeQuery(
-            "SELECT
-                oi1.indicator_id AS source_id,
-                oi2.indicator_id AS target_id,
-                COUNT(DISTINCT c.conv_id) AS weight
-            FROM observed_ioc oi1
-            JOIN message m1 ON oi1.msg_id = m1.msg_id
-            JOIN conversation c ON m1.conv_id = c.conv_id
-            JOIN message m2 ON m2.conv_id = c.conv_id
-            JOIN observed_ioc oi2 ON oi2.msg_id = m2.msg_id
-            WHERE oi1.indicator_id IN ({$placeholders})
-              AND oi2.indicator_id IN ({$placeholders})
-              AND oi1.indicator_id < oi2.indicator_id
-            GROUP BY oi1.indicator_id, oi2.indicator_id
-            LIMIT 100",
-            array_merge($indicatorIds, $indicatorIds)
-        )->fetchAllAssociative();
-
-        $iocMap = [];
-
-        foreach ($iocs as $ioc) {
-            $iocMap[is_string($ioc['indicator_id']) ? $ioc['indicator_id'] : ''] = $ioc;
-        }
-
-        $relationships = [];
-
-        foreach ($pairs as $pair) {
-            $sourceId = is_string($pair['source_id']) ? $pair['source_id'] : '';
-            $targetId = is_string($pair['target_id']) ? $pair['target_id'] : '';
-            $source = $iocMap[$sourceId] ?? null;
-            $target = $iocMap[$targetId] ?? null;
-
-            if ($source === null || $target === null) {
-                continue;
-            }
-
-            $relationships[] = [
-                'source_indicator_id' => $sourceId,
-                'target_indicator_id' => $targetId,
-                'source_type' => is_string($source['type']) ? $source['type'] : 'unknown',
-                'source_value_norm' => is_string($source['value_norm']) ? $source['value_norm'] : '',
-                'target_type' => is_string($target['type']) ? $target['type'] : 'unknown',
-                'target_value_norm' => is_string($target['value_norm']) ? $target['value_norm'] : '',
-                'weight' => is_numeric($pair['weight']) ? (int) $pair['weight'] : 1,
-            ];
-        }
-
-        return $relationships;
     }
 
     /**
