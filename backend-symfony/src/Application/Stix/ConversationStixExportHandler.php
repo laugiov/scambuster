@@ -62,34 +62,14 @@ final class ConversationStixExportHandler
             ];
         }
 
-        // Build relationships from co-occurrence (IOCs in same conversation are related)
-        $relationships = [];
-
-        for ($i = 0; $i < \count($iocs); ++$i) {
-            for ($j = $i + 1; $j < \count($iocs); ++$j) {
-                $headerTypes = ['message_id', 'subject', 'spf_result', 'dkim_result', 'dmarc_result', 'x_mailer', 'return_path'];
-
-                if (\in_array($iocs[$i]['type'], $headerTypes, true) || \in_array($iocs[$j]['type'], $headerTypes, true)) {
-                    continue;
-                }
-
-                $relationships[] = [
-                    'source_indicator_id' => $iocs[$i]['indicator_id'],
-                    'target_indicator_id' => $iocs[$j]['indicator_id'],
-                    'source_type' => $iocs[$i]['type'],
-                    'source_value_norm' => $iocs[$i]['value_norm'],
-                    'target_type' => $iocs[$j]['type'],
-                    'target_value_norm' => $iocs[$j]['value_norm'],
-                    'weight' => 1,
-                ];
-            }
-        }
-
+        // Spec 060 S1.1: indicator-to-indicator co-occurrence is no longer materialised as
+        // related-to relationships. The conversation `report` object's object_refs already
+        // conveys co-occurrence to OpenCTI without the O(n^2) graph noise.
         $scamType = $conversation->getScamType()->getCode();
 
         $bundle = $this->bundleBuilder->buildBundle(
             $iocs,
-            $relationships,
+            [],
             $conversation->getTlp(),
             "ScamBuster - {$scamType} conversation {$convId}",
             "IOCs extracted from {$scamType} scam conversation tracked by ScamBuster honeypot",
