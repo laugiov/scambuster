@@ -105,10 +105,37 @@ final class LlmCostHandler
 
     public function isLimitExceeded(): bool
     {
+        return $this->isThresholdReached(1.0);
+    }
+
+    /**
+     * Spec 065b — soft warning threshold check.
+     *
+     * Returns true when the current month spend is greater than or equal
+     * to `$thresholdPct * $monthlyLimitUsd`. Returns false when the limit
+     * is zero or negative (the cap is disabled).
+     *
+     * The default threshold of 0.8 (80%) is the umbrella decision in
+     * `specs/065-security-quality-roadmap/spec.md` section 7. Pass a
+     * higher value to query the hard cap (e.g., `isThresholdReached(1.0)`
+     * is equivalent to `isLimitExceeded()`).
+     */
+    public function isThresholdReached(float $thresholdPct = 0.8): bool
+    {
         if ($this->monthlyLimitUsd <= 0) {
             return false;
         }
 
+        return $this->getCurrentMonthUsdSpent() >= ($this->monthlyLimitUsd * $thresholdPct);
+    }
+
+    /**
+     * Spec 065b — current month-to-date spend in USD.
+     *
+     * Used by `LlmBudgetExceededException` and the soft warning notifier.
+     */
+    public function getCurrentMonthUsdSpent(): float
+    {
         $firstOfMonth = (new \DateTimeImmutable('first day of this month'))->format('Y-m-d 00:00:00');
 
         $result = $this->connection->fetchOne(
@@ -118,7 +145,15 @@ final class LlmCostHandler
             ['first_of_month' => $firstOfMonth]
         );
 
-        return $this->toFloat($result) >= $this->monthlyLimitUsd;
+        return $this->toFloat($result);
+    }
+
+    /**
+     * Spec 065b — configured monthly budget cap in USD.
+     */
+    public function getMonthlyLimitUsd(): float
+    {
+        return $this->monthlyLimitUsd;
     }
 
     private function toFloat(mixed $value): float
