@@ -36,6 +36,10 @@ final class ReplyOrchestrator
         private readonly int $iocThreshold = self::DEFAULT_IOC_THRESHOLD,
         ?FallbackProvider $fallbackProvider = null,
         private readonly ?CostEstimator $costEstimator = null,
+        // Spec 065d — second LLM call for operational leakage detection
+        private readonly ?OperationalLeakageDetector $leakDetector = null,
+        // Spec 065d — audit logger for LLM_LEAK_BLOCKED events
+        private readonly ?\App\Application\Audit\AuditLogger $auditLogger = null,
     ) {
         $this->fallbackProvider = $fallbackProvider ?? new FallbackProvider();
     }
@@ -204,6 +208,69 @@ final class ReplyOrchestrator
                 $this->logger->info("[ReplyOrchestrator] [ATTEMPT {$attempt}] ✅ PolicyGuard APPROVED", [
                     'conversation_id' => $context['conv_id'],
                 ]);
+
+                // === Spec 065d: Operational leakage detection (second LLM call) ===
+                // Catches paraphrased operational identifiers that the regex
+                // deny-list does not cover ("the orchestrator", "the platform
+                // that runs me", etc.). Defensive: failures fail-open, the
+                // regex layer is the hard gate.
+                if ($this->leakDetector !== null) {
+                    $leakResult = $this->leakDetector->check($generatedText, $personaCode);
+
+                    if ($leakResult->leakDetected) {
+                        $dialogue[] = [
+                            'role' => 'leak_detector',
+                            'attempt' => $attempt,
+                            'leak_detected' => true,
+                            'reason' => $leakResult->reason,
+                        ];
+
+                        $this->logger->warning("[ReplyOrchestrator] [ATTEMPT {$attempt}] ❌ Operational leakage detected", [
+                            'conversation_id' => $context['conv_id'],
+                            'attempt' => $attempt,
+                            'reason' => $leakResult->reason,
+                            'signals' => $leakResult->signals,
+                        ]);
+
+                        $this->auditLogger?->log(
+                            eventType: \App\Domain\Audit\AuditEventType::LLM_LEAK_BLOCKED,
+                            actorId: $context['conv_id'] ?? 'unknown',
+                            action: 'leak_detection',
+                            outcome: 'blocked',
+                            resourceType: 'reply',
+                            resourceId: $context['conv_id'] ?? 'unknown',
+                            details: [
+                                'layer' => 'second_llm',
+                                'attempt' => $attempt,
+                                'reason' => $leakResult->reason,
+                                // Note: do NOT include the leaked text itself
+                                'persona_code' => $personaCode,
+                            ],
+                            actorType: 'system',
+                        );
+
+                        // Same fallback semantics as PolicyGuard rejection:
+                        // last attempt → canned fallback, otherwise retry
+                        if ($attempt === self::MAX_ATTEMPTS) {
+                            $trace->attempts = $attempt;
+                            $trace->fallbackUsed = true;
+                            $fallback = $this->buildFallbackResponse(
+                                ['operational_leak_detected'],
+                                ['LLM leak detector rejected all ' . self::MAX_ATTEMPTS . ' attempts'],
+                                $personaCode,
+                                $attempt,
+                                $dialogue,
+                                $detectedLanguage,
+                                $messageCount,
+                            );
+                            $fallback['pipeline_trace'] = $trace->toArray();
+
+                            return $fallback;
+                        }
+
+                        continue;
+                    }
+                }
 
                 // === ÉTAPE 3: Validation LLM (sémantique) ===
                 $this->logger->debug("[ReplyOrchestrator] [ATTEMPT {$attempt}] Step 3: Calling ReplyValidator (semantic validation with LLM)", [
