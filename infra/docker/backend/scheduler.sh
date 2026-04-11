@@ -16,6 +16,7 @@ echo "[scheduler] Timezone: $(date +%Z) | UTC offset: $(date +%z)"
 echo "[scheduler] Tasks:"
 echo "  - app:close-stale-conversations  every 6h"
 echo "  - app:clustering:backfill        every 30min (fast loop)"
+echo "  - app:llm:check-budget           every 30min (Spec 065b)"
 echo "  - app:bandit:daily-report        daily at ~06:00 UTC"
 echo "  - app:cleanup:weekly             weekly (Sunday ~04:00 UTC)"
 echo "  - pg_dump backup                 daily at ~02:00 UTC"
@@ -99,13 +100,19 @@ while true; do
         LAST_CLEANUP_WEEK="$CURRENT_DAY"
     fi
 
-    # Fast inner loop: clustering backfill every 30 minutes
+    # Fast inner loop: clustering backfill + LLM budget check every 30 minutes
     # Runs 12 times (12 × 30min = 6h) before the main cycle repeats
     for i in $(seq 1 12); do
         echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running clustering:backfill (cycle $i/12)"
         php /app/bin/console app:clustering:backfill --no-interaction 2>&1 || \
             echo "[scheduler] WARNING: clustering:backfill failed"
-        echo "[scheduler] Next clustering in 30 minutes..."
+
+        # Spec 065b — periodic LLM budget threshold check (deduplicated daily)
+        echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running llm:check-budget (Spec 065b)"
+        php /app/bin/console app:llm:check-budget --no-interaction 2>&1 || \
+            echo "[scheduler] WARNING: llm:check-budget failed"
+
+        echo "[scheduler] Next fast cycle in 30 minutes..."
         sleep 1800
     done
 done
