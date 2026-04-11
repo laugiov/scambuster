@@ -8,6 +8,7 @@ use App\Application\Audit\AuditLogger;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
@@ -25,6 +26,9 @@ class ReplyCadenceService
 {
     private const MIN_HOURS_BETWEEN_REPLIES = 6;
 
+    /** Cache key used by the admin endpoint to toggle the kill switch at runtime. */
+    public const KILL_SWITCH_CACHE_KEY = 'llm.killswitch.active';
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
@@ -32,18 +36,40 @@ class ReplyCadenceService
         private readonly ?RateLimiterFactory $llmCallsPerHourLimiter = null,
         private readonly ?RateLimiterFactory $activeConversationsPerDayLimiter = null,
         private readonly ?AuditLogger $auditLogger = null,
+        private readonly ?CacheItemPoolInterface $killSwitchCache = null,
     ) {
     }
 
     /**
      * Check if kill switch is active.
      *
-     * Reads from SCAMBUSTER_KILL_SWITCH environment variable.
-     * Any truthy value ('1', 'true', 'yes', 'on') activates the kill switch
-     * and halts all automated reply generation and sending.
+     * Two layers (Spec 065b):
+     *   1. Runtime toggle via the application cache pool (Redis in prod,
+     *      filesystem in test/e2e). Set by the admin endpoint
+     *      POST /api/v1/admin/llm/killswitch.
+     *   2. Fallback env var SCAMBUSTER_KILL_SWITCH for emergency operator
+     *      access (shell on the host with no admin token).
+     *
+     * Either layer enabled → kill switch is active.
      */
     public function isKillSwitchActive(): bool
     {
+        // Layer 1: runtime cache pool toggle
+        if ($this->killSwitchCache !== null) {
+            try {
+                $item = $this->killSwitchCache->getItem(self::KILL_SWITCH_CACHE_KEY);
+                if ($item->isHit() && $item->get() === true) {
+                    return true;
+                }
+            } catch (\Throwable $e) {
+                // Cache pool failure must not crash the cadence check.
+                $this->logger->warning('[ReplyCadenceService] Kill switch cache lookup failed', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        // Layer 2: env var fallback
         $value = $_ENV['SCAMBUSTER_KILL_SWITCH'] ?? $_SERVER['SCAMBUSTER_KILL_SWITCH'] ?? '0';
 
         return filter_var($value, FILTER_VALIDATE_BOOLEAN);
