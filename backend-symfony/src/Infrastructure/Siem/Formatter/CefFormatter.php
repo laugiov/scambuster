@@ -62,6 +62,7 @@ final class CefFormatter implements SiemEventFormatterInterface
             'RATE_LIMIT_EXCEEDED' => 'Rate Limit Exceeded',
             'KILL_SWITCH_TOGGLED' => 'Emergency Kill Switch',
             'BUDGET_THRESHOLD_REACHED' => 'LLM Budget Threshold Reached',
+            'LLM_LEAK_BLOCKED' => 'LLM Operational Leak Blocked',
             'EXPORT_MISP' => 'MISP Export',
             'EXPORT_STIX' => 'STIX Export',
             'PERSONA_SELECTED' => 'Persona Selected',
