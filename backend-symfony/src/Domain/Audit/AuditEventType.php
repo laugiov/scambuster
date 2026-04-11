@@ -28,6 +28,9 @@ enum AuditEventType: string
     case INJECTION_DETECTED = 'INJECTION_DETECTED';
     case RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED';
     case KILL_SWITCH_TOGGLED = 'KILL_SWITCH_TOGGLED';
+    // Spec 065b — emitted by BudgetThresholdNotifier when monthly LLM
+    // spend crosses 80% of the configured cap. Deduplicated per day.
+    case BUDGET_THRESHOLD_REACHED = 'BUDGET_THRESHOLD_REACHED';
 
     // Export
     case EXPORT_MISP = 'EXPORT_MISP';
