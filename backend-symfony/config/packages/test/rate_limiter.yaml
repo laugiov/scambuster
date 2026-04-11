@@ -30,3 +30,9 @@ framework:
       policy: 'sliding_window'
       limit: 999999
       interval: '24 hours'
+
+    # Spec 065c — high override so existing E2E tests are not affected
+    ingest_per_account:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '1 hour'
