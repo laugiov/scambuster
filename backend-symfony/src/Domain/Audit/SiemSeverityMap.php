@@ -38,6 +38,8 @@ final class SiemSeverityMap
         'KILL_SWITCH_TOGGLED' => 9,
         // Spec 065b — soft warning at 80% of monthly LLM cap
         'BUDGET_THRESHOLD_REACHED' => 5,
+        // Spec 065d — operational identifier leak attempt blocked by validator
+        'LLM_LEAK_BLOCKED' => 7,
 
         // Export (2)
         'EXPORT_MISP' => 2,

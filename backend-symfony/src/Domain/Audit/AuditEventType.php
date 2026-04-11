@@ -31,6 +31,10 @@ enum AuditEventType: string
     // Spec 065b — emitted by BudgetThresholdNotifier when monthly LLM
     // spend crosses 80% of the configured cap. Deduplicated per day.
     case BUDGET_THRESHOLD_REACHED = 'BUDGET_THRESHOLD_REACHED';
+    // Spec 065d — emitted when the OperationalLeakageDetector or the
+    // PolicyGuard regex deny-list catches an attempted operational
+    // information leak in a generated reply.
+    case LLM_LEAK_BLOCKED = 'LLM_LEAK_BLOCKED';
 
     // Export
     case EXPORT_MISP = 'EXPORT_MISP';
