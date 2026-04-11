@@ -68,7 +68,6 @@ final class OperationalLeakageDetector
         $json = $this->extractJson($response);
 
         try {
-            /** @var array<string, mixed> $data */
             $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
             $this->logger->warning('[OperationalLeakageDetector] JSON parse failed, failing open', [
@@ -79,6 +78,8 @@ final class OperationalLeakageDetector
             return new LeakageDetectionResult(false);
         }
 
+        // json_decode with assoc=true returns mixed; check the type before
+        // accessing array keys (PHPStan strict).
         if (!is_array($data) || !array_key_exists('leak', $data) || !is_bool($data['leak'])) {
             $this->logger->warning('[OperationalLeakageDetector] response missing leak field, failing open', [
                 'data' => $data,
