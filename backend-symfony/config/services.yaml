@@ -313,6 +313,9 @@ services:
     App\Application\Communication\ReplyCadenceService:
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065b — Redis-backed runtime kill switch
+            $killSwitchCache: '@cache.app'
 
     App\Application\Communication\ReplyCompositionService:
         autowire: true
@@ -321,7 +324,32 @@ services:
     App\Application\Communication\ReplyHandler:
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065b — wire the budget enforcement mode
+            $budgetEnforcementMode: '%llm.budget_enforcement_mode%'
     ###< Scambaiting Adaptatif - Application Layer ###
+
+    ###> Spec 065b — LLM cost guard ###
+    App\Application\Monitoring\BudgetThresholdNotifier:
+        arguments:
+            $costHandler: '@App\Application\Monitoring\LlmCostHandler'
+            $auditLogger: '@App\Application\Audit\AuditLogger'
+            $cache: '@cache.app'
+            $logger: '@logger'
+
+    App\Command\CheckLlmBudgetCommand:
+        arguments:
+            $notifier: '@App\Application\Monitoring\BudgetThresholdNotifier'
+        tags:
+            - { name: console.command }
+
+    App\UI\Http\Admin\AdminLlmKillSwitchController:
+        autowire: true
+        arguments:
+            $cache: '@cache.app'
+            $auditLogger: '@App\Application\Audit\AuditLogger'
+        tags: ['controller.service_arguments']
+    ###< Spec 065b ###
 
     ###> Preprod Conversation Generator ###
     App\Application\Meta\ConfigHandler:
