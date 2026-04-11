@@ -58,6 +58,7 @@ class ReplyCadenceService
         if ($this->killSwitchCache !== null) {
             try {
                 $item = $this->killSwitchCache->getItem(self::KILL_SWITCH_CACHE_KEY);
+
                 if ($item->isHit() && $item->get() === true) {
                     return true;
                 }
