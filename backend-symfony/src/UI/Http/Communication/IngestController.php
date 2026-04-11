@@ -103,7 +103,7 @@ final class IngestController
         // Spec 065c — per-account rate limit. Throttles a flood targeting
         // one specific honeypot account so it cannot exhaust the LLM
         // pipeline for healthy accounts.
-        if ($this->ingestPerAccountLimiter !== null && $dto->account_id !== null) {
+        if ($this->ingestPerAccountLimiter !== null && $dto->account_id !== '') {
             $limiter = $this->ingestPerAccountLimiter->create($dto->account_id);
             $limit = $limiter->consume(1);
 
