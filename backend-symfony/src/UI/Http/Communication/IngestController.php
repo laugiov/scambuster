@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Communication;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\Communication\IngestHandler;
 use App\Application\Communication\IngestRawRequestDto;
+use App\Domain\Audit\AuditEventType;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Serializer\Exception\NotEncodableValueException;
@@ -26,7 +29,10 @@ final class IngestController
         private IngestHandler $handler,
         private ValidatorInterface $validator,
         private SerializerInterface $serializer,
-        private LoggerInterface $logger
+        private LoggerInterface $logger,
+        // Spec 065c — per-account ingest rate limiter
+        private ?RateLimiterFactory $ingestPerAccountLimiter = null,
+        private ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -92,6 +98,45 @@ final class IngestController
             $this->logger->warning('[IngestController] Validation errors', ['errors' => (string) $errors]);
 
             return new JsonResponse(['error' => (string) $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Spec 065c — per-account rate limit. Throttles a flood targeting
+        // one specific honeypot account so it cannot exhaust the LLM
+        // pipeline for healthy accounts.
+        if ($this->ingestPerAccountLimiter !== null && $dto->account_id !== null) {
+            $limiter = $this->ingestPerAccountLimiter->create($dto->account_id);
+            $limit = $limiter->consume(1);
+
+            if (!$limit->isAccepted()) {
+                $retryAfter = $limit->getRetryAfter()->getTimestamp() - time();
+                $this->logger->warning('[IngestController] ingest_per_account rate limit exceeded', [
+                    'account_id' => $dto->account_id,
+                    'retry_after' => $retryAfter,
+                ]);
+
+                $this->auditLogger?->log(
+                    eventType: AuditEventType::RATE_LIMIT_EXCEEDED,
+                    actorId: $dto->account_id,
+                    action: 'ingest_per_account',
+                    outcome: 'blocked',
+                    resourceType: 'mail_account',
+                    resourceId: $dto->account_id,
+                    details: ['limiter' => 'ingest_per_account'],
+                    actorType: 'system',
+                );
+
+                $response = new JsonResponse(
+                    [
+                        'error' => 'rate_limit_exceeded',
+                        'code' => 'INGEST_PER_ACCOUNT_LIMIT',
+                        'retry_after' => $retryAfter,
+                    ],
+                    Response::HTTP_TOO_MANY_REQUESTS,
+                );
+                $response->headers->set('Retry-After', (string) $retryAfter);
+
+                return $response;
+            }
         }
 
         try {

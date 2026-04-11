@@ -126,6 +126,9 @@ services:
         tags: ['controller.service_arguments']
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065c — per-account ingest rate limiter
+            $ingestPerAccountLimiter: '@limiter.ingest_per_account'
 
     App\UI\Http\Communication\ReplyController:
         public: true
@@ -197,6 +200,9 @@ services:
         alias: 'limiter.login_ip'
     api_global.limiter:
         alias: 'limiter.api_global'
+    # Spec 065c — per-account ingest rate limiter
+    ingest_per_account.limiter:
+        alias: 'limiter.ingest_per_account'
 
     App\EventListener\Communication\UpdateConversationTsLastListener:
         autowire: true
