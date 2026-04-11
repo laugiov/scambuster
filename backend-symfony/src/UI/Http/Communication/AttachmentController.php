@@ -9,10 +9,8 @@ use App\UI\Http\Dto\AttachmentDeleteResponseDto;
 use App\UI\Http\Dto\AttachmentListItemDto;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
@@ -61,47 +59,53 @@ final class AttachmentController
     #[OA\Get(
         path: '/api/v1/communication/attachment/{attachmentId}/download',
         summary: 'Télécharger une pièce jointe',
+        description: 'Returns HTTP 501 until a real S3-compatible storage backend is wired (Spec 065a removed the FAKE_CONTENT placeholder).',
         tags: ['Attachments'],
         parameters: [
             new OA\Parameter(name: 'attachmentId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
         ],
         responses: [
             new OA\Response(
-                response: 200,
-                description: 'Fichier téléchargé',
-                content: new OA\MediaType(
-                    mediaType: 'application/octet-stream',
-                    schema: new OA\Schema(type: 'string', format: 'binary')
-                )
+                response: 404,
+                description: 'Pièce jointe non trouvée ou supprimée',
+                content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
             ),
             new OA\Response(
-                response: 404,
-                description: 'Pièce jointe non trouvée',
-                content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
-            )
+                response: 501,
+                description: 'Storage backend not configured — see Spec 065a in the security & quality roadmap',
+                content: new OA\JsonContent(
+                    type: 'object',
+                    properties: [
+                        new OA\Property(property: 'error', type: 'string'),
+                        new OA\Property(property: 'code', type: 'string'),
+                    ]
+                )
+            ),
         ],
         security: [ [ 'Bearer' => [] ] ]
     )]
     #[Route('/{attachmentId}/download', name: 'download_attachment', methods: ['GET'])]
     #[IsGranted('conversation:read')]
-    public function downloadAttachment(string $attachmentId): Response
+    public function downloadAttachment(string $attachmentId): JsonResponse
     {
         $attachment = $this->handler->getAttachment($attachmentId);
 
         if (!$attachment || $attachment->getDeletedAt() !== null) {
             return new JsonResponse(['error' => 'Attachment not found'], Response::HTTP_NOT_FOUND);
         }
-        // Pour la démo, on retourne un fichier vide ou un contenu fictif
-        $tmpFile = tempnam(sys_get_temp_dir(), 'att');
-        file_put_contents($tmpFile, 'FAKE_CONTENT');
-        $response = new BinaryFileResponse($tmpFile);
-        $response->setContentDisposition(
-            ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-            $attachment->getFilename()
-        );
-        $response->headers->set('Content-Type', $attachment->getMimeType());
 
-        return $response;
+        // Spec 065a/H1: removed the FAKE_CONTENT placeholder + tempnam orphan.
+        // Until a real S3-compatible storage adapter is wired (future spec),
+        // every successfully resolved attachment returns HTTP 501 Not
+        // Implemented with a documented JSON error body. Operators consuming
+        // this endpoint MUST handle 501 explicitly.
+        return new JsonResponse(
+            [
+                'error' => 'Attachment storage backend not configured',
+                'code' => 'STORAGE_NOT_CONFIGURED',
+            ],
+            Response::HTTP_NOT_IMPLEMENTED
+        );
     }
 
     #[OA\Get(
