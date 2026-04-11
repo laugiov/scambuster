@@ -36,6 +36,8 @@ final class SiemSeverityMap
         'INJECTION_DETECTED' => 8,
         'RATE_LIMIT_EXCEEDED' => 6,
         'KILL_SWITCH_TOGGLED' => 9,
+        // Spec 065b — soft warning at 80% of monthly LLM cap
+        'BUDGET_THRESHOLD_REACHED' => 5,
 
         // Export (2)
         'EXPORT_MISP' => 2,
