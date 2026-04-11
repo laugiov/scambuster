@@ -55,11 +55,9 @@ services:
         autowire: true
         autoconfigure: true
 
-    App\UI\Http\Internal\MailAccountSecretController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
+    # Spec 065c — App\UI\Http\Internal\MailAccountSecretController removed
+    # along with the rest of the Vault dead code (n8n holds the IMAP
+    # credentials internally since the 2026-03-31 migration).
 
     App\UI\Http\Auth\LoginController:
         public: true
@@ -128,6 +126,9 @@ services:
         tags: ['controller.service_arguments']
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065c — per-account ingest rate limiter
+            $ingestPerAccountLimiter: '@limiter.ingest_per_account'
 
     App\UI\Http\Communication\ReplyController:
         public: true
@@ -199,6 +200,9 @@ services:
         alias: 'limiter.login_ip'
     api_global.limiter:
         alias: 'limiter.api_global'
+    # Spec 065c — per-account ingest rate limiter
+    ingest_per_account.limiter:
+        alias: 'limiter.ingest_per_account'
 
     App\EventListener\Communication\UpdateConversationTsLastListener:
         autowire: true
