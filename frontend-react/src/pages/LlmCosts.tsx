@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { useLlmCosts } from '@/hooks/useLlmCosts';
+import { useLlmCosts, useKillSwitchState, useToggleKillSwitch } from '@/hooks/useLlmCosts';
 import { StatCard } from '@/components/ui/StatCard';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -122,6 +122,51 @@ function DailyChart({ trend }: { trend: LlmCostReport['daily_trend'] }) {
   );
 }
 
+// Spec 065b — Kill switch banner shown at the top of the LlmCosts page when active.
+function KillSwitchBanner() {
+  const { t } = useTranslation();
+  const { data } = useKillSwitchState();
+
+  if (!data?.active) return null;
+
+  return (
+    <div className="rounded-lg border border-error/40 bg-error/10 px-4 py-3 text-sm text-error">
+      <strong>{t('llmCosts.killSwitch.activeBanner')}</strong>
+    </div>
+  );
+}
+
+// Spec 065b — Toggle button (admin-gated by the backend, returns 403 if not admin).
+function KillSwitchToggle() {
+  const { t } = useTranslation();
+  const { data } = useKillSwitchState();
+  const toggle = useToggleKillSwitch();
+
+  const active = data?.active ?? false;
+
+  const handleClick = () => {
+    const confirmMsg = active
+      ? t('llmCosts.killSwitch.confirmDeactivate')
+      : t('llmCosts.killSwitch.confirmActivate');
+    if (!window.confirm(confirmMsg)) return;
+    toggle.mutate(!active);
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      disabled={toggle.isPending}
+      className={`px-3 py-1.5 text-sm rounded transition ${
+        active
+          ? 'bg-success/20 text-success hover:bg-success/30'
+          : 'bg-error/20 text-error hover:bg-error/30'
+      } disabled:opacity-50`}
+    >
+      {active ? t('llmCosts.killSwitch.deactivate') : t('llmCosts.killSwitch.activate')}
+    </button>
+  );
+}
+
 export default function LlmCosts() {
   const { t } = useTranslation();
   const { data: report, isLoading, error, refetch } = useLlmCosts();
@@ -133,6 +178,7 @@ export default function LlmCosts() {
 
   return (
     <div className="p-6 space-y-6">
+      <KillSwitchBanner />
       <header className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
@@ -141,12 +187,15 @@ export default function LlmCosts() {
           </div>
           <p className="text-sm text-on-surface-variant mt-1">{t('llmCosts.subtitle')}</p>
         </div>
-        <button
-          onClick={() => refetch()}
-          className="px-3 py-1.5 text-sm rounded bg-surface-high text-on-surface-variant hover:text-on-surface transition"
-        >
-          {t('llmCosts.refresh')}
-        </button>
+        <div className="flex items-center gap-2">
+          <KillSwitchToggle />
+          <button
+            onClick={() => refetch()}
+            className="px-3 py-1.5 text-sm rounded bg-surface-high text-on-surface-variant hover:text-on-surface transition"
+          >
+            {t('llmCosts.refresh')}
+          </button>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
