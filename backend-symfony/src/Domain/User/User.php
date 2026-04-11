@@ -18,9 +18,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    // We force the physical name to match the database
-    #[ORM\Column(name: 'tenant_id', type: 'uuid')]
-    private Uuid $tenantId;
+    // Spec 065g — `tenant_id` column dropped. The previous `tenantId`
+    // field was decoration only (random UUID per User, never filtered
+    // by any repository). If a future spec re-introduces real
+    // multi-tenancy, see Phase 7.8 of `docs/06_roadmap.md`.
 
     #[ORM\Column(length: 255, unique: true)]
     private string $email = '';
@@ -42,18 +43,13 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
     public function __construct()
     {
-        $this->id       = Uuid::v4();
-        $this->tenantId = Uuid::v4();      // dummy value for tests
+        $this->id = Uuid::v4();
     }
 
     // --- Getters / setters ---
     public function getId(): Uuid
     {
         return $this->id;
-    }
-    public function getTenantId(): Uuid
-    {
-        return $this->tenantId;
     }
     public function getEmail(): string
     {
