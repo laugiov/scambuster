@@ -60,6 +60,8 @@ jobs:
           HONEYPOT_IMAP_PASSWORD=testpass
           REPLY_HISTORY_LAST_N=5
           SIEM_PROVIDER=none
+          TOTP_ENCRYPTION_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          AUDIT_HMAC_KEY=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
           EOF
           sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
@@ -132,6 +134,8 @@ jobs:
           HONEYPOT_IMAP_PASSWORD=testpass
           REPLY_HISTORY_LAST_N=5
           SIEM_PROVIDER=none
+          TOTP_ENCRYPTION_KEY=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          AUDIT_HMAC_KEY=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
           EOF
           sed -i 's/^[[:space:]]*//' .env
           cp .env .env.test
