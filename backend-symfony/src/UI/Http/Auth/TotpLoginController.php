@@ -10,12 +10,12 @@ use App\Application\Auth\Dto\LoginRequestDto;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\User\User;
 use Doctrine\ORM\EntityManagerInterface;
+use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Totp\TotpAuthenticatorInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
-
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api/v1/auth/2fa/login', name: 'api_auth_2fa_login', methods: ['POST'])]
@@ -26,6 +26,8 @@ final class TotpLoginController
         private readonly AuditLogger $auditLogger,
         private readonly EntityManagerInterface $em,
         private readonly ValidatorInterface $validator,
+        // Spec 065e — replaces the custom RFC 6238 implementation with scheb
+        private readonly ?TotpAuthenticatorInterface $totpAuthenticator = null,
     ) {
     }
 
@@ -74,9 +76,18 @@ final class TotpLoginController
             return new JsonResponse(['message' => 'TOTP not configured for this account'], Response::HTTP_BAD_REQUEST);
         }
 
-        $secret = $user->getTotpSecret();
+        // Spec 065e — delegate verification to scheb/2fa-bundle if available,
+        // fall back to the legacy custom RFC 6238 implementation otherwise.
+        $codeValid = false;
 
-        if ($secret === null || !$this->verifyTotp($secret, $code)) {
+        if ($this->totpAuthenticator !== null) {
+            $codeValid = $this->totpAuthenticator->checkCode($user, $code);
+        } else {
+            $secret = $user->getTotpSecret();
+            $codeValid = $secret !== null && $this->verifyTotp($secret, $code);
+        }
+
+        if (!$codeValid) {
             $this->auditLogger->log(
                 eventType: AuditEventType::AUTH_FAILURE,
                 actorId: $email,
