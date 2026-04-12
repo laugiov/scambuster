@@ -8,8 +8,8 @@ use App\Application\Audit\AuditLogger;
 use App\Application\Auth\AuthServiceInterface;
 use App\Application\Auth\Dto\LoginRequestDto;
 use App\Domain\Audit\AuditEventType;
+use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Totp\TotpAuthenticatorInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -24,7 +24,7 @@ final class TotpLoginController
     public function __construct(
         private readonly AuthServiceInterface $handler,
         private readonly AuditLogger $auditLogger,
-        private readonly EntityManagerInterface $em,
+        private readonly UserRepositoryInterface $userRepo,
         private readonly ValidatorInterface $validator,
         // Spec 065e — replaces the custom RFC 6238 implementation with scheb
         private readonly ?TotpAuthenticatorInterface $totpAuthenticator = null,
@@ -70,7 +70,7 @@ final class TotpLoginController
         }
 
         // Verify TOTP code
-        $user = $this->em->getRepository(User::class)->findOneBy(['email' => $email]);
+        $user = $this->userRepo->findByEmail($email);
 
         if (!$user instanceof User || !$user->isTotpEnabled()) {
             return new JsonResponse(['message' => 'TOTP not configured for this account'], Response::HTTP_BAD_REQUEST);
