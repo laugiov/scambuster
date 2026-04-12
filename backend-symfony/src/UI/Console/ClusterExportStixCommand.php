@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Command;
+namespace App\UI\Console;
 
 use App\Application\Stix\ClusteredThreatActorStixBuilder;
 use Doctrine\DBAL\Connection;

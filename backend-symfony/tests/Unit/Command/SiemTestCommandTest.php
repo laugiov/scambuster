@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Command;
 
 use App\Application\Audit\Port\SiemExporterInterface;
-use App\Command\SiemTestCommand;
+use App\UI\Console\SiemTestCommand;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Tester\CommandTester;
