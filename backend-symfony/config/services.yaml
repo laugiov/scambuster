@@ -122,24 +122,6 @@ services:
     App\Application\Communication\PurgeService:
         autowire: true
 
-    App\UI\Http\Communication\AttachmentController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
-    App\UI\Http\Communication\MessageController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
-    App\UI\Http\Communication\ConversationController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
     App\UI\Http\Communication\IngestController:
         public: true
         tags: ['controller.service_arguments']
@@ -148,18 +130,6 @@ services:
         arguments:
             # Spec 065c — per-account ingest rate limiter
             $ingestPerAccountLimiter: '@limiter.ingest_per_account'
-
-    App\UI\Http\Communication\ReplyController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
-    App\UI\Http\Communication\IocController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
 
     App\UI\Http\Communication\ScamTypeController:
         public: true
