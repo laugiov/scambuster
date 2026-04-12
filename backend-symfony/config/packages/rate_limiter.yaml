@@ -9,6 +9,14 @@ framework:
       limit: 5
       interval: '1 minute'
 
+    # Spec 065e — Per-email brute-force protection.
+    # Complements login_ip: a distributed attacker rotating IPs but
+    # targeting the same email is throttled at the email level.
+    login_email:
+      policy: 'sliding_window'
+      limit: 5
+      interval: '15 minutes'
+
     api_global:
       policy: 'token_bucket'
       limit: 100
@@ -39,3 +47,14 @@ framework:
       policy: 'sliding_window'
       limit: 10
       interval: '24 hours'
+
+    # -----------------------------------------------------------
+    # Spec 065c — Per-account ingest rate limit
+    # -----------------------------------------------------------
+    # Throttles POST /api/v1/communication/ingest/raw per account_id.
+    # Protects against a flood targeting one specific honeypot account
+    # exhausting the LLM pipeline for healthy accounts.
+    ingest_per_account:
+      policy: 'sliding_window'
+      limit: 100
+      interval: '1 hour'

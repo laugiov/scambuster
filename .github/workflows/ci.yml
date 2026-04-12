@@ -79,6 +79,9 @@ jobs:
       - name: Run PHPStan
         run: docker compose exec backend-dev vendor/bin/phpstan analyse src --memory-limit=1G
 
+      - name: Spec 065c — Vault resurrection guard
+        run: bash .github/scripts/check-no-vault-resurrection.sh
+
   code-style:
     name: Code Style (PHP-CS-Fixer)
     runs-on: ubuntu-latest

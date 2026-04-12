@@ -58,5 +58,13 @@ USER 10001
 
 EXPOSE 8080
 
+# Spec 065c — container healthcheck.
+# Polls the existing /api/health endpoint every 30s. The endpoint
+# checks DB and Redis connectivity and returns 200 OK if both are up,
+# 503 Service Unavailable otherwise. Compose / Swarm / Kubernetes use
+# this to mark the container as `(healthy)` or `(unhealthy)` and
+# trigger restart policies.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD curl -fsS http://localhost:8080/api/health || exit 1
+
 CMD ["php", "-S", "0.0.0.0:8080", "-t", "public"]
-    

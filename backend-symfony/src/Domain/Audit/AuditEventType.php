@@ -28,6 +28,16 @@ enum AuditEventType: string
     case INJECTION_DETECTED = 'INJECTION_DETECTED';
     case RATE_LIMIT_EXCEEDED = 'RATE_LIMIT_EXCEEDED';
     case KILL_SWITCH_TOGGLED = 'KILL_SWITCH_TOGGLED';
+    // Spec 065b — emitted by BudgetThresholdNotifier when monthly LLM
+    // spend crosses 80% of the configured cap. Deduplicated per day.
+    case BUDGET_THRESHOLD_REACHED = 'BUDGET_THRESHOLD_REACHED';
+    // Spec 065d — emitted when the OperationalLeakageDetector or the
+    // PolicyGuard regex deny-list catches an attempted operational
+    // information leak in a generated reply.
+    case LLM_LEAK_BLOCKED = 'LLM_LEAK_BLOCKED';
+    // Spec 065e — emitted when the per-email login rate limiter
+    // (login_email) blocks a brute-force attempt.
+    case AUTH_BRUTE_FORCE_DETECTED = 'AUTH_BRUTE_FORCE_DETECTED';
 
     // Export
     case EXPORT_MISP = 'EXPORT_MISP';
