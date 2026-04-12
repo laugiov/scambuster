@@ -4,28 +4,66 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Command;
 
+use App\Application\Audit\AuditEventQueryService;
 use App\Application\Audit\Port\SiemExporterInterface;
-use App\UI\Console\SiemExportCommand;
 use App\Domain\Audit\AuditEventType;
-use Doctrine\DBAL\Connection;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Domain\Audit\SiemEvent;
+use App\UI\Console\SiemExportCommand;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Console\Application;
 use Symfony\Component\Console\Tester\CommandTester;
 
 class SiemExportCommandTest extends TestCase
 {
+    private function makeSiemEvent(string $eventType = 'AUTH_SUCCESS'): SiemEvent
+    {
+        return new SiemEvent(
+            timestamp: new \DateTimeImmutable('2026-03-20 10:00:00'),
+            eventType: AuditEventType::from($eventType),
+            severity: 5,
+            actorType: 'user',
+            actorId: 'test@example.com',
+            action: 'login',
+            outcome: 'success',
+            details: ['test' => true],
+            resourceType: null,
+            resourceId: null,
+            ipAddress: '127.0.0.1',
+            traceId: 'trace-123',
+        );
+    }
+
+    private function makeQueryService(array $events = []): AuditEventQueryService
+    {
+        $service = $this->createMock(AuditEventQueryService::class);
+        $service->method('fetchEventsSince')->willReturn($events);
+        $service->method('parseSince')->willReturnCallback(function (string $value): \DateTimeImmutable {
+            if (preg_match('/^(\d+)([hdm])$/', $value, $m)) {
+                $amount = (int) $m[1];
+                $unit = match ($m[2]) {
+                    'h' => 'hours',
+                    'd' => 'days',
+                    'm' => 'minutes',
+                };
+
+                return new \DateTimeImmutable("-{$amount} {$unit}");
+            }
+            $date = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
+            if ($date !== false) {
+                return $date->setTime(0, 0);
+            }
+
+            return new \DateTimeImmutable('-24 hours');
+        });
+
+        return $service;
+    }
+
     private function createCommand(
         SiemExporterInterface $exporter,
-        array $rows = [],
+        array $events = [],
     ): CommandTester {
-        $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAllAssociative')->willReturn($rows);
-
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getConnection')->willReturn($connection);
-
-        $command = new SiemExportCommand($exporter, $em);
+        $command = new SiemExportCommand($exporter, $this->makeQueryService($events));
         $app = new Application();
         $app->add($command);
 
@@ -39,23 +77,6 @@ class SiemExportCommandTest extends TestCase
         $exporter->method('isHealthy')->willReturn(true);
 
         return $exporter;
-    }
-
-    private function makeAuditRow(string $eventType = 'AUTH_SUCCESS'): array
-    {
-        return [
-            'event_type' => $eventType,
-            'created_at' => '2026-03-20 10:00:00',
-            'actor_type' => 'user',
-            'actor_id' => 'test@example.com',
-            'action' => 'login',
-            'outcome' => 'success',
-            'details' => '{"test": true}',
-            'resource_type' => null,
-            'resource_id' => null,
-            'ip_address' => '127.0.0.1',
-            'trace_id' => 'trace-123',
-        ];
     }
 
     public function testNoneProviderReturnsFailure(): void
@@ -97,7 +118,6 @@ class SiemExportCommandTest extends TestCase
 
         $output = $tester->getDisplay();
         $this->assertStringContainsString('Since:', $output);
-        // 7 days ago should be a date in the past week
         $expected = (new \DateTimeImmutable('-7 days'))->format('Y-m-d');
         $this->assertStringContainsString($expected, $output);
     }
@@ -136,8 +156,8 @@ class SiemExportCommandTest extends TestCase
 
     public function testDryRunWithEventsShowsCount(): void
     {
-        $rows = [$this->makeAuditRow(), $this->makeAuditRow('AUTH_FAILURE')];
-        $tester = $this->createCommand($this->makeExporter('file'), $rows);
+        $events = [$this->makeSiemEvent(), $this->makeSiemEvent('AUTH_FAILURE')];
+        $tester = $this->createCommand($this->makeExporter('file'), $events);
 
         $tester->execute(['--dry-run' => true]);
 
@@ -149,18 +169,12 @@ class SiemExportCommandTest extends TestCase
 
     public function testExportEventsCallsExporterBatch(): void
     {
-        $rows = [$this->makeAuditRow(), $this->makeAuditRow('MESSAGE_INGESTED')];
+        $events = [$this->makeSiemEvent(), $this->makeSiemEvent('MESSAGE_INGESTED')];
         $exporter = $this->createMock(SiemExporterInterface::class);
         $exporter->method('getProviderName')->willReturn('file');
         $exporter->expects($this->once())->method('exportBatch');
 
-        $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAllAssociative')->willReturn($rows);
-
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getConnection')->willReturn($connection);
-
-        $command = new SiemExportCommand($exporter, $em);
+        $command = new SiemExportCommand($exporter, $this->makeQueryService($events));
         $app = new Application();
         $app->add($command);
         $tester = new CommandTester($app->find('app:siem:export'));
@@ -174,19 +188,12 @@ class SiemExportCommandTest extends TestCase
 
     public function testExportWithMultipleBatches(): void
     {
-        // 3 events with batch-size=2 should produce 2 exportBatch calls
-        $rows = [$this->makeAuditRow(), $this->makeAuditRow(), $this->makeAuditRow()];
+        $events = [$this->makeSiemEvent(), $this->makeSiemEvent(), $this->makeSiemEvent()];
         $exporter = $this->createMock(SiemExporterInterface::class);
         $exporter->method('getProviderName')->willReturn('file');
         $exporter->expects($this->exactly(2))->method('exportBatch');
 
-        $connection = $this->createMock(Connection::class);
-        $connection->method('fetchAllAssociative')->willReturn($rows);
-
-        $em = $this->createMock(EntityManagerInterface::class);
-        $em->method('getConnection')->willReturn($connection);
-
-        $command = new SiemExportCommand($exporter, $em);
+        $command = new SiemExportCommand($exporter, $this->makeQueryService($events));
         $app = new Application();
         $app->add($command);
         $tester = new CommandTester($app->find('app:siem:export'));

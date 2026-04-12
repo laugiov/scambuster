@@ -4,10 +4,8 @@ declare(strict_types=1);
 
 namespace App\UI\Console;
 
+use App\Application\Communication\HeaderIocMigrationService;
 use App\Application\Communication\IocHandler;
-use App\Domain\Communication\Direction;
-use App\Domain\Communication\Message;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -33,8 +31,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class MigrateHeaderIocsCommand extends Command
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly IocHandler $iocHandler
+        private readonly HeaderIocMigrationService $migrationService,
+        private readonly IocHandler $iocHandler,
     ) {
         parent::__construct();
     }
@@ -46,10 +44,7 @@ final class MigrateHeaderIocsCommand extends Command
         $io->title('Migrating messages to extract header IOCs');
 
         // Spec 061: IOC extraction must NEVER touch outgoing messages.
-        // Outgoing messages are LLM-generated replies and contain the honeypot's own
-        // headers + fictional 555 phone numbers. Filter on direction='in' before any
-        // extraction work.
-        $inDirection = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'in']);
+        $inDirection = $this->migrationService->findInDirection();
 
         if (!$inDirection) {
             $io->error('Cannot find direction "in" in lkp_direction table.');
@@ -57,16 +52,7 @@ final class MigrateHeaderIocsCommand extends Command
             return Command::FAILURE;
         }
 
-        // Find all incoming messages with headers
-        /** @var list<Message> $messages */
-        $messages = $this->em->getRepository(Message::class)
-            ->createQueryBuilder('m')
-            ->where('m.headers IS NOT NULL')
-            ->andWhere('m.deletedAt IS NULL')
-            ->andWhere('m.direction = :inDir')
-            ->setParameter('inDir', $inDirection)
-            ->getQuery()
-            ->getResult();
+        $messages = $this->migrationService->findIncomingMessagesWithHeaders($inDirection);
 
         $totalMessages = count($messages);
 

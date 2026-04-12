@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\UI\Console;
 
 use App\Application\Communication\IocExportMapper;
-use App\Domain\Communication\ObservedIoc;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Application\Communication\IocExportMetadataMigrationService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -31,8 +30,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final class MigrateIocsExportMetadataCommand extends Command
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly IocExportMapper $exportMapper
+        private readonly IocExportMetadataMigrationService $migrationService,
+        private readonly IocExportMapper $exportMapper,
     ) {
         parent::__construct();
     }
@@ -44,7 +43,7 @@ final class MigrateIocsExportMetadataCommand extends Command
         $io->title('Migrating IOCs to add MISP/STIX export metadata');
 
         // Fetch all IOCs
-        $iocs = $this->em->getRepository(ObservedIoc::class)->findAll();
+        $iocs = $this->migrationService->findAllIocs();
 
         $total = count($iocs);
         $io->info(sprintf('Found %d IOCs to migrate', $total));
@@ -95,7 +94,7 @@ final class MigrateIocsExportMetadataCommand extends Command
         $io->progressFinish();
 
         // Flush all changes
-        $this->em->flush();
+        $this->migrationService->flush();
 
         // Summary
         $io->success('Migration completed');

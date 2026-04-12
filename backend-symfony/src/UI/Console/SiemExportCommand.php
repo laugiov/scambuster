@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\UI\Console;
 
+use App\Application\Audit\AuditEventQueryService;
 use App\Application\Audit\Port\SiemExporterInterface;
-use App\Domain\Audit\SiemEvent;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -27,7 +26,7 @@ final class SiemExportCommand extends Command
 {
     public function __construct(
         private readonly SiemExporterInterface $exporter,
-        private readonly EntityManagerInterface $em,
+        private readonly AuditEventQueryService $auditEventQueryService,
     ) {
         parent::__construct();
     }
@@ -57,7 +56,7 @@ final class SiemExportCommand extends Command
         $sinceRaw = $input->getOption('since');
         /** @var string $batchRaw */
         $batchRaw = $input->getOption('batch-size');
-        $since = $this->parseSince($sinceRaw);
+        $since = $this->auditEventQueryService->parseSince($sinceRaw);
         $batchSize = (int) $batchRaw;
         $dryRun = (bool) $input->getOption('dry-run');
 
@@ -68,14 +67,8 @@ final class SiemExportCommand extends Command
             'Dry run: ' . ($dryRun ? 'yes' : 'no'),
         ]);
 
-        // Fetch events from audit_log
-        $conn = $this->em->getConnection();
-        $rows = $conn->fetchAllAssociative(
-            'SELECT * FROM audit_log WHERE created_at >= :since ORDER BY created_at ASC',
-            ['since' => $since->format('Y-m-d H:i:s')],
-        );
-
-        $total = \count($rows);
+        $events = $this->auditEventQueryService->fetchEventsSince($since);
+        $total = \count($events);
         $io->text('Events found: ' . $total);
 
         if ($total === 0) {
@@ -94,9 +87,8 @@ final class SiemExportCommand extends Command
         $batch = [];
         $exported = 0;
 
-        foreach ($rows as $row) {
-            /** @var array{event_type: string, created_at: string, actor_type: string, actor_id: string, action: string, outcome: string, details: string, resource_type: ?string, resource_id: ?string, ip_address: ?string, trace_id: ?string} $row */
-            $batch[] = $this->rowToSiemEvent($row);
+        foreach ($events as $event) {
+            $batch[] = $event;
 
             if (\count($batch) >= $batchSize) {
                 $this->exporter->exportBatch($batch);
@@ -114,55 +106,5 @@ final class SiemExportCommand extends Command
         $io->success(sprintf('Exported %d events to %s provider.', $exported, $provider));
 
         return Command::SUCCESS;
-    }
-
-    private function parseSince(string $value): \DateTimeImmutable
-    {
-        // Relative: "24h", "7d", "30m"
-        if (preg_match('/^(\d+)([hdm])$/', $value, $m)) {
-            $amount = (int) $m[1];
-            $unit = match ($m[2]) {
-                'h' => 'hours',
-                'd' => 'days',
-                'm' => 'minutes',
-            };
-
-            return new \DateTimeImmutable("-{$amount} {$unit}");
-        }
-
-        // Absolute date
-        $date = \DateTimeImmutable::createFromFormat('Y-m-d', $value);
-
-        if ($date !== false) {
-            return $date->setTime(0, 0);
-        }
-
-        return new \DateTimeImmutable('-24 hours');
-    }
-
-    /**
-     * @param array{event_type: string, created_at: string, actor_type: string, actor_id: string, action: string, outcome: string, details: string, resource_type: ?string, resource_id: ?string, ip_address: ?string, trace_id: ?string} $row
-     */
-    private function rowToSiemEvent(array $row): SiemEvent
-    {
-        $eventType = \App\Domain\Audit\AuditEventType::from($row['event_type']);
-
-        /** @var array<string, mixed> $details */
-        $details = json_decode($row['details'], true) ?: [];
-
-        return new SiemEvent(
-            timestamp: new \DateTimeImmutable($row['created_at']),
-            eventType: $eventType,
-            severity: \App\Domain\Audit\SiemSeverityMap::getSeverity($eventType),
-            actorType: $row['actor_type'],
-            actorId: $row['actor_id'],
-            action: $row['action'],
-            outcome: $row['outcome'],
-            details: $details,
-            resourceType: $row['resource_type'],
-            resourceId: $row['resource_id'],
-            ipAddress: $row['ip_address'],
-            traceId: $row['trace_id'],
-        );
     }
 }
