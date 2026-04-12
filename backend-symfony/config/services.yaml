@@ -361,6 +361,16 @@ services:
         tags: ['controller.service_arguments']
     ###< Spec 065b ###
 
+    ###> Spec 065f — Audit HMAC chain ###
+    App\Application\Audit\AuditHmacChainer:
+        arguments:
+            $hmacKeyHex: '%env(AUDIT_HMAC_KEY)%'
+
+    App\Application\Audit\AuditLogger:
+        arguments:
+            $hmacChainer: '@App\Application\Audit\AuditHmacChainer'
+    ###< Spec 065f ###
+
     ###> Preprod Conversation Generator ###
     App\Application\Meta\ConfigHandler:
         arguments:
