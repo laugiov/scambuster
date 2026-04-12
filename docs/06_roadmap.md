@@ -6,9 +6,6 @@
 ## Project Timeline Overview
 
 ```
-Oct 2025   Dec 2025   Jan 2026   Feb 2026   Mar 2026   Apr 2026   May-Jul 2026
-   │          │          │          │          │          │             │
-   ▼          ▼          ▼          ▼          ▼          ▼             ▼
 ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐  ┌────────────┐
 │Phase │  │Phase │  │Phase │  │Phase │  │Phase │  │Phase │  │   Phase    │
 │  1   │─▶│ 2/3  │─▶│  4   │─▶│  5   │─▶│ 5.x  │─▶│  6   │─▶│     7      │
@@ -22,7 +19,7 @@ Oct 2025   Dec 2025   Jan 2026   Feb 2026   Mar 2026   Apr 2026   May-Jul 2026
 
 ---
 
-## Phase 1: Foundation (October - December 2025) ✅ COMPLETE
+## Phase 1: Foundation ✅ COMPLETE
 
 ### Objectives
 Build the core platform with multi-agent LLM architecture and production-grade infrastructure.
@@ -51,7 +48,7 @@ Build the core platform with multi-agent LLM architecture and production-grade i
 
 ---
 
-## Phase 2: Adaptive Scambaiting V1 (December 2025) ✅ COMPLETE
+## Phase 2: Adaptive Scambaiting V1 ✅ COMPLETE
 
 ### Objectives
 Implement ε-greedy contextual bandit for automatic persona optimization.
@@ -68,70 +65,18 @@ Implement ε-greedy contextual bandit for automatic persona optimization.
 | Experimental validation | ✅ | 2,221 conversations |
 | Statistical analysis | ✅ | p < 0.001, Cohen's d = 0.37 |
 
-### Key Achievements
-
-| Metric | Value |
-|--------|-------|
-| **Validation conversations** | 2,221 |
-| **Convergence CV** | 0.1703 |
-| **Statistical significance** | p < 0.001 |
-| **Documentation** | 7 major documents |
-| **Delivery** | 10 days ahead of schedule |
 
 ---
 
-## Phase 3: Adaptive Optimization + Scale (December 2025) ✅ COMPLETE
+## Phase 3: Adaptive Optimization + Scale ✅ COMPLETE
 
 ### Objectives
 1. Optimize epsilon-greedy with UCB1 exploration bonus and convergence detection
 2. Scale scam volume 4x (4.8 → 20 conversations/day)
 3. Deploy operational dashboards
 
-### Week 1 (Dec 1-7): Production Deployment + Adaptive Enhancements
 
-| Task | Priority | Status |
-|------|----------|--------|
-| Production database migration | P0 | ✅ |
-| UCB1 exploration bonus | P0 | ✅ |
-| Convergence detection (60% threshold) | P0 | ✅ |
-| Unit tests (15+) | P0 | ✅ |
-| Integration tests | P0 | ✅ |
-| Documentation | P0 | ✅ |
-
-### Week 2 (Dec 8-14): Dashboards + Activation
-
-| Task | Priority | Status |
-|------|----------|--------|
-| Grafana installation | P0 | ✅ |
-| Operational dashboard (6 panels) | P0 | ✅ |
-| Adaptive dashboard (6 panels) | P0 | ✅ |
-| Threat Intelligence dashboard (6 panels) | P0 | ✅ |
-| Prompt injection detection (two-layer forensic) | P0 | ✅ |
-| Intermediate report | P1 | ✅ |
-
-### Week 3 (Dec 15-21): Scale Volume
-
-| Task | Priority | Status |
-|------|----------|--------|
-| Add 6 new scraping sources | P0 | ✅ |
-| Increase frequency (1×/day → 3×/day) | P0 | ✅ |
-| Create 3 new Gmail honeypots | P0 | ✅ |
-| Active honeypots (classified ads) | P0 | ✅ |
-| Deduplication service | P0 | ✅ |
-| Anti-scam partnerships outreach | P1 | ✅ |
-
-### Week 4 (Dec 22-31): Engagement Optimization
-
-| Task | Priority | Status |
-|------|----------|--------|
-| Human-like response delays (1-6h) | P0 | ✅ |
-| Micro-error injection (typos) | P0 | ✅ |
-| Prompt improvements | P0 | ✅ |
-| A/B testing configuration | P0 | ✅ |
-| December report | P0 | ✅ |
-| Presentation preparation | P1 | ✅ |
-
-### Pilot Achievements (February 2026)
+### Pilot Achievements
 
 | Metric | Achieved | Target |
 |--------|----------|--------|
@@ -144,7 +89,7 @@ Implement ε-greedy contextual bandit for automatic persona optimization.
 
 ---
 
-## Phase 4: A/B Testing & Validation (January 2026) ✅ COMPLETE
+## Phase 4: A/B Testing & Validation ✅ COMPLETE
 
 ### Objectives
 Scientifically validate adaptive strategy selection and collect publication-ready data.
@@ -172,12 +117,12 @@ Thompson Sampling was originally planned for this phase but was deferred. The cu
 
 ---
 
-## Phase 5: Publication & Open Source (February - March 2026) ✅ COMPLETE
+## Phase 5: Publication & Open Source ✅ COMPLETE
 
 ### Objectives
 Publish research findings, harden platform for production, and release anonymized dataset.
 
-### Production Hardening (March 2026) ✅
+### Production Hardening ✅
 
 | Deliverable | Status | Details |
 |-------------|--------|---------|
@@ -193,7 +138,7 @@ Publish research findings, harden platform for production, and release anonymize
 | Multi-email processing in n8n | ✅ | Loop Over Items + Merge Email Data pattern |
 | Full i18n EN/FR | ✅ | All pages and components |
 
-### Quality & Enterprise Integration Pass (March 2026) ✅
+### Quality & Enterprise Integration Pass ✅
 
 | Deliverable | Status | Details |
 |-------------|--------|---------|
@@ -225,18 +170,9 @@ Publish research findings, harden platform for production, and release anonymize
 6. Discussion (Limitations, Future Work)
 7. Conclusion
 
-### Dataset Contents
-
-| Component | Size | Format |
-|-----------|------|--------|
-| **Conversations** | 1,000+ | JSON (anonymized) |
-| **Messages** | 8,000+ | JSON (anonymized) |
-| **IOCs** | 20,000+ | CSV (hashed where sensitive) |
-| **Metadata** | N/A | JSON (scam types, personas, rewards, clusters) |
-
 ---
 
-## Phase 6: CTI Hardening Cycle (April 2026) ✅ COMPLETE
+## Phase 6: CTI Hardening Cycle ✅ COMPLETE
 
 ### Objectives
 Harden the threat intelligence pipeline end-to-end based on three independent CTI expert audits, deliver real-time threat actor clustering, and close production-grade gaps in the IOC pipeline and mail intake.
@@ -269,7 +205,7 @@ Harden the threat intelligence pipeline end-to-end based on three independent CT
 
 ---
 
-## Phase 7: Production Maturity (May - July 2026) 🔄 PLANNED
+## Phase 7: Production Maturity 🔄 PLANNED
 
 ### Objectives
 Transform ScamBuster from an excellent research artefact into a production-grade tool that an analyst, SOC, CERT or MSSP would consider indispensable. Priorities driven by both academic publication needs and CTO-level expert review of operational gaps identified during Phase 6.
@@ -320,7 +256,7 @@ Transform ScamBuster from an excellent research artefact into a production-grade
 
 ---
 
-## Long-Term Vision (2026+)
+## Long-Term Vision
 
 ### Potential Extensions
 
@@ -332,16 +268,6 @@ Transform ScamBuster from an excellent research artefact into a production-grade
 | **Real-time adaptation** | Adapt persona during the conversation | Research |
 | **Federation** | Multiple organizations sharing learnings via STIX/TAXII | Legal framework |
 | **Thompson Sampling** | Bayesian exploration/exploitation | Research time post-publication |
-
-### Commercial Opportunities
-
-| Opportunity | Model | Status |
-|-------------|-------|--------|
-| **SOC-as-a-Service** | Subscription | Exploring |
-| **IOC Feed** | Per-IOC or subscription | Possible |
-| **SIEM/SOAR integration** | Plugin marketplace | TBD |
-| **MSSP white-label** | Per-tenant licence | TBD — gated by Phase 7.8 schema prep |
-| **Consulting** | Implementation support | Available |
 
 ### Research Collaborations
 
@@ -374,16 +300,6 @@ Transform ScamBuster from an excellent research artefact into a production-grade
 | **Effect sizes** | Cohen's d > 0.3 | Calculation |
 | **Reproducibility** | Independent validation | Dataset + code |
 | **Publication** | Accepted at Tier-1 venue | Review outcome |
-
-### Impact Success
-
-| Criterion | Target | Measurement |
-|-----------|--------|-------------|
-| **IOCs shared** | 20,000+ unique (achieved) | Export count |
-| **Threat actor clusters** | Operational | Cluster table |
-| **Partnerships** | 2+ organizations | Agreements |
-| **Citations** | N/A (future) | Scholar tracking |
-| **Industry adoption** | 1+ pilot | Engagement |
 
 ---
 

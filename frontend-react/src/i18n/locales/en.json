@@ -463,7 +463,16 @@
     "approachingLimit": "Approaching Limit",
     "withinBudget": "Within Budget",
     "noLimit": "No budget limit configured",
-    "refresh": "Refresh"
+    "refresh": "Refresh",
+    "loading": "Loading LLM cost data...",
+    "failedLoad": "Failed to load LLM cost data.",
+    "killSwitch": {
+      "activeBanner": "Kill switch ACTIVE — all automated replies are halted.",
+      "activate": "Activate kill switch",
+      "deactivate": "Deactivate kill switch",
+      "confirmActivate": "Activate the kill switch? All automated reply generation will be halted until you toggle it back.",
+      "confirmDeactivate": "Deactivate the kill switch and resume automated reply generation?"
+    }
   },
   "impact": {
     "title": "Impact & Intelligence",

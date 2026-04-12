@@ -33,6 +33,31 @@ final class PolicyGuard
         '/\bleurre\b/i',
     ];
 
+    /**
+     * Spec 065d — Operational identifiers that must NEVER appear in
+     * generated replies. Additive to FORBIDDEN_PATTERNS — does not
+     * replace it.
+     *
+     * Each entry maps a regex to the canonical flag suffix used in the
+     * `operational_leak:<suffix>` flag string. The suffix is the
+     * normalized lowercase identifier so the orchestrator can do
+     * exact-match comparisons.
+     *
+     * @var array<int, array{pattern: string, suffix: string}>
+     */
+    private const OPERATIONAL_LEAKAGE_PATTERNS = [
+        ['pattern' => '/\bn8n\b/i',                                'suffix' => 'n8n'],
+        ['pattern' => '/\bworkflow[_\s-]?(?:id|name)?\b/i',        'suffix' => 'workflow'],
+        ['pattern' => '#\bingest/raw\b#i',                         'suffix' => 'ingest/raw'],
+        ['pattern' => '#api/v1/(?:admin|internal)\b#i',            'suffix' => 'api/v1/admin'],
+        ['pattern' => '/\bSCAMBUSTER_[A-Z][A-Z0-9_]*\b/',          'suffix' => 'scambuster_env'],
+        ['pattern' => '/\bbackend-(?:dev|test|preprod|e2e|prod)\b/i', 'suffix' => 'backend-service'],
+        ['pattern' => '/\bMailAccount(?:SecretResolver)?\b/',      'suffix' => 'mailaccount'],
+        ['pattern' => '/\bIocUpsertService\b/',                    'suffix' => 'iocupsertservice'],
+        ['pattern' => '/\bsodium_crypto_secretbox\b/i',            'suffix' => 'sodium_crypto_secretbox'],
+        ['pattern' => '/\bdocker[\s-]compose\b/i',                 'suffix' => 'docker-compose'],
+    ];
+
     /** @var array<string> Threat and intimidation patterns */
     private const THREAT_PATTERNS = [
         '/\bje vais vous\s+(?:tuer|frapper|détruire|blesser|éliminer)\b/i',
@@ -144,6 +169,21 @@ final class PolicyGuard
                 $flags[] = 'forbidden_pattern:' . strtolower($matches[0]);
                 $this->logger->warning('[PolicyGuard] ❌ Forbidden pattern detected', [
                     'pattern' => $pattern,
+                    'matched' => $matches[0],
+                ]);
+            }
+        }
+
+        // Spec 065d — Check operational leakage patterns (additive to
+        // FORBIDDEN_PATTERNS). Reports `operational_leak:<suffix>` so
+        // the orchestrator distinguishes from the existing forbidden
+        // pattern flags.
+        foreach (self::OPERATIONAL_LEAKAGE_PATTERNS as $entry) {
+            if (preg_match($entry['pattern'], $text, $matches)) {
+                $flags[] = 'operational_leak:' . $entry['suffix'];
+                $this->logger->warning('[PolicyGuard] ❌ Operational leakage detected', [
+                    'pattern' => $entry['pattern'],
+                    'suffix' => $entry['suffix'],
                     'matched' => $matches[0],
                 ]);
             }

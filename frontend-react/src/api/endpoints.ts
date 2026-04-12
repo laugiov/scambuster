@@ -73,4 +73,8 @@ export const ENDPOINTS = {
   meta: {
     config: '/meta/config',
   },
+  // Spec 065b — admin LLM kill switch toggle
+  admin: {
+    llmKillSwitch: '/admin/llm/killswitch',
+  },
 } as const;

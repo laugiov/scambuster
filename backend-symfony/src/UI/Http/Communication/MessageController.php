@@ -6,6 +6,7 @@ namespace App\UI\Http\Communication;
 
 use App\Application\Communication\IocHandler;
 use App\Application\Communication\MessageHandler;
+use App\Domain\Communication\Policy\IocExtractionPolicy;
 use App\UI\Http\Dto\MessageAttachmentResponseDto;
 use App\UI\Http\Dto\MessageCreateResponseDto;
 use App\UI\Http\Dto\MessageDeleteResponseDto;
@@ -26,7 +27,9 @@ final class MessageController
     public function __construct(
         private readonly MessageHandler $handler,
         private readonly IocHandler $iocHandler,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        // Spec 065h — extracted from Message::canExtractIocs()
+        private readonly IocExtractionPolicy $iocExtractionPolicy = new IocExtractionPolicy()
     ) {
     }
 
@@ -571,7 +574,7 @@ final class MessageController
         // Spec 061: refuse extraction on outgoing messages.
         // Outgoing messages are LLM replies and pollute the indicator table with our
         // own headers + fictional 555 phone numbers invented by the persona.
-        if (!$message->canExtractIocs()) {
+        if (!$this->iocExtractionPolicy->allows($message)) {
             $this->logger->warning('[IOC-EXTRACT] Refused outgoing message extraction (spec 061)', [
                 'msg_id' => $msgId,
                 'direction' => $message->getDirection()->getCode(),

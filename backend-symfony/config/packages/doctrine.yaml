@@ -4,6 +4,8 @@ doctrine:
         types:
             uuid: Symfony\Bridge\Doctrine\Types\UuidType   # ← plus de Ramsey ici
             json: Doctrine\DBAL\Types\JsonType             # garde si tu l'utilises
+            # Spec 065e — transparent encryption for TOTP secrets at rest
+            encrypted_string: App\Infrastructure\Doctrine\Type\EncryptedStringType
 
         # ---------------- Connexions ------------------------
         default_connection: default

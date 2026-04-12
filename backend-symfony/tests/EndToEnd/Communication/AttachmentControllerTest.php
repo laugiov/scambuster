@@ -76,6 +76,15 @@ class AttachmentControllerTest extends WebTestCase
 
     public function testDownloadAttachment(): void
     {
+        // Spec 065a/H1 — The download endpoint no longer returns the
+        // FAKE_CONTENT placeholder. Until a real S3-compatible storage
+        // backend is wired, every successfully resolved attachment
+        // returns HTTP 501 Not Implemented with a documented JSON error
+        // body. The previous assertions expecting 200 + binary content
+        // are intentionally replaced.
+        //
+        // The fuller suite of download endpoint cases lives in
+        // tests/EndToEnd/Communication/AttachmentDownloadTest.php.
         $client = static::createClient();
         $jwt = $this->getValidJwt($client);
         $em = $client->getContainer()->get('doctrine')->getManager();
@@ -84,9 +93,11 @@ class AttachmentControllerTest extends WebTestCase
         $client->request('GET', '/api/v1/communication/attachment/' . $att->getAttachmentId() . '/download', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt
         ]);
-        $this->assertResponseIsSuccessful();
-        $this->assertSame($att->getMimeType(), $client->getResponse()->headers->get('Content-Type'));
-        $this->assertStringContainsString($att->getFilename(), $client->getResponse()->headers->get('Content-Disposition'));
+        $this->assertSame(501, $client->getResponse()->getStatusCode());
+        $body = json_decode((string) $client->getResponse()->getContent(), true);
+        $this->assertIsArray($body);
+        $this->assertSame('Attachment storage backend not configured', $body['error'] ?? null);
+        $this->assertSame('STORAGE_NOT_CONFIGURED', $body['code'] ?? null);
     }
 
     public function testDownloadNonExistentAttachmentReturns404(): void
