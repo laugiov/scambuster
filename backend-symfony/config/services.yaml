@@ -357,7 +357,13 @@ services:
         tags:
             - { name: console.command }
 
-    App\UI\Http\Admin\AdminLlmKillSwitchController:
+    App\UI\Http\Admin\GetLlmKillSwitchStateController:
+        autowire: true
+        arguments:
+            $cache: '@cache.app'
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Admin\ToggleLlmKillSwitchController:
         autowire: true
         arguments:
             $cache: '@cache.app'
