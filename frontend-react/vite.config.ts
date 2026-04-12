@@ -25,5 +25,19 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/__tests__/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    // Spec 065i — coverage configuration
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'node_modules/',
+        'src/__tests__/',
+        '**/*.d.ts',
+        '**/*.config.{ts,js}',
+        '**/main.tsx',
+        '**/vite-env.d.ts',
+      ],
+    },
   },
 })
