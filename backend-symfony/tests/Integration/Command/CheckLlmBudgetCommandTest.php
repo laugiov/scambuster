@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Command;
 
-use App\Command\CheckLlmBudgetCommand;
+use App\UI\Console\CheckLlmBudgetCommand;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 

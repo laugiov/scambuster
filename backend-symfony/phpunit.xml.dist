@@ -20,7 +20,10 @@
     <testsuites>
         <testsuite name="integration">
             <directory suffix="Test.php">tests/Integration</directory>
-            <exclude>tests/Integration/Auth/AbstractAuthBase.php</exclude>
+        </testsuite>
+        <testsuite name="functional">
+            <directory suffix="Test.php">tests/Functional</directory>
+            <exclude>tests/Functional/Auth/AbstractAuthBase.php</exclude>
         </testsuite>
         <testsuite name="unit">
             <directory suffix="Test.php">tests/Unit</directory>

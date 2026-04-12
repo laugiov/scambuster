@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Command;
 
 use App\Application\Audit\Port\SiemExporterInterface;
-use App\Command\SiemExportCommand;
+use App\UI\Console\SiemExportCommand;
 use App\Domain\Audit\AuditEventType;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
