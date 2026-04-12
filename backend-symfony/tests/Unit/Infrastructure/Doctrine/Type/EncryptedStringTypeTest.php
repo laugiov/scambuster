@@ -59,7 +59,8 @@ final class EncryptedStringTypeTest extends TestCase
         $_ENV['TOTP_ENCRYPTION_KEY'] = bin2hex(random_bytes(32));
         $freshType = new EncryptedStringType();
 
-        $this->expectException(\Doctrine\DBAL\Types\ConversionException::class);
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('wrong TOTP_ENCRYPTION_KEY');
         $freshType->convertToPHPValue($encrypted, $this->platform);
     }
 

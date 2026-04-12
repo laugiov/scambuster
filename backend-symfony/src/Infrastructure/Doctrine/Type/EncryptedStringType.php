@@ -46,9 +46,13 @@ final class EncryptedStringType extends Type
             return null;
         }
 
+        if (!is_string($value)) {
+            throw ConversionException::conversionFailed($value, self::NAME);
+        }
+
         $key = $this->getKey();
         $nonce = random_bytes(\SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
-        $cipher = sodium_crypto_secretbox((string) $value, $nonce, $key);
+        $cipher = sodium_crypto_secretbox($value, $nonce, $key);
 
         return $nonce . $cipher;
     }
@@ -75,11 +79,8 @@ final class EncryptedStringType extends Type
         $plain = sodium_crypto_secretbox_open($cipher, $nonce, $key);
 
         if ($plain === false) {
-            throw ConversionException::conversionFailed(
-                'ciphertext',
-                self::NAME,
-                null,
-                new \RuntimeException('Failed to decrypt encrypted_string column — wrong TOTP_ENCRYPTION_KEY?'),
+            throw new \RuntimeException(
+                'Failed to decrypt encrypted_string column — wrong TOTP_ENCRYPTION_KEY?'
             );
         }
 
