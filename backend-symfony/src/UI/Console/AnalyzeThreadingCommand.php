@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Console;
 
-use Doctrine\ORM\EntityManagerInterface;
+use App\Application\Communication\ThreadingAnalyzer;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\Table;
@@ -19,7 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class AnalyzeThreadingCommand extends Command
 {
     public function __construct(
-        private EntityManagerInterface $em
+        private readonly ThreadingAnalyzer $threadingAnalyzer,
     ) {
         parent::__construct();
     }
@@ -37,29 +37,7 @@ class AnalyzeThreadingCommand extends Command
         $output->writeln("Analyzing threading for subject pattern: <info>{$subjectPattern}</info>");
         $output->writeln('');
 
-        $conn = $this->em->getConnection();
-        $sql = "
-            SELECT
-                msg_id,
-                conv_id,
-                direction,
-                ts_msg,
-                subject,
-                reply_to_msg_id,
-                headers->>'from' as from_header,
-                headers->>'message-id' as message_id,
-                headers->>'in-reply-to' as in_reply_to,
-                headers->>'references' as references,
-                headers->>'thread_id' as thread_id
-            FROM message
-            WHERE subject LIKE :pattern
-              AND deleted_at IS NULL
-            ORDER BY ts_msg ASC
-        ";
-
-        $stmt = $conn->prepare($sql);
-        $result = $stmt->executeQuery(['pattern' => '%' . $subjectPattern . '%']);
-        $messages = $result->fetchAllAssociative();
+        $messages = $this->threadingAnalyzer->findMessagesBySubjectPattern($subjectPattern);
 
         if (empty($messages)) {
             $output->writeln('<error>No messages found</error>');
@@ -70,17 +48,7 @@ class AnalyzeThreadingCommand extends Command
         $output->writeln('Found <info>' . count($messages) . '</info> messages');
         $output->writeln('');
 
-        // Group by conversation
-        $conversations = [];
-
-        foreach ($messages as $msg) {
-            $convId = $msg['conv_id'];
-
-            if (!isset($conversations[$convId])) {
-                $conversations[$convId] = [];
-            }
-            $conversations[$convId][] = $msg;
-        }
+        $conversations = $this->threadingAnalyzer->groupByConversation($messages);
 
         $output->writeln('Messages are split across <error>' . count($conversations) . '</error> conversations');
         $output->writeln('');
@@ -95,11 +63,15 @@ class AnalyzeThreadingCommand extends Command
             $table->setHeaders(['Msg ID (first 8)', 'Direction', 'Timestamp', 'Reply To (first 8)', 'Message-ID', 'In-Reply-To', 'Thread-ID']);
 
             foreach ($msgs as $msg) {
+                /** @var string $msgId */
+                $msgId = $msg['msg_id'];
+                /** @var string|null $replyToMsgId */
+                $replyToMsgId = $msg['reply_to_msg_id'];
                 $table->addRow([
-                    substr($msg['msg_id'], 0, 8),
+                    substr($msgId, 0, 8),
                     $msg['direction'],
                     $msg['ts_msg'],
-                    $msg['reply_to_msg_id'] ? substr($msg['reply_to_msg_id'], 0, 8) : 'NULL',
+                    $replyToMsgId ? substr($replyToMsgId, 0, 8) : 'NULL',
                     $msg['message_id'] ?: 'NULL',
                     $msg['in_reply_to'] ?: 'NULL',
                     $msg['thread_id'] ?: 'NULL',

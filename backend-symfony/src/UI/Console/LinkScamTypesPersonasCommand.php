@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Console;
 
-use App\Domain\Communication\Persona;
-use App\Domain\Communication\ScamType;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Application\Communication\ScamTypePersonaLinker;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -19,20 +17,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class LinkScamTypesPersonasCommand extends Command
 {
-    /**
-     * Mapping of scam_type code → array of persona codes (ManyToMany)
-     */
-    private const SCAM_TYPE_TO_PERSONAS = [
-        'invoice' => ['small_business_owner', 'entrepreneur_rushed', 'accountant_meticulous', 'freelance_cautious', 'admin_assistant'],
-        'phishing' => ['bank_customer', 'worried_customer', 'tech_newbie', 'tech_intermediate', 'senior_trusting'],
-        'lottery' => ['lottery_skeptic', 'lottery_believer', 'elderly_person', 'investor_greedy', 'debtor_desperate'],
-        'romance' => ['lonely_person', 'lonely_divorcee', 'hopeless_romantic', 'widow_grieving', 'senior_isolated'],
-        'techsupport' => ['confused_user', 'tech_newbie', 'tech_intermediate', 'senior_trusting', 'senior_suspicious'],
-        'UNKNOWN' => ['generic_user'],
-    ];
-
     public function __construct(
-        private readonly EntityManagerInterface $em
+        private readonly ScamTypePersonaLinker $linker,
     ) {
         parent::__construct();
     }
@@ -41,46 +27,21 @@ class LinkScamTypesPersonasCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $linked = 0;
-        $skipped = 0;
+        $mapping = $this->linker->getMapping();
 
-        foreach (self::SCAM_TYPE_TO_PERSONAS as $scamTypeCode => $personaCodes) {
-            $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => $scamTypeCode]);
+        $io->info(sprintf('Linking %d scam types to personas...', count($mapping)));
 
-            if (!$scamType) {
-                $io->note("ScamType '{$scamTypeCode}' not found, skipping");
-                $skipped++;
+        $result = $this->linker->linkAll();
 
-                continue;
-            }
-
-            // Clear existing personas for this scam type
-            foreach ($scamType->getPersonas() as $persona) {
-                $scamType->removePersona($persona);
-            }
-
-            // Add all configured personas
-            foreach ($personaCodes as $personaCode) {
-                $persona = $this->em->getRepository(Persona::class)->findOneBy(['personaCode' => $personaCode]);
-
-                if (!$persona) {
-                    $io->warning("Persona '{$personaCode}' not found for scam type '{$scamTypeCode}', skipping this persona");
-
-                    continue;
-                }
-
-                $scamType->addPersona($persona);
-                $linked++;
-
-                $io->writeln("  → Linked '{$scamTypeCode}' → '{$personaCode}'");
-            }
-
-            $this->em->persist($scamType);
+        foreach ($result['warnings'] as $warning) {
+            $io->warning($warning);
         }
 
-        $this->em->flush();
-
-        $io->success("Total persona links created: {$linked}, scam types skipped: {$skipped}");
+        $io->success(sprintf(
+            'Total persona links created: %d, scam types skipped: %d',
+            $result['linked'],
+            $result['skipped'],
+        ));
 
         return Command::SUCCESS;
     }
