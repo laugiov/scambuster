@@ -18,6 +18,7 @@ echo "  - app:close-stale-conversations  every 6h"
 echo "  - app:clustering:backfill        every 30min (fast loop)"
 echo "  - app:llm:check-budget           every 30min (Spec 065b)"
 echo "  - app:bandit:daily-report        daily at ~06:00 UTC"
+echo "  - app:audit:verify-chain         daily at ~02:00 UTC (Spec 065f)"
 echo "  - app:cleanup:weekly             weekly (Sunday ~04:00 UTC)"
 echo "  - pg_dump backup                 daily at ~02:00 UTC"
 
@@ -68,6 +69,13 @@ while true; do
             echo "[scheduler] WARNING: generate-actor-profiles failed"
 
         LAST_BANDIT_DAY="$CURRENT_DAY"
+    fi
+
+    # ── Daily at 02:00 UTC: audit log HMAC chain verification (Spec 065f) ──
+    if [ "$CURRENT_HOUR" -ge 2 ] && [ "$LAST_BANDIT_DAY" != "$CURRENT_DAY" ]; then
+        echo "[scheduler] $(date -u +%Y-%m-%dT%H:%M:%SZ) Running audit:verify-chain (Spec 065f)"
+        php /app/bin/console app:audit:verify-chain --no-interaction 2>&1 || \
+            echo "[scheduler] CRITICAL: audit:verify-chain FAILED — possible tamper detected"
     fi
 
     # ── Daily at 02:00 UTC: PostgreSQL backup ──
