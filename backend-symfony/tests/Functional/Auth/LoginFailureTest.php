@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace App\Tests\EndToEnd\Auth;
+namespace App\Tests\Functional\Auth;
 
 final class LoginFailureTest extends AbstractAuthBase
 {

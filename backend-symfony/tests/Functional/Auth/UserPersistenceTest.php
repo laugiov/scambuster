@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\EndToEnd\Auth;
+namespace App\Tests\Functional\Auth;
 
-use App\Tests\EndToEnd\Auth\AbstractAuthBase;
+use App\Tests\Functional\Auth\AbstractAuthBase;
 use Symfony\Component\HttpFoundation\Response;
 
 final class UserPersistenceTest extends AbstractAuthBase
