@@ -7,9 +7,6 @@ namespace App\Application\Communication;
 use App\Application\Audit\AuditLogger;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Attachment;
-use App\Domain\Communication\Channel;
-use App\Domain\Communication\Direction;
-use App\Domain\Communication\MailAccount;
 use App\Domain\Communication\Message;
 use Doctrine\DBAL\Exception\UniqueConstraintViolationException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,6 +30,8 @@ class IngestHandler
         private readonly IngestPostProcessor $postProcessor,
         private readonly ?AuditLogger $auditLogger = null,
         private readonly ?IocUpsertService $iocUpsertService = null,
+        // Spec 065h — extracted from lines 50-73 of ingest()
+        private readonly ?EntityReferenceResolver $referenceResolver = null,
     ) {
     }
 
@@ -47,29 +46,26 @@ class IngestHandler
             'score_risk' => $dto->score_risk,
         ]);
 
-        // Validate and fetch reference entities
-        $account = $this->em->getRepository(MailAccount::class)->find($dto->account_id);
-
-        if (!$account) {
-            $this->logger->error('[IngestHandler] Unknown account_id', ['account_id' => $dto->account_id]);
-
-            throw new \RuntimeException('Unknown account_id');
-        }
-
-        $channel = $this->em->getRepository(Channel::class)->findOneBy(['code' => $dto->channel ?? 'email']);
-
-        if (!$channel) {
-            $this->logger->error('[IngestHandler] Unknown channel', ['channel' => $dto->channel]);
-
-            throw new \RuntimeException('Unknown channel');
-        }
-
-        $direction = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'in']);
-
-        if (!$direction) {
-            $this->logger->error('[IngestHandler] Unknown direction');
-
-            throw new \RuntimeException('Unknown direction');
+        // Spec 065h — delegate reference resolution to EntityReferenceResolver
+        if ($this->referenceResolver !== null) {
+            $refs = $this->referenceResolver->resolve($dto->account_id, $dto->channel ?? 'email');
+            $account = $refs->account;
+            $channel = $refs->channel;
+            $direction = $refs->direction;
+        } else {
+            // Legacy inline fallback (backward compat for tests without the resolver)
+            $account = $this->em->getRepository(\App\Domain\Communication\MailAccount::class)->find($dto->account_id);
+            if (!$account) {
+                throw new \RuntimeException('Unknown account_id');
+            }
+            $channel = $this->em->getRepository(\App\Domain\Communication\Channel::class)->findOneBy(['code' => $dto->channel ?? 'email']);
+            if (!$channel) {
+                throw new \RuntimeException('Unknown channel');
+            }
+            $direction = $this->em->getRepository(\App\Domain\Communication\Direction::class)->findOneBy(['code' => 'in']);
+            if (!$direction) {
+                throw new \RuntimeException('Unknown direction');
+            }
         }
 
         // 1. Parse the raw email

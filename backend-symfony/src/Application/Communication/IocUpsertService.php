@@ -8,6 +8,7 @@ use App\Application\Audit\AuditLogger;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Message;
 use App\Domain\Communication\ObservedIoc;
+use App\Domain\Communication\Policy\IocExtractionPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -33,6 +34,8 @@ class IocUpsertService
         ?array $honeypotEmailAddresses = null,
         private readonly ?AuditLogger $auditLogger = null,
         private readonly ?IocContextService $contextService = null,
+        // Spec 065h — extracted from Message::canExtractIocs()
+        private readonly IocExtractionPolicy $iocExtractionPolicy = new IocExtractionPolicy(),
     ) {
         // Normalize once (lowercase, deduplicated, indexed for O(1) lookup)
         $index = [];
@@ -94,7 +97,7 @@ class IocUpsertService
         // Spec 061 — Layer 1: refuse extraction on outgoing messages.
         // Single funnel: this guard catches all callers (HTTP /enriched, MigrateHeaderIocs,
         // IngestPostProcessor, future entry points).
-        if (!$message->canExtractIocs()) {
+        if (!$this->iocExtractionPolicy->allows($message)) {
             throw new \InvalidArgumentException(sprintf(
                 'IOC extraction is not allowed on outgoing messages (msg_id=%s, direction=%s)',
                 $message->getMsgId(),
