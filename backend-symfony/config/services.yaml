@@ -41,6 +41,14 @@ services:
     App\Application\Auth\Port\UserTotpCheckerInterface:
         class: App\Infrastructure\Auth\DoctrineUserTotpChecker
 
+    # Spec 066d — Domain repository port bindings
+    App\Domain\Communication\Repository\MailAccountRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineMailAccountRepository
+    App\Domain\Communication\Repository\ChannelRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineChannelRepository
+    App\Domain\Communication\Repository\DirectionRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineDirectionRepository
+
     App\UI\Http\Auth\CsrfTokenController:
         public: true
         tags: ['controller.service_arguments']
