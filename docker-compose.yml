@@ -2,7 +2,8 @@ services:
   postgres:
     image: postgres:15-alpine
     environment:
-      POSTGRES_PASSWORD: postgres
+      # Spec 065c — secret comes from .env (POSTGRES_PASSWORD), no longer hardcoded
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -19,7 +20,8 @@ services:
     environment:
       POSTGRES_DB: scambuster_preprod
       POSTGRES_USER: scambuster
-      POSTGRES_PASSWORD: postgres
+      # Spec 065c — secret comes from .env (POSTGRES_PASSWORD), no longer hardcoded
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5433:5432"
     volumes:
@@ -34,7 +36,11 @@ services:
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    # Spec 065c — Redis port no longer exposed to the host network.
+    # Reachable only from inside the `scambuster` Docker network.
+    # To re-expose for local debugging (Medis, RDM, redis-cli from host),
+    # copy docker-compose.override.yml.example to docker-compose.override.yml
+    # and uncomment the redis ports section.
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -150,20 +156,18 @@ services:
     networks:
       - scambuster
 
-  vault:
-    image: hashicorp/vault:1.19.4
-    container_name: vault
-    ports:
-      - "8200:8200"
-    environment:
-      VAULT_DEV_ROOT_TOKEN_ID: root
-      VAULT_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
-    cap_add:
-      - IPC_LOCK
-    command: server -dev -dev-root-token-id=root -dev-listen-address="0.0.0.0:8200"
-    networks:
-      - scambuster
+  # Spec 065c — Vault service removed.
+  # The Vault HTTP integration was added in early dev to store IMAP credentials
+  # but became dead code after the 2026-03-31 n8n migration (commit b090e31).
+  # n8n now stores its own IMAP credentials encrypted with N8N_ENCRYPTION_KEY
+  # in ./data/n8n/. See docs/runbooks/n8n-credentials.md for the rotation
+  # procedure.
 
+  # Spec 065c — Note for n8n credential storage:
+  # n8n stores IMAP/SMTP credentials encrypted at rest using N8N_ENCRYPTION_KEY
+  # (env var below). If both `.env` AND `./data/n8n/credentials/` are leaked
+  # together, the credentials are compromised. See
+  # docs/runbooks/n8n-credentials.md for backup and rotation procedures.
   n8n:
     image: n8nio/n8n:1.114.3
     container_name: scambuster-n8n

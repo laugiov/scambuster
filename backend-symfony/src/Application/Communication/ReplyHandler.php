@@ -6,10 +6,12 @@ namespace App\Application\Communication;
 
 use App\Application\Audit\AuditLogger;
 use App\Application\LLM\ReplyOrchestrator;
+use App\Application\Monitoring\LlmCostHandler;
 use App\Domain\Communication\Channel;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
+use App\Domain\LLM\Exception\LlmBudgetExceededException;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
@@ -32,6 +34,9 @@ class ReplyHandler
         private readonly ReplyCompositionService $compositionService,
         private readonly LoggerInterface $logger,
         private readonly ?AuditLogger $auditLogger = null,
+        // Spec 065b — LLM monthly budget enforcement.
+        private readonly ?LlmCostHandler $costHandler = null,
+        private readonly string $budgetEnforcementMode = 'warning',
     ) {
     }
 
@@ -71,6 +76,25 @@ class ReplyHandler
 
         if ($this->cadenceService->isKillSwitchActive()) {
             throw new \RuntimeException('Kill switch is active - all automated replies are halted');
+        }
+
+        // Spec 065b — Budget cap enforcement.
+        // - mode 'enforce': throw LlmBudgetExceededException → HTTP 503
+        // - mode 'warning': log a warning and proceed (used during the
+        //   one-week telemetry validation window before flipping to enforce)
+        // - cost handler unset: skip entirely (legacy DI compatibility)
+        if ($this->costHandler !== null && $this->costHandler->isLimitExceeded()) {
+            if ($this->budgetEnforcementMode === 'enforce') {
+                throw new LlmBudgetExceededException(
+                    $this->costHandler->getCurrentMonthUsdSpent(),
+                    $this->costHandler->getMonthlyLimitUsd(),
+                );
+            }
+            $this->logger->warning('[ReplyHandler] LLM budget exceeded but enforcement mode is warning, allowing reply', [
+                'current_usd' => $this->costHandler->getCurrentMonthUsdSpent(),
+                'limit_usd' => $this->costHandler->getMonthlyLimitUsd(),
+                'mode' => $this->budgetEnforcementMode,
+            ]);
         }
 
         if ($conversation->getStatus()->value !== 'open') {

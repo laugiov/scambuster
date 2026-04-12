@@ -1,0 +1,70 @@
+# docker-compose.prod.yml — Spec 065c
+#
+# Production overlay for ScamBuster.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# This file:
+#   - removes development source code volume mounts (image is self-contained)
+#   - adds restart policies on critical services
+#   - disables the test/e2e/preprod backend variants via profile
+#   - enables n8n basic auth for the admin UI
+#   - tightens APP_ENV to 'prod' on the backend
+#
+# See docs/runbooks/production-deployment.md for the full deployment procedure.
+
+services:
+  postgres:
+    restart: always
+    # Production should use a managed Postgres or a dedicated volume
+    # on a separate disk. The default scambuster-github volume is OK
+    # for single-host deployments.
+
+  redis:
+    restart: always
+
+  backend-dev:
+    # Override the dev container to behave as production
+    container_name: scambuster-backend-prod
+    volumes:
+      # NO source volume mount — the image is self-contained
+      - ./.env:/app/.env:ro
+    command: ["sh", "-c", "php bin/console cache:warmup --env=prod && php -S 0.0.0.0:8080 -t public"]
+    environment:
+      - APP_ENV=prod
+      - APP_DEBUG=0
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+    restart: always
+
+  backend-test:
+    profiles: ["never-in-prod"]
+
+  backend-e2e:
+    profiles: ["never-in-prod"]
+
+  backend-preprod:
+    profiles: ["never-in-prod"]
+
+  postgres-preprod:
+    profiles: ["never-in-prod"]
+
+  scheduler:
+    restart: always
+    environment:
+      SCHEDULER_ENABLED: "true"
+
+  n8n:
+    restart: always
+    environment:
+      # Production n8n MUST run with basic auth on the web UI.
+      # Set N8N_BASIC_AUTH_USER and N8N_BASIC_AUTH_PASSWORD in .env.
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+
+  frontend:
+    profiles: ["never-in-prod"]
+    # The frontend dev container is for local development only.
+    # In production, the frontend is built once (npm run build) and
+    # served as static files via the reverse proxy / CDN.

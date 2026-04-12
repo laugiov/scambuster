@@ -38,22 +38,44 @@ class AuditLoggerTest extends TestCase
         );
     }
 
-    public function testLogHandlesExceptionGracefully(): void
+    public function testLogHandlesExceptionGracefullyForNonBlockingEvents(): void
     {
         $em = $this->createMock(EntityManagerInterface::class);
         $em->method('persist')->willThrowException(new \RuntimeException('DB down'));
 
         $logger = new AuditLogger($em, new NullLogger(), new RequestStack(), new NullSiemExporter());
 
-        // Should not throw — non-blocking
+        // Should not throw — non-blocking event (MESSAGE_INGESTED is not
+        // in the BLOCKING_SIEM_EVENTS list)
+        $logger->log(
+            eventType: AuditEventType::MESSAGE_INGESTED,
+            actorId: 'system',
+            action: 'ingest',
+            outcome: 'failure'
+        );
+
+        $this->assertTrue(true); // Reached here = no exception
+    }
+
+    /**
+     * Spec 065f — AUTH events are now blocking: exceptions MUST propagate.
+     */
+    public function testLogThrowsForBlockingEvents(): void
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('persist')->willThrowException(new \RuntimeException('DB down'));
+
+        $logger = new AuditLogger($em, new NullLogger(), new RequestStack(), new NullSiemExporter());
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('DB down');
+
         $logger->log(
             eventType: AuditEventType::AUTH_FAILURE,
             actorId: 'anonymous',
             action: 'authenticate',
             outcome: 'failure'
         );
-
-        $this->assertTrue(true); // Reached here = no exception
     }
 
     public function testLogPassesAllFieldsToEntity(): void

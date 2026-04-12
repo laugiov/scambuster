@@ -11,15 +11,10 @@ security:
             entity:
                 class: App\Domain\User\User
                 property: email
-        test_users:
-            memory:
-                users:
-                    test-user:
-                        password: foo
-                        roles: ['ROLE_USER']
-                    test-admin:
-                        password: foo
-                        roles: ['ROLE_ADMIN', 'ROLE_USER']
+        # Spec 065a/M1: the `test_users` memory provider with hardcoded
+        # `foo` passwords used to live here but is now declared only in
+        # `config/packages/test/security.yaml`. It is therefore loaded
+        # only when APP_ENV=test and inaccessible in production.
 
     firewalls:
         dev:
