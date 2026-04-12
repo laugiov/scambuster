@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Integration\Clustering;
+namespace App\Tests\EndToEnd\Clustering;
 
 use App\Application\Clustering\IocClusteringService;
 use App\Tests\Fixtures\ClusteringFixtures;

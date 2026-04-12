@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Integration\Security;
+namespace App\Tests\EndToEnd\Security;
 
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 

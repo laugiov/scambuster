@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Stix;
+namespace Tests\EndToEnd\Stix;
 
 use App\Application\Clustering\IocClusteringService;
 use App\Tests\Fixtures\ClusteringFixtures;
