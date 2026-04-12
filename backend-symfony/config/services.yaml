@@ -347,7 +347,7 @@ services:
             $cache: '@cache.app'
             $logger: '@logger'
 
-    App\Command\CheckLlmBudgetCommand:
+    App\UI\Console\CheckLlmBudgetCommand:
         arguments:
             $notifier: '@App\Application\Monitoring\BudgetThresholdNotifier'
         tags:
