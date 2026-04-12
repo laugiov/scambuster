@@ -40,6 +40,8 @@ final class SiemSeverityMap
         'BUDGET_THRESHOLD_REACHED' => 5,
         // Spec 065d — operational identifier leak attempt blocked by validator
         'LLM_LEAK_BLOCKED' => 7,
+        // Spec 065e — per-email brute force detected
+        'AUTH_BRUTE_FORCE_DETECTED' => 7,
 
         // Export (2)
         'EXPORT_MISP' => 2,
