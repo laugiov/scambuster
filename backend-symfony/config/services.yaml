@@ -37,6 +37,10 @@ services:
         resource: '../src/Security'
         tags: ['controller.service_arguments']
 
+    # Spec 066c — UserTotpChecker port binding
+    App\Application\Auth\Port\UserTotpCheckerInterface:
+        class: App\Infrastructure\Auth\DoctrineUserTotpChecker
+
     App\UI\Http\Auth\CsrfTokenController:
         public: true
         tags: ['controller.service_arguments']
