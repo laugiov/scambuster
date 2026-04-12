@@ -38,7 +38,10 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $permissions = [];
 
-    #[ORM\Column(name: 'totp_secret', type: 'string', length: 255, nullable: true)]
+    // Spec 065e — totp_secret is transparently encrypted at rest via
+    // the EncryptedStringType custom Doctrine type (libsodium secretbox,
+    // keyed by TOTP_ENCRYPTION_KEY env var). See docs/runbooks/totp-key-rotation.md.
+    #[ORM\Column(name: 'totp_secret', type: 'encrypted_string', nullable: true)]
     private ?string $totpSecret = null;
 
     public function __construct()
