@@ -463,7 +463,16 @@
     "approachingLimit": "Proche de la Limite",
     "withinBudget": "Dans le Budget",
     "noLimit": "Aucune limite de budget configuree",
-    "refresh": "Rafraichir"
+    "refresh": "Rafraichir",
+    "loading": "Chargement des couts LLM...",
+    "failedLoad": "Echec du chargement des couts LLM.",
+    "killSwitch": {
+      "activeBanner": "Kill switch ACTIF — toutes les reponses automatiques sont suspendues.",
+      "activate": "Activer le kill switch",
+      "deactivate": "Desactiver le kill switch",
+      "confirmActivate": "Activer le kill switch ? Toute generation automatique de reponse sera suspendue jusqu'a ce que vous le desactiviez.",
+      "confirmDeactivate": "Desactiver le kill switch et reprendre la generation automatique de reponses ?"
+    }
   },
   "impact": {
     "title": "Impact & Intelligence",

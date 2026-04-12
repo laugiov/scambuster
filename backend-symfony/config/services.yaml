@@ -55,17 +55,18 @@ services:
         autowire: true
         autoconfigure: true
 
-    App\UI\Http\Internal\MailAccountSecretController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
+    # Spec 065c — App\UI\Http\Internal\MailAccountSecretController removed
+    # along with the rest of the Vault dead code (n8n holds the IMAP
+    # credentials internally since the 2026-03-31 migration).
 
     App\UI\Http\Auth\LoginController:
         public: true
         tags: ['controller.service_arguments']
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065e — per-email brute-force rate limiter
+            $loginEmailLimiter: '@limiter.login_email'
 
     App\UI\Http\Auth\LogoutController:
         public: true
@@ -128,6 +129,9 @@ services:
         tags: ['controller.service_arguments']
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065c — per-account ingest rate limiter
+            $ingestPerAccountLimiter: '@limiter.ingest_per_account'
 
     App\UI\Http\Communication\ReplyController:
         public: true
@@ -197,8 +201,14 @@ services:
 
     login_ip.limiter:
         alias: 'limiter.login_ip'
+    # Spec 065e — per-email login rate limiter
+    login_email.limiter:
+        alias: 'limiter.login_email'
     api_global.limiter:
         alias: 'limiter.api_global'
+    # Spec 065c — per-account ingest rate limiter
+    ingest_per_account.limiter:
+        alias: 'limiter.ingest_per_account'
 
     App\EventListener\Communication\UpdateConversationTsLastListener:
         autowire: true
@@ -313,6 +323,9 @@ services:
     App\Application\Communication\ReplyCadenceService:
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065b — Redis-backed runtime kill switch
+            $killSwitchCache: '@cache.app'
 
     App\Application\Communication\ReplyCompositionService:
         autowire: true
@@ -321,7 +334,42 @@ services:
     App\Application\Communication\ReplyHandler:
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065b — wire the budget enforcement mode
+            $budgetEnforcementMode: '%llm.budget_enforcement_mode%'
     ###< Scambaiting Adaptatif - Application Layer ###
+
+    ###> Spec 065b — LLM cost guard ###
+    App\Application\Monitoring\BudgetThresholdNotifier:
+        arguments:
+            $costHandler: '@App\Application\Monitoring\LlmCostHandler'
+            $auditLogger: '@App\Application\Audit\AuditLogger'
+            $cache: '@cache.app'
+            $logger: '@logger'
+
+    App\Command\CheckLlmBudgetCommand:
+        arguments:
+            $notifier: '@App\Application\Monitoring\BudgetThresholdNotifier'
+        tags:
+            - { name: console.command }
+
+    App\UI\Http\Admin\AdminLlmKillSwitchController:
+        autowire: true
+        arguments:
+            $cache: '@cache.app'
+            $auditLogger: '@App\Application\Audit\AuditLogger'
+        tags: ['controller.service_arguments']
+    ###< Spec 065b ###
+
+    ###> Spec 065f — Audit HMAC chain ###
+    App\Application\Audit\AuditHmacChainer:
+        arguments:
+            $hmacKeyHex: '%env(AUDIT_HMAC_KEY)%'
+
+    App\Application\Audit\AuditLogger:
+        arguments:
+            $hmacChainer: '@App\Application\Audit\AuditHmacChainer'
+    ###< Spec 065f ###
 
     ###> Preprod Conversation Generator ###
     App\Application\Meta\ConfigHandler:

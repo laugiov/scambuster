@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\UI\Http\Communication;
 
 use App\Application\Communication\ReplyHandler;
+use App\Domain\LLM\Exception\LlmBudgetExceededException;
 use App\UI\Http\Dto\ConversationContextResponseDto;
 use App\UI\Http\Dto\ReplyComposeResponseDto;
 use App\UI\Http\Dto\ReplyDetailResponseDto;
@@ -135,6 +136,24 @@ final class ReplyController
             );
 
             return new JsonResponse($dto->toArray(), Response::HTTP_CREATED);
+        } catch (LlmBudgetExceededException $e) {
+            // Spec 065b — LLM monthly budget exhausted. Return HTTP 503
+            // with a Retry-After header pointing to the next month rollover
+            // so HTTP clients can resume automatically.
+            $retryAfterSeconds = max(0, $e->resetAt->getTimestamp() - time());
+            $response = new JsonResponse(
+                [
+                    'error' => 'LLM monthly budget exceeded',
+                    'code' => 'BUDGET_EXCEEDED',
+                    'current_usd' => $e->currentUsdSpent,
+                    'limit_usd' => $e->monthlyLimitUsd,
+                    'reset_at' => $e->resetAt->format(\DateTimeInterface::ATOM),
+                ],
+                Response::HTTP_SERVICE_UNAVAILABLE
+            );
+            $response->headers->set('Retry-After', (string) $retryAfterSeconds);
+
+            return $response;
         } catch (\RuntimeException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
         }

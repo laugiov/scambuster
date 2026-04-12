@@ -5,22 +5,26 @@ declare(strict_types=1);
 namespace App\Domain\User;
 
 use Doctrine\ORM\Mapping as ORM;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
+use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'app_users')]
-class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface
 {
     // --- PK ---
     #[ORM\Id]
     #[ORM\Column(type: 'uuid')]
     private Uuid $id;
 
-    // We force the physical name to match the database
-    #[ORM\Column(name: 'tenant_id', type: 'uuid')]
-    private Uuid $tenantId;
+    // Spec 065g — `tenant_id` column dropped. The previous `tenantId`
+    // field was decoration only (random UUID per User, never filtered
+    // by any repository). If a future spec re-introduces real
+    // multi-tenancy, see Phase 7.8 of `docs/06_roadmap.md`.
 
     #[ORM\Column(length: 255, unique: true)]
     private string $email = '';
@@ -37,23 +41,21 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'json', options: ['default' => '[]'])]
     private array $permissions = [];
 
-    #[ORM\Column(name: 'totp_secret', type: 'string', length: 255, nullable: true)]
+    // Spec 065e — totp_secret is transparently encrypted at rest via
+    // the EncryptedStringType custom Doctrine type (libsodium secretbox,
+    // keyed by TOTP_ENCRYPTION_KEY env var). See docs/runbooks/totp-key-rotation.md.
+    #[ORM\Column(name: 'totp_secret', type: 'encrypted_string', nullable: true)]
     private ?string $totpSecret = null;
 
     public function __construct()
     {
-        $this->id       = Uuid::v4();
-        $this->tenantId = Uuid::v4();      // dummy value for tests
+        $this->id = Uuid::v4();
     }
 
     // --- Getters / setters ---
     public function getId(): Uuid
     {
         return $this->id;
-    }
-    public function getTenantId(): Uuid
-    {
-        return $this->tenantId;
     }
     public function getEmail(): string
     {
@@ -132,6 +134,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isTotpEnabled(): bool
     {
         return $this->totpSecret !== null;
+    }
+
+    // --- Scheb TwoFactorInterface (Spec 065e) ---
+    public function isTotpAuthenticationEnabled(): bool
+    {
+        return $this->totpSecret !== null;
+    }
+
+    public function getTotpAuthenticationUsername(): string
+    {
+        return $this->email;
+    }
+
+    public function getTotpAuthenticationConfiguration(): ?TotpConfigurationInterface
+    {
+        if ($this->totpSecret === null) {
+            return null;
+        }
+
+        // The secret is stored encrypted (EncryptedStringType), but by the
+        // time Doctrine hydrates it, it is already decrypted to the original
+        // base32 string. Scheb expects base32 input.
+        return new TotpConfiguration(
+            $this->totpSecret,
+            TotpConfiguration::ALGORITHM_SHA1,
+            30,
+            6,
+        );
     }
 
     // --- UserInterface ---

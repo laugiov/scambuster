@@ -60,6 +60,13 @@ class AuditLog
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
+    // Spec 065f — HMAC chain for tamper-evident audit log
+    #[ORM\Column(name: 'prev_hmac', type: 'binary', nullable: true)]
+    private ?string $prevHmac = null;
+
+    #[ORM\Column(name: 'row_hmac', type: 'binary', nullable: true)]
+    private ?string $rowHmac = null;
+
     /**
      * @param array<string, mixed> $details
      */
@@ -147,6 +154,64 @@ class AuditLog
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;
+    }
+
+    // --- Spec 065f HMAC chain ---
+    public function getPrevHmac(): ?string
+    {
+        if (is_resource($this->prevHmac)) {
+            return stream_get_contents($this->prevHmac) ?: null;
+        }
+
+        return $this->prevHmac;
+    }
+
+    public function setPrevHmac(?string $prevHmac): void
+    {
+        $this->prevHmac = $prevHmac;
+    }
+
+    public function getRowHmac(): ?string
+    {
+        if (is_resource($this->rowHmac)) {
+            return stream_get_contents($this->rowHmac) ?: null;
+        }
+
+        return $this->rowHmac;
+    }
+
+    public function setRowHmac(?string $rowHmac): void
+    {
+        $this->rowHmac = $rowHmac;
+    }
+
+    /**
+     * Returns the canonical row fields used for HMAC computation.
+     * Does NOT include prev_hmac and row_hmac themselves.
+     *
+     * @return array<string, mixed>
+     */
+    public function toCanonicalRow(): array
+    {
+        // Note: `id` is intentionally EXCLUDED because it is auto-generated
+        // and not yet assigned when AuditLogger computes the HMAC (before
+        // em->flush()). Including it would cause a mismatch between the
+        // HMAC computed at write time (id=0) and the HMAC recomputed at
+        // verify time (id=real). The chain integrity comes from the content
+        // fields, not the sequential ID.
+        return [
+            'event_type' => $this->eventType,
+            'actor_type' => $this->actorType,
+            'actor_id' => $this->actorId,
+            'resource_type' => $this->resourceType,
+            'resource_id' => $this->resourceId,
+            'action' => $this->action,
+            'outcome' => $this->outcome,
+            'details' => $this->details,
+            'ip_address' => $this->ipAddress,
+            'trace_id' => $this->traceId,
+            'created_at' => $this->createdAt->format(\DateTimeInterface::ATOM),
+        ];
     }
 
     /** @return array<string, mixed> */

@@ -8,27 +8,39 @@ use App\Domain\Communication\Channel;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
+use App\Domain\Communication\Policy\IocExtractionPolicy;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Spec 061 — Sprint 1 — Task 1.1
+ * Spec 061 — Sprint 1 — Task 1.1 (updated by Spec 065h)
  *
- * Domain helper Message::canExtractIocs() must return true only when the
- * message direction is 'in' (incoming, scammer-controlled). Outgoing messages
- * are produced by ScamBuster and must never feed the IOC extraction pipeline.
+ * IocExtractionPolicy::allows() must return true only when the
+ * message direction is 'in' (incoming, scammer-controlled). Outgoing
+ * messages are produced by ScamBuster and must never feed the IOC
+ * extraction pipeline.
+ *
+ * Previously tested via Message::canExtractIocs() which was extracted
+ * to IocExtractionPolicy in Spec 065h (god classes decomposition).
  */
 final class MessageCanExtractIocsTest extends TestCase
 {
+    private IocExtractionPolicy $policy;
+
+    protected function setUp(): void
+    {
+        $this->policy = new IocExtractionPolicy();
+    }
+
     public function testReturnsTrueForIncomingMessage(): void
     {
         $message = $this->buildMessageWithDirection('in');
-        $this->assertTrue($message->canExtractIocs());
+        $this->assertTrue($this->policy->allows($message));
     }
 
     public function testReturnsFalseForOutgoingMessage(): void
     {
         $message = $this->buildMessageWithDirection('out');
-        $this->assertFalse($message->canExtractIocs());
+        $this->assertFalse($this->policy->allows($message));
     }
 
     private function buildMessageWithDirection(string $directionCode): Message

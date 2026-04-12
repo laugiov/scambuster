@@ -6,7 +6,15 @@ parameters:
     llm.api_key: '%env(LLM_API_KEY)%'
     ollama.default_url: 'http://localhost:11434'
     anthropic.default_key: ''
-    llm.max_cost_usd_month: 50.0
+    # Spec 065b — env-overridable monthly LLM budget cap (USD).
+    # Default 50 USD. Operators raise via LLM_MAX_COST_USD_MONTH env var.
+    llm.max_cost_usd_month: '%env(default:llm_default_max_cost:float:LLM_MAX_COST_USD_MONTH)%'
+    llm_default_max_cost: 50.0
+    # Spec 065b — budget enforcement mode: 'warning' or 'enforce'.
+    # 'warning' = log a warning when budget exceeded, allow the call (telemetry validation window)
+    # 'enforce' = throw LlmBudgetExceededException → HTTP 503
+    llm.budget_enforcement_mode: '%env(default:llm_default_enforcement_mode:LLM_BUDGET_ENFORCEMENT_MODE)%'
+    llm_default_enforcement_mode: 'warning'
 
     # Validation settings
     llm.validation_enabled: '%env(bool:LLM_VALIDATION_ENABLED)%'
@@ -121,6 +129,12 @@ services:
             $promptBuilder: '@App\Application\LLM\PromptBuilder'
             $logger: '@monolog.logger.llm'
 
+    # Spec 065d — Application - OperationalLeakageDetector (second LLM judge)
+    App\Application\LLM\OperationalLeakageDetector:
+        arguments:
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $logger: '@monolog.logger.llm'
+
     # Application - ReplyOrchestrator
     App\Application\LLM\ReplyOrchestrator:
         arguments:
@@ -131,6 +145,9 @@ services:
             $iocScorer: '@App\Application\LLM\IOCLikelihoodScorer'
             $logger: '@monolog.logger.llm'
             $iocThreshold: 60
+            # Spec 065d — wire the leak detector + audit logger
+            $leakDetector: '@App\Application\LLM\OperationalLeakageDetector'
+            $auditLogger: '@App\Application\Audit\AuditLogger'
 
     # Application - JsonValidator (validates LLM JSON responses)
     App\Application\LLM\JsonValidator:

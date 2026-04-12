@@ -12,6 +12,19 @@
 # with docker-compose.yml when both exist.
 
 services:
+  # Spec 065c — Re-expose Redis to the host for GUI debugging tools
+  # (Medis, RDM, redis-cli from host). The default compose file leaves
+  # Redis on the internal network only for security.
+  # redis:
+  #   ports:
+  #     - "6379:6379"
+
+  # Spec 065c — Re-expose Postgres to the host for psql / pgAdmin.
+  # The default compose file leaves Postgres internal-only.
+  # postgres:
+  #   ports:
+  #     - "5432:5432"
+
   # Example: change backend-dev exposed port
   # backend-dev:
   #   ports:
