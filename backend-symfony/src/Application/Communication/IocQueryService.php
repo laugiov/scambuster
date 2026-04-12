@@ -133,7 +133,7 @@ class IocQueryService
                 'value_norm' => $context['value_norm'] ?? '',
                 'score' => $scoreArr,
                 'category' => $displayCategory,
-                'ts_observed' => $row['ts_observed'],
+                'ts_observed' => $this->normalizeTimestamp($row['ts_observed']),
                 'confidence' => round($confidenceRaw, 4),
                 'decay_factor' => round($decayFactor, 4),
                 'effective_score' => $effectiveScore,
@@ -258,7 +258,7 @@ class IocQueryService
                 'conv_status' => is_string($obs['conv_status']) ? $obs['conv_status'] : 'unknown',
                 'conv_scam_type' => is_string($obs['scam_type_code']) ? $obs['scam_type_code'] : 'unknown',
                 'extraction_method' => $extractionMethod,
-                'ts_observed' => $obs['ts_observed'],
+                'ts_observed' => $this->normalizeTimestamp($obs['ts_observed']),
             ];
         }
 
@@ -453,5 +453,26 @@ class IocQueryService
             'decay_factor' => round($decayFactor, 4),
             'effective_score' => $effectiveScore,
         ];
+    }
+
+    /**
+     * Normalize a PG timestamp (Y-m-d H:i:s without TZ) to ISO 8601 with
+     * UTC timezone indicator so the frontend converts to local time correctly.
+     */
+    private function normalizeTimestamp(mixed $raw): string
+    {
+        if (!is_string($raw) || $raw === '') {
+            return '';
+        }
+
+        if (str_contains($raw, '+') || str_ends_with($raw, 'Z')) {
+            return $raw; // already has timezone
+        }
+
+        try {
+            return (new \DateTimeImmutable($raw, new \DateTimeZone('UTC')))->format(\DateTimeInterface::ATOM);
+        } catch (\Exception) {
+            return $raw;
+        }
     }
 }
