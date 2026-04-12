@@ -86,8 +86,8 @@ final class AuditLogger
                 traceId: $traceId
             );
 
-            // Spec 065f — Compute HMAC chain before persist
-            if ($this->hmacChainer !== null) {
+            // Spec 065f — Compute HMAC chain before persist (only if key is configured)
+            if ($this->hmacChainer !== null && $this->hmacChainer->isEnabled()) {
                 $this->computeHmacChain($entry);
             }
 
