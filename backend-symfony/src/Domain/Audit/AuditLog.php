@@ -193,8 +193,13 @@ class AuditLog
      */
     public function toCanonicalRow(): array
     {
+        // Note: `id` is intentionally EXCLUDED because it is auto-generated
+        // and not yet assigned when AuditLogger computes the HMAC (before
+        // em->flush()). Including it would cause a mismatch between the
+        // HMAC computed at write time (id=0) and the HMAC recomputed at
+        // verify time (id=real). The chain integrity comes from the content
+        // fields, not the sequential ID.
         return [
-            'id' => $this->id,
             'event_type' => $this->eventType,
             'actor_type' => $this->actorType,
             'actor_id' => $this->actorId,
