@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Console;
 
-use Doctrine\ORM\EntityManagerInterface;
+use App\Application\Meta\PreprodClearService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -19,7 +19,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class PreprodClearConversationsCommand extends Command
 {
     public function __construct(
-        private readonly EntityManagerInterface $em
+        private readonly PreprodClearService $clearService,
     ) {
         parent::__construct();
     }
@@ -48,13 +48,9 @@ class PreprodClearConversationsCommand extends Command
             return Command::FAILURE;
         }
 
-        // Compter les conversations existantes
-        /** @var int|string|false $rawConv */
-        $rawConv = $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM conversation');
-        $countConv = (int) $rawConv;
-        /** @var int|string|false $rawMsg */
-        $rawMsg = $this->em->getConnection()->fetchOne('SELECT COUNT(*) FROM message');
-        $countMsg = (int) $rawMsg;
+        $counts = $this->clearService->countExistingData();
+        $countConv = $counts['conversations'];
+        $countMsg = $counts['messages'];
 
         if ($countConv === 0) {
             $io->success('Aucune conversation à supprimer');
@@ -62,7 +58,7 @@ class PreprodClearConversationsCommand extends Command
             return Command::SUCCESS;
         }
 
-        $io->section('📊 État actuel de la base preprod');
+        $io->section('État actuel de la base preprod');
         $io->table(
             ['Métrique', 'Valeur'],
             [
@@ -80,19 +76,10 @@ class PreprodClearConversationsCommand extends Command
             }
         }
 
-        $io->section('🗑️  Suppression en cours');
+        $io->section('Suppression en cours');
 
         try {
-            // Supprimer les messages (CASCADE supprimera aussi les relations)
-            $this->em->getConnection()->executeStatement('TRUNCATE TABLE message CASCADE');
-
-            // Supprimer les conversations
-            $this->em->getConnection()->executeStatement('TRUNCATE TABLE conversation CASCADE');
-
-            // Supprimer les MailAccounts preprod si présents
-            $this->em->getConnection()->executeStatement(
-                "DELETE FROM mail_account WHERE endpoint LIKE '%preprod%'"
-            );
+            $this->clearService->clearAll();
 
             $io->success(sprintf(
                 'Base preprod nettoyée: %d conversations et %d messages supprimés',

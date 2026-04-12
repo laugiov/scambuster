@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Command;
 
-use App\Command\BanditDailyReportCommand;
+use App\UI\Console\BanditDailyReportCommand;
 use App\Domain\Scambaiting\BanditConvergenceLog;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;

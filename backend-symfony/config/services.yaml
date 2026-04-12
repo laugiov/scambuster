@@ -37,6 +37,18 @@ services:
         resource: '../src/Security'
         tags: ['controller.service_arguments']
 
+    # Spec 066c — UserTotpChecker port binding
+    App\Application\Auth\Port\UserTotpCheckerInterface:
+        class: App\Infrastructure\Auth\DoctrineUserTotpChecker
+
+    # Spec 066d — Domain repository port bindings
+    App\Domain\Communication\Repository\MailAccountRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineMailAccountRepository
+    App\Domain\Communication\Repository\ChannelRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineChannelRepository
+    App\Domain\Communication\Repository\DirectionRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineDirectionRepository
+
     App\UI\Http\Auth\CsrfTokenController:
         public: true
         tags: ['controller.service_arguments']
@@ -347,13 +359,19 @@ services:
             $cache: '@cache.app'
             $logger: '@logger'
 
-    App\Command\CheckLlmBudgetCommand:
+    App\UI\Console\CheckLlmBudgetCommand:
         arguments:
             $notifier: '@App\Application\Monitoring\BudgetThresholdNotifier'
         tags:
             - { name: console.command }
 
-    App\UI\Http\Admin\AdminLlmKillSwitchController:
+    App\UI\Http\Admin\GetLlmKillSwitchStateController:
+        autowire: true
+        arguments:
+            $cache: '@cache.app'
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Admin\ToggleLlmKillSwitchController:
         autowire: true
         arguments:
             $cache: '@cache.app'
