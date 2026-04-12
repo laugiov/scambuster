@@ -364,7 +364,9 @@ services:
     ###> Spec 065f — Audit HMAC chain ###
     App\Application\Audit\AuditHmacChainer:
         arguments:
-            $hmacKeyHex: '%env(AUDIT_HMAC_KEY)%'
+            # default: empty string → chainer will be disabled (no HMAC chain)
+            # Operators MUST set AUDIT_HMAC_KEY for tamper-evident audit logs
+            $hmacKeyHex: '%env(default::AUDIT_HMAC_KEY)%'
 
     App\Application\Audit\AuditLogger:
         arguments:
