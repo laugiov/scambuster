@@ -64,6 +64,9 @@ services:
         tags: ['controller.service_arguments']
         autowire: true
         autoconfigure: true
+        arguments:
+            # Spec 065e — per-email brute-force rate limiter
+            $loginEmailLimiter: '@limiter.login_email'
 
     App\UI\Http\Auth\LogoutController:
         public: true
@@ -198,6 +201,9 @@ services:
 
     login_ip.limiter:
         alias: 'limiter.login_ip'
+    # Spec 065e — per-email login rate limiter
+    login_email.limiter:
+        alias: 'limiter.login_email'
     api_global.limiter:
         alias: 'limiter.api_global'
     # Spec 065c — per-account ingest rate limiter

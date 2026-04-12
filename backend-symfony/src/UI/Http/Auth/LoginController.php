@@ -71,6 +71,8 @@ final class LoginController
         private readonly EntityManagerInterface $em,
         private ValidatorInterface $validator,
         private SerializerInterface $serializer,
+        // Spec 065e — per-email brute-force rate limiter
+        private readonly ?RateLimiterFactory $loginEmailLimiter = null,
     ) {
     }
 
@@ -108,6 +110,33 @@ final class LoginController
 
         if (count($errors) > 0) {
             return new JsonResponse(['message' => (string) $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Spec 065e — Per-email rate limit. Complements the per-IP limiter
+        // above: a distributed attacker on a VPN/botnet rotating IPs but
+        // targeting the same email is throttled at the email level.
+        if ($this->loginEmailLimiter !== null) {
+            $emailKey = strtolower(trim($dto->email));
+            $emailLimiter = $this->loginEmailLimiter->create($emailKey);
+            $emailLimit = $emailLimiter->consume(1);
+
+            if (!$emailLimit->isAccepted()) {
+                $this->auditLogger->log(
+                    eventType: AuditEventType::AUTH_BRUTE_FORCE_DETECTED,
+                    actorId: $emailKey,
+                    action: 'login',
+                    outcome: 'blocked',
+                    details: ['limiter' => 'login_email'],
+                    ipAddress: $request->getClientIp(),
+                );
+
+                $retryAfter = max(1, $emailLimit->getRetryAfter()->getTimestamp() - time());
+
+                return new JsonResponse(
+                    ['error' => 'too_many_attempts', 'retry_after' => $retryAfter],
+                    Response::HTTP_TOO_MANY_REQUESTS,
+                );
+            }
         }
 
         try {
@@ -149,8 +178,11 @@ final class LoginController
             ], Response::HTTP_OK);
         }
 
-        // Successful login: reset limiter
+        // Successful login: reset both limiters
         $limiter->reset();
+        if ($this->loginEmailLimiter !== null) {
+            $this->loginEmailLimiter->create(strtolower(trim($dto->email)))->reset();
+        }
 
         $this->auditLogger->log(
             eventType: AuditEventType::AUTH_SUCCESS,
