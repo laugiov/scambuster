@@ -70,10 +70,16 @@ final class AuditHmacChainerTest extends TestCase
         $this->assertSame(32, strlen($hmac));
     }
 
-    public function test_constructor_throws_on_invalid_key_length(): void
+    public function test_invalid_key_disables_chainer(): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('AUDIT_HMAC_KEY');
-        new AuditHmacChainer('too-short');
+        $chainer = new AuditHmacChainer('too-short');
+        $this->assertFalse($chainer->isEnabled());
+        $this->assertSame('', $chainer->compute('', ['event' => 'test']));
+    }
+
+    public function test_empty_key_disables_chainer(): void
+    {
+        $chainer = new AuditHmacChainer('');
+        $this->assertFalse($chainer->isEnabled());
     }
 }
