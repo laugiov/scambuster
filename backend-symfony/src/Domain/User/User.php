@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace App\Domain\User;
 
 use Doctrine\ORM\Mapping as ORM;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
+use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
+use Scheb\TwoFactorBundle\Model\Totp\TwoFactorInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Uid\Uuid;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[ORM\Table(name: 'app_users')]
-class User implements UserInterface, PasswordAuthenticatedUserInterface
+class User implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface
 {
     // --- PK ---
     #[ORM\Id]
@@ -131,6 +134,34 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function isTotpEnabled(): bool
     {
         return $this->totpSecret !== null;
+    }
+
+    // --- Scheb TwoFactorInterface (Spec 065e) ---
+    public function isTotpAuthenticationEnabled(): bool
+    {
+        return $this->totpSecret !== null;
+    }
+
+    public function getTotpAuthenticationUsername(): string
+    {
+        return $this->email;
+    }
+
+    public function getTotpAuthenticationConfiguration(): ?TotpConfigurationInterface
+    {
+        if ($this->totpSecret === null) {
+            return null;
+        }
+
+        // The secret is stored encrypted (EncryptedStringType), but by the
+        // time Doctrine hydrates it, it is already decrypted to the original
+        // base32 string. Scheb expects base32 input.
+        return new TotpConfiguration(
+            $this->totpSecret,
+            TotpConfiguration::ALGORITHM_SHA1,
+            30,
+            6,
+        );
     }
 
     // --- UserInterface ---
