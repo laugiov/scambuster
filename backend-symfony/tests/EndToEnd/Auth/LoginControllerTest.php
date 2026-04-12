@@ -12,7 +12,7 @@ use Symfony\Component\HttpFoundation\Response;
  * Integration tests for LoginController.
  *
  * Note: Basic login success/failure tests already exist in
- * App\Tests\Integration\Auth\LoginSuccessTest and LoginFailureTest.
+ * App\Tests\EndToEnd\Auth\LoginSuccessTest and LoginFailureTest.
  * These tests focus on response structure and content-type validation.
  */
 final class LoginControllerTest extends WebTestCase

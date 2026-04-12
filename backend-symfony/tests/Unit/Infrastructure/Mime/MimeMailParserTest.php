@@ -7,7 +7,7 @@ namespace App\Tests\Integration\Communication;
 use PHPUnit\Framework\TestCase;
 use eXorus\PhpMimeMailParser\Parser;
 
-class MimeMailParserIntegrationTest extends TestCase
+class MimeMailParserTest extends TestCase
 {
     public function test_parse_headers_and_body(): void
     {

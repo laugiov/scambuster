@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Tests\Integration\Auth;
+namespace App\Tests\EndToEnd\Auth;
 
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 

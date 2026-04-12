@@ -10,7 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Integration tests for RefreshController response structure.
- * Full refresh flow is tested in App\Tests\Integration\Auth\RefreshToken.
+ * Full refresh flow is tested in App\Tests\EndToEnd\Auth\RefreshToken.
  */
 final class RefreshControllerTest extends WebTestCase
 {
