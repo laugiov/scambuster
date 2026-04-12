@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace App\UI\Console;
 
 use App\Application\Communication\PromptInjectionDetector;
-use App\Domain\Communication\Message;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Application\Communication\PromptInjectionQueryService;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,7 +20,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class DetectPromptInjectionCommand extends Command
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly PromptInjectionQueryService $queryService,
         private readonly PromptInjectionDetector $detector,
     ) {
         parent::__construct();
@@ -40,38 +39,18 @@ class DetectPromptInjectionCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        /** @var string|null $conversationId */
         $conversationId = $input->getOption('conversation');
-        $dryRun = $input->getOption('dry-run');
-        $force = $input->getOption('force');
-        $patternOnly = $input->getOption('pattern-only');
+        $dryRun = (bool) $input->getOption('dry-run');
+        $force = (bool) $input->getOption('force');
+        $patternOnly = (bool) $input->getOption('pattern-only');
         /** @var string $limitOption */
         $limitOption = $input->getOption('limit');
         $limit = (int) $limitOption;
 
         $io->title('Prompt Injection Detection -- Forensic Analysis');
 
-        // Build query for inbound messages
-        $qb = $this->em->getRepository(Message::class)->createQueryBuilder('m')
-            ->join('m.direction', 'd')
-            ->where("d.code = 'in'")
-            ->orderBy('m.tsMsg', 'ASC');
-
-        if ($conversationId !== null) {
-            $qb->join('m.conversation', 'c')
-                ->andWhere('c.convId = :convId')
-                ->setParameter('convId', $conversationId);
-        }
-
-        if (!$force) {
-            $qb->andWhere('m.injectionAnalysis IS NULL');
-        }
-
-        if ($limit > 0) {
-            $qb->setMaxResults($limit);
-        }
-
-        /** @var Message[] $messages */
-        $messages = $qb->getQuery()->getResult();
+        $messages = $this->queryService->findMessagesForAnalysis($conversationId, $force, $limit);
 
         if (empty($messages)) {
             $io->success('No messages to analyze.');
@@ -150,7 +129,7 @@ class DetectPromptInjectionCommand extends Command
         }
 
         if (!$dryRun) {
-            $this->em->flush();
+            $this->queryService->flush();
         }
 
         $progressBar->finish();
