@@ -7,9 +7,8 @@ namespace App\UI\Http\Auth;
 use App\Application\Audit\AuditLogger;
 use App\Application\Auth\AuthServiceInterface;
 use App\Application\Auth\Dto\LoginRequestDto;
+use App\Application\Auth\Port\UserTotpCheckerInterface;
 use App\Domain\Audit\AuditEventType;
-use App\Domain\User\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -68,7 +67,7 @@ final class LoginController
         private readonly AuthServiceInterface $handler,
         private readonly AuditLogger $auditLogger,
         private readonly RateLimiterFactory $loginIpLimiter,
-        private readonly EntityManagerInterface $em,
+        private readonly UserTotpCheckerInterface $totpChecker,
         private ValidatorInterface $validator,
         private SerializerInterface $serializer,
         // Spec 065e — per-email brute-force rate limiter
@@ -154,16 +153,8 @@ final class LoginController
             return new JsonResponse(['message' => strtolower($e->getMessage())], Response::HTTP_UNAUTHORIZED);
         }
 
-        // Check if 2FA is required (only for real DB users with TOTP enabled)
-        // Wrapped in try-catch: if the DB query fails (e.g., migration not yet run),
-        // we gracefully skip the 2FA check and proceed with normal login.
-        try {
-            $user = $this->em->getRepository(User::class)->findOneBy(['email' => $dto->email]);
-        } catch (\Throwable) {
-            $user = null;
-        }
-
-        if ($user instanceof User && $user->isTotpEnabled()) {
+        // Check if 2FA is required (delegates to UserTotpChecker port)
+        if ($this->totpChecker->isTotpRequired($dto->email)) {
             $this->auditLogger->log(
                 eventType: AuditEventType::AUTH_SUCCESS,
                 actorId: $dto->email,

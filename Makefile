@@ -176,7 +176,7 @@ clean-db-complete: ##@migration Destroy & recreate dev + test DBs from scratch
 # ======================================================================
 test:          ##@test Load fixtures then run only integration and unit PHPUnit tests
 	$(MAKE) fixtures
-	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,unit
+	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,functional,unit
 
 stan:       ##@test Run PHPStan static analysis
 	$(DC) exec $(PHP_CONTAINER_DEV) vendor/bin/phpstan analyse src --memory-limit=512M
@@ -368,7 +368,7 @@ endToEndTestOne: ##@test Run a single E2E test (q=filter)
 
 testOne: ##@test Run a single integration/unit test (q=filter)
 	$(MAKE) fixtures
-	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,unit --filter $(q)
+	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,functional,unit --filter $(q)
 
 # ======================================================================
 #  DÉCLARATION .PHONY
