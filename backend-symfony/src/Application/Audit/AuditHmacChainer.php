@@ -17,34 +17,51 @@ namespace App\Application\Audit;
  * The key is read from the `AUDIT_HMAC_KEY` env var (64 hex chars
  * = 32 bytes) at construction time.
  *
- * Thread safety: stateless after construction. Safe to use from
- * multiple AuditLogger calls in the same request.
+ * Graceful degradation: if the key is empty or invalid, the chainer
+ * is disabled — compute() returns '' and isEnabled() returns false.
+ * This prevents Railway and other deployments without AUDIT_HMAC_KEY
+ * from crashing on login (the AUTH events are blocking in AuditLogger).
+ *
+ * Thread safety: stateless after construction.
  */
 final class AuditHmacChainer
 {
-    private readonly string $key;
+    private readonly ?string $key;
+    private readonly bool $enabled;
 
-    public function __construct(string $hmacKeyHex)
+    public function __construct(string $hmacKeyHex = '')
     {
-        if (strlen($hmacKeyHex) !== 64 || !ctype_xdigit($hmacKeyHex)) {
-            throw new \RuntimeException(
-                'AUDIT_HMAC_KEY must be 64 hex chars (32 bytes). '
-                . 'Generate with: openssl rand -hex 32',
-            );
+        if ($hmacKeyHex === '' || strlen($hmacKeyHex) !== 64 || !ctype_xdigit($hmacKeyHex)) {
+            $this->key = null;
+            $this->enabled = false;
+
+            return;
         }
         $this->key = (string) hex2bin($hmacKeyHex);
+        $this->enabled = true;
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
     }
 
     /**
      * Compute the HMAC for a new audit row.
      *
+     * Returns '' when the chainer is disabled (no key configured).
+     *
      * @param string               $prevHmacBin  Raw bytes of the previous row's HMAC (or '' for the first row)
      * @param array<string, mixed> $canonicalRow The audit row fields (will be sorted + json-encoded)
      *
-     * @return string Raw bytes of the new HMAC (32 bytes for SHA-256)
+     * @return string Raw bytes of the new HMAC (32 bytes for SHA-256), or '' if disabled
      */
     public function compute(string $prevHmacBin, array $canonicalRow): string
     {
+        if (!$this->enabled || $this->key === null) {
+            return '';
+        }
+
         ksort($canonicalRow);
         $canonical = json_encode($canonicalRow, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
