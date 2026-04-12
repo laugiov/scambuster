@@ -37,6 +37,10 @@ services:
         resource: '../src/Security'
         tags: ['controller.service_arguments']
 
+    # Spec 066c — UserTotpChecker port binding
+    App\Application\Auth\Port\UserTotpCheckerInterface:
+        class: App\Infrastructure\Auth\DoctrineUserTotpChecker
+
     App\UI\Http\Auth\CsrfTokenController:
         public: true
         tags: ['controller.service_arguments']
@@ -353,7 +357,13 @@ services:
         tags:
             - { name: console.command }
 
-    App\UI\Http\Admin\AdminLlmKillSwitchController:
+    App\UI\Http\Admin\GetLlmKillSwitchStateController:
+        autowire: true
+        arguments:
+            $cache: '@cache.app'
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Admin\ToggleLlmKillSwitchController:
         autowire: true
         arguments:
             $cache: '@cache.app'
