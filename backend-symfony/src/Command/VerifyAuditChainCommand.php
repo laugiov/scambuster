@@ -73,8 +73,10 @@ final class VerifyAuditChainCommand extends Command
                 }
 
                 // Build canonical row (same fields used by AuditHmacChainer)
+                // `id` is excluded because AuditLogger computes the HMAC
+                // before em->flush() when id is still 0 (auto-generated).
                 $canonical = $row;
-                unset($canonical['prev_hmac'], $canonical['row_hmac']);
+                unset($canonical['id'], $canonical['prev_hmac'], $canonical['row_hmac']);
                 // details is JSON string from DB — decode for canonical serialization
                 if (is_string($canonical['details'])) {
                     $canonical['details'] = json_decode($canonical['details'], true) ?? [];
