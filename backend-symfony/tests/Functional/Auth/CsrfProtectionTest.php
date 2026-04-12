@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Tests\EndToEnd\Auth;
+namespace App\Tests\Functional\Auth;
 
 final class CsrfProtectionTest extends AbstractAuthBase
 {

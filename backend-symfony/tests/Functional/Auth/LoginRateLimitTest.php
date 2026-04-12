@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\EndToEnd\Auth;
+namespace App\Tests\Functional\Auth;
 
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
