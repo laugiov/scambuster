@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Command;
 
-use App\Command\CalculateRewardsCommand;
+use App\UI\Console\CalculateRewardsCommand;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationStatus;
 use Doctrine\ORM\EntityManagerInterface;
