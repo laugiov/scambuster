@@ -22,13 +22,6 @@ doctrine:
         enable_lazy_ghost_objects: true
 
         mappings:
-            App:
-                is_bundle: false
-                type: attribute
-                dir: '%kernel.project_dir%/src/Entity'
-                prefix: 'App\Entity'
-                alias: App
-
             Domain:
                 is_bundle: false
                 type: attribute
