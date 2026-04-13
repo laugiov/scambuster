@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\EventListener\Security;
+namespace App\Infrastructure\EventListener\Security;
 
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Symfony\Component\HttpKernel\Event\ResponseEvent;

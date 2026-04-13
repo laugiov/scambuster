@@ -9,7 +9,7 @@ use App\Domain\Audit\AuditEventType;
 use App\Domain\Audit\AuditLog;
 use App\Domain\Audit\SiemEvent;
 use App\Domain\Audit\SiemSeverityMap;
-use App\EventListener\Security\TraceIdListener;
+use App\Infrastructure\EventListener\Security\TraceIdListener;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;

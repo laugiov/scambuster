@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\EventListener\Auth;
+namespace App\Infrastructure\EventListener\Auth;
 
 use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTNotFoundEvent;
 use Symfony\Component\HttpFoundation\JsonResponse;
