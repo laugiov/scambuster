@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\EventListener\Communication;
+namespace App\Infrastructure\EventListener\Communication;
 
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
