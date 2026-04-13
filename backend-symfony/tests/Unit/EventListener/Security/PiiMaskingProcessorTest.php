@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\EventListener\Security;
 
-use App\EventListener\Security\PiiMaskingProcessor;
+use App\Infrastructure\EventListener\Security\PiiMaskingProcessor;
 use Monolog\Level;
 use Monolog\LogRecord;
 use PHPUnit\Framework\TestCase;
