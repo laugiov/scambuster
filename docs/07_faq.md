@@ -219,10 +219,7 @@ The full source code is open-source (MIT License), but the system includes multi
 
 ### Where will this be published?
 
-Target venues for submission (peer review pending, acceptance not guaranteed):
-
-- **ACSAC 2026** (Annual Computer Security Applications Conference)
-- **NDSS 2027** (Network and Distributed System Security Symposium)
+Publication in peer-reviewed venues is planned. Details will be announced after acceptance.
 
 ### Will there be a public dataset?
 
@@ -243,7 +240,7 @@ Yes. In progress (Q1 2026):
            for Automated Threat Intelligence Extraction},
   school = {E-MSc Cybersecurity},
   year = {2025},
-  note = {Target venues: ACSAC 2026, NDSS 2027}
+  note = {E-MSc Cybersecurity thesis}
 }
 ```
 
