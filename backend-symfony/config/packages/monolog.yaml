@@ -4,10 +4,10 @@ monolog:
         - scambaiting # Scambaiting Adaptatif logs
 
 services:
-    App\EventListener\Security\TraceIdProcessor:
+    App\Infrastructure\EventListener\Security\TraceIdProcessor:
         tags:
             - { name: monolog.processor }
-    App\EventListener\Security\PiiMaskingProcessor:
+    App\Infrastructure\EventListener\Security\PiiMaskingProcessor:
         tags:
             - { name: monolog.processor }
 
