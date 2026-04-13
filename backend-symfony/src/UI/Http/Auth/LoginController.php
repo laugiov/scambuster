@@ -171,6 +171,7 @@ final class LoginController
 
         // Successful login: reset both limiters
         $limiter->reset();
+
         if ($this->loginEmailLimiter !== null) {
             $this->loginEmailLimiter->create(strtolower(trim($dto->email)))->reset();
         }

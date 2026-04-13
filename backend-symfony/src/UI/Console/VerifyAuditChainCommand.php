@@ -69,6 +69,7 @@ final class VerifyAuditChainCommand extends Command
                     // Row was inserted before the backfill or has a null hmac
                     $output->writeln(sprintf('<comment>[ID=%d] row_hmac is NULL — skipped</comment>', $row['id']));
                     $verified++;
+
                     continue;
                 }
 
@@ -77,6 +78,7 @@ final class VerifyAuditChainCommand extends Command
                 // before em->flush() when id is still 0 (auto-generated).
                 $canonical = $row;
                 unset($canonical['id'], $canonical['prev_hmac'], $canonical['row_hmac']);
+
                 // details is JSON string from DB — decode for canonical serialization
                 if (is_string($canonical['details'])) {
                     $canonical['details'] = json_decode($canonical['details'], true) ?? [];
