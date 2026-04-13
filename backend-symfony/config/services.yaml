@@ -41,6 +41,10 @@ services:
     App\Application\Auth\Port\UserTotpCheckerInterface:
         class: App\Infrastructure\Auth\DoctrineUserTotpChecker
 
+    # Spec 067a — UserRepository port binding
+    App\Domain\User\Repository\UserRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineUserRepository
+
     # Spec 066d — Domain repository port bindings
     App\Domain\Communication\Repository\MailAccountRepositoryInterface:
         class: App\Infrastructure\Doctrine\Repository\DoctrineMailAccountRepository
@@ -118,24 +122,6 @@ services:
     App\Application\Communication\PurgeService:
         autowire: true
 
-    App\UI\Http\Communication\AttachmentController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
-    App\UI\Http\Communication\MessageController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
-    App\UI\Http\Communication\ConversationController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
     App\UI\Http\Communication\IngestController:
         public: true
         tags: ['controller.service_arguments']
@@ -144,18 +130,6 @@ services:
         arguments:
             # Spec 065c — per-account ingest rate limiter
             $ingestPerAccountLimiter: '@limiter.ingest_per_account'
-
-    App\UI\Http\Communication\ReplyController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
-
-    App\UI\Http\Communication\IocController:
-        public: true
-        tags: ['controller.service_arguments']
-        autowire: true
-        autoconfigure: true
 
     App\UI\Http\Communication\ScamTypeController:
         public: true
