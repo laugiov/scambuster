@@ -55,14 +55,17 @@ class IngestHandler
         } else {
             // Legacy inline fallback (backward compat for tests without the resolver)
             $account = $this->em->getRepository(\App\Domain\Communication\MailAccount::class)->find($dto->account_id);
+
             if (!$account) {
                 throw new \RuntimeException('Unknown account_id');
             }
             $channel = $this->em->getRepository(\App\Domain\Communication\Channel::class)->findOneBy(['code' => $dto->channel ?? 'email']);
+
             if (!$channel) {
                 throw new \RuntimeException('Unknown channel');
             }
             $direction = $this->em->getRepository(\App\Domain\Communication\Direction::class)->findOneBy(['code' => 'in']);
+
             if (!$direction) {
                 throw new \RuntimeException('Unknown direction');
             }

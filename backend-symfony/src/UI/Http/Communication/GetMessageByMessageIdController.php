@@ -4,13 +4,10 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Communication;
 
-use App\Application\Communication\IocHandler;
 use App\Application\Communication\MessageHandler;
-use App\Domain\Communication\Policy\IocExtractionPolicy;
 use App\UI\Http\Dto\MessageResponseDto;
 use Nelmio\ApiDocBundle\Attribute\Model;
 use OpenApi\Attributes as OA;
-use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
