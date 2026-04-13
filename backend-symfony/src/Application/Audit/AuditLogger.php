@@ -165,6 +165,7 @@ final class AuditLogger
         );
 
         $prevHmacBin = '';
+
         if ($latestHmac !== false) {
             $prevHmacBin = is_resource($latestHmac) ? (stream_get_contents($latestHmac) ?: '') : (is_string($latestHmac) ? $latestHmac : '');
         }

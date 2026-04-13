@@ -115,7 +115,11 @@ final class RetryCoordinator
                     $result = $this->buildFallbackResponse(
                         $policyResult['flags'],
                         ['PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts'],
-                        $personaCode, $attempt, $dialogue, $detectedLanguage, $messageCount,
+                        $personaCode,
+                        $attempt,
+                        $dialogue,
+                        $detectedLanguage,
+                        $messageCount,
                     );
                     $result['pipeline_trace'] = $trace->toArray();
 
@@ -151,7 +155,11 @@ final class RetryCoordinator
                         $result = $this->buildFallbackResponse(
                             ['operational_leak_detected'],
                             ['LLM leak detector rejected all ' . self::MAX_ATTEMPTS . ' attempts'],
-                            $personaCode, $attempt, $dialogue, $detectedLanguage, $messageCount,
+                            $personaCode,
+                            $attempt,
+                            $dialogue,
+                            $detectedLanguage,
+                            $messageCount,
                         );
                         $result['pipeline_trace'] = $trace->toArray();
 
@@ -248,8 +256,13 @@ final class RetryCoordinator
         $trace->attempts = self::MAX_ATTEMPTS;
         $trace->fallbackUsed = true;
         $result = $this->buildFallbackResponse(
-            [], ['All attempts failed'], $personaCode,
-            self::MAX_ATTEMPTS, $dialogue, $detectedLanguage, $messageCount,
+            [],
+            ['All attempts failed'],
+            $personaCode,
+            self::MAX_ATTEMPTS,
+            $dialogue,
+            $detectedLanguage,
+            $messageCount,
         );
         $result['pipeline_trace'] = $trace->toArray();
 
@@ -290,10 +303,12 @@ final class RetryCoordinator
             } elseif ($role === 'validator') {
                 $approved = (bool) ($entry['approved'] ?? false);
                 $content = $approved ? 'APPROVED' : 'REJECTED';
+
                 if (!$approved) {
                     /** @var array<string> $reasons */
                     $reasons = is_array($entry['reasons'] ?? null) ? $entry['reasons'] : [];
                     $content .= "\nReasons: " . implode(', ', $reasons);
+
                     if (isset($entry['fix_suggestion']) && is_string($entry['fix_suggestion'])) {
                         $content .= "\nFix: " . $entry['fix_suggestion'];
                     }
@@ -339,6 +354,7 @@ final class RetryCoordinator
     private function buildPolicyFeedback(array $flags): string
     {
         $messages = [];
+
         foreach ($flags as $flag) {
             if (str_starts_with($flag, 'too_short:')) {
                 $messages[] = 'Texte trop court (minimum 50 mots requis)';
