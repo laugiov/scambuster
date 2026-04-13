@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Auth;
 
+use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -17,7 +17,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class TotpSetupController
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly UserRepositoryInterface $userRepo,
         private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
@@ -31,7 +31,7 @@ final class TotpSetupController
         }
 
         $userIdentifier = $token->getUserIdentifier();
-        $user = $this->em->getRepository(User::class)->findOneBy(['email' => $userIdentifier]);
+        $user = $this->userRepo->findByEmail($userIdentifier);
 
         if (!$user instanceof User) {
             return new JsonResponse(['message' => 'User not found'], Response::HTTP_NOT_FOUND);
@@ -41,7 +41,7 @@ final class TotpSetupController
         $secret = $this->base32Encode($secretBytes);
 
         $user->setTotpSecret($secret);
-        $this->em->flush();
+        $this->userRepo->save($user);
 
         $email = $user->getEmail();
         $qrUri = sprintf(
