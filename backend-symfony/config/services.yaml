@@ -96,11 +96,11 @@ services:
         autowire: true
         autoconfigure: true
 
-    App\EventListener\Auth\JWTNotFoundListener:
+    App\Infrastructure\EventListener\Auth\JWTNotFoundListener:
         tags:
             - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_not_found, method: onJWTNotFound }
 
-    App\EventListener\Auth\AccessDeniedExceptionListener:
+    App\Infrastructure\EventListener\Auth\AccessDeniedExceptionListener:
         tags:
             - { name: kernel.event_listener, event: kernel.exception, method: onKernelException }
 
@@ -196,7 +196,7 @@ services:
     ingest_per_account.limiter:
         alias: 'limiter.ingest_per_account'
 
-    App\EventListener\Communication\UpdateConversationTsLastListener:
+    App\Infrastructure\EventListener\Communication\UpdateConversationTsLastListener:
         autowire: true
         tags:
             - { name: doctrine.orm.entity_listener, event: postPersist, entity: App\Domain\Communication\Message }
