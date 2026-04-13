@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Auth;
 
+use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
-use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -18,7 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final class TotpVerifyController
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private readonly UserRepositoryInterface $userRepo,
         private readonly TokenStorageInterface $tokenStorage,
     ) {
     }
@@ -40,7 +40,7 @@ final class TotpVerifyController
         }
 
         $userIdentifier = $token->getUserIdentifier();
-        $user = $this->em->getRepository(User::class)->findOneBy(['email' => $userIdentifier]);
+        $user = $this->userRepo->findByEmail($userIdentifier);
 
         if (!$user instanceof User) {
             return new JsonResponse(['message' => 'User not found'], Response::HTTP_NOT_FOUND);
