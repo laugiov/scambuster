@@ -29,9 +29,9 @@ final readonly class AuditHmacChainer
     private ?string $key;
     private bool $enabled;
 
-    public function __construct(string $hmacKeyHex = '')
+    public function __construct(?string $hmacKeyHex = '')
     {
-        if ($hmacKeyHex === '' || strlen($hmacKeyHex) !== 64 || !ctype_xdigit($hmacKeyHex)) {
+        if ($hmacKeyHex === null || $hmacKeyHex === '' || strlen($hmacKeyHex) !== 64 || !ctype_xdigit($hmacKeyHex)) {
             $this->key = null;
             $this->enabled = false;
 
