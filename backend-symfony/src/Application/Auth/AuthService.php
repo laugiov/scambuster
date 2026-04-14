@@ -34,7 +34,7 @@ class AuthService implements AuthServiceInterface
         if (!$user) {
             // Constant-time: run bcrypt to prevent timing-based user enumeration
             // Uses password_hash() directly to avoid framework dependency issues
-            password_verify($dto->password, '$2y$13$dummySaltForTimingNormal.eDummyHashToNormalizeTimingAttacks00');
+            password_verify($dto->password, '$2y$10$eZB5M1cmzvHM4DiEn8B.F.PoZKDlthVpZRO94AA5sQYvW7bLDwGrC');
 
             throw new AuthenticationException('Invalid credentials.');
         }
