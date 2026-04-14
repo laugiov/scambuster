@@ -7,10 +7,10 @@ namespace App\Application\Monitoring;
 use App\Domain\Scambaiting\BanditConvergenceLog;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class ConvergenceHistoryHandler
+final readonly class ConvergenceHistoryHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

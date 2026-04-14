@@ -141,13 +141,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     security: [ [ 'Bearer' => [] ] ]
 )]
 #[IsGranted('ioc:read')]
-final class IngestEnrichedIocController
+final readonly class IngestEnrichedIocController
 {
     public function __construct(
-        private readonly IocHandler $handler
+        private IocHandler $handler
     ) {
     }
-
     #[Route('/api/v1/iocs/enriched', name: 'ingest_enriched_ioc', methods: ['POST'])]
     public function __invoke(Request $request): JsonResponse
     {

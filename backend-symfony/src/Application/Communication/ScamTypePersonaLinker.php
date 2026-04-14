@@ -11,7 +11,7 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Links ScamTypes to their configured Personas via many-to-many relationship.
  */
-final class ScamTypePersonaLinker
+final readonly class ScamTypePersonaLinker
 {
     /**
      * Mapping of scam_type code to array of persona codes (ManyToMany).
@@ -26,7 +26,7 @@ final class ScamTypePersonaLinker
     ];
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 
@@ -44,7 +44,7 @@ final class ScamTypePersonaLinker
         foreach (self::SCAM_TYPE_TO_PERSONAS as $scamTypeCode => $personaCodes) {
             $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => $scamTypeCode]);
 
-            if (!$scamType) {
+            if ($scamType === null) {
                 $skipped++;
 
                 continue;
@@ -59,7 +59,7 @@ final class ScamTypePersonaLinker
             foreach ($personaCodes as $personaCode) {
                 $persona = $this->em->getRepository(Persona::class)->findOneBy(['personaCode' => $personaCode]);
 
-                if (!$persona) {
+                if ($persona === null) {
                     $warnings[] = "Persona '{$personaCode}' not found for scam type '{$scamTypeCode}'";
 
                     continue;

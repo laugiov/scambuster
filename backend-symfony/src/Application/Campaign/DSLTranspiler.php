@@ -6,10 +6,10 @@ namespace App\Application\Campaign;
 
 use Psr\Log\LoggerInterface;
 
-final class DSLTranspiler
+final readonly class DSLTranspiler
 {
     public function __construct(
-        private readonly LoggerInterface $logger
+        private LoggerInterface $logger
     ) {
     }
 
@@ -97,7 +97,7 @@ final class DSLTranspiler
         if (preg_match('/(subject|body)\.containsAny\s*\[([^\]]+)\]/', $predicate, $m)) {
             $field = $m[1];
             $terms = array_map(
-                fn ($t) => trim($t, '"\''),
+                fn ($t): string => trim((string) $t, '"\''),
                 array_map('trim', explode(',', $m[2]))
             );
 
@@ -120,7 +120,7 @@ final class DSLTranspiler
         // sender.display_name.fuzzy ∈ {...}
         if (preg_match('/sender\.display_name\.fuzzy\s*∈\s*\{([^}]+)\}/', $predicate, $m)) {
             $names = array_map(
-                fn ($n) => trim($n, '"\''),
+                fn ($n): string => trim((string) $n, '"\''),
                 array_map('trim', explode(',', $m[1]))
             );
 
@@ -168,7 +168,7 @@ final class DSLTranspiler
             $sqlClauses[] = $clause;
         }
 
-        if (empty($sqlClauses)) {
+        if ($sqlClauses === []) {
             throw new \RuntimeException('No SQL clauses generated');
         }
 

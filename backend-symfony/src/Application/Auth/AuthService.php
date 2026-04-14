@@ -16,21 +16,15 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 
 class AuthService implements AuthServiceInterface
 {
-    private EntityManagerInterface $em;
-    private UserPasswordHasherInterface $hasher;
-    private JWTTokenManagerInterface $jwtManager;
     /** @var \Doctrine\ORM\EntityRepository<RefreshToken> */
-    private \Doctrine\ORM\EntityRepository $refreshTokenRepository;
+    private readonly \Doctrine\ORM\EntityRepository $refreshTokenRepository;
 
     public function __construct(
-        EntityManagerInterface $em,
-        UserPasswordHasherInterface $hasher,
-        JWTTokenManagerInterface $jwtManager
+        private readonly EntityManagerInterface $em,
+        private readonly UserPasswordHasherInterface $hasher,
+        private readonly JWTTokenManagerInterface $jwtManager
     ) {
-        $this->em = $em;
-        $this->hasher = $hasher;
-        $this->jwtManager = $jwtManager;
-        $this->refreshTokenRepository = $em->getRepository(RefreshToken::class);
+        $this->refreshTokenRepository = $this->em->getRepository(RefreshToken::class);
     }
 
     public function login(LoginRequestDto $dto): LoginResponseDto

@@ -12,13 +12,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final class ClusterAssignHandler
+final readonly class ClusterAssignHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly ClusteringService $clusteringService,
-        private readonly CampaignRepository $campaignRepository,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private ClusteringService $clusteringService,
+        private CampaignRepository $campaignRepository,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -52,7 +52,9 @@ final class ClusterAssignHandler
             // Initialiser centroid avec simhash du premier message
             /** @var array<string, array<string, mixed>> $features */
             $features = $result['features'];
-            $campaign->setCentroidSimhash($features['text']['simhash']);
+            /** @var string $simhash */
+            $simhash = $features['text']['simhash'];
+            $campaign->setCentroidSimhash($simhash);
         } else {
             $campaignId = $result['campaign_id'];
             $isNew = false;
@@ -116,7 +118,9 @@ final class ClusterAssignHandler
             $campaign = $this->em->find(Campaign::class, $campaignId);
 
             if ($campaign !== null) {
-                $campaign->setCentroidSimhash($result['simhash']);
+                /** @var string $centroidHash */
+                $centroidHash = $result['simhash'];
+                $campaign->setCentroidSimhash($centroidHash);
             }
         }
     }

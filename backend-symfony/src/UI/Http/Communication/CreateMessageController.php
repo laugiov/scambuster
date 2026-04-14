@@ -52,13 +52,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class CreateMessageController
+final readonly class CreateMessageController
 {
     public function __construct(
-        private readonly MessageHandler $handler
+        private MessageHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/message', name: 'create_message', methods: ['POST'])]
     #[IsGranted('conversation:write')]
     public function __invoke(Request $request): JsonResponse
@@ -76,12 +75,13 @@ final class CreateMessageController
         }
 
         try {
+            /** @var array<string, mixed> $data */
             $message = $this->handler->createMessage($data);
         } catch (\RuntimeException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 409);
         }
 
-        if (!$message) {
+        if (!$message instanceof \App\Domain\Communication\Message) {
             return new JsonResponse(['error' => 'Invalid reference'], Response::HTTP_BAD_REQUEST);
         }
         $dto = new MessageCreateResponseDto(

@@ -34,12 +34,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetConversationContextController
+final readonly class GetConversationContextController
 {
     public function __construct(private ReplyHandler $handler)
     {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}/context', name: 'get_conversation_context', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $convId): JsonResponse
@@ -50,14 +49,28 @@ final class GetConversationContextController
             return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
         }
 
+        /** @var string $ctxConvId */
+        $ctxConvId = $context['conv_id'] ?? '';
+        /** @var string $ctxStatus */
+        $ctxStatus = $context['status'] ?? '';
+        /** @var array<string, mixed> $scamType */
+        $scamType = $context['scam_type'] ?? [];
+        /** @var string $ctxPersona */
+        $ctxPersona = $context['persona'] ?? '';
+        /** @var array<string, mixed> $cadence */
+        $cadence = $context['cadence'] ?? [];
+        /** @var array<int, mixed> $lastMessages */
+        $lastMessages = $context['last_messages'] ?? [];
+        /** @var string|null $senderHistory */
+        $senderHistory = $context['sender_history_summary'] ?? null;
         $dto = new ConversationContextResponseDto(
-            $context['conv_id'],
-            $context['status'],
-            $context['scam_type'],
-            $context['persona'],
-            $context['cadence'],
-            $context['last_messages'],
-            $context['sender_history_summary'] ?? null
+            $ctxConvId,
+            $ctxStatus,
+            $scamType,
+            $ctxPersona,
+            $cadence,
+            $lastMessages,
+            $senderHistory
         );
 
         return new JsonResponse($dto->toArray(), Response::HTTP_OK);

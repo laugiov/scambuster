@@ -9,17 +9,17 @@ namespace App\Domain\LLM;
  *
  * Captures: what ran, how long it took, what it produced, and why it was skipped/failed.
  */
-final class ComponentTrace
+final readonly class ComponentTrace
 {
     public function __construct(
-        public readonly string $name,
-        public readonly string $status,
-        public readonly float $durationMs,
-        public readonly ?float $cost = null,
+        public string $name,
+        public string $status,
+        public float $durationMs,
+        public ?float $cost = null,
         /** @var array<string, mixed> */
-        public readonly array $output = [],
-        public readonly ?string $error = null,
-        public readonly ?string $skipReason = null,
+        public array $output = [],
+        public ?string $error = null,
+        public ?string $skipReason = null,
     ) {
     }
 
@@ -56,7 +56,7 @@ final class ComponentTrace
             $data['cost'] = $this->cost;
         }
 
-        if (!empty($this->output)) {
+        if ($this->output !== []) {
             $data['output'] = $this->output;
         }
 
@@ -82,13 +82,15 @@ final class ComponentTrace
         $status = $data['status'] ?? 'ran';
         /** @var float $durationMs */
         $durationMs = $data['duration_ms'] ?? 0.0;
+        /** @var array<string, mixed> $outputData */
+        $outputData = (array) ($data['output'] ?? []);
 
         return new self(
             name: $name,
             status: $status,
             durationMs: (float) $durationMs,
             cost: isset($data['cost']) && \is_numeric($data['cost']) ? (float) $data['cost'] : null,
-            output: (array) ($data['output'] ?? []),
+            output: $outputData,
             error: isset($data['error']) && \is_string($data['error']) ? $data['error'] : null,
             skipReason: isset($data['skip_reason']) && \is_string($data['skip_reason']) ? $data['skip_reason'] : null,
         );

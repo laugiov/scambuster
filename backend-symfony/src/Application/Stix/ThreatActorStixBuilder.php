@@ -165,7 +165,7 @@ final class ThreatActorStixBuilder
         $actor = $this->buildThreatActor($campaignData, $actorProfile, $metrics);
 
         $scamType = \is_string($campaignData['scam_type'] ?? null) ? strtoupper($campaignData['scam_type']) : 'UNKNOWN';
-        $actor['name'] = sprintf('Unattributed Scam Actor (%s)', self::formatScamTypeForName($scamType));
+        $actor['name'] = sprintf('Unattributed Scam Actor (%s)', $this->formatScamTypeForName($scamType));
 
         return $actor;
     }
@@ -177,7 +177,7 @@ final class ThreatActorStixBuilder
      * Special-cases:
      *   - CEO_FRAUD -> "CEO Fraud" (CEO stays uppercase, not "Ceo")
      */
-    private static function formatScamTypeForName(string $scamType): string
+    private function formatScamTypeForName(string $scamType): string
     {
         if ($scamType === '' || $scamType === 'UNKNOWN') {
             return 'Unknown';
@@ -367,11 +367,11 @@ final class ThreatActorStixBuilder
                 $payment = $infra['payment_methods'] ?? [];
                 $tlds = $infra['tlds'] ?? [];
 
-                if (\is_array($domains) && \count($domains) > 0) {
+                if (\is_array($domains) && $domains !== []) {
                     $parts[] = sprintf('Infrastructure: %d domains (%s).', \count($domains), implode(', ', \array_slice($tlds, 0, 3)));
                 }
 
-                if (\is_array($payment) && \count($payment) > 0) {
+                if (\is_array($payment) && $payment !== []) {
                     $parts[] = sprintf('Payment methods: %s.', implode(', ', $payment));
                 }
             }
@@ -405,7 +405,7 @@ final class ThreatActorStixBuilder
             substr($hash, 0, 8),
             substr($hash, 8, 4),
             substr($hash, 13, 3),
-            dechex((int) (hexdec(substr($hash, 16, 2)) & 0x3F | 0x80)) . substr($hash, 18, 2),
+            dechex(hexdec(substr($hash, 16, 2)) & 0x3F | 0x80) . substr($hash, 18, 2),
             substr($hash, 20, 12)
         );
     }

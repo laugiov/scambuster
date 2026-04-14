@@ -10,46 +10,9 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'conversation')]
 class Conversation
 {
-    #[ORM\Id]
-    #[ORM\Column(name: 'conv_id', type: 'uuid', unique: true)]
-    private string $convId;
-
-    #[ORM\ManyToOne(targetEntity: Channel::class)]
-    #[ORM\JoinColumn(name: 'primary_channel_id', referencedColumnName: 'channel_id', nullable: false)]
-    private Channel $primaryChannel;
-
-    #[ORM\ManyToOne(targetEntity: ScamType::class)]
-    #[ORM\JoinColumn(name: 'scam_type_id', referencedColumnName: 'scam_type_id', nullable: false)]
-    private ScamType $scamType;
-
-    #[ORM\ManyToOne(targetEntity: MailAccount::class)]
-    #[ORM\JoinColumn(name: 'account_id', referencedColumnName: 'account_id', nullable: false)]
-    private MailAccount $account;
-
     #[ORM\ManyToOne(targetEntity: Persona::class)]
     #[ORM\JoinColumn(name: 'persona_id', referencedColumnName: 'persona_id', nullable: true)]
     private ?Persona $persona = null;
-
-    #[ORM\Column(type: 'string', enumType: ConversationStatus::class)]
-    private ConversationStatus $status;
-
-    #[ORM\Column(name: 'score_risk', type: 'integer')]
-    private int $scoreRisk;
-
-    #[ORM\Column(name: 'ts_first', type: 'datetime_immutable')]
-    private \DateTimeImmutable $tsFirst;
-
-    #[ORM\Column(name: 'ts_last', type: 'datetime_immutable')]
-    private \DateTimeImmutable $tsLast;
-
-    #[ORM\Column(name: 'stix_id', type: 'string', length: 255, unique: true)]
-    private string $stixId;
-
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $createdAt;
-
-    #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $updatedAt;
 
     #[ORM\Column(name: 'deleted_at', type: 'datetime_immutable', nullable: true)]
     private ?\DateTimeImmutable $deletedAt = null; // @phpstan-ignore-line
@@ -70,30 +33,23 @@ class Conversation
     #[ORM\Column(name: 'reward_value', type: 'decimal', precision: 5, scale: 4, nullable: true)]
     private ?string $rewardValue = null;
 
-    public function __construct(
-        string $convId,
-        Channel $primaryChannel,
-        ScamType $scamType,
-        MailAccount $account,
-        ConversationStatus $status,
-        int $scoreRisk,
-        \DateTimeImmutable $tsFirst,
-        \DateTimeImmutable $tsLast,
-        string $stixId,
-        ?\DateTimeImmutable $createdAt = null,
-        ?\DateTimeImmutable $updatedAt = null
-    ) {
-        $this->convId = $convId;
-        $this->primaryChannel = $primaryChannel;
-        $this->scamType = $scamType;
-        $this->account = $account;
-        $this->status = $status;
-        $this->scoreRisk = $scoreRisk;
-        $this->tsFirst = $tsFirst;
-        $this->tsLast = $tsLast;
-        $this->stixId = $stixId;
-        $this->createdAt = $createdAt ?? new \DateTimeImmutable();
-        $this->updatedAt = $updatedAt ?? new \DateTimeImmutable();
+    public function __construct(#[ORM\Id]
+        #[ORM\Column(name: 'conv_id', type: 'uuid', unique: true)]
+        private string $convId, #[ORM\ManyToOne(targetEntity: Channel::class)]
+        #[ORM\JoinColumn(name: 'primary_channel_id', referencedColumnName: 'channel_id', nullable: false)]
+        private Channel $primaryChannel, #[ORM\ManyToOne(targetEntity: ScamType::class, fetch: 'EAGER')]
+        #[ORM\JoinColumn(name: 'scam_type_id', referencedColumnName: 'scam_type_id', nullable: false)]
+        private ScamType $scamType, #[ORM\ManyToOne(targetEntity: MailAccount::class)]
+        #[ORM\JoinColumn(name: 'account_id', referencedColumnName: 'account_id', nullable: false)]
+        private MailAccount $account, #[ORM\Column(type: 'string', enumType: ConversationStatus::class)]
+        private ConversationStatus $status, #[ORM\Column(name: 'score_risk', type: 'integer')]
+        private int $scoreRisk, #[ORM\Column(name: 'ts_first', type: 'datetime_immutable')]
+        private \DateTimeImmutable $tsFirst, #[ORM\Column(name: 'ts_last', type: 'datetime_immutable')]
+        private \DateTimeImmutable $tsLast, #[ORM\Column(name: 'stix_id', type: 'string', length: 255, unique: true)]
+        private string $stixId, #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $createdAt = new \DateTimeImmutable(), #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $updatedAt = new \DateTimeImmutable())
+    {
     }
 
     public function getConvId(): string

@@ -24,7 +24,7 @@ use Symfony\Contracts\Cache\ItemInterface;
  * - PII detection et masquage
  * - Logging détaillé
  */
-final class CampaignProfiler
+final readonly class CampaignProfiler
 {
     private const MAX_RETRIES = 3;
     private const TIMEOUT_SEC = 45;
@@ -38,10 +38,10 @@ final class CampaignProfiler
     private const BACKOFF_DELAYS = [1, 2, 4];
 
     public function __construct(
-        private readonly LLMClientInterface $llmClient,
-        private readonly PromptBuilder $promptBuilder,
-        private readonly CacheInterface $cache,
-        private readonly LoggerInterface $logger
+        private LLMClientInterface $llmClient,
+        private PromptBuilder $promptBuilder,
+        private CacheInterface $cache,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -74,7 +74,7 @@ final class CampaignProfiler
 
         // Tenter de récupérer depuis le cache
         try {
-            $cached = $this->cache->get($cacheKey, function (ItemInterface $item) use ($sampleMessages) {
+            $cached = $this->cache->get($cacheKey, function (ItemInterface $item) use ($sampleMessages): array {
                 $item->expiresAfter(self::CACHE_TTL);
 
                 $this->logger->info('Cache miss - Profiling campaign via LLM', [
@@ -108,10 +108,7 @@ final class CampaignProfiler
                 'sample_size' => count($sampleMessages),
             ]);
 
-            throw new \RuntimeException(
-                "Campaign profiling failed: {$e->getMessage()}",
-                previous: $e
-            );
+            throw new \RuntimeException("Campaign profiling failed: {$e->getMessage()}", $e->getCode(), previous: $e);
         }
     }
 
@@ -222,7 +219,7 @@ final class CampaignProfiler
         try {
             $data = Yaml::parse($yamlText);
         } catch (\Throwable $e) {
-            throw new \RuntimeException("Invalid YAML syntax: {$e->getMessage()}", previous: $e);
+            throw new \RuntimeException("Invalid YAML syntax: {$e->getMessage()}", $e->getCode(), previous: $e);
         }
 
         if (!is_array($data)) {
@@ -313,7 +310,7 @@ final class CampaignProfiler
      */
     private function generateCacheKey(array $messages): string
     {
-        $ids = array_map(fn ($msg) => $msg->getMsgId(), $messages);
+        $ids = array_map(fn ($msg): string => $msg->getMsgId(), $messages);
         sort($ids); // Ordre stable
 
         return 'campaign_profile_' . md5(implode(':', $ids));

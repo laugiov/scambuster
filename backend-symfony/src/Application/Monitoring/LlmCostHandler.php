@@ -12,11 +12,11 @@ use Doctrine\DBAL\Connection;
  * Provides current month costs, per-purpose breakdown,
  * and daily trend for the cost monitoring endpoint.
  */
-final class LlmCostHandler
+final readonly class LlmCostHandler
 {
     public function __construct(
-        private readonly Connection $connection,
-        private readonly float $monthlyLimitUsd
+        private Connection $connection,
+        private float $monthlyLimitUsd
     ) {
     }
 

@@ -11,10 +11,10 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
-final class AddChannelController
+final readonly class AddChannelController
 {
     public function __construct(
-        private readonly ConversationHandler $handler
+        private ConversationHandler $handler
     ) {
     }
 
@@ -31,7 +31,7 @@ final class AddChannelController
         $channelId = $data['channel_id'];
         $channel = $this->handler->getChannel((string) $channelId);
 
-        if (!$channel) {
+        if (!$channel instanceof \App\Domain\Communication\Channel) {
             return new JsonResponse(['error' => 'Invalid reference'], Response::HTTP_BAD_REQUEST);
         }
         $ok = $this->handler->addChannelToConversation($convId, $channel);

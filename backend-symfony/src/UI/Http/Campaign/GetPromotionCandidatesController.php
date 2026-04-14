@@ -12,13 +12,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/campaign/candidates', name: 'api_campaign_promotion_candidates', methods: ['GET'])]
 #[IsGranted('campaign:read')]
-final class GetPromotionCandidatesController
+final readonly class GetPromotionCandidatesController
 {
     public function __construct(
-        private readonly CampaignPromoter $promoter
+        private CampaignPromoter $promoter
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/campaign/candidates',
         summary: 'Lister les candidats à la promotion',

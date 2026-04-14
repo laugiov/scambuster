@@ -18,13 +18,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Auth handled by Symfony firewall (same as /monitoring/autonomy).
  */
 #[IsGranted('monitoring:read')]
-final class LlmCostController
+final readonly class LlmCostController
 {
     public function __construct(
-        private readonly LlmCostHandler $handler
+        private LlmCostHandler $handler
     ) {
     }
-
     #[Route('/api/v1/monitoring/llm-cost', methods: ['GET'])]
     #[OA\Get(
         path: '/api/v1/monitoring/llm-cost',

@@ -9,11 +9,11 @@ use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
-final class CampaignHunter
+final readonly class CampaignHunter
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -140,7 +140,7 @@ final class CampaignHunter
         $ppv = $this->calculatePPV($validation);
 
         // Calculer lead-time
-        $leadTime = $this->calculateLeadTime($rule, $hits);
+        $leadTime = $this->calculateLeadTime($hits);
 
         // Le hits_count doit correspondre au nombre de hits validés
         // pour respecter la contrainte: true_pos + false_pos = hits_count
@@ -190,7 +190,7 @@ final class CampaignHunter
 
             $message = $this->em->find(Message::class, $messageId);
 
-            if (!$message) {
+            if ($message === null) {
                 // Message introuvable = faux positif
                 $falsePos++;
 
@@ -236,7 +236,7 @@ final class CampaignHunter
      *
      * @return int|null Lead-time en secondes, null si insuffisant
      */
-    private function calculateLeadTime(CampaignRule $rule, array $hits): ?int
+    private function calculateLeadTime(array $hits): ?int
     {
         if (count($hits) < 5) {
             return null; // Pas assez de hits pour calculer un pic
@@ -245,18 +245,22 @@ final class CampaignHunter
         // Trier hits par timestamp
         usort(
             $hits,
-            fn ($a, $b) =>
-            strtotime($a['ts_msg']) <=> strtotime($b['ts_msg'])
+            fn ($a, $b): int =>
+            strtotime(is_string($a['ts_msg']) ? $a['ts_msg'] : '') <=> strtotime(is_string($b['ts_msg']) ? $b['ts_msg'] : '')
         );
 
-        $firstHit = new \DateTimeImmutable($hits[0]['ts_msg']);
+        /** @var string $firstHitTs */
+        $firstHitTs = $hits[0]['ts_msg'];
+        $firstHit = new \DateTimeImmutable($firstHitTs);
 
         // Trouver le pic (fenêtre avec le plus de hits)
         $peakTime = $this->findPeakTime($hits);
 
-        if (!$peakTime) {
+        if (!$peakTime instanceof \DateTimeImmutable) {
             // Fallback : utiliser dernier hit comme pic
-            $peakTime = new \DateTimeImmutable($hits[count($hits) - 1]['ts_msg']);
+            /** @var string $lastHitTs */
+            $lastHitTs = $hits[count($hits) - 1]['ts_msg'];
+            $peakTime = new \DateTimeImmutable($lastHitTs);
         }
 
         $leadTimeSec = $peakTime->getTimestamp() - $firstHit->getTimestamp();
@@ -280,13 +284,17 @@ final class CampaignHunter
         $maxHitsInWindow = 0;
         $peakTime = null;
 
-        foreach ($hits as $i => $hit) {
-            $windowStart = new \DateTimeImmutable($hit['ts_msg']);
+        foreach ($hits as $hit) {
+            /** @var string $hitTs */
+            $hitTs = $hit['ts_msg'];
+            $windowStart = new \DateTimeImmutable($hitTs);
             $windowEnd = $windowStart->modify('+1 hour');
 
             // Compter hits dans cette fenêtre
-            $hitsInWindow = array_filter($hits, function ($h) use ($windowStart, $windowEnd) {
-                $time = new \DateTimeImmutable($h['ts_msg']);
+            $hitsInWindow = array_filter($hits, function (array $h) use ($windowStart, $windowEnd): bool {
+                /** @var string $hTs */
+                $hTs = $h['ts_msg'];
+                $time = new \DateTimeImmutable($hTs);
 
                 return $time >= $windowStart && $time <= $windowEnd;
             });
@@ -313,17 +321,23 @@ final class CampaignHunter
         /** @var array{true_pos: int, false_pos: int} $validation */
         $validation = $result['validation'];
 
+        /** @var int $hitsCount */
+        $hitsCount = $result['hits_count'];
         $rule->updateMetrics(
-            $result['hits_count'],
+            $hitsCount,
             $validation['true_pos'],
             $validation['false_pos']
         );
 
         // Update PPV directement depuis résultat
-        $rule->setPpv($result['ppv']);
+        /** @var float $ppv */
+        $ppv = $result['ppv'];
+        $rule->setPpv($ppv);
 
         if ($result['lead_time_sec'] !== null) {
-            $rule->setLeadTimeSec($result['lead_time_sec']);
+            /** @var int $leadTimeSec */
+            $leadTimeSec = $result['lead_time_sec'];
+            $rule->setLeadTimeSec($leadTimeSec);
         }
     }
 }

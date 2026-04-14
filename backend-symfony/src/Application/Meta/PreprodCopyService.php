@@ -10,12 +10,12 @@ use Doctrine\DBAL\DriverManager;
 /**
  * Copies conversations and messages from preprod to dev via dblink.
  */
-final class PreprodCopyService
+final readonly class PreprodCopyService
 {
     private const PREPROD_DSN = 'postgresql://scambuster:postgres@postgres-preprod:5432/scambuster_preprod';
 
     public function __construct(
-        private readonly Connection $connection,
+        private Connection $connection,
     ) {
     }
 

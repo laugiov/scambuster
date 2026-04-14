@@ -32,13 +32,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [['Bearer' => []]],
 )]
-final class GetLlmKillSwitchStateController
+final readonly class GetLlmKillSwitchStateController
 {
     public function __construct(
-        private readonly CacheItemPoolInterface $cache,
+        private CacheItemPoolInterface $cache,
     ) {
     }
-
     public function __invoke(): JsonResponse
     {
         $item = $this->cache->getItem(ReplyCadenceService::KILL_SWITCH_CACHE_KEY);

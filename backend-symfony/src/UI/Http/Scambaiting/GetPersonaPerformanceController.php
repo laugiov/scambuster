@@ -72,13 +72,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 #[Route('/api/v1/scambaiting/persona/{personaCode}/performance', name: 'api_scambaiting_persona_performance', methods: ['GET'])]
 #[IsGranted('monitoring:read')]
-final class GetPersonaPerformanceController
+final readonly class GetPersonaPerformanceController
 {
     public function __construct(
-        private readonly PersonaPerformanceHandler $handler,
+        private PersonaPerformanceHandler $handler,
     ) {
     }
-
     public function __invoke(string $personaCode): JsonResponse
     {
         try {

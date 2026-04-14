@@ -61,8 +61,8 @@ final class TestContextCommand extends Command
                     ['scam_type.code', $scamTypeCtx['code'] ?? 'NULL'],
                     ['scam_type.label_fr', $scamTypeCtx['label_fr'] ?? 'NULL'],
                     ['persona', $context['persona'] ?? 'NULL'],
-                    ['message_count', count($context['last_messages'] ?? [])],
-                    ['ioc_count', count($context['extracted_iocs'] ?? [])],
+                    ['message_count', \is_array($context['last_messages'] ?? null) ? count($context['last_messages']) : 0],
+                    ['ioc_count', \is_array($context['extracted_iocs'] ?? null) ? count($context['extracted_iocs']) : 0],
                 ]
             );
 

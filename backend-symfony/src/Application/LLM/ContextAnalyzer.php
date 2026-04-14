@@ -17,10 +17,10 @@ namespace App\Application\LLM;
  *
  * This analysis enables more targeted and effective LLM prompting.
  */
-final class ContextAnalyzer
+final readonly class ContextAnalyzer
 {
     public function __construct(
-        private readonly ?\Psr\Log\LoggerInterface $logger = null,
+        private ?\Psr\Log\LoggerInterface $logger = null,
     ) {
     }
 
@@ -197,8 +197,11 @@ final class ContextAnalyzer
             }
         }
 
-        // Deduplicate based on type+value
-        return $this->deduplicateIOCs($iocs);
+        // Filter out null values and deduplicate based on type+value
+        /** @var array<int, array{type: string, value: string}> $validIocs */
+        $validIocs = array_filter($iocs, fn (array $ioc): bool => $ioc['value'] !== null);
+
+        return $this->deduplicateIOCs(array_values($validIocs));
     }
 
     /**
@@ -223,7 +226,7 @@ final class ContextAnalyzer
      */
     private function detectTargetChannel(array $messages): string
     {
-        if (empty($messages)) {
+        if ($messages === []) {
             return 'phone'; // Default fallback
         }
 
@@ -241,7 +244,7 @@ final class ContextAnalyzer
         // Check what IOCs are missing and prioritize
         $missing = $this->identifyMissingIOCs($messages);
 
-        if (empty($missing)) {
+        if ($missing === []) {
             return 'url'; // Fallback if all obtained
         }
 
@@ -264,12 +267,12 @@ final class ContextAnalyzer
      */
     private function analyzeTone(array $messages): string
     {
-        if (empty($messages)) {
+        if ($messages === []) {
             return 'calme';
         }
 
         // Check last 3 attacker messages
-        $attackerMessages = array_filter($messages, fn ($msg) => $msg['direction'] === 'in');
+        $attackerMessages = array_filter($messages, fn ($msg): bool => $msg['direction'] === 'in');
         $recentAttacker = array_slice($attackerMessages, -3);
         $combinedText = strtolower(implode(' ', array_column($recentAttacker, 'body_text')));
 

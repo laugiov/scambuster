@@ -13,13 +13,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/communication/scam-types')]
 #[IsGranted('conversation:read')]
-final class ScamTypeController
+final readonly class ScamTypeController
 {
     public function __construct(
-        private readonly ScamTypeHandler $handler
+        private ScamTypeHandler $handler
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/communication/scam-types',
         summary: 'Liste tous les types de scam disponibles',

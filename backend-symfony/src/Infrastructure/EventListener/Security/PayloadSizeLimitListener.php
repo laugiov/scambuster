@@ -39,14 +39,8 @@ class PayloadSizeLimitListener
      */
     private const INGEST_PATH_PREFIX = '/api/v1/communication/ingest';
 
-    private readonly LoggerInterface $logger;
-
-    public function __construct(
-        ?LoggerInterface $logger = null,
-        private readonly int $maxBytes = self::DEFAULT_MAX_BYTES,
-        private readonly int $maxIngestBytes = self::DEFAULT_MAX_INGEST_BYTES,
-    ) {
-        $this->logger = $logger ?? new NullLogger();
+    public function __construct(private readonly LoggerInterface $logger = new NullLogger(), private readonly int $maxBytes = self::DEFAULT_MAX_BYTES, private readonly int $maxIngestBytes = self::DEFAULT_MAX_INGEST_BYTES)
+    {
     }
 
     public function __invoke(RequestEvent $event): void

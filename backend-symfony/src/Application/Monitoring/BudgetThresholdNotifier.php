@@ -25,17 +25,17 @@ use Psr\Log\LoggerInterface;
  * lives in `ReplyHandler` (via `LlmCostHandler::isLimitExceeded()`),
  * not here.
  */
-final class BudgetThresholdNotifier
+final readonly class BudgetThresholdNotifier
 {
     private const THRESHOLD_PCT = 0.8;
     private const CACHE_KEY_PREFIX = 'budget.threshold.reached.';
     private const CACHE_TTL_SECONDS = 86400; // 24h
 
     public function __construct(
-        private readonly LlmCostHandler $costHandler,
-        private readonly AuditLogger $auditLogger,
-        private readonly CacheItemPoolInterface $cache,
-        private readonly LoggerInterface $logger,
+        private LlmCostHandler $costHandler,
+        private AuditLogger $auditLogger,
+        private CacheItemPoolInterface $cache,
+        private LoggerInterface $logger,
     ) {
     }
 

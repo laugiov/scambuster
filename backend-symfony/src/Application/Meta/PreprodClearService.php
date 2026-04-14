@@ -10,9 +10,9 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Clears all conversations, messages and preprod mail accounts from the preprod database.
  */
-final class PreprodClearService
+final readonly class PreprodClearService
 {
-    private readonly Connection $connection;
+    private Connection $connection;
 
     public function __construct(EntityManagerInterface $em)
     {

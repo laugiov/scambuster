@@ -9,26 +9,16 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity]
 class RefreshToken
 {
-    #[ORM\Id]
-    #[ORM\Column(type: 'string', length: 128)]
-    private string $token;
-
-    #[ORM\ManyToOne(targetEntity: User::class)]
-    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-    private User $user;
-
-    #[ORM\Column(type: 'datetime')]
-    private \DateTimeInterface $expiresAt;
-
     #[ORM\Column(type: 'boolean')]
     private bool $valid = true;
 
-    public function __construct(string $token, User $user, \DateTimeInterface $expiresAt)
+    public function __construct(#[ORM\Id]
+        #[ORM\Column(type: 'string', length: 128)]
+        private string $token, #[ORM\ManyToOne(targetEntity: User::class)]
+        #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+        private User $user, #[ORM\Column(type: 'datetime')]
+        private \DateTimeInterface $expiresAt)
     {
-        $this->token = $token;
-        $this->user = $user;
-        $this->expiresAt = $expiresAt;
-        $this->valid = true;
     }
 
     public function getToken(): string

@@ -22,13 +22,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'Impact summary data')],
     security: [['Bearer' => []]],
 )]
-final class ImpactSummaryController
+final readonly class ImpactSummaryController
 {
     public function __construct(
-        private readonly ImpactHandler $handler,
+        private ImpactHandler $handler,
     ) {
     }
-
     #[Route('/api/v1/impact/summary', name: 'api_impact_summary', methods: ['GET'])]
     #[IsGranted('monitoring:read')]
     public function __invoke(Request $request): JsonResponse

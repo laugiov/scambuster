@@ -46,12 +46,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GenerateReplyController
+final readonly class GenerateReplyController
 {
     public function __construct(private ReplyHandler $handler)
     {
     }
-
     #[Route('/api/v1/communication/reply/generate', name: 'generate_reply', methods: ['POST'])]
     #[IsGranted('reply:generate')]
     public function __invoke(Request $request): JsonResponse
@@ -67,24 +66,40 @@ final class GenerateReplyController
         }
 
         try {
+            /** @var string $grConvId */
+            $grConvId = $data['conv_id'];
+            /** @var string $grLastMsgId */
+            $grLastMsgId = $data['last_msg_id'];
             $result = $this->handler->generateReply(
-                $data['conv_id'],
-                $data['last_msg_id'],
-                $data['force'] ?? false,
-                $data['reason'] ?? 'manual'
+                $grConvId,
+                $grLastMsgId,
+                !empty($data['force']),
+                \is_string($data['reason'] ?? null) ? $data['reason'] : 'manual'
             );
 
             if (!$result) {
                 return new JsonResponse(['error' => 'Could not generate reply'], Response::HTTP_BAD_REQUEST);
             }
 
+            /** @var string $rMsgId */
+            $rMsgId = $result['msg_id'] ?? '';
+            /** @var string $rConvId */
+            $rConvId = $result['conv_id'] ?? '';
+            /** @var string $rTo */
+            $rTo = $result['to'] ?? '';
+            /** @var string $rSubject */
+            $rSubject = $result['subject'] ?? '';
+            /** @var array<string, mixed> $draft */
+            $draft = $result['draft'] ?? [];
+            /** @var array<string, mixed> $meta */
+            $meta = $result['meta'] ?? [];
             $dto = new ReplyGenerateResponseDto(
-                $result['msg_id'],
-                $result['conv_id'],
-                $result['to'],
-                $result['subject'],
-                $result['draft'],
-                $result['meta']
+                $rMsgId,
+                $rConvId,
+                $rTo,
+                $rSubject,
+                $draft,
+                $meta
             );
 
             return new JsonResponse($dto->toArray(), Response::HTTP_CREATED);

@@ -16,19 +16,19 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Handles communication with OpenAI's chat completion endpoint.
  * Supports GPT-4o, GPT-4o-mini, and other chat models.
  */
-final class OpenAIClient implements LLMClientInterface
+final readonly class OpenAIClient implements LLMClientInterface
 {
     private const API_ENDPOINT = '/chat/completions';
     private const DEFAULT_TEMPERATURE = 0.6;
     private const DEFAULT_MAX_TOKENS = 400;
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        private readonly LoggerInterface $logger,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly string $apiUrl,
-        private readonly string $apiKey,
-        private readonly string $model
+        private HttpClientInterface $httpClient,
+        private LoggerInterface $logger,
+        private EventDispatcherInterface $eventDispatcher,
+        private string $apiUrl,
+        private string $apiKey,
+        private string $model
     ) {
     }
 
@@ -74,17 +74,23 @@ final class OpenAIClient implements LLMClientInterface
                 'model' => $payload['model'],
                 'latency_ms' => $latencyMs,
                 'input_messages' => count($messages),
-                'output_length' => strlen($assistantText),
+                'output_length' => strlen((string) $assistantText),
                 'usage' => $usage,
             ]);
 
+            /** @var string $eventModel */
+            $eventModel = $payload['model'];
+            /** @var string $eventPurpose */
+            $eventPurpose = $options['purpose'] ?? 'unknown';
+            /** @var string|null $eventConvId */
+            $eventConvId = $options['conversation_id'] ?? null;
             $this->eventDispatcher->dispatch(new LlmCallCompletedEvent(
                 provider: 'openai',
-                model: $payload['model'],
-                purpose: $options['purpose'] ?? 'unknown',
+                model: $eventModel,
+                purpose: $eventPurpose,
                 promptTokens: (int) ($usage['prompt_tokens'] ?? 0),
                 completionTokens: (int) ($usage['completion_tokens'] ?? 0),
-                conversationId: $options['conversation_id'] ?? null
+                conversationId: $eventConvId
             ));
 
             return $assistantText;
@@ -96,10 +102,7 @@ final class OpenAIClient implements LLMClientInterface
                 'latency_ms' => (int) ((microtime(true) - $startTime) * 1000),
             ]);
 
-            throw new \RuntimeException(
-                "OpenAI API call failed: {$e->getMessage()}",
-                previous: $e
-            );
+            throw new \RuntimeException("OpenAI API call failed: {$e->getMessage()}", $e->getCode(), previous: $e);
         }
     }
 }

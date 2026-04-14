@@ -15,16 +15,16 @@ use Symfony\Component\Uid\Uuid;
  * Récupère un échantillon de messages de la campagne et génère un profil YAML
  * décrivant les tactiques, cibles, et variantes probables.
  */
-final class ProfileCampaignHandler
+final readonly class ProfileCampaignHandler
 {
     private const MIN_MESSAGES_FOR_PROFILING = 3;
     private const DEFAULT_SAMPLE_SIZE = 10;
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly CampaignRepository $campaignRepository,
-        private readonly CampaignProfiler $profiler,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private CampaignRepository $campaignRepository,
+        private CampaignProfiler $profiler,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -50,7 +50,7 @@ final class ProfileCampaignHandler
         // 1. Vérifier que la campagne existe
         $campaign = $this->campaignRepository->findById($campaignId);
 
-        if ($campaign === null) {
+        if (!$campaign instanceof \App\Domain\CampaignRadar\Campaign) {
             throw new \RuntimeException("Campaign not found: {$campaignId->toRfc4122()}");
         }
 

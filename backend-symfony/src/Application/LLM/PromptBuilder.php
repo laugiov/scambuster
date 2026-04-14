@@ -17,15 +17,15 @@ use Psr\Log\LoggerInterface;
  * Integrates ConversationAnalyzer for intelligent anti-repetition with LLM analysis.
  * Falls back to VariationProvider for basic anti-repetition if ConversationAnalyzer fails.
  */
-final class PromptBuilder
+final readonly class PromptBuilder
 {
     public function __construct(
-        private readonly ContextAnalyzer $contextAnalyzer,
-        private readonly VariationProvider $variationProvider,
-        private readonly ReciprocityManager $reciprocityManager,
-        private readonly PersonaManager $personaManager,
-        private readonly LoggerInterface $logger,
-        private readonly ?ConversationAnalyzer $conversationAnalyzer = null
+        private ContextAnalyzer $contextAnalyzer,
+        private VariationProvider $variationProvider,
+        private ReciprocityManager $reciprocityManager,
+        private PersonaManager $personaManager,
+        private LoggerInterface $logger,
+        private ?ConversationAnalyzer $conversationAnalyzer = null
     ) {
     }
 
@@ -43,10 +43,14 @@ final class PromptBuilder
         /** @var array<string, string> $scamTypeData */
         $scamTypeData = $context['scam_type'] ?? [];
         $scamTypeLabel = (string) ($scamTypeData['label_fr'] ?? 'Unknown threat');
-        $conversationHistory = $this->formatConversationHistory($context['last_messages'] ?? []);
+        /** @var array<int, array<string, mixed>> $lastMessages */
+        $lastMessages = $context['last_messages'] ?? [];
+        $conversationHistory = $this->formatConversationHistory($lastMessages);
 
         // Analyze conversation context using ContextAnalyzer
-        $stateSlots = $this->contextAnalyzer->analyzeConversation($context['last_messages'] ?? []);
+        /** @var array<int, array{direction: string, body_text: string, ts_msg: string, headers: array<string, mixed>}> $lastMsgsTyped */
+        $lastMsgsTyped = $lastMessages;
+        $stateSlots = $this->contextAnalyzer->analyzeConversation($lastMsgsTyped);
         $messageCount = $stateSlots['message_count'];
 
         // Detect language from context (passed by ReplyHandler) or default to 'en'
@@ -82,11 +86,13 @@ final class PromptBuilder
         }
 
         // Reciprocity analysis
-        $reciprocityAnalysis = $this->reciprocityManager->analyze($context['last_messages'] ?? []);
+        /** @var array<int, array{direction: string, body_text: string}> $lastMsgsReciprocity */
+        $lastMsgsReciprocity = $lastMessages;
+        $reciprocityAnalysis = $this->reciprocityManager->analyze($lastMsgsReciprocity);
 
         if ($reciprocityAnalysis['should_give_info']) {
             $userPrompt .= "\nSuggestion: " . $reciprocityAnalysis['suggested_action'] . "\n";
-            $userPrompt .= $this->reciprocityManager->generateFakeDataSuggestions($context);
+            $userPrompt .= $this->reciprocityManager->generateFakeDataSuggestions();
         }
         $userPrompt .= "\n";
 
@@ -96,13 +102,15 @@ final class PromptBuilder
 
         // Generation dialogue from previous attempts (if retry)
         if (!empty($context['generation_dialogue'])) {
-            $userPrompt .= $this->formatGenerationDialogue($context['generation_dialogue']);
+            /** @var array<int, array<string, mixed>> $genDialogue */
+            $genDialogue = $context['generation_dialogue'];
+            $userPrompt .= $this->formatGenerationDialogue($genDialogue);
             $userPrompt .= "\n";
         }
 
         // --- Section 3: VARIETY CONSTRAINT ---
         $userPrompt .= "## VARIETY\n";
-        $userPrompt .= $this->buildVarietySection($context, $stateSlots, $personaCode, $messageCount);
+        $userPrompt .= $this->buildVarietySection($context, $personaCode, $messageCount);
 
         // --- Section 4 (END): OBJECTIVE (recency bias — LLM follows last instructions best) ---
         $userPrompt .= "## OBJECTIVE\n";
@@ -202,22 +210,25 @@ PROMPT;
      * Build the VARIETY section using ConversationAnalyzer or VariationProvider fallback.
      *
      * @param array<string, mixed> $context
-     * @param array<string, mixed> $stateSlots
      */
-    private function buildVarietySection(array $context, array $stateSlots, string $personaCode, int $messageCount): string
+    private function buildVarietySection(array $context, string $personaCode, int $messageCount): string
     {
         /** @var array<string, string> $scamTypeData */
         $scamTypeData = $context['scam_type'] ?? [];
 
         // Try ConversationAnalyzer first (LLM-powered anti-repetition)
-        if ($this->conversationAnalyzer !== null && $messageCount >= 2) {
+        if ($this->conversationAnalyzer instanceof \App\Application\LLM\ConversationAnalyzer && $messageCount >= 2) {
             try {
+                /** @var array<array{direction: string, body_text: string, ts_msg: string, subject?: string}> $allMsgsForAnalysis */
+                $allMsgsForAnalysis = $context['last_messages'] ?? [];
+                /** @var array<array{type: string, value: string, category?: string}> $iocsForAnalysis */
+                $iocsForAnalysis = $context['extracted_iocs'] ?? [];
                 $analysisContext = [
-                    'conversation_id' => $context['conv_id'] ?? 'unknown',
+                    'conversation_id' => \is_string($context['conv_id'] ?? null) ? $context['conv_id'] : 'unknown',
                     'scam_type' => (string) ($scamTypeData['code'] ?? 'unknown'),
                     'persona_code' => $personaCode,
-                    'all_messages' => $context['last_messages'] ?? [],
-                    'extracted_iocs' => $context['extracted_iocs'] ?? [],
+                    'all_messages' => $allMsgsForAnalysis,
+                    'extracted_iocs' => $iocsForAnalysis,
                 ];
 
                 $analysis = $this->conversationAnalyzer->analyzeAndGenerateInstructions($analysisContext);
@@ -230,7 +241,7 @@ PROMPT;
 
                 $result = $this->formatInstructions($analysis['instructions_for_llm']);
 
-                return !empty($result) ? $result . "\n" : "Vary your opening and phrasing from previous messages.\n\n";
+                return $result === '' || $result === '0' ? "Vary your opening and phrasing from previous messages.\n\n" : $result . "\n";
             } catch (\Throwable $e) {
                 $this->logger->warning('[PromptBuilder] ConversationAnalyzer failed, falling back to VariationProvider', [
                     'error' => $e->getMessage(),
@@ -240,9 +251,11 @@ PROMPT;
         }
 
         // Fallback: VariationProvider (basic, PHP-only)
-        $variationInstructions = $this->variationProvider->generateInstructions($context['last_messages'] ?? []);
+        /** @var array<int, array{direction: string, body_text: string}> $lastMsgsVariation */
+        $lastMsgsVariation = $context['last_messages'] ?? [];
+        $variationInstructions = $this->variationProvider->generateInstructions($lastMsgsVariation);
 
-        if (!empty($variationInstructions)) {
+        if ($variationInstructions !== '' && $variationInstructions !== '0') {
             return $variationInstructions . "\n\n";
         }
 
@@ -292,9 +305,7 @@ PROMPT;
             $output .= "**{$role}**: {$content}\n";
         }
 
-        $output .= "\nFix the issues above. Simplify if needed.\n";
-
-        return $output;
+        return $output . "\nFix the issues above. Simplify if needed.\n";
     }
 
     /**
@@ -307,7 +318,7 @@ PROMPT;
      */
     private function formatInstructions(array $instructions): string
     {
-        if (empty($instructions)) {
+        if ($instructions === []) {
             return '';
         }
 
@@ -374,7 +385,7 @@ PROMPT;
      */
     private function formatConversationHistory(array $messages): string
     {
-        if (empty($messages)) {
+        if ($messages === []) {
             return '(No prior messages — this is the first exchange)';
         }
 
@@ -423,21 +434,21 @@ PROMPT;
         $body = preg_replace('/data:image\/[^;]+;base64,[A-Za-z0-9+\/=]{100,}/i', '[IMAGE REMOVED]', $body);
 
         // Remove standalone base64 sequences (100+ chars)
-        $body = preg_replace('/[A-Za-z0-9+\/=]{100,}/', '[BASE64 DATA REMOVED]', $body);
+        $body = preg_replace('/[A-Za-z0-9+\/=]{100,}/', '[BASE64 DATA REMOVED]', (string) $body);
 
         // Remove MIME boundary markers
-        $body = preg_replace('/--[a-z0-9-]{20,}/i', '', $body);
+        $body = preg_replace('/--[a-z0-9-]{20,}/i', '', (string) $body);
 
         // Remove Content-Type headers
-        $body = preg_replace('/Content-Type:[^\r\n]+/i', '', $body);
+        $body = preg_replace('/Content-Type:[^\r\n]+/i', '', (string) $body);
 
         // Clean up excessive whitespace
-        $body = preg_replace('/\s+/', ' ', $body);
-        $body = trim($body);
+        $body = preg_replace('/\s+/', ' ', (string) $body);
+        $body = trim((string) $body);
 
         // Final truncation to reasonable size (10KB max for LLM context)
         if (strlen($body) > 10000) {
-            $body = substr($body, 0, 10000) . "\n\n[... message truncated ...]";
+            return substr($body, 0, 10000) . "\n\n[... message truncated ...]";
         }
 
         return $body;
@@ -464,7 +475,7 @@ PROMPT;
             $html = preg_replace('/<img[^>]+src="data:image[^"]*"[^>]*>/i', '[IMAGE]', $html);
 
             // Strip HTML tags
-            $text = strip_tags($html);
+            $text = strip_tags((string) $html);
 
             return trim($text);
         }
