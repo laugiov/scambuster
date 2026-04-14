@@ -22,8 +22,8 @@ class MailAccountActiveE2eTest extends WebTestCase
             $loginHash,
             ['mail.read'],
             true,
-            null,
-            null,
+            new \DateTimeImmutable(),
+            new \DateTimeImmutable(),
             993,
             true
         );
