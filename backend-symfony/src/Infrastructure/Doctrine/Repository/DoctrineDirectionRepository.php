@@ -8,10 +8,10 @@ use App\Domain\Communication\Direction;
 use App\Domain\Communication\Repository\DirectionRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class DoctrineDirectionRepository implements DirectionRepositoryInterface
+final readonly class DoctrineDirectionRepository implements DirectionRepositoryInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

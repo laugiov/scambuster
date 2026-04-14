@@ -70,7 +70,7 @@ final class ClusteringBackfillCommand extends Command
             // In dry-run, count how many have anchor IOCs
             $anchorTypes = $this->clusteringService->getAnchorTypes();
 
-            if (empty($anchorTypes)) {
+            if ($anchorTypes === []) {
                 $io->warning('No anchor IOC types configured.');
 
                 return Command::SUCCESS;

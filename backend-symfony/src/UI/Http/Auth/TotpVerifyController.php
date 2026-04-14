@@ -15,19 +15,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/2fa/verify', name: 'api_2fa_verify', methods: ['POST'])]
 #[IsGranted('ROLE_USER')]
-final class TotpVerifyController
+final readonly class TotpVerifyController
 {
     public function __construct(
-        private readonly UserRepositoryInterface $userRepo,
-        private readonly TokenStorageInterface $tokenStorage,
+        private UserRepositoryInterface $userRepo,
+        private TokenStorageInterface $tokenStorage,
     ) {
     }
-
     public function __invoke(Request $request): JsonResponse
     {
         $token = $this->tokenStorage->getToken();
 
-        if ($token === null) {
+        if (!$token instanceof \Symfony\Component\Security\Core\Authentication\Token\TokenInterface) {
             return new JsonResponse(['message' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -61,7 +60,6 @@ final class TotpVerifyController
             'enabled' => true,
         ], Response::HTTP_OK);
     }
-
     private function verifyTotp(string $base32Secret, string $code): bool
     {
         $secret = $this->base32Decode($base32Secret);
@@ -79,7 +77,6 @@ final class TotpVerifyController
 
         return false;
     }
-
     private function generateTotpCode(string $secret, int $counter): string
     {
         $counterBytes = pack('N*', 0, $counter);
@@ -95,7 +92,6 @@ final class TotpVerifyController
 
         return str_pad((string) $value, 6, '0', STR_PAD_LEFT);
     }
-
     private function base32Decode(string $base32): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

@@ -109,7 +109,7 @@ final class MigrateIocsExportMetadataCommand extends Command
             ]
         );
 
-        if (count($errors) > 0) {
+        if ($errors !== []) {
             $io->warning('Errors encountered:');
 
             foreach ($errors as $error) {

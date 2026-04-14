@@ -34,30 +34,27 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetConversationController
+final readonly class GetConversationController
 {
     public function __construct(
-        private readonly ConversationHandler $handler
+        private ConversationHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}', name: 'get_conversation', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $convId): JsonResponse
     {
         $conv = $this->handler->getConversation($convId);
 
-        if (!$conv || $conv->getDeletedAt() !== null) {
+        if (!$conv || $conv->getDeletedAt() instanceof \DateTimeImmutable) {
             return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
         }
         $links = $this->handler->getConversationChannels($conv);
-        $channels = array_map(function ($link) {
-            return [
-                'channel_id' => $link->getChannel()->getChannelId(),
-                'code' => $link->getChannel()->getCode(),
-                'label' => $link->getChannel()->getLabelFr(),
-            ];
-        }, $links);
+        $channels = array_map(fn ($link): array => [
+            'channel_id' => $link->getChannel()->getChannelId(),
+            'code' => $link->getChannel()->getCode(),
+            'label' => $link->getChannel()->getLabelFr(),
+        ], $links);
         $dto = new ConversationDetailResponseDto(
             $conv->getConvId(),
             $conv->getStatus()->value,

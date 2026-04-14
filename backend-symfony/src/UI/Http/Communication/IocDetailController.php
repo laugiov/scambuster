@@ -17,13 +17,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  */
 #[Route('/api/v1/iocs')]
 #[IsGranted('ioc:read')]
-final class IocDetailController
+final readonly class IocDetailController
 {
     public function __construct(
-        private readonly IocHandler $handler
+        private IocHandler $handler
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/iocs/{indicator_id}/detail',
         summary: 'Get full IOC detail with observations and related IOCs',

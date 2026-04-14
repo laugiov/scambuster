@@ -61,13 +61,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class AutoClassifyConversationController
+final readonly class AutoClassifyConversationController
 {
     public function __construct(
-        private readonly ScamClassificationHandler $classificationHandler
+        private ScamClassificationHandler $classificationHandler
     ) {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}/auto-classify', name: 'auto_classify_conversation', methods: ['POST'])]
     #[IsGranted('conversation:write')]
     public function __invoke(string $convId, Request $request): JsonResponse

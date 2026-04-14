@@ -77,7 +77,7 @@ final class ComputeIocContextCommand extends Command
 
         $messages = $this->connection->fetchAllAssociative($sql);
 
-        if (empty($messages)) {
+        if ($messages === []) {
             $io->success('No IOCs to process for structural context.');
 
             // Continue to LLM enrichment if requested
@@ -96,7 +96,6 @@ final class ComputeIocContextCommand extends Command
 
         $processedMessages = 0;
         $processedIocs = 0;
-        $skipped = 0;
         $errors = 0;
 
         foreach ($messages as $msg) {
@@ -115,7 +114,7 @@ final class ComputeIocContextCommand extends Command
                 ['msgId' => $msgId]
             );
 
-            if (empty($iocRows)) {
+            if ($iocRows === []) {
                 continue;
             }
 
@@ -189,7 +188,7 @@ final class ComputeIocContextCommand extends Command
      */
     private function runLlmEnrichment(InputInterface $input, SymfonyStyle $io, int $limit, bool $dryRun): int
     {
-        if ($this->contextualEnricher === null) {
+        if (!$this->contextualEnricher instanceof \App\Application\LLM\ContextualEnricher) {
             $io->warning('ContextualEnricher not available. Skipping LLM enrichment.');
 
             return 0;
@@ -211,7 +210,7 @@ final class ComputeIocContextCommand extends Command
             . ' LIMIT ' . $limit
         );
 
-        if (empty($msgRows)) {
+        if ($msgRows === []) {
             $io->success('No IOCs with structural status to enrich.');
 
             return 0;
@@ -250,14 +249,14 @@ final class ComputeIocContextCommand extends Command
                 ['msgId' => $msgId]
             );
 
-            if (empty($contextRows)) {
+            if ($contextRows === []) {
                 continue;
             }
 
             $iocTypes = array_values(array_unique(array_filter(array_map(
-                fn (array $row) => \is_string($row['ioc_type'] ?? null) ? $row['ioc_type'] : '',
+                fn (array $row): string => \is_string($row['ioc_type'] ?? null) ? $row['ioc_type'] : '',
                 $contextRows
-            ), fn (string $t) => $t !== '')));
+            ), fn (string $t): bool => $t !== '')));
 
             $firstRow = $contextRows[0];
             $scamType = \is_string($firstRow['scam_type_code'] ?? null) ? $firstRow['scam_type_code'] : 'UNKNOWN';
@@ -309,7 +308,7 @@ final class ComputeIocContextCommand extends Command
 
             $result = $this->contextualEnricher->enrich($request);
 
-            if ($result === null) {
+            if (!$result instanceof \App\Application\LLM\ContextualEnrichmentResult) {
                 $llmErrors++;
                 $io->warning(\sprintf('LLM enrichment failed for message %s', substr($msgId, 0, 8)));
 
@@ -352,7 +351,7 @@ final class ComputeIocContextCommand extends Command
             $enriched++;
 
             // Estimate cost
-            if ($this->costEstimator !== null) {
+            if ($this->costEstimator instanceof \App\Application\LLM\CostEstimator) {
                 $approxPromptTokens = (int) ceil(\strlen($revelationText) / 4) + 200;
                 $approxCompletionTokens = 125; // ~500 chars JSON output
                 $cost = $this->costEstimator->estimate('openai', 'gpt-4o-mini', $approxPromptTokens, $approxCompletionTokens);

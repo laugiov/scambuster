@@ -9,14 +9,14 @@ use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
-final class ClusteringService
+final readonly class ClusteringService
 {
     private const SIMILARITY_THRESHOLD = 0.75;
 
     public function __construct(
-        private readonly FeatureExtractor $featureExtractor,
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger
+        private FeatureExtractor $featureExtractor,
+        private EntityManagerInterface $em,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -107,7 +107,7 @@ final class ClusteringService
      */
     private function findBestMatch(array $embedding, array $campaigns): ?array
     {
-        if (count($campaigns) === 0) {
+        if ($campaigns === []) {
             return null;
         }
 
@@ -228,11 +228,11 @@ final class ClusteringService
      */
     private function jaccardSimilarity(array $set1, array $set2): float
     {
-        if (count($set1) === 0 && count($set2) === 0) {
+        if ($set1 === [] && $set2 === []) {
             return 1.0;
         }
 
-        if (count($set1) === 0 || count($set2) === 0) {
+        if ($set1 === [] || $set2 === []) {
             return 0.0;
         }
 

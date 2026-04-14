@@ -22,13 +22,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'Activity feed events')],
     security: [['Bearer' => []]],
 )]
-final class ActivityFeedController
+final readonly class ActivityFeedController
 {
     public function __construct(
-        private readonly AnalyticsHandler $handler,
+        private AnalyticsHandler $handler,
     ) {
     }
-
     #[Route('/api/v1/monitoring/analytics/activity-feed', name: 'api_analytics_activity_feed', methods: ['GET'])]
     #[IsGranted('monitoring:read')]
     public function __invoke(Request $request): JsonResponse

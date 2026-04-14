@@ -18,13 +18,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'Weekly trend data')],
     security: [['Bearer' => []]],
 )]
-final class WeeklyTrendsController
+final readonly class WeeklyTrendsController
 {
     public function __construct(
-        private readonly AnalyticsHandler $handler,
+        private AnalyticsHandler $handler,
     ) {
     }
-
     #[Route('/api/v1/monitoring/analytics/weekly-trends', name: 'api_analytics_weekly_trends', methods: ['GET'])]
     #[IsGranted('monitoring:read')]
     public function __invoke(): JsonResponse

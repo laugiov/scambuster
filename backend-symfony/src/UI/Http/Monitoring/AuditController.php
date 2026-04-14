@@ -18,13 +18,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Auth handled by Symfony firewall (access_control: ROLE_ADMIN for /monitoring).
  */
 #[IsGranted('audit:read')]
-final class AuditController
+final readonly class AuditController
 {
     public function __construct(
-        private readonly AuditQueryService $auditQueryService,
+        private AuditQueryService $auditQueryService,
     ) {
     }
-
     #[Route('/api/v1/monitoring/audit', methods: ['GET'])]
     #[OA\Get(
         path: '/api/v1/monitoring/audit',

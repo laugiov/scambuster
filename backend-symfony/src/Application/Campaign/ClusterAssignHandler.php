@@ -12,13 +12,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final class ClusterAssignHandler
+final readonly class ClusterAssignHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly ClusteringService $clusteringService,
-        private readonly CampaignRepository $campaignRepository,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private ClusteringService $clusteringService,
+        private CampaignRepository $campaignRepository,
+        private LoggerInterface $logger
     ) {
     }
 

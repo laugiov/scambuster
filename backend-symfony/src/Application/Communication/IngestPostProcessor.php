@@ -84,7 +84,7 @@ class IngestPostProcessor
      */
     private function computeIocContext(string $msgId): void
     {
-        if ($this->iocContextService === null) {
+        if (!$this->iocContextService instanceof \App\Application\Communication\IocContextService) {
             return;
         }
 
@@ -99,7 +99,7 @@ class IngestPostProcessor
                 ['msgId' => $msgId]
             );
 
-            if (empty($rows)) {
+            if ($rows === []) {
                 return;
             }
 
@@ -130,7 +130,7 @@ class IngestPostProcessor
      */
     private function enrichIocContext(Message $message, string $msgId): void
     {
-        if ($this->contextualEnricher === null) {
+        if (!$this->contextualEnricher instanceof \App\Application\LLM\ContextualEnricher) {
             return;
         }
 
@@ -150,16 +150,16 @@ class IngestPostProcessor
                 ['msgId' => $msgId]
             );
 
-            if (empty($contextRows)) {
+            if ($contextRows === []) {
                 return;
             }
 
             // Collect IOC types
             $iocTypes = array_unique(array_map(
-                fn (array $row) => \is_string($row['ioc_type'] ?? null) ? $row['ioc_type'] : '',
+                fn (array $row): string => \is_string($row['ioc_type'] ?? null) ? $row['ioc_type'] : '',
                 $contextRows
             ));
-            $iocTypes = array_values(array_filter($iocTypes, fn (string $t) => $t !== ''));
+            $iocTypes = array_values(array_filter($iocTypes, fn (string $t): bool => $t !== ''));
 
             // Use first row for conversation-level data
             $firstRow = $contextRows[0];
@@ -213,7 +213,7 @@ class IngestPostProcessor
 
             $result = $this->contextualEnricher->enrich($request);
 
-            if ($result === null) {
+            if (!$result instanceof \App\Application\LLM\ContextualEnrichmentResult) {
                 $this->logger->debug('[IngestPostProcessor] LLM enrichment returned null, keeping structural', [
                     'msg_id' => $msgId,
                 ]);
@@ -272,7 +272,7 @@ class IngestPostProcessor
      */
     private function autoClassifyScamType(Message $message, Conversation $conversation, string $detectedLang): void
     {
-        if ($this->scamClassifier === null || strtoupper($conversation->getScamType()->getCode()) !== 'UNKNOWN') {
+        if (!$this->scamClassifier instanceof \App\Application\Communication\ScamClassificationHandler || strtoupper($conversation->getScamType()->getCode()) !== 'UNKNOWN') {
             return;
         }
 
@@ -326,14 +326,14 @@ class IngestPostProcessor
      */
     private function analyzePromptInjection(Message $message, Conversation $conversation, string $msgId): void
     {
-        if ($this->promptInjectionDetector === null) {
+        if (!$this->promptInjectionDetector instanceof \App\Application\Communication\PromptInjectionDetector) {
             return;
         }
 
         try {
             $analysis = $this->promptInjectionDetector->analyze($message);
 
-            if ($analysis !== null) {
+            if ($analysis instanceof \App\Domain\Communication\PromptInjectionAnalysis) {
                 $message->setInjectionAnalysis($analysis->toArray());
                 $this->em->flush();
                 $this->logger->info('[IngestPostProcessor] Prompt injection analysis complete', [
@@ -371,7 +371,7 @@ class IngestPostProcessor
      */
     private function clusterConversation(Conversation $conversation): void
     {
-        if ($this->iocClusteringService === null) {
+        if (!$this->iocClusteringService instanceof \App\Application\Clustering\IocClusteringService) {
             return;
         }
 
@@ -399,7 +399,7 @@ class IngestPostProcessor
         $senderHash = hash('sha256', strtolower($senderEmail));
 
         // 1. Flood detection (burst: 5 emails in 5 minutes)
-        if ($this->senderFloodDetector !== null) {
+        if ($this->senderFloodDetector instanceof \App\Application\Communication\SenderFloodDetector) {
             $flooded = $this->senderFloodDetector->recordAndCheck($senderHash);
 
             if ($flooded) {
@@ -415,7 +415,7 @@ class IngestPostProcessor
         }
 
         // 2. Daily sender limit (10 emails/24h via Symfony rate limiter)
-        if ($this->emailsPerSenderPerDayLimiter !== null) {
+        if ($this->emailsPerSenderPerDayLimiter instanceof \Symfony\Component\RateLimiter\RateLimiterFactory) {
             $limiter = $this->emailsPerSenderPerDayLimiter->create($senderHash);
             $limit = $limiter->consume();
 
@@ -437,7 +437,7 @@ class IngestPostProcessor
 
     private function dispatchRateLimitAudit(string $senderHash, string $limitType, string $convId): void
     {
-        if ($this->auditLogger === null) {
+        if (!$this->auditLogger instanceof \App\Application\Audit\AuditLogger) {
             return;
         }
 
@@ -491,7 +491,7 @@ class IngestPostProcessor
         }
 
         if (isset($iocTypes['url'])) {
-            $urlCount = \count(array_filter($iocs, fn ($i) => ($i->getContext()['type'] ?? '') === 'url'));
+            $urlCount = \count(array_filter($iocs, fn ($i): bool => ($i->getContext()['type'] ?? '') === 'url'));
             $score += min($urlCount * 5, 15);
         }
 

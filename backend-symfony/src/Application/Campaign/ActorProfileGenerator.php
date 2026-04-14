@@ -13,11 +13,11 @@ use Psr\Log\LoggerInterface;
  * Extracts style_dna (writing patterns) and infra_dna (technical indicators)
  * using deterministic statistical analysis — no LLM call needed.
  */
-final class ActorProfileGenerator
+final readonly class ActorProfileGenerator
 {
     public function __construct(
-        private readonly Connection $connection,
-        private readonly LoggerInterface $logger,
+        private Connection $connection,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -75,7 +75,7 @@ final class ActorProfileGenerator
         // Sentence analysis
         $sentences = preg_split('/[.!?]+/', $allText, -1, PREG_SPLIT_NO_EMPTY) ?: [];
         $sentenceLengths = array_map(fn (string $s): int => str_word_count(trim($s)), $sentences);
-        $avgSentenceLength = !empty($sentenceLengths) ? round(array_sum($sentenceLengths) / count($sentenceLengths), 1) : 0;
+        $avgSentenceLength = $sentenceLengths === [] ? 0 : round(array_sum($sentenceLengths) / count($sentenceLengths), 1);
 
         // Vocabulary analysis
         $words = preg_split('/\s+/', mb_strtolower($allText), -1, PREG_SPLIT_NO_EMPTY) ?: [];
@@ -86,7 +86,7 @@ final class ActorProfileGenerator
 
         // Word length
         $wordLengths = array_map(fn (string $w): int => mb_strlen($w), $words);
-        $avgWordLength = !empty($wordLengths) ? round(array_sum($wordLengths) / count($wordLengths), 1) : 0;
+        $avgWordLength = $wordLengths === [] ? 0 : round(array_sum($wordLengths) / count($wordLengths), 1);
 
         // Language distribution
         $languages = [];

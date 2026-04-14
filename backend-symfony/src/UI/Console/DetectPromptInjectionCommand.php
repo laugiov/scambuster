@@ -52,7 +52,7 @@ class DetectPromptInjectionCommand extends Command
 
         $messages = $this->queryService->findMessagesForAnalysis($conversationId, $force, $limit);
 
-        if (empty($messages)) {
+        if ($messages === []) {
             $io->success('No messages to analyze.');
 
             return Command::SUCCESS;
@@ -85,7 +85,7 @@ class DetectPromptInjectionCommand extends Command
                     ? $this->detector->analyzePatternOnly($message)
                     : $this->detector->analyze($message);
 
-                if ($analysis === null) {
+                if (!$analysis instanceof \App\Domain\Communication\PromptInjectionAnalysis) {
                     $progressBar->advance();
 
                     continue;

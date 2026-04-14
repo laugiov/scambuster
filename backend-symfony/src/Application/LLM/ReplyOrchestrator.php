@@ -17,9 +17,9 @@ use Psr\Log\LoggerInterface;
  * Before spec 065h, this class was 656 lines. After extraction, it is
  * a constructor + a single delegate call.
  */
-final class ReplyOrchestrator
+final readonly class ReplyOrchestrator
 {
-    private readonly RetryCoordinator $coordinator;
+    private RetryCoordinator $coordinator;
 
     public function __construct(
         LLMClientInterface $llmClient,

@@ -34,12 +34,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetConversationContextController
+final readonly class GetConversationContextController
 {
     public function __construct(private ReplyHandler $handler)
     {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}/context', name: 'get_conversation_context', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $convId): JsonResponse

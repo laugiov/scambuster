@@ -14,7 +14,7 @@ use App\Application\Communication\IocExportMapper;
  * Generates: identity, marking-definitions, indicators, relationships, report.
  * All timestamps include milliseconds. No spec_version on bundle.
  */
-final class StixBundleBuilder
+final readonly class StixBundleBuilder
 {
     // Fixed ScamBuster identity UUID (deterministic across exports)
     private const IDENTITY_ID = 'identity--f431f809-377b-45e0-aa1c-6a4751cae5ff';
@@ -72,7 +72,7 @@ final class StixBundleBuilder
     ];
 
     public function __construct(
-        private readonly IocExportMapper $exportMapper
+        private IocExportMapper $exportMapper
     ) {
     }
 

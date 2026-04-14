@@ -181,8 +181,8 @@ class IocGenerator
     private function generatePhone(string $type = 'generic'): string
     {
         return match ($type) {
-            'toll-free' => sprintf('+1-800-%03d-%04d', rand(100, 999), rand(1000, 9999)),
-            'business' => sprintf('+33 1 %02d %02d %02d %02d', rand(10, 99), rand(10, 99), rand(10, 99), rand(10, 99)),
+            'toll-free' => sprintf('+1-800-%03d-%04d', random_int(100, 999), random_int(1000, 9999)),
+            'business' => sprintf('+33 1 %02d %02d %02d %02d', random_int(10, 99), random_int(10, 99), random_int(10, 99), random_int(10, 99)),
             'international' => $this->randomChoice(self::PHONE_PREFIXES) . ' ' . $this->generatePhoneNumber(),
             default => $this->randomChoice(self::PHONE_PREFIXES) . ' ' . $this->generatePhoneNumber(),
         };
@@ -190,7 +190,7 @@ class IocGenerator
 
     private function generatePhoneNumber(): string
     {
-        return sprintf('%02d %02d %02d %02d', rand(10, 99), rand(10, 99), rand(10, 99), rand(10, 99));
+        return sprintf('%02d %02d %02d %02d', random_int(10, 99), random_int(10, 99), random_int(10, 99), random_int(10, 99));
     }
 
     /**
@@ -200,11 +200,11 @@ class IocGenerator
     {
         $countries = ['FR', 'DE', 'GB', 'IT', 'ES', 'NL', 'BE'];
         $country = $this->randomChoice($countries);
-        $checkDigits = sprintf('%02d', rand(10, 99));
+        $checkDigits = sprintf('%02d', random_int(10, 99));
 
         $accountNumber = match ($country) {
-            'FR' => sprintf('%05d%05d%011d%02d', rand(10000, 99999), rand(10000, 99999), rand(0, 99999999999), rand(10, 99)),
-            'DE' => sprintf('%08d%010d', rand(10000000, 99999999), rand(0, 9999999999)),
+            'FR' => sprintf('%05d%05d%011d%02d', random_int(10000, 99999), random_int(10000, 99999), random_int(0, 99999999999), random_int(10, 99)),
+            'DE' => sprintf('%08d%010d', random_int(10000000, 99999999), random_int(0, 9999999999)),
             default => strtoupper(bin2hex(random_bytes(10))),
         };
 
@@ -220,7 +220,7 @@ class IocGenerator
         $address = '1'; // Bitcoin addresses start with 1, 3, or bc1
 
         for ($i = 0; $i < 33; $i++) {
-            $address .= $chars[rand(0, strlen($chars) - 1)];
+            $address .= $chars[random_int(0, strlen($chars) - 1)];
         }
 
         return $address;
@@ -270,7 +270,7 @@ class IocGenerator
         $firstName = $this->randomChoice($firstNames);
         $lastName = $this->randomChoice($lastNames);
         $domain = $this->randomChoice(self::EMAIL_DOMAINS);
-        $number = rand(10, 99);
+        $number = random_int(10, 99);
 
         return sprintf('%s.%s%d@%s', $firstName, $lastName, $number, $domain);
     }

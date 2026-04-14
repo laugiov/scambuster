@@ -25,18 +25,6 @@ class LlmUsageRecord
     #[ORM\Column(type: 'integer')]
     private int $id = 0;
 
-    #[ORM\Column(name: 'conversation_id', type: 'string', length: 36, nullable: true)]
-    private ?string $conversationId;
-
-    #[ORM\Column(type: 'string', length: 32)]
-    private string $provider;
-
-    #[ORM\Column(type: 'string', length: 64)]
-    private string $model;
-
-    #[ORM\Column(type: 'string', length: 50)]
-    private string $purpose;
-
     #[ORM\Column(name: 'prompt_tokens', type: 'integer')]
     private int $promptTokens;
 
@@ -50,13 +38,17 @@ class LlmUsageRecord
     private \DateTimeImmutable $createdAt;
 
     public function __construct(
-        string $provider,
-        string $model,
-        string $purpose,
+        #[ORM\Column(type: 'string', length: 32)]
+        private string $provider,
+        #[ORM\Column(type: 'string', length: 64)]
+        private string $model,
+        #[ORM\Column(type: 'string', length: 50)]
+        private string $purpose,
         int $promptTokens,
         int $completionTokens,
         float $estimatedCostUsd,
-        ?string $conversationId = null
+        #[ORM\Column(name: 'conversation_id', type: 'string', length: 36, nullable: true)]
+        private ?string $conversationId = null
     ) {
         if ($promptTokens < 0 || $completionTokens < 0) {
             throw new \InvalidArgumentException('Token counts cannot be negative');
@@ -65,14 +57,9 @@ class LlmUsageRecord
         if ($estimatedCostUsd < 0) {
             throw new \InvalidArgumentException('Estimated cost cannot be negative');
         }
-
-        $this->provider = $provider;
-        $this->model = $model;
-        $this->purpose = $purpose;
         $this->promptTokens = $promptTokens;
         $this->completionTokens = $completionTokens;
         $this->estimatedCostUsd = number_format($estimatedCostUsd, 6, '.', '');
-        $this->conversationId = $conversationId;
         $this->createdAt = new \DateTimeImmutable();
     }
 

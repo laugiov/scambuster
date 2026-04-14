@@ -13,7 +13,7 @@ namespace App\Application\Stix;
  *
  * Delegates attack-pattern and relationship building to ThreatActorStixBuilder.
  */
-final class ClusteredThreatActorStixBuilder
+final readonly class ClusteredThreatActorStixBuilder
 {
     private const IDENTITY_ID = 'identity--f431f809-377b-45e0-aa1c-6a4751cae5ff';
     private const TLP_AMBER = 'marking-definition--f88d31f6-486f-44da-b317-01333bde0b82';
@@ -36,7 +36,7 @@ final class ClusteredThreatActorStixBuilder
         'CHARITY' => ['financial-theft'],
     ];
 
-    private readonly ThreatActorStixBuilder $actorBuilder;
+    private ThreatActorStixBuilder $actorBuilder;
 
     public function __construct()
     {
@@ -122,7 +122,11 @@ final class ClusteredThreatActorStixBuilder
             /** @var string $indValue */
             $indValue = $ind['value'] ?? '';
 
-            if ($indId === '' || $indType === '') {
+            if ($indId === '') {
+                continue;
+            }
+
+            if ($indType === '') {
                 continue;
             }
 
@@ -145,7 +149,7 @@ final class ClusteredThreatActorStixBuilder
         }
 
         // Fallback: use pre-built indicator_stix_ids if no indicator_data
-        if (empty($indicatorStixIds)) {
+        if ($indicatorStixIds === []) {
             /** @var list<string> $indicatorStixIds */
             $indicatorStixIds = \is_array($clusterData['indicator_stix_ids'] ?? null) ? $clusterData['indicator_stix_ids'] : [];
         }
@@ -259,7 +263,7 @@ final class ClusteredThreatActorStixBuilder
         // Resolve goals from weighted scam types (>=10% threshold) or all types as fallback
         /** @var list<array{code: string, count: int, pct: float}> $weightedTypes */
         $weightedTypes = \is_array($clusterData['weighted_scam_types'] ?? null) ? $clusterData['weighted_scam_types'] : [];
-        $goals = !empty($weightedTypes) ? $this->resolveWeightedGoals($weightedTypes) : $this->resolveGoals($scamTypes);
+        $goals = empty($weightedTypes) ? $this->resolveGoals($scamTypes) : $this->resolveWeightedGoals($weightedTypes);
 
         // Build description
         $description = $this->buildDescription($convCount, $anchorIocTypes, $scamTypes, $firstSeen, $lastSeen);
@@ -335,9 +339,9 @@ final class ClusteredThreatActorStixBuilder
      */
     private function resolveWeightedGoals(array $weightedTypes): array
     {
-        $significantTypes = array_filter($weightedTypes, fn (array $t) => $t['pct'] >= 10.0);
+        $significantTypes = array_filter($weightedTypes, fn (array $t): bool => $t['pct'] >= 10.0);
 
-        if (empty($significantTypes)) {
+        if ($significantTypes === []) {
             $significantTypes = $weightedTypes;
         }
 
@@ -363,7 +367,7 @@ final class ClusteredThreatActorStixBuilder
     private function buildDescription(int $convCount, array $anchorIocTypes, array $scamTypes, string $firstSeen, string $lastSeen): string
     {
         $iocStr = implode(', ', $anchorIocTypes) ?: 'financial IOCs';
-        $scamStr = implode(', ', array_map(fn (string $s) => ucfirst(strtolower(str_replace('_', ' ', $s))), $scamTypes)) ?: 'Unknown';
+        $scamStr = implode(', ', array_map(fn (string $s): string => ucfirst(strtolower(str_replace('_', ' ', $s))), $scamTypes)) ?: 'Unknown';
         $dateRange = '';
 
         if ($firstSeen !== '' && $lastSeen !== '') {

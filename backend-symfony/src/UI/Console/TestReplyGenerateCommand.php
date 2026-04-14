@@ -13,7 +13,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class TestReplyGenerateCommand extends Command
 {
     public function __construct(
-        private ReplyHandler $replyHandler
+        private readonly ReplyHandler $replyHandler
     ) {
         parent::__construct();
     }
@@ -40,7 +40,7 @@ class TestReplyGenerateCommand extends Command
             // Get the message
             $message = $this->replyHandler->getMessage($replyMsgId);
 
-            if (!$message) {
+            if (!$message instanceof \App\Domain\Communication\Message) {
                 $io->error('Message not found!');
 
                 return Command::FAILURE;
@@ -50,9 +50,9 @@ class TestReplyGenerateCommand extends Command
             $parentGmailMsgId = null;
             $parentMessage = $message->getReplyTo();
 
-            $io->text('Parent Message: ' . ($parentMessage ? $parentMessage->getMsgId() : 'null'));
+            $io->text('Parent Message: ' . ($parentMessage instanceof \App\Domain\Communication\Message ? $parentMessage->getMsgId() : 'null'));
 
-            if ($parentMessage) {
+            if ($parentMessage instanceof \App\Domain\Communication\Message) {
                 $parentGmailMsgId = $parentMessage->getProviderMsgId();
             }
 
@@ -64,11 +64,10 @@ class TestReplyGenerateCommand extends Command
                 $io->success('✅ parent_gmail_msg_id is present: ' . $parentGmailMsgId);
 
                 return Command::SUCCESS;
-            } else {
-                $io->error('❌ parent_gmail_msg_id is MISSING!');
-
-                return Command::FAILURE;
             }
+            $io->error('❌ parent_gmail_msg_id is MISSING!');
+
+            return Command::FAILURE;
 
         } catch (\Exception $e) {
             $io->error('Failed: ' . $e->getMessage());

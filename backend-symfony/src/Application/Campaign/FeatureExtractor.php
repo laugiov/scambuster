@@ -60,7 +60,7 @@ final class FeatureExtractor
     {
         $bodyText = $message->getBodyText();
         $urls = $this->extractUrls($bodyText);
-        $domains = array_filter(array_map(fn ($url) => parse_url($url, PHP_URL_HOST), $urls));
+        $domains = array_filter(array_map(fn ($url): ?string => parse_url((string) $url, PHP_URL_HOST) ?: null, $urls));
 
         // Récupérer métadonnées depuis headers JSONB
         $headers = $message->getHeaders();
@@ -74,7 +74,7 @@ final class FeatureExtractor
             'domain_ages' => $this->getDomainAges($domains), // Stub pour MVP
             'dkim' => (bool) $dkim,
             'spf' => (bool) $spf,
-            'mx_provider' => $this->getMxProvider($message),
+            'mx_provider' => $this->getMxProvider(),
         ];
     }
 
@@ -161,9 +161,8 @@ final class FeatureExtractor
     private function defangUrls(string $text): string
     {
         $text = str_replace('http://', 'hxxp://', $text);
-        $text = str_replace('https://', 'hxxps://', $text);
 
-        return $text;
+        return str_replace('https://', 'hxxps://', $text);
     }
 
     /**
@@ -182,7 +181,7 @@ final class FeatureExtractor
     }
 
     /** @phpstan-ignore return.unusedType */
-    private function getMxProvider(Message $message): ?string
+    private function getMxProvider(): ?string
     {
         // MVP : stub
         // TODO : Parser headers Received, détecter provider (Gmail, Office365, OVH, etc.)
@@ -214,7 +213,7 @@ final class FeatureExtractor
             return 0.0;
         }
 
-        if (count($sentences) === 0) {
+        if ($sentences === []) {
             return 0.0;
         }
 
@@ -234,11 +233,11 @@ final class FeatureExtractor
             return 0.0;
         }
 
-        if (count($words) === 0) {
+        if ($words === []) {
             return 0.0;
         }
 
-        $longWords = array_filter($words, fn ($w) => mb_strlen($w) > 6);
+        $longWords = array_filter($words, fn ($w): bool => mb_strlen((string) $w) > 6);
 
         return count($longWords) / count($words);
     }

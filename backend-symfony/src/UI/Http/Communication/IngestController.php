@@ -23,7 +23,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api/v1/communication/ingest')]
 #[IsGranted('conversation:write')]
-final class IngestController
+final readonly class IngestController
 {
     public function __construct(
         private IngestHandler $handler,
@@ -35,7 +35,6 @@ final class IngestController
         private ?AuditLogger $auditLogger = null,
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/communication/ingest/raw',
         summary: 'Ingestion brute d\'un email (format RFC822)',
@@ -103,7 +102,7 @@ final class IngestController
         // Spec 065c — per-account rate limit. Throttles a flood targeting
         // one specific honeypot account so it cannot exhaust the LLM
         // pipeline for healthy accounts.
-        if ($this->ingestPerAccountLimiter !== null && $dto->account_id !== '') {
+        if ($this->ingestPerAccountLimiter instanceof \Symfony\Component\RateLimiter\RateLimiterFactory && $dto->account_id !== '') {
             $limiter = $this->ingestPerAccountLimiter->create($dto->account_id);
             $limit = $limiter->consume(1);
 

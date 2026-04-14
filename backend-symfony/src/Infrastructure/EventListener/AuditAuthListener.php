@@ -7,8 +7,6 @@ namespace App\Infrastructure\EventListener;
 use App\Application\Audit\AuditLogger;
 use App\Domain\Audit\AuditEventType;
 use Lexik\Bundle\JWTAuthenticationBundle\Event\AuthenticationSuccessEvent;
-use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTExpiredEvent;
-use Lexik\Bundle\JWTAuthenticationBundle\Event\JWTInvalidEvent;
 use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
@@ -19,11 +17,11 @@ use Symfony\Component\HttpFoundation\RequestStack;
  * - lexik_jwt_authentication.on_jwt_invalid -> AUTH_FAILURE
  * - lexik_jwt_authentication.on_jwt_expired -> AUTH_TOKEN_EXPIRED
  */
-final class AuditAuthListener
+final readonly class AuditAuthListener
 {
     public function __construct(
-        private readonly AuditLogger $auditLogger,
-        private readonly RequestStack $requestStack
+        private AuditLogger $auditLogger,
+        private RequestStack $requestStack
     ) {
     }
 
@@ -41,7 +39,7 @@ final class AuditAuthListener
         );
     }
 
-    public function onJwtInvalid(JWTInvalidEvent $event): void
+    public function onJwtInvalid(): void
     {
         $this->auditLogger->log(
             eventType: AuditEventType::AUTH_FAILURE,
@@ -53,7 +51,7 @@ final class AuditAuthListener
         );
     }
 
-    public function onJwtExpired(JWTExpiredEvent $event): void
+    public function onJwtExpired(): void
     {
         $this->auditLogger->log(
             eventType: AuditEventType::AUTH_TOKEN_EXPIRED,

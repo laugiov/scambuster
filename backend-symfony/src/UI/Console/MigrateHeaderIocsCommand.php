@@ -46,7 +46,7 @@ final class MigrateHeaderIocsCommand extends Command
         // Spec 061: IOC extraction must NEVER touch outgoing messages.
         $inDirection = $this->migrationService->findInDirection();
 
-        if (!$inDirection) {
+        if (!$inDirection instanceof \App\Domain\Communication\Direction) {
             $io->error('Cannot find direction "in" in lkp_direction table.');
 
             return Command::FAILURE;
@@ -81,7 +81,7 @@ final class MigrateHeaderIocsCommand extends Command
                 } else {
                     ++$messagesSkipped;
                 }
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 ++$errors;
                 // Continue processing other messages
             }

@@ -71,8 +71,7 @@ final class VariationProvider
         $instructions .= "- NE RÉPÈTE PAS les mêmes mots-clés, expressions ou tournures de phrases\n";
         $instructions .= "- VARIE systématiquement ton vocabulaire et tes structures\n";
         $instructions .= "- NE RÉUTILISE PAS les mêmes formules de clôture\n";
-        $instructions .= "- Reste naturel mais CHANGE à chaque message\n";
 
-        return $instructions;
+        return $instructions . "- Reste naturel mais CHANGE à chaque message\n";
     }
 }

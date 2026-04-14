@@ -41,6 +41,7 @@ class PreprodClearConversationsCommand extends Command
         // Vérifier qu'on est bien en preprod
         $dbUrl = $_ENV['DATABASE_URL'] ?? '';
 
+        /** @var string $dbUrl */
         if (!str_contains($dbUrl, 'preprod')) {
             $io->error('ATTENTION: Cette commande ne peut être exécutée que sur la base preprod!');
             $io->note('DATABASE_URL doit contenir "preprod"');
@@ -68,12 +69,10 @@ class PreprodClearConversationsCommand extends Command
         );
 
         // Demander confirmation sauf si --force
-        if (!$input->getOption('force')) {
-            if (!$io->confirm('Voulez-vous VRAIMENT supprimer toutes ces données ?', false)) {
-                $io->warning('Opération annulée');
+        if (!$input->getOption('force') && !$io->confirm('Voulez-vous VRAIMENT supprimer toutes ces données ?', false)) {
+            $io->warning('Opération annulée');
 
-                return Command::SUCCESS;
-            }
+            return Command::SUCCESS;
         }
 
         $io->section('Suppression en cours');

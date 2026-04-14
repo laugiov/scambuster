@@ -15,13 +15,12 @@ use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/rule/{ruleId}/promote', name: 'api_campaign_promote', methods: ['POST'])]
 #[IsGranted('campaign:promote')]
-final class PromoteCampaignController
+final readonly class PromoteCampaignController
 {
     public function __construct(
-        private readonly CampaignPromoter $promoter
+        private CampaignPromoter $promoter
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/rule/{ruleId}/promote',
         summary: 'Promouvoir une règle de campagne',
@@ -85,7 +84,7 @@ final class PromoteCampaignController
                 'error' => 'Promotion failed',
                 'message' => $e->getMessage(),
             ], Response::HTTP_BAD_REQUEST);
-        } catch (\RuntimeException $e) {
+        } catch (\RuntimeException) {
             return new JsonResponse([
                 'error' => 'Rule not found',
             ], Response::HTTP_NOT_FOUND);

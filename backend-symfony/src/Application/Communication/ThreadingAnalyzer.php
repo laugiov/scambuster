@@ -12,9 +12,9 @@ use Doctrine\ORM\EntityManagerInterface;
  *
  * Returns raw message rows grouped by conversation for threading diagnostics.
  */
-final class ThreadingAnalyzer
+final readonly class ThreadingAnalyzer
 {
-    private readonly Connection $connection;
+    private Connection $connection;
 
     public function __construct(EntityManagerInterface $em)
     {

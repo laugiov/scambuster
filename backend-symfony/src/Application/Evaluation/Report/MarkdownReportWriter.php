@@ -59,7 +59,7 @@ final class MarkdownReportWriter
         $lines[] = '';
 
         // Best replies
-        if (!empty($bestReplies)) {
+        if ($bestReplies !== []) {
             $lines[] = '## Top 5 Best Replies (by naturalness)';
             $lines[] = '';
 
@@ -93,7 +93,7 @@ final class MarkdownReportWriter
         }
 
         // Worst replies
-        if (!empty($worstReplies)) {
+        if ($worstReplies !== []) {
             $lines[] = '## Bottom 5 Worst Replies (by naturalness)';
             $lines[] = '';
 
@@ -127,7 +127,7 @@ final class MarkdownReportWriter
         }
 
         // Persona similarity matrix
-        if (!empty($personaMatrix)) {
+        if ($personaMatrix !== []) {
             $lines[] = '## Persona Similarity Matrix';
             $lines[] = '';
 

@@ -23,7 +23,7 @@ use Psr\Log\LoggerInterface;
  * on top — it MUST fail open so that a transient LLM outage cannot
  * block the reply pipeline entirely.
  */
-final class OperationalLeakageDetector
+final readonly class OperationalLeakageDetector
 {
     private const MODEL = 'gpt-4o-mini';
     private const TEMPERATURE = 0.0;
@@ -31,8 +31,8 @@ final class OperationalLeakageDetector
     private const PURPOSE = 'leak_detection';
 
     public function __construct(
-        private readonly LLMClientInterface $llmClient,
-        private readonly LoggerInterface $logger,
+        private LLMClientInterface $llmClient,
+        private LoggerInterface $logger,
     ) {
     }
 

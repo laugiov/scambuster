@@ -109,6 +109,6 @@ class IocContextQueryService
             return [];
         }
 
-        return array_values(array_filter(explode(',', trim($value, '{}')), fn (string $s) => $s !== ''));
+        return array_values(array_filter(explode(',', trim($value, '{}')), fn (string $s): bool => $s !== ''));
     }
 }

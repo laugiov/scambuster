@@ -30,22 +30,22 @@ use Psr\Log\LoggerInterface;
  * getModelName) live here because they are only used inside the
  * retry loop.
  */
-final class RetryCoordinator
+final readonly class RetryCoordinator
 {
     private const MAX_ATTEMPTS = 3;
 
     public function __construct(
-        private readonly Port\LLMClientInterface $llmClient,
-        private readonly PromptBuilder $promptBuilder,
-        private readonly PolicyGuard $policyGuard,
-        private readonly ReplyValidator $replyValidator,
-        private readonly IOCLikelihoodScorer $iocScorer,
-        private readonly LoggerInterface $logger,
-        private readonly int $iocThreshold = 60,
-        private readonly ?FallbackProvider $fallbackProvider = null,
-        private readonly ?CostEstimator $costEstimator = null,
-        private readonly ?OperationalLeakageDetector $leakDetector = null,
-        private readonly ?\App\Application\Audit\AuditLogger $auditLogger = null,
+        private Port\LLMClientInterface $llmClient,
+        private PromptBuilder $promptBuilder,
+        private PolicyGuard $policyGuard,
+        private ReplyValidator $replyValidator,
+        private IOCLikelihoodScorer $iocScorer,
+        private LoggerInterface $logger,
+        private int $iocThreshold = 60,
+        private ?FallbackProvider $fallbackProvider = null,
+        private ?CostEstimator $costEstimator = null,
+        private ?OperationalLeakageDetector $leakDetector = null,
+        private ?\App\Application\Audit\AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -72,7 +72,7 @@ final class RetryCoordinator
 
         $messageCount = count($context['last_messages'] ?? []);
         $bestPolicyApprovedText = null;
-        $fallback = $this->getFallbackProvider();
+        $fallbackProvider = $this->getFallbackProvider();
 
         for ($attempt = 1; $attempt <= self::MAX_ATTEMPTS; $attempt++) {
             $this->logger->info("[RetryCoordinator] Attempt {$attempt}/" . self::MAX_ATTEMPTS, [
@@ -132,7 +132,7 @@ final class RetryCoordinator
             $bestPolicyApprovedText = $generatedText;
 
             // --- Stage 3: Operational leakage detection (spec 065d) ---
-            if ($this->leakDetector !== null) {
+            if ($this->leakDetector instanceof \App\Application\LLM\OperationalLeakageDetector) {
                 $leakResult = $this->leakDetector->check($generatedText, $personaCode);
 
                 if ($leakResult->leakDetected) {
@@ -284,7 +284,7 @@ final class RetryCoordinator
      */
     private function enrichContextWithDialogue(array $context, array $dialogue): array
     {
-        if (empty($dialogue)) {
+        if ($dialogue === []) {
             return $context;
         }
 
@@ -409,7 +409,7 @@ final class RetryCoordinator
      */
     private function estimateTotalCost(array $dialogue, int $messageCount = 0): float
     {
-        if ($this->costEstimator === null) {
+        if (!$this->costEstimator instanceof \App\Application\LLM\CostEstimator) {
             return 0.0;
         }
 

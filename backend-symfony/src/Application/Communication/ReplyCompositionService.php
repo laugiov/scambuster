@@ -41,13 +41,13 @@ class ReplyCompositionService
     {
         $message = $this->messageHandler->getMessage($msgId);
 
-        if (!$message) {
+        if (!$message instanceof \App\Domain\Communication\Message) {
             return null;
         }
 
         $parent = $message->getReplyTo();
 
-        if (!$parent) {
+        if (!$parent instanceof \App\Domain\Communication\Message) {
             throw new \RuntimeException('Message is not a reply');
         }
 
@@ -56,7 +56,9 @@ class ReplyCompositionService
         $parentHeaders = $parent->getHeaders();
 
         if (!empty($parentHeaders['references'])) {
-            $refs = preg_split('/\s+/', trim($parentHeaders['references'])) ?: [];
+            /** @var string $references */
+            $references = $parentHeaders['references'];
+            $refs = preg_split('/\s+/', trim($references)) ?: [];
         }
 
         if (!empty($parentHeaders['in_reply_to']) && !in_array($parentHeaders['in_reply_to'], $refs, true)) {
@@ -126,7 +128,7 @@ class ReplyCompositionService
     ): bool {
         $message = $this->messageHandler->getMessage($msgId);
 
-        if (!$message) {
+        if (!$message instanceof \App\Domain\Communication\Message) {
             return false;
         }
 
@@ -211,7 +213,7 @@ class ReplyCompositionService
                 $rfc822MessageId = $sentHeaders['message-id'];
 
                 // Clean chevrons if present (e.g., "<message-id>" -> "message-id")
-                $rfc822MessageId = trim($rfc822MessageId, '<>');
+                $rfc822MessageId = trim(is_string($rfc822MessageId) ? $rfc822MessageId : '', '<>');
 
                 $currentHeaders['message-id'] = $rfc822MessageId;
                 $this->logger->debug('[ReplyCompositionService] RFC822 Message-ID stored');
@@ -246,13 +248,13 @@ class ReplyCompositionService
      */
     public function sendEmail(string $msgId): array
     {
-        if (!$this->mailer) {
+        if (!$this->mailer instanceof \Symfony\Component\Mailer\MailerInterface) {
             throw new \RuntimeException('Mailer not configured (MAILER_DSN missing or symfony/mailer not installed)');
         }
 
         $message = $this->messageHandler->getMessage($msgId);
 
-        if (!$message) {
+        if (!$message instanceof \App\Domain\Communication\Message) {
             throw new \RuntimeException('Message not found');
         }
 
@@ -315,7 +317,7 @@ class ReplyCompositionService
             $email->html($bodyHtml);
         }
 
-        if ($bodyText) {
+        if ($bodyText !== '' && $bodyText !== '0') {
             $email->text($bodyText);
         }
 
