@@ -40,19 +40,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetMessageIocsController
+final readonly class GetMessageIocsController
 {
     public function __construct(
-        private readonly MessageHandler $handler
+        private MessageHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/message/{msgId}/iocs', name: 'get_message_iocs', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $msgId): JsonResponse
     {
         $iocs = $this->handler->getMessageIocs($msgId);
-        $result = array_map(fn ($ioc) => [
+        $result = array_map(fn ($ioc): array => [
             'obs_id' => $ioc->getObsId(),
             'ioc_id' => $ioc->getIndicatorId(),
             'context' => $ioc->getContext(),

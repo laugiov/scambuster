@@ -21,12 +21,12 @@ use Psr\Log\LoggerInterface;
  *
  * Returns ValidationResult (with backward-compatible toLegacyArray()).
  */
-final class ReplyValidator
+final readonly class ReplyValidator
 {
     public function __construct(
-        private readonly LLMClientInterface $llmClient,
-        private readonly PromptBuilder $promptBuilder,
-        private readonly LoggerInterface $logger
+        private LLMClientInterface $llmClient,
+        private PromptBuilder $promptBuilder,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -36,15 +36,14 @@ final class ReplyValidator
      * Returns a legacy array for backward compatibility.
      * Use validateMultiCriteria() for the full ValidationResult.
      *
-     * @param string             $text             Generated reply text to validate
-     * @param string             $personaCode      Persona code for validation context
-     * @param array<string>|null $previousMessages Previous victim messages (unused, kept for backward compatibility)
+     * @param string $text        Generated reply text to validate
+     * @param string $personaCode Persona code for validation context
      *
      * @throws \RuntimeException If LLM call fails or returns invalid JSON
      *
      * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null}
      */
-    public function validate(string $text, string $personaCode, ?array $previousMessages = null): array
+    public function validate(string $text, string $personaCode): array
     {
         return $this->validateMultiCriteria($text, $personaCode)->toLegacyArray();
     }
@@ -117,10 +116,7 @@ final class ReplyValidator
                 'response' => $response,
             ]);
 
-            throw new \RuntimeException(
-                "Validator returned invalid JSON: {$e->getMessage()}",
-                previous: $e,
-            );
+            throw new \RuntimeException("Validator returned invalid JSON: {$e->getMessage()}", $e->getCode(), previous: $e);
         }
     }
 

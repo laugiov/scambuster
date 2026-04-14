@@ -67,11 +67,11 @@ final class NonRepetitivenessMetric implements MetricInterface
         $triA = $this->trigrams($a);
         $triB = $this->trigrams($b);
 
-        if (empty($triA) && empty($triB)) {
+        if ($triA === [] && $triB === []) {
             return 1.0;
         }
 
-        if (empty($triA) || empty($triB)) {
+        if ($triA === [] || $triB === []) {
             return 0.0;
         }
 

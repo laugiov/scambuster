@@ -17,7 +17,7 @@ use Psr\Log\LoggerInterface;
  *
  * LLM semantic enrichment is handled by ContextualEnricher (043b).
  */
-final class IocContextService
+final readonly class IocContextService
 {
     /** @var list<string> */
     public const HEADER_IOC_TYPES = [
@@ -26,8 +26,8 @@ final class IocContextService
     ];
 
     public function __construct(
-        private readonly Connection $connection,
-        private readonly LoggerInterface $logger,
+        private Connection $connection,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -58,7 +58,7 @@ final class IocContextService
      */
     public function computeAndPersistForMessage(string $msgId, array $obsIocData): void
     {
-        if (empty($obsIocData)) {
+        if ($obsIocData === []) {
             return;
         }
 
@@ -109,13 +109,13 @@ final class IocContextService
             // Co-revealed: all types except this one
             $coRevealedTypes = array_values(array_filter(
                 $allTypesInMessage,
-                fn (string $t) => $t !== $iocType
+                fn (string $t): bool => $t !== $iocType
             ));
 
             // Remove duplicates and header types from co-revealed
             $coRevealedTypes = array_values(array_unique(array_filter(
                 $coRevealedTypes,
-                fn (string $t) => !self::isHeaderIocType($t)
+                fn (string $t): bool => !self::isHeaderIocType($t)
             )));
 
             $engagementSec = \is_numeric($convContext['engagement_duration_sec'] ?? null) ? (int) $convContext['engagement_duration_sec'] : 0;
@@ -289,7 +289,7 @@ final class IocContextService
         $data['indicator_id'] = $indicatorId;
 
         $columns = array_keys($data);
-        $placeholders = array_map(fn (string $col) => ':' . $col, $columns);
+        $placeholders = array_map(fn (string $col): string => ':' . $col, $columns);
 
         $sql = 'INSERT INTO ioc_context (' . implode(', ', $columns) . ')'
             . ' VALUES (' . implode(', ', $placeholders) . ')'

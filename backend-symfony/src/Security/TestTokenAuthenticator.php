@@ -35,7 +35,7 @@ class TestTokenAuthenticator extends AbstractAuthenticator
             $authHeader = 'Bearer ' . $request->query->get('jwt_token');
         }
 
-        if (preg_match('/^Bearer (.+)$/i', $authHeader, $matches)) {
+        if (preg_match('/^Bearer (.+)$/i', (string) $authHeader, $matches)) {
             $token = $matches[1];
 
             if ($token === 'fake-jwt') {

@@ -86,7 +86,7 @@ class ScamTypeManager
         // Check if scam type already exists
         $existing = $this->findByCode($normalizedCode);
 
-        if ($existing) {
+        if ($existing instanceof \App\Domain\Communication\ScamType) {
             throw new \RuntimeException(
                 "ScamType with code '{$normalizedCode}' already exists"
             );
@@ -136,7 +136,7 @@ class ScamTypeManager
         // Check if scam type already exists
         $existing = $this->findByCode($normalizedCode);
 
-        if ($existing) {
+        if ($existing instanceof \App\Domain\Communication\ScamType) {
             throw new \RuntimeException(
                 "ScamType with code '{$normalizedCode}' already exists"
             );

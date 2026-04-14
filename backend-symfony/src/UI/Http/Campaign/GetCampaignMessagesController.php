@@ -15,13 +15,12 @@ use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/{campaign_id}/messages', name: 'api_campaign_messages', methods: ['GET'])]
 #[IsGranted('campaign:read')]
-final class GetCampaignMessagesController
+final readonly class GetCampaignMessagesController
 {
     public function __construct(
-        private readonly GetCampaignMessagesHandler $handler
+        private GetCampaignMessagesHandler $handler
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/campaign/{campaign_id}/messages',
         summary: 'Récupérer les messages d\'une campagne',

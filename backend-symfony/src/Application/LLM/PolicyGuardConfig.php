@@ -13,11 +13,11 @@ namespace App\Application\LLM;
  * Solves the mismatch where ConversationAnalyzer recommends 30-40 word
  * replies for bot accusations but PolicyGuard rejects anything under 50.
  */
-final class PolicyGuardConfig
+final readonly class PolicyGuardConfig
 {
     public function __construct(
-        public readonly int $minWords,
-        public readonly int $maxWords,
+        public int $minWords,
+        public int $maxWords,
     ) {
     }
 

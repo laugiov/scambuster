@@ -16,14 +16,6 @@ class ActorProfile
     #[ORM\Column(name: 'actor_id', type: 'uuid', unique: true)]
     private Uuid $actorId;
 
-    /** @var array<string, mixed> */
-    #[ORM\Column(name: 'style_dna', type: Types::JSON)]
-    private array $styleDna;
-
-    /** @var array<string, mixed> */
-    #[ORM\Column(name: 'infra_dna', type: Types::JSON)]
-    private array $infraDna;
-
     /** @var array<int, string> */
     #[ORM\Column(type: Types::SIMPLE_ARRAY)]
     private array $campaigns = [];
@@ -39,13 +31,13 @@ class ActorProfile
      * @param array<string, mixed> $infraDna
      */
     public function __construct(
-        array $styleDna,
-        array $infraDna,
+        #[ORM\Column(name: 'style_dna', type: Types::JSON)]
+        private array $styleDna,
+        #[ORM\Column(name: 'infra_dna', type: Types::JSON)]
+        private array $infraDna,
         ?Uuid $actorId = null
     ) {
         $this->actorId = $actorId ?? Uuid::v7();
-        $this->styleDna = $styleDna;
-        $this->infraDna = $infraDna;
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
     }

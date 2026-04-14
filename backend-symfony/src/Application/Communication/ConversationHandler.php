@@ -38,8 +38,8 @@ class ConversationHandler
             $tsFirst,
             $tsLast,
             $stixId,
-            null,
-            null
+            new \DateTimeImmutable(),
+            new \DateTimeImmutable()
         );
         $this->em->persist($conv);
         $this->em->flush();
@@ -56,7 +56,7 @@ class ConversationHandler
     {
         $conv = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conv) {
+        if ($conv === null) {
             return false;
         }
         $this->em->remove($conv);
@@ -72,7 +72,7 @@ class ConversationHandler
     {
         $conv = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conv) {
+        if ($conv === null) {
             return null;
         }
 
@@ -81,7 +81,7 @@ class ConversationHandler
         if (array_key_exists('status', $data)) {
             $status = ConversationStatus::tryFrom($data['status']);
 
-            if (!$status) {
+            if (!$status instanceof \App\Domain\Communication\ConversationStatus) {
                 throw new \RuntimeException('Invalid status');
             }
             $conv->setStatus($status);
@@ -110,7 +110,7 @@ class ConversationHandler
             $scamTypeId = $data['scam_type_id'];
             $scamType = $this->em->getRepository(ScamType::class)->find((int) $scamTypeId);
 
-            if (!$scamType) {
+            if ($scamType === null) {
                 throw new \RuntimeException('Invalid scam_type_id');
             }
             $conv->setScamType($scamType);
@@ -130,13 +130,13 @@ class ConversationHandler
     {
         $conv = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conv) {
+        if ($conv === null) {
             return false;
         }
         $existing = $this->em->getRepository(ConversationChannel::class)
             ->findOneBy(['conversation' => $conv, 'channel' => $channel]);
 
-        if ($existing) {
+        if ($existing !== null) {
             return true;
         }
         $link = new ConversationChannel($conv, $channel, new \DateTimeImmutable());
@@ -203,7 +203,7 @@ class ConversationHandler
      */
     public function getMessageCountsForConversations(array $convIds): array
     {
-        if (\count($convIds) === 0) {
+        if ($convIds === []) {
             return [];
         }
 
@@ -230,7 +230,7 @@ class ConversationHandler
      */
     public function getIocCountsForConversations(array $convIds): array
     {
-        if (\count($convIds) === 0) {
+        if ($convIds === []) {
             return [];
         }
 
@@ -266,7 +266,7 @@ class ConversationHandler
         // Total count
         $totalQb = $this->em->createQueryBuilder();
         $totalQb->select('COUNT(m.msgId)')
-            ->from('App\\Domain\\Communication\\Message', 'm')
+            ->from(\App\Domain\Communication\Message::class, 'm')
             ->where('m.conversation = :conv')
             ->andWhere('m.deletedAt IS NULL')
             ->setParameter('conv', $conv);
@@ -274,7 +274,7 @@ class ConversationHandler
 
         // Paginated messages
         $offset = ($page - 1) * $limit;
-        $repo = $this->em->getRepository('App\\Domain\\Communication\\Message');
+        $repo = $this->em->getRepository(\App\Domain\Communication\Message::class);
         $qb = $repo->createQueryBuilder('m')
             ->where('m.conversation = :conv')
             ->andWhere('m.deletedAt IS NULL')

@@ -9,15 +9,15 @@ use App\Application\Communication\IocHandler;
 use App\Domain\Communication\Conversation;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class ConversationStixExportHandler
+final readonly class ConversationStixExportHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly IocHandler $iocHandler,
-        private readonly StixBundleBuilder $bundleBuilder,
-        private readonly ?ThreatActorStixBuilder $threatActorBuilder = null,
-        private readonly ?ClusterQueryService $clusterQueryService = null,
-        private readonly ?ClusteredThreatActorStixBuilder $clusteredActorBuilder = null,
+        private EntityManagerInterface $em,
+        private IocHandler $iocHandler,
+        private StixBundleBuilder $bundleBuilder,
+        private ?ThreatActorStixBuilder $threatActorBuilder = null,
+        private ?ClusterQueryService $clusterQueryService = null,
+        private ?ClusteredThreatActorStixBuilder $clusteredActorBuilder = null,
     ) {
     }
 
@@ -28,14 +28,14 @@ final class ConversationStixExportHandler
     {
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conversation) {
+        if ($conversation === null) {
             throw new \RuntimeException('Conversation not found');
         }
 
         // Get conversation IOCs (deduplicated)
         $observedIocs = $this->iocHandler->getConversationIocs($convId);
 
-        if (empty($observedIocs)) {
+        if ($observedIocs === []) {
             return $this->bundleBuilder->buildBundle(
                 [],
                 [],
@@ -79,8 +79,8 @@ final class ConversationStixExportHandler
         );
 
         // Enrich with threat-actor
-        if ($includeThreatActor && $this->threatActorBuilder !== null) {
-            $bundle = $this->enrichWithThreatActor($conversation, $bundle);
+        if ($includeThreatActor && $this->threatActorBuilder instanceof \App\Application\Stix\ThreatActorStixBuilder) {
+            return $this->enrichWithThreatActor($conversation, $bundle);
         }
 
         return $bundle;
@@ -122,7 +122,7 @@ final class ConversationStixExportHandler
         // Spec 060 Sprint 2: cluster delegation
         $clusterId = $this->clusterQueryService?->getClusterIdForConversation($convId);
 
-        if ($clusterId !== null && $this->clusteredActorBuilder !== null && $this->clusterQueryService !== null) {
+        if ($clusterId !== null && $this->clusteredActorBuilder instanceof \App\Application\Stix\ClusteredThreatActorStixBuilder && $this->clusterQueryService instanceof \App\Application\Clustering\ClusterQueryService) {
             $clusterData = $this->clusterQueryService->getStixExportData($clusterId);
 
             if ($clusterData !== null) {
@@ -156,7 +156,7 @@ final class ConversationStixExportHandler
         ?string $reportId,
         array $indicatorIds,
     ): array {
-        if ($this->threatActorBuilder === null) {
+        if (!$this->threatActorBuilder instanceof \App\Application\Stix\ThreatActorStixBuilder) {
             return $bundle;
         }
 
@@ -180,9 +180,9 @@ final class ConversationStixExportHandler
 
         $description = sprintf('Criminal actor operating %s scam.', strtolower($scamType->getCode()));
 
-        if (!empty($excerpts)) {
+        if ($excerpts !== []) {
             $excerptTexts = array_unique(array_filter(array_map(
-                fn (array $r) => \is_string($r['context_excerpt']) ? trim($r['context_excerpt']) : '',
+                fn (array $r): string => \is_string($r['context_excerpt']) ? trim($r['context_excerpt']) : '',
                 $excerpts,
             )));
             $description .= ' ' . implode(' ', $excerptTexts);
@@ -226,7 +226,7 @@ final class ConversationStixExportHandler
         ];
 
         $persona = $conversation->getPersona();
-        $personaCode = $persona !== null ? $persona->getPersonaCode() : 'generic_user';
+        $personaCode = $persona instanceof \App\Domain\Communication\Persona ? $persona->getPersonaCode() : 'generic_user';
 
         $campaignData = [
             'campaign_id' => $convId,
@@ -254,7 +254,7 @@ final class ConversationStixExportHandler
         $threatActor['description'] = mb_substr($description, 0, 400);
 
         $attackPatterns = $this->threatActorBuilder->buildAttackPatterns($attckTechnique);
-        $attackPatternIds = array_map(fn (array $ap) => \is_string($ap['id']) ? $ap['id'] : '', $attackPatterns);
+        $attackPatternIds = array_map(fn (array $ap): string => \is_string($ap['id']) ? $ap['id'] : '', $attackPatterns);
 
         $relationships = $this->threatActorBuilder->buildActorRelationships(
             \is_string($threatActor['id']) ? $threatActor['id'] : '',

@@ -11,10 +11,10 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Queries incoming messages with headers for header IOC migration.
  */
-final class HeaderIocMigrationService
+final readonly class HeaderIocMigrationService
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

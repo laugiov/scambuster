@@ -9,17 +9,17 @@ namespace App\Domain\LLM;
  *
  * Captures: what ran, how long it took, what it produced, and why it was skipped/failed.
  */
-final class ComponentTrace
+final readonly class ComponentTrace
 {
     public function __construct(
-        public readonly string $name,
-        public readonly string $status,
-        public readonly float $durationMs,
-        public readonly ?float $cost = null,
+        public string $name,
+        public string $status,
+        public float $durationMs,
+        public ?float $cost = null,
         /** @var array<string, mixed> */
-        public readonly array $output = [],
-        public readonly ?string $error = null,
-        public readonly ?string $skipReason = null,
+        public array $output = [],
+        public ?string $error = null,
+        public ?string $skipReason = null,
     ) {
     }
 
@@ -56,7 +56,7 @@ final class ComponentTrace
             $data['cost'] = $this->cost;
         }
 
-        if (!empty($this->output)) {
+        if ($this->output !== []) {
             $data['output'] = $this->output;
         }
 

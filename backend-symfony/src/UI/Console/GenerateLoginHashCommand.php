@@ -17,7 +17,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class GenerateLoginHashCommand extends Command
 {
-    public function __construct(private LoginHashGenerator $generator)
+    public function __construct(private readonly LoginHashGenerator $generator)
     {
         parent::__construct();
     }

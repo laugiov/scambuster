@@ -55,7 +55,7 @@ final class UpdatePersonaController extends AbstractController
         // 1. Find persona
         $persona = $this->personaManager->findByCode($personaCode);
 
-        if ($persona === null) {
+        if (!$persona instanceof \App\Domain\Communication\Persona) {
             return new JsonResponse([
                 'success' => false,
                 'error' => "Persona '{$personaCode}' not found",
@@ -76,7 +76,7 @@ final class UpdatePersonaController extends AbstractController
         $allowedFields = ['persona_label', 'persona_tone', 'system_prompt'];
         $unknownFields = array_diff(array_keys($body), $allowedFields);
 
-        if (!empty($unknownFields)) {
+        if ($unknownFields !== []) {
             return new JsonResponse([
                 'success' => false,
                 'error' => 'Unknown fields: ' . implode(', ', $unknownFields),
@@ -98,16 +98,12 @@ final class UpdatePersonaController extends AbstractController
         // 5. Validate each field
         $errors = [];
 
-        if ($label !== null) {
-            if ($label === '' || mb_strlen($label) > self::MAX_LABEL_LENGTH) {
-                $errors[] = 'persona_label must be 1-' . self::MAX_LABEL_LENGTH . ' characters';
-            }
+        if ($label !== null && ($label === '' || mb_strlen($label) > self::MAX_LABEL_LENGTH)) {
+            $errors[] = 'persona_label must be 1-' . self::MAX_LABEL_LENGTH . ' characters';
         }
 
-        if ($tone !== null) {
-            if ($tone === '' || mb_strlen($tone) > self::MAX_TONE_LENGTH) {
-                $errors[] = 'persona_tone must be 1-' . self::MAX_TONE_LENGTH . ' characters';
-            }
+        if ($tone !== null && ($tone === '' || mb_strlen($tone) > self::MAX_TONE_LENGTH)) {
+            $errors[] = 'persona_tone must be 1-' . self::MAX_TONE_LENGTH . ' characters';
         }
 
         if ($prompt !== null) {
@@ -120,7 +116,7 @@ final class UpdatePersonaController extends AbstractController
             }
         }
 
-        if (!empty($errors)) {
+        if ($errors !== []) {
             return new JsonResponse([
                 'success' => false,
                 'error' => implode('; ', $errors),

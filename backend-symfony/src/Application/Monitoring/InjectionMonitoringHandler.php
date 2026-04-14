@@ -9,10 +9,10 @@ use Doctrine\DBAL\Connection;
 /**
  * Queries prompt injection detection results for the monitoring dashboard.
  */
-final class InjectionMonitoringHandler
+final readonly class InjectionMonitoringHandler
 {
     public function __construct(
-        private readonly Connection $connection,
+        private Connection $connection,
     ) {
     }
 

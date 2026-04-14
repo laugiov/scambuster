@@ -8,11 +8,11 @@ use App\Domain\Communication\Persona;
 use App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class PersonaPerformanceHandler
+final readonly class PersonaPerformanceHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly PersonaPerformanceStatsRepository $statsRepository,
+        private EntityManagerInterface $em,
+        private PersonaPerformanceStatsRepository $statsRepository,
     ) {
     }
 
@@ -29,7 +29,7 @@ final class PersonaPerformanceHandler
 
         $statsEntities = $this->statsRepository->findAllByPersona($persona);
 
-        $performanceData = array_map(static function ($statsEntity) {
+        $performanceData = array_map(static function ($statsEntity): array {
             $performance = $statsEntity->toPersonaPerformance();
 
             return [

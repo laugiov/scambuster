@@ -10,13 +10,13 @@ use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class ConfigHandler
+final readonly class ConfigHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly PersonaOptimizer $personaOptimizer,
-        private readonly string $llmProvider = 'openai',
-        private readonly string $llmModel = 'gpt-4o-mini',
+        private EntityManagerInterface $em,
+        private PersonaOptimizer $personaOptimizer,
+        private string $llmProvider = 'openai',
+        private string $llmModel = 'gpt-4o-mini',
     ) {
     }
 

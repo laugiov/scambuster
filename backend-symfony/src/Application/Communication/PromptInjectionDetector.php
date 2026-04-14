@@ -17,13 +17,13 @@ use Psr\Log\LoggerInterface;
  * Mirrors the PolicyGuard + LLM Validator pattern used for outbound content safety.
  * Detection is forensic -- it does not block ingestion or modify the reply pipeline.
  */
-final class PromptInjectionDetector
+final readonly class PromptInjectionDetector
 {
     public function __construct(
-        private readonly PromptInjectionPatternMatcher $patternMatcher,
-        private readonly PromptInjectionLlmAnalyzer $llmAnalyzer,
-        private readonly LoggerInterface $logger,
-        private readonly bool $enabled = true,
+        private PromptInjectionPatternMatcher $patternMatcher,
+        private PromptInjectionLlmAnalyzer $llmAnalyzer,
+        private LoggerInterface $logger,
+        private bool $enabled = true,
     ) {
     }
 
@@ -100,22 +100,22 @@ final class PromptInjectionDetector
             // Layer 1 only
             $riskScore = $patternScore;
             $detectedTechniques = array_map(
-                fn (string $match) => [
+                fn (string $match): array => [
                     'technique' => explode(':', $match)[0],
                     'evidence' => $match,
                     'severity' => $patternScore >= 0.7 ? 'high' : ($patternScore >= 0.4 ? 'medium' : 'low'),
                 ],
                 $patternMatches
             );
-            $confidence = count($patternMatches) > 0 ? 0.7 : 0.5;
-            $summary = count($patternMatches) > 0
+            $confidence = $patternMatches !== [] ? 0.7 : 0.5;
+            $summary = $patternMatches !== []
                 ? sprintf('Pattern-based detection: %d known injection pattern(s) found.', count($patternMatches))
                 : 'Pattern-based scan only (LLM analysis unavailable). No known patterns detected.';
             $modelVersion = 'pattern_matcher_only';
         }
 
         // Enrich: if pattern matches found additional techniques not in LLM result, merge them
-        if ($llmResult !== null && count($patternMatches) > 0) {
+        if ($llmResult !== null && $patternMatches !== []) {
             $summary .= sprintf(' Layer 1 also detected %d pattern match(es): %s.', count($patternMatches), implode(', ', $patternMatches));
         }
 

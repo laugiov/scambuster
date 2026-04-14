@@ -8,7 +8,7 @@ use App\Application\Communication\Dto\MailAccountActiveDto;
 use App\Domain\Communication\MailAccount;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class ListActiveMailAccountsHandler
+final readonly class ListActiveMailAccountsHandler
 {
     public function __construct(private EntityManagerInterface $em)
     {
@@ -25,16 +25,14 @@ final class ListActiveMailAccountsHandler
             'protocol' => 'IMAP',
         ]);
 
-        return array_map(function (MailAccount $acc) {
-            return new MailAccountActiveDto(
-                $acc->getAccountId(),
-                $acc->getProtocol(),
-                $acc->getEndpoint(),
-                $acc->getLoginHash(),
-                $acc->getOauthScopes(),
-                $acc->getPort(),
-                $acc->getSecure()
-            );
-        }, $accounts);
+        return array_map(fn (MailAccount $acc): \App\Application\Communication\Dto\MailAccountActiveDto => new MailAccountActiveDto(
+            $acc->getAccountId(),
+            $acc->getProtocol(),
+            $acc->getEndpoint(),
+            $acc->getLoginHash(),
+            $acc->getOauthScopes(),
+            $acc->getPort(),
+            $acc->getSecure()
+        ), $accounts);
     }
 }

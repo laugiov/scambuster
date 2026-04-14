@@ -19,13 +19,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * and builds a bundle with indicators + co-occurrence relationships.
  */
 #[IsGranted('ioc:export')]
-final class ExportIocsStixController
+final readonly class ExportIocsStixController
 {
     public function __construct(
-        private readonly IocStixExportHandler $handler,
+        private IocStixExportHandler $handler,
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/iocs/export/stix',
         summary: 'Export selected IOCs as STIX 2.1 bundle',

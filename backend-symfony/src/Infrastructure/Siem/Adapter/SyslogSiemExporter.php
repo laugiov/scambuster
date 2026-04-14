@@ -18,15 +18,15 @@ use Psr\Log\LoggerInterface;
  * - SIEM_PROVIDER=syslog
  * - SIEM_ENDPOINT=udp://10.0.0.1:514 or tcp://siem.local:514
  */
-final class SyslogSiemExporter implements SiemExporterInterface
+final readonly class SyslogSiemExporter implements SiemExporterInterface
 {
     private const FACILITY_LOCAL0 = 16;
     private const APP_NAME = 'ScamBuster';
 
     public function __construct(
-        private readonly SiemEventFormatterInterface $formatter,
-        private readonly LoggerInterface $logger,
-        private readonly string $endpoint,
+        private SiemEventFormatterInterface $formatter,
+        private LoggerInterface $logger,
+        private string $endpoint,
     ) {
     }
 

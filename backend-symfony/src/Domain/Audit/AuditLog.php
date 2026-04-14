@@ -29,34 +29,6 @@ class AuditLog
     #[ORM\Column(name: 'event_type', type: 'string', length: 50)]
     private string $eventType;
 
-    #[ORM\Column(name: 'actor_type', type: 'string', length: 30)]
-    private string $actorType;
-
-    #[ORM\Column(name: 'actor_id', type: 'string', length: 255)]
-    private string $actorId;
-
-    #[ORM\Column(name: 'resource_type', type: 'string', length: 50, nullable: true)]
-    private ?string $resourceType;
-
-    #[ORM\Column(name: 'resource_id', type: 'string', length: 255, nullable: true)]
-    private ?string $resourceId;
-
-    #[ORM\Column(type: 'string', length: 20)]
-    private string $action;
-
-    #[ORM\Column(type: 'string', length: 20)]
-    private string $outcome;
-
-    /** @var array<string, mixed> */
-    #[ORM\Column(type: 'json')]
-    private array $details;
-
-    #[ORM\Column(name: 'ip_address', type: 'string', length: 45, nullable: true)]
-    private ?string $ipAddress;
-
-    #[ORM\Column(name: 'trace_id', type: 'string', length: 64, nullable: true)]
-    private ?string $traceId;
-
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     private \DateTimeImmutable $createdAt;
 
@@ -72,26 +44,26 @@ class AuditLog
      */
     public function __construct(
         AuditEventType $eventType,
-        string $actorType,
-        string $actorId,
-        string $action,
-        string $outcome,
-        array $details = [],
-        ?string $resourceType = null,
-        ?string $resourceId = null,
-        ?string $ipAddress = null,
-        ?string $traceId = null
+        #[ORM\Column(name: 'actor_type', type: 'string', length: 30)]
+        private string $actorType,
+        #[ORM\Column(name: 'actor_id', type: 'string', length: 255)]
+        private string $actorId,
+        #[ORM\Column(type: 'string', length: 20)]
+        private string $action,
+        #[ORM\Column(type: 'string', length: 20)]
+        private string $outcome,
+        #[ORM\Column(type: 'json')]
+        private array $details = [],
+        #[ORM\Column(name: 'resource_type', type: 'string', length: 50, nullable: true)]
+        private ?string $resourceType = null,
+        #[ORM\Column(name: 'resource_id', type: 'string', length: 255, nullable: true)]
+        private ?string $resourceId = null,
+        #[ORM\Column(name: 'ip_address', type: 'string', length: 45, nullable: true)]
+        private ?string $ipAddress = null,
+        #[ORM\Column(name: 'trace_id', type: 'string', length: 64, nullable: true)]
+        private ?string $traceId = null
     ) {
         $this->eventType = $eventType->value;
-        $this->actorType = $actorType;
-        $this->actorId = $actorId;
-        $this->action = $action;
-        $this->outcome = $outcome;
-        $this->details = $details;
-        $this->resourceType = $resourceType;
-        $this->resourceId = $resourceId;
-        $this->ipAddress = $ipAddress;
-        $this->traceId = $traceId;
         $this->createdAt = new \DateTimeImmutable();
     }
 

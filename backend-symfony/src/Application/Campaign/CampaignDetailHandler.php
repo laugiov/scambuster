@@ -9,10 +9,10 @@ use App\Domain\CampaignRadar\CampaignRule;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final class CampaignDetailHandler
+final readonly class CampaignDetailHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 
@@ -23,7 +23,7 @@ final class CampaignDetailHandler
     {
         $campaign = $this->em->getRepository(Campaign::class)->find(Uuid::fromString($campaignId));
 
-        if (!$campaign) {
+        if ($campaign === null) {
             throw new \RuntimeException('Campaign not found');
         }
 

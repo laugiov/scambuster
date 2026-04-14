@@ -16,10 +16,10 @@ use Symfony\Component\Routing\Attribute\Route;
  * Unlike /healthz (simple liveness probe), this endpoint checks
  * database and Redis connectivity with latency measurements.
  */
-final class HealthCheckController
+final readonly class HealthCheckController
 {
     public function __construct(
-        private readonly HealthCheckHandler $handler
+        private HealthCheckHandler $handler
     ) {
     }
 

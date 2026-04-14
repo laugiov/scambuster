@@ -17,13 +17,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'Cluster list')],
     security: [['Bearer' => []]],
 )]
-final class ListClustersController
+final readonly class ListClustersController
 {
     public function __construct(
-        private readonly ClusterQueryService $queryService,
+        private ClusterQueryService $queryService,
     ) {
     }
-
     #[Route('/api/v1/clusters', name: 'cluster_list', methods: ['GET'])]
     #[IsGranted('ioc:read')]
     public function __invoke(): JsonResponse

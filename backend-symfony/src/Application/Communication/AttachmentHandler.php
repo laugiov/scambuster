@@ -10,7 +10,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class AttachmentHandler
 {
-    public function __construct(private EntityManagerInterface $em)
+    public function __construct(private readonly EntityManagerInterface $em)
     {
     }
 
@@ -18,7 +18,7 @@ class AttachmentHandler
     {
         $attachment = $this->em->getRepository(Attachment::class)->find($attachmentId);
 
-        if (!$attachment) {
+        if ($attachment === null) {
             return false;
         }
         $this->em->remove($attachment);
@@ -34,12 +34,12 @@ class AttachmentHandler
     {
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conversation) {
+        if ($conversation === null) {
             return [];
         }
-        $messages = $this->em->getRepository('App\\Domain\\Communication\\Message')->findBy(['conversation' => $conversation]);
+        $messages = $this->em->getRepository(\App\Domain\Communication\Message::class)->findBy(['conversation' => $conversation]);
 
-        if (!$messages) {
+        if ($messages === []) {
             return [];
         }
 

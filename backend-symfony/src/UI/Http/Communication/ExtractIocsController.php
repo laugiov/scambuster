@@ -84,17 +84,16 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class ExtractIocsController
+final readonly class ExtractIocsController
 {
     public function __construct(
-        private readonly MessageHandler $handler,
-        private readonly IocHandler $iocHandler,
-        private readonly LoggerInterface $logger,
+        private MessageHandler $handler,
+        private IocHandler $iocHandler,
+        private LoggerInterface $logger,
         // Spec 065h — extracted from Message::canExtractIocs()
-        private readonly IocExtractionPolicy $iocExtractionPolicy = new IocExtractionPolicy()
+        private IocExtractionPolicy $iocExtractionPolicy = new IocExtractionPolicy()
     ) {
     }
-
     #[Route('/api/v1/communication/message/{msgId}/extract-iocs', name: 'extract_message_iocs', methods: ['POST'])]
     #[IsGranted('conversation:write')]
     public function __invoke(string $msgId, Request $request): JsonResponse
@@ -107,11 +106,11 @@ final class ExtractIocsController
         // Get message
         $message = $this->handler->getMessage($msgId);
 
-        if (!$message || $message->getDeletedAt() !== null) {
+        if (!$message || $message->getDeletedAt() instanceof \DateTimeImmutable) {
             $this->logger->warning('[IOC-EXTRACT-DEBUG] Message not found', [
                 'msg_id' => $msgId,
-                'message_exists' => $message !== null,
-                'deleted_at' => $message ? $message->getDeletedAt() : 'n/a',
+                'message_exists' => $message instanceof \App\Domain\Communication\Message,
+                'deleted_at' => $message instanceof \App\Domain\Communication\Message ? $message->getDeletedAt() : 'n/a',
             ]);
 
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);

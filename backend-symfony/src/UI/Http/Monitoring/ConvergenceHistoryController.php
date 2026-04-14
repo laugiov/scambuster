@@ -12,13 +12,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/monitoring/convergence-history', name: 'monitoring_convergence_history', methods: ['GET'])]
 #[IsGranted('monitoring:read')]
-final class ConvergenceHistoryController
+final readonly class ConvergenceHistoryController
 {
     public function __construct(
-        private readonly ConvergenceHistoryHandler $handler,
+        private ConvergenceHistoryHandler $handler,
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/monitoring/convergence-history',
         summary: 'Bandit convergence history by scam type (last 30 days)',

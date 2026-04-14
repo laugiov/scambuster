@@ -20,9 +20,6 @@ class CampaignRule
     #[ORM\Column(name: 'rule_id', type: 'uuid', unique: true)]
     private Uuid $ruleId;
 
-    #[ORM\Column(name: 'campaign_id', type: 'uuid')]
-    private Uuid $campaignId;
-
     #[ORM\Column(type: Types::INTEGER)]
     private int $version = 1;
 
@@ -66,7 +63,8 @@ class CampaignRule
     private \DateTimeImmutable $updatedAt;
 
     public function __construct(
-        Uuid $campaignId,
+        #[ORM\Column(name: 'campaign_id', type: 'uuid')]
+        private Uuid $campaignId,
         string $dsl,
         ?Uuid $ruleId = null
     ) {
@@ -75,7 +73,6 @@ class CampaignRule
         }
 
         $this->ruleId = $ruleId ?? Uuid::v7();
-        $this->campaignId = $campaignId;
         $this->dsl = $dsl;
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
@@ -212,7 +209,9 @@ class CampaignRule
             throw new DomainException('Compiled data must contain sql and params keys');
         }
 
-        if (trim($compiledData['sql']) === '') {
+        /** @var string $sql */
+        $sql = $compiledData['sql'];
+        if (trim($sql) === '') {
             throw new DomainException('Compiled SQL cannot be empty');
         }
 
@@ -242,11 +241,7 @@ class CampaignRule
         $this->hitsFalsePos += $falsePos;
 
         // Recalcul PPV
-        if ($this->hitsTotal > 0) {
-            $this->ppv = number_format($this->hitsTruePos / $this->hitsTotal, 4, '.', '');
-        } else {
-            $this->ppv = '0.0000';
-        }
+        $this->ppv = $this->hitsTotal > 0 ? number_format($this->hitsTruePos / $this->hitsTotal, 4, '.', '') : '0.0000';
 
         $this->updatedAt = new \DateTimeImmutable();
     }
@@ -290,8 +285,8 @@ class CampaignRule
     {
         return $this->getPpv() >= 0.85
             && $this->hitsTotal >= 5
-            && $this->enabled === true
-            && $this->promotedAt === null;
+            && $this->enabled
+            && !$this->promotedAt instanceof \DateTimeImmutable;
     }
 
     /**

@@ -162,7 +162,7 @@ class IocHandler
                             'obs_id' => $observedIoc->getObsId(),
                         ]),
                     ];
-                } catch (\Exception $e) {
+                } catch (\Exception) {
                     continue;
                 }
             }
@@ -183,7 +183,7 @@ class IocHandler
      */
     private function enrichMessageIocsWithLlm(string $msgId, array $persistedIocs): void
     {
-        if ($this->contextualEnricher === null || $this->connection === null || empty($persistedIocs)) {
+        if (!$this->contextualEnricher instanceof \App\Application\LLM\ContextualEnricher || !$this->connection instanceof \Doctrine\DBAL\Connection || $persistedIocs === []) {
             return;
         }
 
@@ -198,7 +198,7 @@ class IocHandler
 
         $iocTypes = array_values(array_unique($iocTypes));
 
-        if (empty($iocTypes)) {
+        if ($iocTypes === []) {
             return;
         }
 
@@ -235,7 +235,7 @@ class IocHandler
 
             $result = $this->contextualEnricher->enrich($request);
 
-            if ($result === null) {
+            if (!$result instanceof \App\Application\LLM\ContextualEnrichmentResult) {
                 return;
             }
 
@@ -245,7 +245,11 @@ class IocHandler
             foreach ($persistedIocs as $ioc) {
                 $obsId = $ioc['context']['obs_id'] ?? null;
 
-                if (!\is_string($obsId) || IocContextService::isHeaderIocType($ioc['type'])) {
+                if (!\is_string($obsId)) {
+                    continue;
+                }
+
+                if (IocContextService::isHeaderIocType($ioc['type'])) {
                     continue;
                 }
 

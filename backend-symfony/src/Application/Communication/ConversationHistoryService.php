@@ -19,7 +19,7 @@ use Psr\Log\LoggerInterface;
  *
  * The summary is only generated if there are other conversations from the same sender.
  */
-final class ConversationHistoryService
+final readonly class ConversationHistoryService
 {
     private const MAX_CONVERSATIONS_TO_SUMMARIZE = 5;
     private const MAX_MESSAGES_PER_SUMMARY = 20;
@@ -28,10 +28,10 @@ final class ConversationHistoryService
      * @param array<int, string> $excludedEmails List of email addresses to exclude from summary generation
      */
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly LLMClientInterface $llmClient,
-        private readonly LoggerInterface $logger,
-        private readonly array $excludedEmails = []
+        private EntityManagerInterface $em,
+        private LLMClientInterface $llmClient,
+        private LoggerInterface $logger,
+        private array $excludedEmails = []
     ) {
     }
 
@@ -63,7 +63,7 @@ final class ConversationHistoryService
         // Find other conversations from the same sender (excluding current conversation)
         $otherConversations = $this->findOtherConversationsFromSender($currentConvId, $senderEmail);
 
-        if (empty($otherConversations)) {
+        if ($otherConversations === []) {
             $this->logger->debug('[ConversationHistoryService] No other conversations found for sender', [
                 'sender_email' => $senderEmail,
             ]);
@@ -79,7 +79,7 @@ final class ConversationHistoryService
         // Get messages from these conversations
         $messages = $this->getMessagesFromConversations($otherConversations);
 
-        if (empty($messages)) {
+        if ($messages === []) {
             $this->logger->warning('[ConversationHistoryService] No messages found in other conversations', [
                 'sender_email' => $senderEmail,
                 'conversation_ids' => array_column($otherConversations, 'conv_id'),
@@ -157,7 +157,7 @@ final class ConversationHistoryService
      */
     private function getMessagesFromConversations(array $conversations): array
     {
-        if (empty($conversations)) {
+        if ($conversations === []) {
             return [];
         }
 
@@ -273,7 +273,7 @@ PROMPT;
      */
     private function isEmailExcluded(string $email): bool
     {
-        if (empty($this->excludedEmails)) {
+        if ($this->excludedEmails === []) {
             return false;
         }
 

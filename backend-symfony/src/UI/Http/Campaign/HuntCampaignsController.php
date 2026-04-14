@@ -13,13 +13,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/campaign/hunt', name: 'api_campaign_hunt', methods: ['POST'])]
 #[IsGranted('campaign:hunt')]
-final class HuntCampaignsController
+final readonly class HuntCampaignsController
 {
     public function __construct(
-        private readonly CampaignHunter $hunter
+        private CampaignHunter $hunter
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/hunt',
         summary: 'Exécuter le hunter sur toutes les règles actives',

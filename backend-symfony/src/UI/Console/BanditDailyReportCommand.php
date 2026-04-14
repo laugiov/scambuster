@@ -32,7 +32,7 @@ class BanditDailyReportCommand extends Command
 
         $scamTypes = $this->reporter->fetchActiveScamTypes();
 
-        if (\count($scamTypes) === 0) {
+        if ($scamTypes === []) {
             $io->warning('No active scam types found.');
 
             return Command::SUCCESS;

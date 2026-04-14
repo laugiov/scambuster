@@ -13,10 +13,10 @@ use Doctrine\DBAL\Connection;
  * All traces are stored in message.headers JSONB column as 'pipeline_trace'.
  * This handler provides read-only access with volume-safe pagination and filtering.
  */
-final class PipelineTraceHandler
+final readonly class PipelineTraceHandler
 {
     public function __construct(
-        private readonly Connection $connection,
+        private Connection $connection,
     ) {
     }
 

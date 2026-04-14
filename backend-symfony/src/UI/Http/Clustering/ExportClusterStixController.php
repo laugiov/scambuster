@@ -24,13 +24,12 @@ use Symfony\Component\Uid\Uuid;
     ],
     security: [['Bearer' => []]],
 )]
-final class ExportClusterStixController
+final readonly class ExportClusterStixController
 {
     public function __construct(
-        private readonly ClusterQueryService $queryService,
+        private ClusterQueryService $queryService,
     ) {
     }
-
     #[Route('/api/v1/clusters/{id}/export/stix', name: 'cluster_export_stix', methods: ['GET'], requirements: ['id' => '[0-9a-f-]{36}'])]
     #[IsGranted('ioc:read')]
     public function __invoke(string $id): JsonResponse

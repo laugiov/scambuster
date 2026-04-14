@@ -16,31 +16,7 @@ class ScamType
     #[ORM\Id]
     #[ORM\Column(name: 'scam_type_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $scamTypeId; // @phpstan-ignore-line
-
-    #[ORM\Column(type: 'string', length: 32, unique: true)]
-    private string $code;
-
-    #[ORM\Column(type: 'string', length: 128)]
-    private string $label;
-
-    #[ORM\Column(type: 'text', nullable: true)]
-    private ?string $description = null;
-
-    #[ORM\Column(name: 'misp_taxonomy', type: 'string', length: 128, nullable: true)]
-    private ?string $mispTaxonomy = null;
-
-    #[ORM\Column(name: 'attck_technique', type: 'string', length: 32, nullable: true)]
-    private ?string $attckTechnique = null;
-
-    #[ORM\Column(type: 'boolean')]
-    private bool $active = true;
-
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $createdAt;
-
-    #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $updatedAt;
+    private int $scamTypeId = 0;
 
     /**
      * @var Collection<int, Persona>
@@ -52,23 +28,23 @@ class ScamType
     private Collection $personas;
 
     public function __construct(
-        string $code,
-        string $label,
-        ?string $description = null,
-        ?string $mispTaxonomy = null,
-        ?string $attckTechnique = null,
-        bool $active = true,
-        ?\DateTimeImmutable $createdAt = null,
-        ?\DateTimeImmutable $updatedAt = null
+        #[ORM\Column(type: 'string', length: 32, unique: true)]
+        private string $code,
+        #[ORM\Column(type: 'string', length: 128)]
+        private string $label,
+        #[ORM\Column(type: 'text', nullable: true)]
+        private ?string $description = null,
+        #[ORM\Column(name: 'misp_taxonomy', type: 'string', length: 128, nullable: true)]
+        private ?string $mispTaxonomy = null,
+        #[ORM\Column(name: 'attck_technique', type: 'string', length: 32, nullable: true)]
+        private ?string $attckTechnique = null,
+        #[ORM\Column(type: 'boolean')]
+        private bool $active = true,
+        #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $createdAt = new \DateTimeImmutable(),
+        #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $updatedAt = new \DateTimeImmutable()
     ) {
-        $this->code = $code;
-        $this->label = $label;
-        $this->description = $description;
-        $this->mispTaxonomy = $mispTaxonomy;
-        $this->attckTechnique = $attckTechnique;
-        $this->active = $active;
-        $this->createdAt = $createdAt ?? new \DateTimeImmutable();
-        $this->updatedAt = $updatedAt ?? new \DateTimeImmutable();
         $this->personas = new ArrayCollection();
     }
 

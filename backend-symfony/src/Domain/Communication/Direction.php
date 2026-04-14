@@ -14,22 +14,13 @@ class Direction
     #[ORM\Id]
     #[ORM\Column(name: 'dir_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $directionId; // @phpstan-ignore-line
+    private int $directionId = 0;
 
-    #[ORM\Column(type: 'string', length: 16, unique: true)]
-    private string $code;
-
-    #[ORM\Column(name: 'label_en', type: 'string', length: 32)]
-    private string $labelEn;
-
-    #[ORM\Column(name: 'label_fr', type: 'string', length: 32)]
-    private string $labelFr;
-
-    public function __construct(string $code, string $labelEn, string $labelFr)
+    public function __construct(#[ORM\Column(type: 'string', length: 16, unique: true)]
+        private string $code, #[ORM\Column(name: 'label_en', type: 'string', length: 32)]
+        private string $labelEn, #[ORM\Column(name: 'label_fr', type: 'string', length: 32)]
+        private string $labelFr)
     {
-        $this->code = $code;
-        $this->labelEn = $labelEn;
-        $this->labelFr = $labelFr;
     }
 
     public function getDirectionId(): int

@@ -52,15 +52,14 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         )
     ]
 )]
-final class RefreshController
+final readonly class RefreshController
 {
     public function __construct(
-        private readonly AuthServiceInterface $handler,
+        private AuthServiceInterface $handler,
         private ValidatorInterface $validator,
         private SerializerInterface $serializer
     ) {
     }
-
     public function __invoke(Request $request): JsonResponse
     {
         try {
