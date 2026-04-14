@@ -27,7 +27,7 @@ class CampaignRule
     private string $dsl;
 
     /**
-     * Données compilées (SQL + params) au format JSON.
+     * Compiled data (SQL + params) in JSON format.
      * Structure : {sql: string, params: array<string, mixed>, tests: array}
      *
      * @var array<string, mixed>|null
@@ -101,9 +101,9 @@ class CampaignRule
     }
 
     /**
-     * Récupère le SQL compilé brut (pour compatibilité legacy).
+     * Retrieves raw compiled SQL (for legacy compatibility).
      *
-     * @deprecated Utiliser getCompiledData() à la place
+     * @deprecated Use getCompiledData() instead
      */
     public function getCompiledSql(): ?string
     {
@@ -117,7 +117,7 @@ class CampaignRule
     }
 
     /**
-     * Récupère les données compilées (SQL + params).
+     * Retrieves compiled data (SQL + params).
      *
      * @return array<string, mixed>|null
      */
@@ -171,15 +171,15 @@ class CampaignRule
         return $this->updatedAt;
     }
 
-    // === Méthodes Métier ===
+    // === Business Methods ===
 
     /**
-     * Enregistre le code SQL transcompilé.
+     * Stores the transpiled SQL code.
      */
     /**
-     * Enregistre le SQL compilé brut (pour compatibilité legacy).
+     * Stores raw compiled SQL (for legacy compatibility).
      *
-     * @deprecated Utiliser setCompiledData() à la place
+     * @deprecated Use setCompiledData() instead
      */
     public function setCompiledSql(string $sql): void
     {
@@ -193,7 +193,7 @@ class CampaignRule
             $decoded = json_decode($sql, true, 512, JSON_THROW_ON_ERROR);
             $this->compiledSql = $decoded;
         } catch (\JsonException) {
-            // Si ce n'est pas du JSON, créer une structure simple
+            // If not JSON, create a simple structure
             $this->compiledSql = ['sql' => $sql, 'params' => []];
         }
 
@@ -201,7 +201,7 @@ class CampaignRule
     }
 
     /**
-     * Enregistre les données compilées (SQL + paramètres).
+     * Stores compiled data (SQL + parameters).
      *
      * @param array<string, mixed> $compiledData
      */
@@ -223,9 +223,9 @@ class CampaignRule
     }
 
     /**
-     * Met à jour les métriques de la règle après un test shadow.
+     * Updates rule metrics after a shadow test.
      *
-     * @param int $hits     Nombre de détections
+     * @param int $hits     Number of detections
      * @param int $truePos  Vrais positifs
      * @param int $falsePos Faux positifs
      */
@@ -250,7 +250,7 @@ class CampaignRule
     }
 
     /**
-     * Définit le lead-time (avance sur le pic).
+     * Sets the lead-time (advance over the peak).
      */
     public function setLeadTimeSec(int $leadTimeSec): void
     {
@@ -263,7 +263,7 @@ class CampaignRule
     }
 
     /**
-     * Définit la PPV de la règle.
+     * Sets the rule's PPV.
      */
     public function setPpv(float $ppv): void
     {
@@ -276,9 +276,9 @@ class CampaignRule
     }
 
     /**
-     * Vérifie si la règle est éligible à la promotion.
+     * Checks if the rule is eligible for promotion.
      *
-     * Critères SLA :
+     * SLA criteria:
      * - PPV ≥ 0.85
      * - Hits total ≥ 5
      * - Enabled = true
@@ -293,9 +293,9 @@ class CampaignRule
     }
 
     /**
-     * Promeut la règle.
+     * Promotes the rule.
      *
-     * @throws DomainException si déjà promue ou critères non atteints
+     * @throws DomainException if already promoted or criteria not met
      */
     public function promote(): void
     {
@@ -308,7 +308,7 @@ class CampaignRule
     }
 
     /**
-     * Désactive la règle.
+     * Deactivates the rule.
      */
     public function disable(): void
     {
@@ -317,7 +317,7 @@ class CampaignRule
     }
 
     /**
-     * Réactive la règle.
+     * Reactivates the rule.
      */
     public function enable(): void
     {

@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/message/{msgId}/attachments',
-    summary: 'Lister les pièces jointes d\'un message',
+    summary: 'List attachments for a message',
     tags: ['Messages'],
     parameters: [
         new OA\Parameter(name: 'msgId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -23,7 +23,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Liste des pièces jointes',
+            description: 'List of attachments',
             content: new OA\JsonContent(
                 type: 'array',
                 items: new OA\Items(ref: new Model(type: MessageAttachmentResponseDto::class))
@@ -31,7 +31,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         ),
         new OA\Response(
             response: 404,
-            description: 'Message non trouvé',
+            description: 'Message not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

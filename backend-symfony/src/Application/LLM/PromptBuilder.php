@@ -289,7 +289,7 @@ PROMPT;
     }
 
     /**
-     * Formate l'historique du dialogue génération ↔ validation
+     * Formats the generation <-> validation dialog history
      *
      * @param array<int, array<string, mixed>> $dialogue
      */

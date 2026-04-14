@@ -128,7 +128,7 @@ After all mitigations, the residual risk is **LOW**. The primary remaining risk 
 
 | Measure | Implementation |
 |---------|---------------|
-| Secrets management | HashiCorp Vault (API keys, IMAP credentials) |
+| Secrets management | Environment variables / Docker secrets (API keys, IMAP credentials) |
 | Two-layer content validation | PolicyGuard (deterministic) + LLM Validator (semantic, gpt-4o-mini, temp=0.1) |
 | Kill switch | Environment variable-based, checked before every generation and send |
 | Rate limiting | Redis-backed Symfony rate-limiter at 5 levels (login, API, LLM, per-sender, flood) |

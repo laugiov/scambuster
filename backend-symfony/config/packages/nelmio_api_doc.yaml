@@ -5,12 +5,12 @@ nelmio_api_doc:
         info:
             title: "ScamBuster Public API"
             description: |
-                API RESTful exposée aux intégrateurs externes.
-                Toutes les réponses sont en JSON UTF-8.
+                RESTful API exposed to external integrators.
+                All responses are in JSON UTF-8.
             version: "v1"
         servers:
             - url: "%env(resolve:APP_API_BASE_URL)%"
-              description: "Endpoint principal (prod)"
+              description: "Main endpoint (prod)"
         components:
             securitySchemes:
                 Bearer:

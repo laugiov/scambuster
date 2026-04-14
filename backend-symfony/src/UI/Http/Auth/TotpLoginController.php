@@ -14,6 +14,7 @@ use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Totp\TotpAuthenticatorInte
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactory;
 use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -28,10 +29,38 @@ final readonly class TotpLoginController
         private ValidatorInterface $validator,
         // Spec 065e — replaces the custom RFC 6238 implementation with scheb
         private ?TotpAuthenticatorInterface $totpAuthenticator = null,
+        // Spec 066 — rate limiting on 2FA endpoint (reuses login_ip limiter)
+        private ?RateLimiterFactory $loginIpLimiter = null,
+        // Spec 066 — TOTP replay protection via cache
+        private ?\Psr\Cache\CacheItemPoolInterface $totpReplayCache = null,
     ) {
     }
     public function __invoke(Request $request): JsonResponse
     {
+        // Spec 066 — rate limit check (same limiter as login endpoint)
+        if ($this->loginIpLimiter instanceof RateLimiterFactory) {
+            $limiter = $this->loginIpLimiter->create($request->getClientIp() ?? 'unknown');
+            $limit = $limiter->consume(1);
+
+            if (!$limit->isAccepted()) {
+                $this->auditLogger->log(
+                    eventType: AuditEventType::RATE_LIMIT_EXCEEDED,
+                    actorId: 'unknown',
+                    action: '2fa_login',
+                    outcome: 'blocked',
+                    details: ['limiter' => 'login_ip', 'ip' => $request->getClientIp()],
+                    ipAddress: $request->getClientIp()
+                );
+
+                $seconds = max(1, $limit->getRetryAfter()->getTimestamp() - time());
+
+                return new JsonResponse(
+                    ['retry_after' => $seconds],
+                    Response::HTTP_TOO_MANY_REQUESTS
+                );
+            }
+        }
+
         $payload = json_decode($request->getContent(), true);
 
         if (!\is_array($payload)) {
@@ -77,6 +106,24 @@ final readonly class TotpLoginController
             return new JsonResponse(['message' => 'TOTP not configured for this account'], Response::HTTP_BAD_REQUEST);
         }
 
+        // Spec 066 — TOTP replay protection: reject codes already used within 90s window
+        if ($this->totpReplayCache instanceof \Psr\Cache\CacheItemPoolInterface) {
+            $replayCacheKey = 'totp_used_' . md5($email . ':' . $code);
+            $cacheItem = $this->totpReplayCache->getItem($replayCacheKey);
+
+            if ($cacheItem->isHit()) {
+                $this->auditLogger->log(
+                    eventType: AuditEventType::AUTH_FAILURE,
+                    actorId: $email,
+                    action: '2fa_login',
+                    outcome: 'totp_replay',
+                    ipAddress: $request->getClientIp()
+                );
+
+                return new JsonResponse(['message' => 'TOTP code already used'], Response::HTTP_UNAUTHORIZED);
+            }
+        }
+
         // Spec 065e — delegate verification to scheb/2fa-bundle if available,
         // fall back to the legacy custom RFC 6238 implementation otherwise.
         $codeValid = false;
@@ -98,6 +145,15 @@ final readonly class TotpLoginController
             );
 
             return new JsonResponse(['message' => 'Invalid TOTP code'], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Spec 066 — mark TOTP code as used (90s TTL covers the 30s window + clock skew)
+        if ($this->totpReplayCache instanceof \Psr\Cache\CacheItemPoolInterface) {
+            $replayCacheKey = 'totp_used_' . md5($email . ':' . $code);
+            $cacheItem = $this->totpReplayCache->getItem($replayCacheKey);
+            $cacheItem->set(true);
+            $cacheItem->expiresAfter(90);
+            $this->totpReplayCache->save($cacheItem);
         }
 
         $this->auditLogger->log(

@@ -10,12 +10,12 @@ namespace App\Infrastructure\LLM;
 interface LLMServiceInterface
 {
     /**
-     * Génère une complétion de texte
+     * Generates a text completion
      *
-     * @param string               $prompt  Le prompt à envoyer au LLM
+     * @param string               $prompt  The prompt to send to the LLM
      * @param array<string, mixed> $options Options additionnelles (temperature, max_tokens, etc.)
      *
-     * @return string La réponse du LLM
+     * @return string The LLM response
      */
     public function complete(string $prompt, array $options = []): string;
 }

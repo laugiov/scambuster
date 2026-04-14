@@ -21,9 +21,9 @@ final readonly class ClusteringService
     }
 
     /**
-     * Assigne un message à une campagne existante ou crée une nouvelle campagne.
+     * Assigns a message to an existing campaign or creates a new campaign.
      *
-     * @param Message         $message           Message à clusteriser
+     * @param Message         $message           Message to cluster
      * @param array<Campaign> $existingCampaigns Campagnes existantes (status=shadow ou promoted)
      *
      * @return array{campaign_id: string|null, confidence: float, features: array<string, mixed>}
@@ -37,7 +37,7 @@ final readonly class ClusteringService
         // 2. Trouver la campagne la plus proche
         $bestMatch = $this->findBestMatch($embedding, $existingCampaigns);
 
-        // 3. Si similarity ≥ threshold → assigner à campagne existante
+        // 3. If similarity >= threshold -> assign to existing campaign
         if ($bestMatch !== null && $bestMatch['similarity'] >= self::SIMILARITY_THRESHOLD) {
             $this->logger->info('Message assigned to existing campaign', [
                 'campaign_id' => $bestMatch['campaign_id'],
@@ -51,10 +51,10 @@ final readonly class ClusteringService
             ];
         }
 
-        // 4. Sinon → créer nouvelle campagne (sera en attente jusqu'à MIN_CLUSTER_SIZE)
+        // 4. Otherwise -> create new campaign (will be pending until MIN_CLUSTER_SIZE)
         $this->logger->info('Creating new campaign for message');
 
-        // Retourner campaign_id null pour signaler "nouvelle campagne à créer"
+        // Return null campaign_id to signal "new campaign to create"
         return [
             'campaign_id' => null,
             'confidence' => 1.0,
@@ -63,7 +63,7 @@ final readonly class ClusteringService
     }
 
     /**
-     * Calcule un embedding (vecteur de features normalisé).
+     * Computes an embedding (normalized feature vector).
      *
      * @param array{text: array<string, mixed>, infra: array<string, mixed>, style: array<string, mixed>} $features
      *
@@ -71,7 +71,7 @@ final readonly class ClusteringService
      */
     private function computeEmbedding(array $features): array
     {
-        // Embedding simple : hashes de chaque catégorie de features
+        // Simple embedding: hashes of each feature category
         $textHash = $features['text']['simhash'];
         $infraJson = json_encode($features['infra']['url_domains']);
 
@@ -93,7 +93,7 @@ final readonly class ClusteringService
             'text' => $textHash,
             'infra' => $infraHash,
             'style' => $styleHash,
-            'features' => $features, // Garder features complètes pour calcul similarité
+            'features' => $features, // Keep complete features for similarity computation
         ];
     }
 
@@ -134,12 +134,12 @@ final readonly class ClusteringService
     }
 
     /**
-     * Calcule similarité entre embedding message et campagne.
+     * Computes similarity between message and campaign embedding.
      * Utilise Jaccard similarity sur les tokens de mots (MVP approach).
      *
      * @param array<string, mixed> $embedding
      *
-     * @return float Similarité [0,1], 1 = identique
+     * @return float Similarity [0,1], 1 = identical
      */
     private function computeSimilarity(array $embedding, Campaign $campaign): float
     {
@@ -172,7 +172,7 @@ final readonly class ClusteringService
     }
 
     /**
-     * Récupère un texte représentatif de la campagne (premier message ou centroid).
+     * Retrieves a representative text for the campaign (first message or centroid).
      */
     private function getCampaignRepresentativeText(Campaign $campaign): ?string
     {

@@ -13,7 +13,7 @@ use App\Domain\Communication\ScamType;
 interface ConversationServiceInterface
 {
     /**
-     * Crée une nouvelle conversation.
+     * Creates a new conversation.
      */
     public function createConversation(
         Channel $primaryChannel,
@@ -27,7 +27,7 @@ interface ConversationServiceInterface
     ): Conversation;
 
     /**
-     * Ajoute un canal à une conversation existante (multi-canal).
+     * Adds a channel to an existing conversation (multi-channel).
      */
     public function addChannelToConversation(Conversation $conversation, Channel $channel, \DateTimeImmutable $tsFirstChannel): void;
 

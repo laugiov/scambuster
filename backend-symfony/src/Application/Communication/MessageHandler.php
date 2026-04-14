@@ -207,7 +207,7 @@ class MessageHandler
 
     public function getMessageByMessageId(string $messageId): ?Message
     {
-        // On cherche dans les headers car le message-id est stocké là
+        // We search in headers because the message-id is stored there
         $qb = $this->em->createQueryBuilder();
         $qb->select('m')
             ->from(Message::class, 'm')

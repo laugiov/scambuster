@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/conversation/{convId}/context',
-    summary: 'Obtenir le contexte d\'une conversation pour génération de réponse',
+    summary: 'Get conversation context for reply generation',
     tags: ['Reply'],
     parameters: [
         new OA\Parameter(name: 'convId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -28,7 +28,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         ),
         new OA\Response(
             response: 404,
-            description: 'Conversation non trouvée',
+            description: 'Conversation not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

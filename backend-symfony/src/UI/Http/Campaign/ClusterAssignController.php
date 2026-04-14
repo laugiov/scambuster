@@ -23,8 +23,8 @@ final readonly class ClusterAssignController
     }
     #[OA\Post(
         path: '/api/v1/campaign/cluster/assign',
-        summary: 'Assigner un message à une campagne via clustering',
-        description: 'Analyse un message et l\'assigne à une campagne existante ou en crée une nouvelle via le service de clustering.',
+        summary: 'Assign a message to a campaign via clustering',
+        description: 'Analyzes a message and assigns it to an existing campaign or creates a new one via the clustering service.',
         security: [['Bearer' => []]],
         tags: ['Campaign'],
         requestBody: new OA\RequestBody(
@@ -37,7 +37,7 @@ final readonly class ClusterAssignController
                         property: 'msg_id',
                         type: 'string',
                         format: 'uuid',
-                        description: 'UUID du message à assigner'
+                        description: 'UUID of the message to assign'
                     ),
                 ]
             )
@@ -45,7 +45,7 @@ final readonly class ClusterAssignController
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Message assigné à une campagne existante',
+                description: 'Message assigned to an existing campaign',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
@@ -57,7 +57,7 @@ final readonly class ClusterAssignController
             ),
             new OA\Response(
                 response: 201,
-                description: 'Nouvelle campagne créée pour ce message',
+                description: 'New campaign created for this message',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
@@ -69,7 +69,7 @@ final readonly class ClusterAssignController
             ),
             new OA\Response(
                 response: 400,
-                description: 'Paramètres invalides',
+                description: 'Invalid parameters',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -109,7 +109,7 @@ final readonly class ClusterAssignController
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
         }
 
-        // 3. Réponse
+        // 3. Response
         return new JsonResponse([
             'campaign_id' => $result['campaign_id'],
             'is_new_campaign' => $result['is_new'],

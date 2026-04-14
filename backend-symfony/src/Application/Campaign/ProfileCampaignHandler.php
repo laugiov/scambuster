@@ -12,8 +12,8 @@ use Symfony\Component\Uid\Uuid;
 /**
  * Handler pour profiler une campagne via LLM.
  *
- * Récupère un échantillon de messages de la campagne et génère un profil YAML
- * décrivant les tactiques, cibles, et variantes probables.
+ * Retrieves a message sample from the campaign and generates a YAML profile
+ * describing tactics, targets, and likely variants.
  */
 final readonly class ProfileCampaignHandler
 {
@@ -29,10 +29,10 @@ final readonly class ProfileCampaignHandler
     }
 
     /**
-     * Profile une campagne et stocke le résultat en BDD.
+     * Profiles a campaign and stores the result in the database.
      *
-     * @param Uuid $campaignId ID de la campagne à profiler
-     * @param int  $sampleSize Nombre de messages à analyser (3-10, défaut 10)
+     * @param Uuid $campaignId ID of the campaign to profile
+     * @param int  $sampleSize Number of messages to analyze (3-10, default 10)
      *
      * @throws \RuntimeException Si la campagne n'existe pas ou n'a pas assez de messages
      *
@@ -47,14 +47,14 @@ final readonly class ProfileCampaignHandler
             'sample_size' => $sampleSize,
         ]);
 
-        // 1. Vérifier que la campagne existe
+        // 1. Verify campaign exists
         $campaign = $this->campaignRepository->findById($campaignId);
 
         if (!$campaign instanceof \App\Domain\CampaignRadar\Campaign) {
             throw new \RuntimeException("Campaign not found: {$campaignId->toRfc4122()}");
         }
 
-        // 2. Récupérer les messages de la campagne
+        // 2. Retrieve campaign messages
         $messages = $this->campaignRepository->findMessagesByCampaign($campaignId, $sampleSize);
 
         if (count($messages) < self::MIN_MESSAGES_FOR_PROFILING) {
