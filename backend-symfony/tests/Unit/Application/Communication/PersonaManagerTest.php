@@ -10,6 +10,8 @@ use App\Domain\Communication\ScamType;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use PHPUnit\Framework\TestCase;
+use Doctrine\ORM\EntityRepository;
+use PHPUnit\Framework\MockObject\MockObject;
 
 class PersonaManagerTest extends TestCase
 {
@@ -173,5 +175,119 @@ class PersonaManagerTest extends TestCase
         $persona->method('getSystemPrompt')->willReturn($systemPrompt);
 
         return $persona;
+    }
+
+    // ================================================================== //
+    //  Merged from PersonaManagerCoverageTest
+    // ================================================================== //
+
+    public function testCreatePersonaRejectsInvalidCode(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid persona_code format');
+
+        $this->personaManager->createPersona(
+            'INVALID-CODE!!',
+            'Label',
+            'Tone',
+            str_repeat('x', 101),
+        );
+    }
+
+    public function testCreatePersonaRejectsShortCode(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Invalid persona_code format');
+
+        $this->personaManager->createPersona(
+            'ab', // too short (2 chars, min 3)
+            'Label',
+            'Tone',
+            str_repeat('x', 101),
+        );
+    }
+
+    public function testCreatePersonaRejectsShortSystemPrompt(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('system_prompt must be at least 100 characters');
+
+        $this->personaManager->createPersona(
+            'valid_code',
+            'Label',
+            'Tone',
+            'Too short prompt',
+        );
+    }
+
+    public function testCreatePersonaRejectsDuplicateCode(): void
+    {
+        $existingPersona = $this->createMock(Persona::class);
+
+        $repo = $this->createMock(EntityRepository::class);
+        $repo->method('findOneBy')
+            ->with(['personaCode' => 'existing_persona'])
+            ->willReturn($existingPersona);
+
+        $this->em->method('getRepository')
+            ->with(Persona::class)
+            ->willReturn($repo);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage("already exists");
+
+        $this->personaManager->createPersona(
+            'existing_persona',
+            'Label',
+            'Tone',
+            str_repeat('x', 101),
+        );
+    }
+
+    public function testUpdatePersonaRejectsShortSystemPrompt(): void
+    {
+        $persona = $this->createMock(Persona::class);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('system_prompt must be at least 100 characters');
+
+        $this->personaManager->updatePersona(
+            $persona,
+            systemPrompt: 'Too short',
+        );
+    }
+
+    public function testUpdatePersonaUpdatesLabel(): void
+    {
+        $persona = $this->createMock(Persona::class);
+        $persona->expects($this->once())->method('setPersonaLabel')->with('New Label');
+        $persona->expects($this->never())->method('setPersonaTone');
+        $persona->expects($this->never())->method('setSystemPrompt');
+
+        $this->em->expects($this->once())->method('flush');
+
+        $this->personaManager->updatePersona($persona, personaLabel: 'New Label');
+    }
+
+    public function testUpdatePersonaUpdatesTone(): void
+    {
+        $persona = $this->createMock(Persona::class);
+        $persona->expects($this->never())->method('setPersonaLabel');
+        $persona->expects($this->once())->method('setPersonaTone')->with('New Tone');
+
+        $this->em->expects($this->once())->method('flush');
+
+        $this->personaManager->updatePersona($persona, personaTone: 'New Tone');
+    }
+
+    public function testUpdatePersonaUpdatesValidSystemPrompt(): void
+    {
+        $longPrompt = str_repeat('x', 101);
+        $persona = $this->createMock(Persona::class);
+        $persona->expects($this->once())->method('setSystemPrompt')->with($longPrompt);
+
+        $this->em->expects($this->once())->method('flush');
+
+        $this->personaManager->updatePersona($persona, systemPrompt: $longPrompt);
     }
 }

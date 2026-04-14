@@ -6,7 +6,7 @@ import { server } from '@/__tests__/mocks/server';
 import { mockMetaConfig } from '@/__tests__/mocks/handlers';
 import { useMetaConfig, personaDisplayName, scamTypeDisplayName } from './useMetaConfig';
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 

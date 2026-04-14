@@ -20,7 +20,7 @@ function createWrapper() {
   };
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => {
   server.resetHandlers();
   useAuthStore.setState({ isAuthenticated: false, isLoading: false, error: null });
@@ -97,5 +97,12 @@ describe('Login page', () => {
 
     // Button should be disabled during loading
     expect(screen.getByRole('button')).toBeDisabled();
+  });
+
+  it('has no accessibility violations', async () => {
+    const { axe } = await import('vitest-axe');
+    const { container } = render(<Login />, { wrapper: createWrapper() });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });
