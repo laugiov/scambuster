@@ -10,7 +10,7 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Yaml\Yaml;
 
-final class STIXExporter
+final readonly class STIXExporter
 {
     /** @var array<string, string> Maps campaign YAML IOC categories to IOC types */
     private const YAML_TYPE_MAP = [
@@ -23,9 +23,9 @@ final class STIXExporter
     ];
 
     public function __construct(
-        private readonly LoggerInterface $logger,
-        private readonly StixBundleBuilder $bundleBuilder,
-        private readonly string $stixExportPath
+        private LoggerInterface $logger,
+        private StixBundleBuilder $bundleBuilder,
+        private string $stixExportPath
     ) {
     }
 
@@ -66,7 +66,7 @@ final class STIXExporter
 
         return [
             'file_path' => $filePath,
-            'bundle_id' => $bundle['id'],
+            'bundle_id' => \is_string($bundle['id']) ? $bundle['id'] : '',
             'bundle' => $bundle,
         ];
     }
@@ -99,6 +99,8 @@ final class STIXExporter
         if (!is_array($profile)) {
             return $this->emptyIoCs();
         }
+
+        /** @var array<string, mixed> $profile */
 
         // Validation structure minimale
         if (!$this->validateProfileSchema($profile)) {
@@ -191,7 +193,8 @@ final class STIXExporter
             }
         }
 
-        return array_values(array_unique(array_filter($domains)));
+        /** @var list<string> */
+        return array_values(array_unique(array_filter($domains, 'is_string')));
     }
 
     /**
@@ -226,8 +229,9 @@ final class STIXExporter
         }
 
         // Filtrer les emails personnels (PII)
-        $emails = array_filter($emails, fn ($email) => !$this->isPersonalEmail($email));
+        $emails = array_filter($emails, fn ($email): bool => \is_string($email) && !$this->isPersonalEmail($email));
 
+        /** @var list<string> */
         return array_values(array_unique($emails));
     }
 
@@ -279,8 +283,9 @@ final class STIXExporter
         }
 
         // Filtrer les patterns (enlever placeholders)
-        $urls = array_filter($urls, fn ($url) => is_string($url) && !str_contains($url, '{'));
+        $urls = array_filter($urls, fn ($url): bool => is_string($url) && !str_contains($url, '{'));
 
+        /** @var list<string> */
         return array_values(array_unique($urls));
     }
 
@@ -315,6 +320,7 @@ final class STIXExporter
             }
         }
 
+        /** @var list<string> */
         return array_values(array_unique($phones));
     }
 
@@ -344,6 +350,7 @@ final class STIXExporter
             }
         }
 
+        /** @var list<string> */
         return array_values(array_unique($ips));
     }
 
@@ -378,6 +385,7 @@ final class STIXExporter
             }
         }
 
+        /** @var list<string> */
         return array_values(array_unique($hashes));
     }
 
@@ -396,10 +404,13 @@ final class STIXExporter
         $firstSeen = $campaign->getFirstSeen()->format('Y-m-d H:i:s');
 
         foreach ($iocs as $yamlCategory => $values) {
-            if (!array_key_exists($yamlCategory, self::YAML_TYPE_MAP) || empty($values)) {
+            if (!array_key_exists($yamlCategory, self::YAML_TYPE_MAP)) {
                 continue;
             }
 
+            if (empty($values)) {
+                continue;
+            }
             $iocType = self::YAML_TYPE_MAP[$yamlCategory];
 
             foreach ($values as $value) {

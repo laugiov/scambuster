@@ -12,38 +12,6 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'message')]
 class Message
 {
-    #[ORM\Id]
-    #[ORM\Column(name: 'msg_id', type: 'uuid', unique: true)]
-    private string $msgId;
-
-    #[ORM\ManyToOne(targetEntity: Conversation::class)]
-    #[ORM\JoinColumn(name: 'conv_id', referencedColumnName: 'conv_id', nullable: false, onDelete: 'CASCADE')]
-    private Conversation $conversation;
-
-    #[ORM\ManyToOne(targetEntity: Channel::class)]
-    #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'channel_id', nullable: false)]
-    private Channel $channel;
-
-    #[ORM\ManyToOne(targetEntity: Direction::class)]
-    #[ORM\JoinColumn(name: 'direction', referencedColumnName: 'dir_id', nullable: false)]
-    private Direction $direction;
-
-    #[ORM\Column(name: 'lang_detect', type: 'string', length: 2)]
-    private string $langDetect;
-
-    #[ORM\Column(type: 'string', length: 255, nullable: true)]
-    private ?string $subject = null;
-
-    #[ORM\Column(name: 'body_text', type: 'text')]
-    private string $bodyText;
-
-    #[ORM\Column(name: 'body_html', type: 'text', nullable: true)]
-    private ?string $bodyHtml = null;
-
-    /** @var array<string, mixed> */
-    #[ORM\Column(type: 'json')]
-    private array $headers;
-
     /** @var array<string, mixed>|null */
     #[ORM\Column(name: 'url_analysis', type: 'json', nullable: true)]
     private ?array $urlAnalysis = null;
@@ -51,25 +19,6 @@ class Message
     /** @var array<string, mixed>|null */
     #[ORM\Column(name: 'injection_analysis', type: 'json', nullable: true)]
     private ?array $injectionAnalysis = null;
-
-    #[ORM\Column(name: 'composite_hash', type: 'string', length: 64, unique: true)]
-    private string $compositeHash;
-
-    #[ORM\Column(name: 'vector_id', type: 'uuid', nullable: true)]
-    private ?string $vectorId = null;
-
-    #[ORM\ManyToOne(targetEntity: self::class)]
-    #[ORM\JoinColumn(name: 'reply_to_msg_id', referencedColumnName: 'msg_id', nullable: true)]
-    private ?Message $replyTo = null;
-
-    #[ORM\Column(name: 'ts_msg', type: 'datetime_immutable')]
-    private \DateTimeImmutable $tsMsg;
-
-    #[ORM\Column(name: 'ts_ingest', type: 'datetime_immutable')]
-    private \DateTimeImmutable $tsIngest;
-
-    #[ORM\Column(name: 'deleted_at', type: 'datetime_immutable', nullable: true)]
-    private ?\DateTimeImmutable $deletedAt = null;
 
     #[ORM\Column(name: 'raw_source', type: 'text', nullable: true)]
     private ?string $rawSource = null;
@@ -85,37 +34,42 @@ class Message
      * @param array<string, mixed> $headers
      */
     public function __construct(
-        string $msgId,
-        Conversation $conversation,
-        Channel $channel,
-        Direction $direction,
-        string $langDetect,
-        ?string $subject,
-        string $bodyText,
-        ?string $bodyHtml,
-        array $headers,
-        string $compositeHash,
-        ?string $vectorId,
-        ?Message $replyTo,
-        \DateTimeImmutable $tsMsg,
-        \DateTimeImmutable $tsIngest,
-        ?\DateTimeImmutable $deletedAt = null
+        #[ORM\Id]
+        #[ORM\Column(name: 'msg_id', type: 'uuid', unique: true)]
+        private string $msgId,
+        #[ORM\ManyToOne(targetEntity: Conversation::class)]
+        #[ORM\JoinColumn(name: 'conv_id', referencedColumnName: 'conv_id', nullable: false, onDelete: 'CASCADE')]
+        private Conversation $conversation,
+        #[ORM\ManyToOne(targetEntity: Channel::class, fetch: 'EAGER')]
+        #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'channel_id', nullable: false)]
+        private Channel $channel,
+        #[ORM\ManyToOne(targetEntity: Direction::class, fetch: 'EAGER')]
+        #[ORM\JoinColumn(name: 'direction', referencedColumnName: 'dir_id', nullable: false)]
+        private Direction $direction,
+        #[ORM\Column(name: 'lang_detect', type: 'string', length: 2)]
+        private string $langDetect,
+        #[ORM\Column(type: 'string', length: 255, nullable: true)]
+        private ?string $subject,
+        #[ORM\Column(name: 'body_text', type: 'text')]
+        private string $bodyText,
+        #[ORM\Column(name: 'body_html', type: 'text', nullable: true)]
+        private ?string $bodyHtml,
+        #[ORM\Column(type: 'json')]
+        private array $headers,
+        #[ORM\Column(name: 'composite_hash', type: 'string', length: 64, unique: true)]
+        private string $compositeHash,
+        #[ORM\Column(name: 'vector_id', type: 'uuid', nullable: true)]
+        private ?string $vectorId,
+        #[ORM\ManyToOne(targetEntity: self::class)]
+        #[ORM\JoinColumn(name: 'reply_to_msg_id', referencedColumnName: 'msg_id', nullable: true)]
+        private ?Message $replyTo,
+        #[ORM\Column(name: 'ts_msg', type: 'datetime_immutable')]
+        private \DateTimeImmutable $tsMsg,
+        #[ORM\Column(name: 'ts_ingest', type: 'datetime_immutable')]
+        private \DateTimeImmutable $tsIngest,
+        #[ORM\Column(name: 'deleted_at', type: 'datetime_immutable', nullable: true)]
+        private ?\DateTimeImmutable $deletedAt = null
     ) {
-        $this->msgId = $msgId;
-        $this->conversation = $conversation;
-        $this->channel = $channel;
-        $this->direction = $direction;
-        $this->langDetect = $langDetect;
-        $this->subject = $subject;
-        $this->bodyText = $bodyText;
-        $this->bodyHtml = $bodyHtml;
-        $this->headers = $headers;
-        $this->compositeHash = $compositeHash;
-        $this->vectorId = $vectorId;
-        $this->replyTo = $replyTo;
-        $this->tsMsg = $tsMsg;
-        $this->tsIngest = $tsIngest;
-        $this->deletedAt = $deletedAt;
         $this->attachments = new ArrayCollection();
     }
 
@@ -294,11 +248,9 @@ class Message
 
     public function removeAttachment(Attachment $attachment): void
     {
-        if ($this->attachments->removeElement($attachment)) {
-            // set the owning side to null (unless already changed)
-            if ($attachment->getMessage() === $this) {
-                $attachment->setMessage(null);
-            }
+        // set the owning side to null (unless already changed)
+        if ($this->attachments->removeElement($attachment) && $attachment->getMessage() === $this) {
+            $attachment->setMessage(null);
         }
     }
 
@@ -307,7 +259,9 @@ class Message
      */
     public function getSendStatus(): ?string
     {
-        return $this->headers['send_status'] ?? null;
+        $status = $this->headers['send_status'] ?? null;
+
+        return \is_string($status) ? $status : null;
     }
 
     /**
@@ -324,7 +278,9 @@ class Message
      */
     public function getProviderMsgId(): ?string
     {
-        return $this->headers['provider_msg_id'] ?? null;
+        $id = $this->headers['provider_msg_id'] ?? null;
+
+        return \is_string($id) ? $id : null;
     }
 
     /**
@@ -340,7 +296,7 @@ class Message
      */
     public function getTsSent(): ?\DateTimeImmutable
     {
-        if (isset($this->headers['ts_sent'])) {
+        if (isset($this->headers['ts_sent']) && \is_string($this->headers['ts_sent'])) {
             return new \DateTimeImmutable($this->headers['ts_sent']);
         }
 

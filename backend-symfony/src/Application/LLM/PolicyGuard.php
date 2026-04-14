@@ -12,7 +12,7 @@ use Psr\Log\LoggerInterface;
  * Validates text against policies like length limits, forbidden patterns,
  * and PII detection without using LLM inference.
  */
-final class PolicyGuard
+final readonly class PolicyGuard
 {
     /**
      * Forbidden patterns — ONLY words that reveal the honeypot/automation.
@@ -92,8 +92,8 @@ final class PolicyGuard
     ];
 
     public function __construct(
-        private readonly LoggerInterface $logger,
-        private readonly int $maxLinks = 1,
+        private LoggerInterface $logger,
+        private int $maxLinks = 1,
     ) {
     }
 
@@ -227,7 +227,7 @@ final class PolicyGuard
             }
         }
 
-        $approved = empty($flags);
+        $approved = $flags === [];
 
         $this->logger->info('[PolicyGuard] ✅ Validation completed', [
             'approved' => $approved,

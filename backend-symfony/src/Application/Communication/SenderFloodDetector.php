@@ -13,15 +13,15 @@ use Psr\Log\LoggerInterface;
  * Uses Symfony cache (Redis-backed) for burst counting and quarantine.
  * Does NOT use Symfony RateLimiter — needs custom TTL-based burst logic.
  */
-final class SenderFloodDetector
+final readonly class SenderFloodDetector
 {
     private const BURST_THRESHOLD = 5;
     private const BURST_WINDOW_SECONDS = 300;    // 5 minutes
     private const QUARANTINE_SECONDS = 3600;      // 1 hour
 
     public function __construct(
-        private readonly CacheItemPoolInterface $cache,
-        private readonly LoggerInterface $logger,
+        private CacheItemPoolInterface $cache,
+        private LoggerInterface $logger,
     ) {
     }
 

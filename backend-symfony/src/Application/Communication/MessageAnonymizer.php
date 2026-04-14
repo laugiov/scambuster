@@ -25,7 +25,7 @@ final class MessageAnonymizer
         '/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/' => '[EMAIL]',
 
         // IBAN (common European formats)
-        '/\b[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}\b/' => '[IBAN]',
+        '/\b[A-Z]{2}\d{2}[A-Z0-9]{1,30}\b/' => '[IBAN]',
 
         // Crypto wallets - BTC (bc1, 1..., 3...)
         '/\b(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}\b/' => '[WALLET]',
@@ -62,7 +62,7 @@ final class MessageAnonymizer
      */
     public function containsPii(string $text): bool
     {
-        foreach (self::PII_PATTERNS as $pattern => $_) {
+        foreach (array_keys(self::PII_PATTERNS) as $pattern) {
             if (preg_match($pattern, $text) === 1) {
                 return true;
             }

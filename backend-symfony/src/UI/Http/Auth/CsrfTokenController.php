@@ -27,12 +27,11 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
         )
     ]
 )]
-final class CsrfTokenController
+final readonly class CsrfTokenController
 {
-    public function __construct(private readonly CsrfTokenManagerInterface $csrfTokenManager)
+    public function __construct(private CsrfTokenManagerInterface $csrfTokenManager)
     {
     }
-
     /**
      * Returns a CSRF token for the default context.
      */

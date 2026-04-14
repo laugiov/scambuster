@@ -34,13 +34,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetMessageRiskController
+final readonly class GetMessageRiskController
 {
     public function __construct(
-        private readonly IocHandler $iocHandler
+        private IocHandler $iocHandler
     ) {
     }
-
     #[Route('/api/v1/communication/message/{msgId}/risk', name: 'get_message_risk', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $msgId): JsonResponse

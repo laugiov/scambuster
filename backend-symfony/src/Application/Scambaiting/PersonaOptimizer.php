@@ -21,7 +21,7 @@ use Psr\Log\LoggerInterface;
  * 2. Sinon avec probabilité ε=0.20 → Exploration (sélection aléatoire)
  * 3. Sinon avec probabilité 1-ε=0.80 → Exploitation (meilleur reward_avg)
  */
-final class PersonaOptimizer
+final readonly class PersonaOptimizer
 {
     private const EPSILON = 0.20;
     private const COLD_START_THRESHOLD = 3;
@@ -31,10 +31,10 @@ final class PersonaOptimizer
     private const EXPLORATION_BONUS_C = 0.5;
 
     public function __construct(
-        private readonly PersonaPerformanceStatsRepository $statsRepository,
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger,
-        private readonly ?AuditLogger $auditLogger = null,
+        private PersonaPerformanceStatsRepository $statsRepository,
+        private EntityManagerInterface $em,
+        private LoggerInterface $logger,
+        private ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -96,7 +96,7 @@ final class PersonaOptimizer
         // 2. Récupérer tous les personas actifs
         $allPersonas = $this->em->getRepository(Persona::class)->findBy(['isActive' => true]);
 
-        if (empty($allPersonas)) {
+        if ($allPersonas === []) {
             $this->logger->error('No active personas found');
 
             return ['persona_code' => null, 'strategy' => null];
@@ -249,7 +249,7 @@ final class PersonaOptimizer
      */
     private function selectRandomPersona(array $performances): PersonaPerformance
     {
-        if (empty($performances)) {
+        if ($performances === []) {
             throw new \RuntimeException('Cannot select persona from empty list');
         }
 
@@ -267,28 +267,26 @@ final class PersonaOptimizer
      */
     private function selectBestPersona(array $performances): PersonaPerformance
     {
-        if (empty($performances)) {
+        if ($performances === []) {
             throw new \RuntimeException('Cannot select best persona from empty list');
         }
 
         // Filtrer les personas en cold start (ne peuvent pas être exploités)
-        $eligiblePerformances = array_filter($performances, function (PersonaPerformance $perf) {
-            return !$perf->isInColdStart();
-        });
+        $eligiblePerformances = array_filter($performances, fn (PersonaPerformance $perf): bool => !$perf->isInColdStart());
 
         // Si TOUS sont en cold start (ne devrait pas arriver ici, mais sécurité)
-        if (empty($eligiblePerformances)) {
+        if ($eligiblePerformances === []) {
             return $this->selectRandomPersona($performances);
         }
 
         // Compute total sessions for UCB1 bonus calculation
         $totalSessions = array_sum(array_map(
-            static fn (PersonaPerformance $p) => $p->getSessionsCount(),
+            static fn (PersonaPerformance $p): int => $p->getSessionsCount(),
             $eligiblePerformances
         ));
 
         // Sort by UCB1 adjusted score DESC (reward_avg + exploration bonus)
-        usort($eligiblePerformances, function (PersonaPerformance $a, PersonaPerformance $b) use ($totalSessions) {
+        usort($eligiblePerformances, function (PersonaPerformance $a, PersonaPerformance $b) use ($totalSessions): int {
             $scoreA = $a->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C);
             $scoreB = $b->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C);
 
@@ -303,9 +301,7 @@ final class PersonaOptimizer
 
         // Handle ex-aequo on adjusted score
         $bestScore = $eligiblePerformances[0]->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C);
-        $bestPerformances = array_filter($eligiblePerformances, function (PersonaPerformance $perf) use ($totalSessions, $bestScore) {
-            return abs($perf->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C) - $bestScore) < 0.0001;
-        });
+        $bestPerformances = array_filter($eligiblePerformances, fn (PersonaPerformance $perf): bool => abs($perf->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C) - $bestScore) < 0.0001);
 
         // Si plusieurs ex-aequo, sélection aléatoire
         if (count($bestPerformances) > 1) {
@@ -356,13 +352,13 @@ final class PersonaOptimizer
      */
     private function isConvergedFromPerformances(array $performances): bool
     {
-        $eligible = array_filter($performances, static fn (PersonaPerformance $p) => !$p->isInColdStart());
+        $eligible = array_filter($performances, static fn (PersonaPerformance $p): bool => !$p->isInColdStart());
 
         if (count($eligible) < 2) {
             return false;
         }
 
-        usort($eligible, static fn (PersonaPerformance $a, PersonaPerformance $b) => $b->getRewardAvg() <=> $a->getRewardAvg());
+        usort($eligible, static fn (PersonaPerformance $a, PersonaPerformance $b): int => $b->getRewardAvg() <=> $a->getRewardAvg());
 
         $best = $eligible[0];
 
@@ -370,7 +366,7 @@ final class PersonaOptimizer
             return false;
         }
 
-        $totalSessions = array_sum(array_map(static fn (PersonaPerformance $p) => $p->getSessionsCount(), $eligible));
+        $totalSessions = array_sum(array_map(static fn (PersonaPerformance $p): int => $p->getSessionsCount(), $eligible));
 
         if ($totalSessions === 0) {
             return false;
@@ -423,7 +419,7 @@ final class PersonaOptimizer
 
         $bestPersona = null;
 
-        if ($bestEntity !== null) {
+        if ($bestEntity instanceof \App\Infrastructure\Doctrine\Entity\PersonaPerformanceStatsEntity) {
             $bestPerf = $bestEntity->toPersonaPerformance();
             $bestPersona = [
                 'persona_code' => $bestPerf->getPersonaCode(),
@@ -432,7 +428,7 @@ final class PersonaOptimizer
             ];
         }
 
-        $top5 = array_map(static function ($entity) {
+        $top5 = array_map(static function ($entity): array {
             $perf = $entity->toPersonaPerformance();
 
             return [

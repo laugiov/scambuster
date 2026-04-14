@@ -10,26 +10,6 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'observed_ioc')]
 class ObservedIoc
 {
-    #[ORM\Id]
-    #[ORM\Column(name: 'obs_id', type: 'uuid', unique: true)]
-    private string $obsId;
-
-    #[ORM\ManyToOne(targetEntity: Message::class)]
-    #[ORM\JoinColumn(name: 'msg_id', referencedColumnName: 'msg_id', nullable: false, onDelete: 'CASCADE')]
-    private Message $message;
-
-    #[ORM\Column(name: 'indicator_id', type: 'uuid')]
-    private string $indicatorId;
-
-    /**
-     * @var array<string, mixed>
-     */
-    #[ORM\Column(name: 'context_observation', type: 'json')]
-    private array $context;
-
-    #[ORM\Column(name: 'ts_observed', type: 'datetime_immutable')]
-    private \DateTimeImmutable $tsObserved;
-
     #[ORM\Column(name: 'confidence_score', type: 'decimal', precision: 4, scale: 3, nullable: true)]
     private ?string $confidenceScore = null;
 
@@ -37,18 +17,20 @@ class ObservedIoc
      * @param array<string, mixed> $context
      */
     public function __construct(
-        string $obsId,
-        Message $message,
-        string $indicatorId,
-        array $context,
-        ?\DateTimeImmutable $tsObserved = null,
+        #[ORM\Id]
+        #[ORM\Column(name: 'obs_id', type: 'uuid', unique: true)]
+        private string $obsId,
+        #[ORM\ManyToOne(targetEntity: Message::class)]
+        #[ORM\JoinColumn(name: 'msg_id', referencedColumnName: 'msg_id', nullable: false, onDelete: 'CASCADE')]
+        private Message $message,
+        #[ORM\Column(name: 'indicator_id', type: 'uuid')]
+        private string $indicatorId,
+        #[ORM\Column(name: 'context_observation', type: 'json')]
+        private array $context,
+        #[ORM\Column(name: 'ts_observed', type: 'datetime_immutable')]
+        private \DateTimeImmutable $tsObserved = new \DateTimeImmutable(),
         ?float $confidenceScore = null,
     ) {
-        $this->obsId = $obsId;
-        $this->message = $message;
-        $this->indicatorId = $indicatorId;
-        $this->context = $context;
-        $this->tsObserved = $tsObserved ?? new \DateTimeImmutable();
         $this->confidenceScore = $confidenceScore !== null ? (string) $confidenceScore : null;
     }
 

@@ -15,10 +15,10 @@ use Doctrine\ORM\EntityManagerInterface;
  * Catches all exceptions to ensure graceful degradation
  * (e.g., migration not yet run, DB unreachable).
  */
-final class DoctrineUserTotpChecker implements UserTotpCheckerInterface
+final readonly class DoctrineUserTotpChecker implements UserTotpCheckerInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

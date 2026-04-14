@@ -38,7 +38,7 @@ final class GetPersonaController extends AbstractController
     {
         $persona = $this->personaManager->findByCode($personaCode);
 
-        if ($persona === null) {
+        if (!$persona instanceof \App\Domain\Communication\Persona) {
             return new JsonResponse([
                 'success' => false,
                 'error' => "Persona '{$personaCode}' not found",

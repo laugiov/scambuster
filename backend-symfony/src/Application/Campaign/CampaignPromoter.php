@@ -11,24 +11,24 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final class CampaignPromoter
+final readonly class CampaignPromoter
 {
     private const PPV_THRESHOLD = 0.85;
     private const MIN_HITS = 5;
     private const MIN_LEAD_TIME_SEC = 10800; // 3 heures
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly CampaignRepository $campaignRepository,
-        private readonly STIXExporter $stixExporter,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private CampaignRepository $campaignRepository,
+        private STIXExporter $stixExporter,
+        private LoggerInterface $logger
     ) {
     }
 
     /**
      * Évalue les candidats à la promotion.
      *
-     * @return array{candidates: array<int, array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, created_at: string}>, promoted: array<int, array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, promoted_at: string}>}
+     * @return array{candidates: list<array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, created_at: string}>, promoted: list<array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, promoted_at: ?string}>}
      */
     public function evaluateCandidates(): array
     {
@@ -79,7 +79,7 @@ final class CampaignPromoter
             'hits_total' => $r->getHitsTotal(),
             'lead_time_sec' => $r->getLeadTimeSec(),
             'lead_time_hours' => $r->getLeadTimeSec() ? round($r->getLeadTimeSec() / 3600, 1) : null,
-            'promoted_at' => $r->getPromotedAt()->format('Y-m-d H:i:s'),
+            'promoted_at' => $r->getPromotedAt()?->format('Y-m-d H:i:s'),
         ], $promotedRules);
 
         $this->logger->info('Promotion candidates evaluated', [
@@ -103,7 +103,7 @@ final class CampaignPromoter
     {
         $rule = $this->em->find(CampaignRule::class, $ruleId);
 
-        if (!$rule) {
+        if ($rule === null) {
             throw new \RuntimeException("Rule not found: {$ruleId->toRfc4122()}");
         }
 
@@ -138,7 +138,7 @@ final class CampaignPromoter
         // Promouvoir la campagne
         $campaign = $this->em->find(Campaign::class, $rule->getCampaignId());
 
-        if ($campaign) {
+        if ($campaign !== null) {
             $campaign->promote();
         }
 
@@ -153,7 +153,7 @@ final class CampaignPromoter
         ]);
 
         // Exporter en STIX (si campagne existe)
-        if ($campaign) {
+        if ($campaign !== null) {
             try {
                 $this->stixExporter->export($campaign);
             } catch (\Throwable $e) {

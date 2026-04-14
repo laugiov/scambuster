@@ -16,9 +16,6 @@ use Psr\Log\LoggerInterface;
  */
 class ScamClassificationHandler
 {
-    /** @phpstan-ignore classConstant.unused */
-    private const MAX_AUTO_CREATED_PERSONAS = 100;
-
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly ScamClassifier $scamClassifier,
@@ -39,21 +36,21 @@ class ScamClassificationHandler
         // Get conversation with messages
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conversation) {
+        if ($conversation === null) {
             throw new \RuntimeException("Conversation not found: {$convId}");
         }
 
         // Get conversation messages for classification
         $messages = $this->getConversationMessages($convId);
 
-        if (empty($messages)) {
+        if ($messages === []) {
             throw new \RuntimeException("Cannot classify conversation without messages: {$convId}");
         }
 
         // Call LLM classifier
         $result = $this->scamClassifier->classify($messages);
 
-        if (!$result) {
+        if (!$result instanceof \App\Application\Communication\ClassificationResult) {
             throw new \RuntimeException('LLM classification failed');
         }
 
@@ -112,14 +109,12 @@ class ScamClassificationHandler
                 // Add new persona to suggested list
                 $suggestedPersonaCodes[] = $personaData['persona_code'];
             }
-        } else {
+        } elseif (!$suggestedPersonaCodes) {
             // No new persona - use fallback if needed
-            if (!$suggestedPersonaCodes) {
-                $suggestedPersonaCodes = ['generic_user'];
-                $this->logger->warning('No personas suggested by LLM, using generic_user', [
-                    'scam_type_code' => $result->scamTypeCode,
-                ]);
-            }
+            $suggestedPersonaCodes = ['generic_user'];
+            $this->logger->warning('No personas suggested by LLM, using generic_user', [
+                'scam_type_code' => $result->scamTypeCode,
+            ]);
         }
 
         // Start transaction
@@ -130,7 +125,7 @@ class ScamClassificationHandler
             if ($result->isNewPersona && isset($personaData['persona_code'])) {
                 $existingPersona = $this->personaManager->findByCode($personaData['persona_code']);
 
-                if (!$existingPersona) {
+                if (!$existingPersona instanceof \App\Domain\Communication\Persona) {
                     try {
                         $newPersona = $this->personaManager->createPersona(
                             personaCode: $personaData['persona_code'],
@@ -162,7 +157,7 @@ class ScamClassificationHandler
             // Check if scam_type already exists
             $existingScamType = $this->scamTypeManager->findByCode($result->scamTypeCode);
 
-            if ($existingScamType) {
+            if ($existingScamType instanceof \App\Domain\Communication\ScamType) {
                 $this->logger->info('Scam type already exists, skipping creation', [
                     'scam_type_code' => $result->scamTypeCode,
                 ]);
@@ -193,7 +188,7 @@ class ScamClassificationHandler
             foreach ($suggestedPersonaCodes as $personaCode) {
                 $persona = $this->personaManager->findByCode($personaCode);
 
-                if ($persona) {
+                if ($persona instanceof \App\Domain\Communication\Persona) {
                     // Check if persona is already linked
                     if (!$scamType->getPersonas()->contains($persona)) {
                         $scamType->addPersona($persona);
@@ -228,7 +223,7 @@ class ScamClassificationHandler
                 'error' => $e->getMessage(),
             ]);
 
-            throw new \RuntimeException('Failed to create scam type + link personas: ' . $e->getMessage());
+            throw new \RuntimeException('Failed to create scam type + link personas: ' . $e->getMessage(), $e->getCode(), $e);
         }
     }
 
@@ -239,7 +234,7 @@ class ScamClassificationHandler
     {
         $existingScamType = $this->scamTypeManager->findByCode($result->scamTypeCode);
 
-        if ($existingScamType) {
+        if ($existingScamType instanceof \App\Domain\Communication\ScamType) {
             $this->logger->info('Scam type already exists', [
                 'scam_type_code' => $result->scamTypeCode,
             ]);
@@ -269,7 +264,7 @@ class ScamClassificationHandler
     {
         $scamType = $this->scamTypeManager->findByCode($scamTypeCode);
 
-        if (!$scamType) {
+        if (!$scamType instanceof \App\Domain\Communication\ScamType) {
             throw new \RuntimeException("ScamType not found after classification: {$scamTypeCode}");
         }
 
@@ -288,7 +283,7 @@ class ScamClassificationHandler
     {
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conversation) {
+        if ($conversation === null) {
             return [];
         }
 
@@ -304,15 +299,13 @@ class ScamClassificationHandler
             ->getQuery()
             ->getResult();
 
-        return array_map(function (\App\Domain\Communication\Message $msg) {
-            return [
-                'msg_id' => $msg->getMsgId(),
-                'direction' => $msg->getDirection()->getCode(),
-                'subject' => $msg->getSubject(),
-                'body_text' => $msg->getBodyText(),
-                'ts_msg' => $msg->getTsMsg()->format(DATE_ATOM),
-            ];
-        }, $messages);
+        return array_map(fn (\App\Domain\Communication\Message $msg): array => [
+            'msg_id' => $msg->getMsgId(),
+            'direction' => $msg->getDirection()->getCode(),
+            'subject' => $msg->getSubject(),
+            'body_text' => $msg->getBodyText(),
+            'ts_msg' => $msg->getTsMsg()->format(DATE_ATOM),
+        ], $messages);
     }
 
     /**
@@ -338,7 +331,7 @@ class ScamClassificationHandler
         // Find scam type (normalize to uppercase)
         $scamType = $this->scamTypeManager->findByCode($scamTypeCode);
 
-        if (!$scamType) {
+        if (!$scamType instanceof \App\Domain\Communication\ScamType) {
             throw new \RuntimeException("Scam type not found: {$scamTypeCode}");
         }
 
@@ -351,7 +344,7 @@ class ScamClassificationHandler
         if ($personaCode) {
             $persona = $this->personaManager->findByCode($personaCode);
 
-            if (!$persona) {
+            if (!$persona instanceof \App\Domain\Communication\Persona) {
                 throw new \RuntimeException("Persona not found: {$personaCode}");
             }
 
@@ -363,7 +356,7 @@ class ScamClassificationHandler
             if (!$personas->isEmpty()) {
                 $persona = $this->personaManager->assignRandomPersona($scamType);
 
-                if ($persona) {
+                if ($persona instanceof \App\Domain\Communication\Persona) {
                     $conversation->setPersona($persona);
                 }
             }
@@ -431,14 +424,14 @@ class ScamClassificationHandler
         // Get conversation messages for classification
         $messages = $this->getConversationMessages($convId);
 
-        if (empty($messages)) {
+        if ($messages === []) {
             throw new \RuntimeException("Cannot classify conversation without messages: {$convId}");
         }
 
         // Call LLM classifier
         $result = $this->scamClassifier->classify($messages);
 
-        if (!$result) {
+        if (!$result instanceof \App\Application\Communication\ClassificationResult) {
             throw new \RuntimeException('LLM classification failed');
         }
 
@@ -480,7 +473,7 @@ class ScamClassificationHandler
             if (!$personas->isEmpty()) {
                 $persona = $this->personaManager->assignRandomPersona($scamType);
 
-                if ($persona) {
+                if ($persona instanceof \App\Domain\Communication\Persona) {
                     $conversation->setPersona($persona);
                     $this->em->flush();
                 }

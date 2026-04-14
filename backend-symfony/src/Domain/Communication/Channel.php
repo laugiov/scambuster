@@ -14,22 +14,13 @@ class Channel
     #[ORM\Id]
     #[ORM\Column(name: 'channel_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $channelId; // @phpstan-ignore-line
+    private int $channelId = 0;
 
-    #[ORM\Column(type: 'string', length: 32, unique: true)]
-    private string $code;
-
-    #[ORM\Column(name: 'label_en', type: 'string', length: 64)]
-    private string $labelEn;
-
-    #[ORM\Column(name: 'label_fr', type: 'string', length: 64)]
-    private string $labelFr;
-
-    public function __construct(string $code, string $labelEn, string $labelFr)
+    public function __construct(#[ORM\Column(type: 'string', length: 32, unique: true)]
+        private string $code, #[ORM\Column(name: 'label_en', type: 'string', length: 64)]
+        private string $labelEn, #[ORM\Column(name: 'label_fr', type: 'string', length: 64)]
+        private string $labelFr)
     {
-        $this->code = $code;
-        $this->labelEn = $labelEn;
-        $this->labelFr = $labelFr;
     }
 
     public function getChannelId(): int

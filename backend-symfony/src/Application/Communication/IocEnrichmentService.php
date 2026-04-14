@@ -33,13 +33,13 @@ class IocEnrichmentService
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             throw new \RuntimeException('Message not found: ' . $msgId);
         }
 
         $iocs = $this->em->getRepository(ObservedIoc::class)->findBy(['message' => $message]);
 
-        if (empty($iocs)) {
+        if ($iocs === []) {
             return [
                 'score_agg' => 0,
                 'level' => 'low',
@@ -74,7 +74,7 @@ class IocEnrichmentService
 
         $level = $this->riskScorer->determineLevel($maxScore);
 
-        $iocTypes = array_map(function ($ioc) {
+        $iocTypes = array_map(function ($ioc): array {
             $context = $ioc->getContext();
             $typeValue = isset($context['type']) && is_string($context['type']) ? $context['type'] : '';
 
@@ -102,7 +102,7 @@ class IocEnrichmentService
     {
         $observedIoc = $this->em->getRepository(ObservedIoc::class)->find($obsId);
 
-        if (!$observedIoc) {
+        if ($observedIoc === null) {
             throw new \RuntimeException("IOC not found: {$obsId}");
         }
 

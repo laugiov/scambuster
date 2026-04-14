@@ -15,13 +15,12 @@ use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/{campaign_id}/profile', name: 'api_campaign_profile', methods: ['POST'])]
 #[IsGranted('campaign:read')]
-final class ProfileCampaignController
+final readonly class ProfileCampaignController
 {
     public function __construct(
-        private readonly ProfileCampaignHandler $handler
+        private ProfileCampaignHandler $handler
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/{campaign_id}/profile',
         summary: 'Profiler une campagne via LLM',

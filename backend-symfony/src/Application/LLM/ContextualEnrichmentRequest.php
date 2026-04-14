@@ -10,7 +10,7 @@ namespace App\Application\LLM;
  * Contains the 3-message window (previous outbound, stimulus/revelation inbound,
  * and optionally the previous inbound) plus conversation metadata.
  */
-final class ContextualEnrichmentRequest
+final readonly class ContextualEnrichmentRequest
 {
     /**
      * @param list<string> $iocTypes              IOC types found in the revelation message (e.g., ['url', 'iban'])
@@ -23,14 +23,14 @@ final class ContextualEnrichmentRequest
      * @param string|null  $previousInboundText   Body text of the previous inbound before our stimulus
      */
     public function __construct(
-        public readonly array $iocTypes,
-        public readonly string $scamType,
-        public readonly string $personaCode,
-        public readonly int $revelationTurn,
-        public readonly int $totalTurns,
-        public readonly string $revelationMessageText,
-        public readonly ?string $stimulusMessageText,
-        public readonly ?string $previousInboundText,
+        public array $iocTypes,
+        public string $scamType,
+        public string $personaCode,
+        public int $revelationTurn,
+        public int $totalTurns,
+        public string $revelationMessageText,
+        public ?string $stimulusMessageText,
+        public ?string $previousInboundText,
     ) {
     }
 }

@@ -42,9 +42,8 @@ class PiiMaskingProcessor implements ProcessorInterface
     private function maskString(string $value): string
     {
         $value = (string) preg_replace(self::EMAIL_PATTERN, '$1***@$2', $value);
-        $value = (string) preg_replace(self::IPV4_PATTERN, '$1.***', $value);
 
-        return $value;
+        return (string) preg_replace(self::IPV4_PATTERN, '$1.***', $value);
     }
 
     /**

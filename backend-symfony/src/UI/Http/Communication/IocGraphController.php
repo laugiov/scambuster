@@ -16,13 +16,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Controller for IOC co-occurrence graph data.
  */
 #[IsGranted('ioc:read')]
-final class IocGraphController
+final readonly class IocGraphController
 {
     public function __construct(
-        private readonly IocHandler $handler
+        private IocHandler $handler
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/iocs/co-occurrence',
         summary: 'Get IOC co-occurrence graph (nodes + edges)',

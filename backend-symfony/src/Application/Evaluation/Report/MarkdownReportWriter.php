@@ -59,7 +59,7 @@ final class MarkdownReportWriter
         $lines[] = '';
 
         // Best replies
-        if (!empty($bestReplies)) {
+        if ($bestReplies !== []) {
             $lines[] = '## Top 5 Best Replies (by naturalness)';
             $lines[] = '';
 
@@ -93,7 +93,7 @@ final class MarkdownReportWriter
         }
 
         // Worst replies
-        if (!empty($worstReplies)) {
+        if ($worstReplies !== []) {
             $lines[] = '## Bottom 5 Worst Replies (by naturalness)';
             $lines[] = '';
 
@@ -127,7 +127,7 @@ final class MarkdownReportWriter
         }
 
         // Persona similarity matrix
-        if (!empty($personaMatrix)) {
+        if ($personaMatrix !== []) {
             $lines[] = '## Persona Similarity Matrix';
             $lines[] = '';
 
@@ -183,11 +183,17 @@ final class MarkdownReportWriter
             foreach ($scamTypeAnalyses as $analysis) {
                 /** @var float $domPct */
                 $domPct = $analysis['dominant_percentage'] ?? 0;
+                /** @var string $aScamType */
+                $aScamType = $analysis['scam_type'] ?? '?';
+                /** @var int $aSessionsCount */
+                $aSessionsCount = $analysis['sessions_count'] ?? 0;
+                /** @var string $aDomPersona */
+                $aDomPersona = $analysis['dominant_persona'] ?? '?';
                 $lines[] = sprintf(
                     '| %s | %d | %s | %.0f%% | %s |',
-                    $analysis['scam_type'] ?? '?',
-                    $analysis['sessions_count'] ?? 0,
-                    $analysis['dominant_persona'] ?? '?',
+                    $aScamType,
+                    $aSessionsCount,
+                    $aDomPersona,
                     $domPct * 100,
                     ($analysis['converged'] ?? false) ? 'YES' : 'no',
                 );
@@ -198,8 +204,12 @@ final class MarkdownReportWriter
 
         $lines[] = '## Regret Analysis';
         $lines[] = '';
-        $lines[] = sprintf('- Cumulative regret (vs oracle): %.2f', $report['cumulative_regret'] ?? 0);
-        $lines[] = sprintf('- Random baseline regret: %.2f', $report['random_baseline_regret'] ?? 0);
+        /** @var float $cumRegret */
+        $cumRegret = $report['cumulative_regret'] ?? 0;
+        /** @var float $randBaseline */
+        $randBaseline = $report['random_baseline_regret'] ?? 0;
+        $lines[] = sprintf('- Cumulative regret (vs oracle): %.2f', $cumRegret);
+        $lines[] = sprintf('- Random baseline regret: %.2f', $randBaseline);
 
         $regretReduction = 0.0;
         /** @var float $randomBaselineRegret */

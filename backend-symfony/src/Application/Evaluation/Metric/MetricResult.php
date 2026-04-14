@@ -10,9 +10,9 @@ namespace App\Application\Evaluation\Metric;
  * Encapsulates measured value, target threshold, comparison direction,
  * and pass/fail verdict for one metric in the evaluation suite.
  */
-final class MetricResult
+final readonly class MetricResult
 {
-    public readonly string $verdict;
+    public string $verdict;
 
     /**
      * @param string $name            Metric identifier (e.g., "non_repetitiveness")
@@ -25,14 +25,14 @@ final class MetricResult
      * @param int    $minSampleSize   Minimum samples required for valid verdict
      */
     public function __construct(
-        public readonly string $name,
-        public readonly string $dimension,
-        public readonly float $measuredValue,
-        public readonly float $targetThreshold,
-        public readonly string $comparison,
-        public readonly int $sampleSize,
-        public readonly string $details,
-        public readonly int $minSampleSize = 10,
+        public string $name,
+        public string $dimension,
+        public float $measuredValue,
+        public float $targetThreshold,
+        public string $comparison,
+        public int $sampleSize,
+        public string $details,
+        public int $minSampleSize = 10,
     ) {
         $this->verdict = $this->computeVerdict();
     }

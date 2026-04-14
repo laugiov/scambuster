@@ -107,13 +107,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     security: [ [ 'Bearer' => [] ] ]
 )]
 #[IsGranted('ioc:read')]
-final class UpdateIocEnrichmentController
+final readonly class UpdateIocEnrichmentController
 {
     public function __construct(
-        private readonly IocHandler $handler
+        private IocHandler $handler
     ) {
     }
-
     #[Route('/api/v1/iocs/{obs_id}/enrich', name: 'update_ioc_enrichment', methods: ['PATCH'])]
     public function __invoke(string $obs_id, Request $request): JsonResponse
     {
@@ -132,8 +131,11 @@ final class UpdateIocEnrichmentController
         }
 
         // Delegate to handler
+        /** @var array<string, mixed> $enrichment */
+        $enrichment = $data['enrichment'];
+
         try {
-            $observedIoc = $this->handler->updateIocEnrichment($obs_id, $data['enrichment']);
+            $observedIoc = $this->handler->updateIocEnrichment($obs_id, $enrichment);
 
             return new JsonResponse([
                 'obs_id' => $observedIoc->getObsId(),

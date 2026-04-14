@@ -10,38 +10,17 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'message_vector')]
 class MessageVector
 {
-    #[ORM\Id]
-    #[ORM\Column(name: 'vector_id', type: 'uuid', unique: true)]
-    private string $vectorId;
-
-    /** @var array<int, float> */
-    #[ORM\Column(type: 'json')]
-    private array $embedding;
-
-    #[ORM\Column(name: 'model_name', type: 'string', length: 64)]
-    private string $modelName;
-
-    #[ORM\Column(type: 'integer')]
-    private int $dim;
-
-    #[ORM\Column(name: 'ts_created', type: 'datetime_immutable')]
-    private \DateTimeImmutable $tsCreated;
-
     /**
      * @param array<int, float> $embedding
      */
-    public function __construct(
-        string $vectorId,
-        array $embedding,
-        string $modelName,
-        int $dim,
-        ?\DateTimeImmutable $tsCreated = null
-    ) {
-        $this->vectorId = $vectorId;
-        $this->embedding = $embedding;
-        $this->modelName = $modelName;
-        $this->dim = $dim;
-        $this->tsCreated = $tsCreated ?? new \DateTimeImmutable();
+    public function __construct(#[ORM\Id]
+        #[ORM\Column(name: 'vector_id', type: 'uuid', unique: true)]
+        private string $vectorId, #[ORM\Column(type: 'json')]
+        private array $embedding, #[ORM\Column(name: 'model_name', type: 'string', length: 64)]
+        private string $modelName, #[ORM\Column(type: 'integer')]
+        private int $dim, #[ORM\Column(name: 'ts_created', type: 'datetime_immutable')]
+        private \DateTimeImmutable $tsCreated = new \DateTimeImmutable())
+    {
     }
 
     public function getVectorId(): string

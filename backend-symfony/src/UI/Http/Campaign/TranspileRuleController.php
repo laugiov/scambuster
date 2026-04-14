@@ -14,13 +14,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/campaign/transpile', name: 'api_campaign_transpile', methods: ['POST'])]
 #[IsGranted('campaign:read')]
-final class TranspileRuleController
+final readonly class TranspileRuleController
 {
     public function __construct(
-        private readonly DSLTranspiler $transpiler
+        private DSLTranspiler $transpiler
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/transpile',
         summary: 'Transpiler une règle DSL MailGuard en SQL PostgreSQL',
@@ -81,7 +80,9 @@ final class TranspileRuleController
         }
 
         try {
-            $result = $this->transpiler->transpile($data['dsl']);
+            /** @var string $dsl */
+            $dsl = $data['dsl'];
+            $result = $this->transpiler->transpile($dsl);
 
             return new JsonResponse($result);
         } catch (\RuntimeException $e) {

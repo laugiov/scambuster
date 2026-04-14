@@ -31,7 +31,7 @@ class AuditQueryService
             $params['actor_id'] = $actorId;
         }
 
-        $whereClause = !empty($where) ? 'WHERE ' . implode(' AND ', $where) : '';
+        $whereClause = $where === [] ? '' : 'WHERE ' . implode(' AND ', $where);
 
         /** @var int|string|false $totalRaw */
         $totalRaw = $this->connection->fetchOne(

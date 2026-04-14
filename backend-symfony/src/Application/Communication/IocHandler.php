@@ -137,12 +137,20 @@ class IocHandler
             $persistedIocs = [];
 
             foreach ($uniqueIocs as $ioc) {
+                /** @var string $iocType */
+                $iocType = $ioc['type'] ?? '';
+                /** @var string $iocValue */
+                $iocValue = $ioc['value'] ?? '';
+                /** @var string $iocValueNorm */
+                $iocValueNorm = $ioc['value_norm'] ?? '';
+                /** @var array<string, mixed> $iocContext */
+                $iocContext = $ioc['context'] ?? [];
                 $payload = [
                     'msg_id' => $msgId,
                     'ioc' => [
-                        'type' => $ioc['type'],
-                        'value' => $ioc['value'],
-                        'value_norm' => $ioc['value_norm'],
+                        'type' => $iocType,
+                        'value' => $iocValue,
+                        'value_norm' => $iocValueNorm,
                         'source' => 'extraction',
                         'first_seen' => (new \DateTimeImmutable())->format(\DateTimeImmutable::ATOM),
                     ],
@@ -155,14 +163,14 @@ class IocHandler
                 try {
                     $observedIoc = $this->upsertService->upsertEnrichedIoc($payload);
                     $persistedIocs[] = [
-                        'type' => $ioc['type'],
-                        'value' => $ioc['value'],
-                        'value_norm' => $ioc['value_norm'],
-                        'context' => array_merge($ioc['context'], [
+                        'type' => $iocType,
+                        'value' => $iocValue,
+                        'value_norm' => $iocValueNorm,
+                        'context' => array_merge($iocContext, [
                             'obs_id' => $observedIoc->getObsId(),
                         ]),
                     ];
-                } catch (\Exception $e) {
+                } catch (\Exception) {
                     continue;
                 }
             }
@@ -183,7 +191,7 @@ class IocHandler
      */
     private function enrichMessageIocsWithLlm(string $msgId, array $persistedIocs): void
     {
-        if ($this->contextualEnricher === null || $this->connection === null || empty($persistedIocs)) {
+        if (!$this->contextualEnricher instanceof \App\Application\LLM\ContextualEnricher || !$this->connection instanceof \Doctrine\DBAL\Connection || $persistedIocs === []) {
             return;
         }
 
@@ -198,7 +206,7 @@ class IocHandler
 
         $iocTypes = array_values(array_unique($iocTypes));
 
-        if (empty($iocTypes)) {
+        if ($iocTypes === []) {
             return;
         }
 
@@ -235,7 +243,7 @@ class IocHandler
 
             $result = $this->contextualEnricher->enrich($request);
 
-            if ($result === null) {
+            if (!$result instanceof \App\Application\LLM\ContextualEnrichmentResult) {
                 return;
             }
 
@@ -245,7 +253,11 @@ class IocHandler
             foreach ($persistedIocs as $ioc) {
                 $obsId = $ioc['context']['obs_id'] ?? null;
 
-                if (!\is_string($obsId) || IocContextService::isHeaderIocType($ioc['type'])) {
+                if (!\is_string($obsId)) {
+                    continue;
+                }
+
+                if (IocContextService::isHeaderIocType($ioc['type'])) {
                     continue;
                 }
 

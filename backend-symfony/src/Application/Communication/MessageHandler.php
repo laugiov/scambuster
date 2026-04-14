@@ -14,7 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class MessageHandler
 {
-    public function __construct(private EntityManagerInterface $em)
+    public function __construct(private readonly EntityManagerInterface $em)
     {
     }
 
@@ -33,17 +33,29 @@ class MessageHandler
             throw new \RuntimeException('Cannot add message to closed conversation');
         }
         $msgId = uuid_create(UUID_TYPE_RANDOM);
-        $tsMsg = new \DateTimeImmutable($data['ts_msg']);
+        /** @var string $tsMsgStr */
+        $tsMsgStr = $data['ts_msg'] ?? 'now';
+        $tsMsg = new \DateTimeImmutable($tsMsgStr);
+        /** @var array<string, mixed> $headers */
+        $headers = $data['headers'] ?? [];
+        /** @var string $langDetect */
+        $langDetect = $data['lang_detect'] ?? 'en';
+        /** @var string|null $subjectVal */
+        $subjectVal = $data['subject'] ?? null;
+        /** @var string $bodyText */
+        $bodyText = $data['body_text'] ?? '';
+        /** @var string|null $bodyHtml */
+        $bodyHtml = $data['body_html'] ?? null;
         $message = new Message(
             $msgId,
             $conversation,
             $channel,
             $direction,
-            $data['lang_detect'] ?? 'en',
-            $data['subject'] ?? null,
-            $data['body_text'],
-            $data['body_html'] ?? null,
-            $data['headers'],
+            $langDetect,
+            $subjectVal,
+            $bodyText,
+            $bodyHtml,
+            $headers,
             bin2hex(random_bytes(32)),
             null, // vector_id
             null, // reply_to
@@ -66,12 +78,12 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return false;
         }
-        $vector = $this->em->getRepository('App\\Domain\\Communication\\MessageVector')->findOneBy(['vectorId' => $msgId]);
+        $vector = $this->em->getRepository(\App\Domain\Communication\MessageVector::class)->findOneBy(['vectorId' => $msgId]);
 
-        if ($vector) {
+        if ($vector !== null) {
             $this->em->remove($vector);
         }
         $this->em->remove($message);
@@ -85,41 +97,51 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return null;
         }
 
         $updated = false;
 
         if (array_key_exists('body_text', $data)) {
-            $message->setBodyText($data['body_text']);
+            /** @var string $pBodyText */
+            $pBodyText = $data['body_text'];
+            $message->setBodyText($pBodyText);
             $updated = true;
         }
 
         if (array_key_exists('subject', $data)) {
-            $message->setSubject($data['subject']);
+            /** @var string|null $pSubject */
+            $pSubject = $data['subject'];
+            $message->setSubject($pSubject);
             $updated = true;
         }
 
         if (array_key_exists('headers', $data)) {
-            $message->setHeaders($data['headers']);
+            /** @var array<string, mixed> $patchHeaders */
+            $patchHeaders = $data['headers'];
+            $message->setHeaders($patchHeaders);
             $updated = true;
         }
 
         if (array_key_exists('body_html', $data)) {
-            $message->setBodyHtml($data['body_html']);
+            /** @var string|null $pBodyHtml */
+            $pBodyHtml = $data['body_html'];
+            $message->setBodyHtml($pBodyHtml);
             $updated = true;
         }
 
         if (array_key_exists('ts_msg', $data)) {
-            $message->setTsMsg(new \DateTimeImmutable($data['ts_msg']));
+            /** @var string $pTsMsg */
+            $pTsMsg = $data['ts_msg'];
+            $message->setTsMsg(new \DateTimeImmutable($pTsMsg));
             $updated = true;
         }
 
         if (array_key_exists('direction', $data)) {
             $dir = $this->em->getRepository(Direction::class)->findOneBy(['code' => $data['direction']]);
 
-            if (!$dir) {
+            if ($dir === null) {
                 throw new \RuntimeException('Invalid direction');
             }
             $message->setDirection($dir);
@@ -140,7 +162,7 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return [];
         }
 
@@ -152,7 +174,7 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return [];
         }
 
@@ -165,7 +187,7 @@ class MessageHandler
             uuid_create(UUID_TYPE_RANDOM),
             $message,
             $file->getClientOriginalName(),
-            $file->getMimeType(),
+            $file->getMimeType() ?? 'application/octet-stream',
             $file->getSize(),
             bin2hex(random_bytes(32)), // content_hash placeholder
             null, // s3Key
@@ -194,6 +216,7 @@ class MessageHandler
             ->setParameter('messageId', $messageId)
             ->setMaxResults(1);
 
+        /** @var Message|null */
         return $qb->getQuery()->getOneOrNullResult();
     }
 }

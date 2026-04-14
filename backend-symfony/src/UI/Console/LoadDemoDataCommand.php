@@ -211,7 +211,7 @@ class LoadDemoDataCommand extends Command
                     $iocsExtracted = (array) ($msg['iocs_extracted'] ?? []);
                     $obsIocData = [];
 
-                    foreach ($iocsExtracted as $j => $ioc) {
+                    foreach ($iocsExtracted as $ioc) {
                         /** @var array<string, mixed> $ioc */
                         $obsId = $this->generateUuid();
                         $iocType = (string) ($ioc['type'] ?? 'unknown');
@@ -293,7 +293,7 @@ class LoadDemoDataCommand extends Command
                     }
 
                     // Collect IOCs for post-commit context computation
-                    if (!empty($obsIocData)) {
+                    if ($obsIocData !== []) {
                         $allMsgIocs[$msgId] = $obsIocData;
                     }
                 }
@@ -327,7 +327,11 @@ class LoadDemoDataCommand extends Command
                 $personaId = $personas[(string) ($stat['persona_code'] ?? '')] ?? null;
                 $scamTypeId = $scamTypes[(string) ($stat['scam_type_code'] ?? '')] ?? null;
 
-                if (!$personaId || !$scamTypeId) {
+                if (!$personaId) {
+                    continue;
+                }
+
+                if (!$scamTypeId) {
                     continue;
                 }
 
@@ -357,7 +361,7 @@ class LoadDemoDataCommand extends Command
                     'dominant_persona_code' => (string) ($log['dominant_persona_code'] ?? ''),
                     'dominant_pct' => (float) ($log['dominant_pct'] ?? 0),
                     'sessions_count' => (int) ($log['sessions_count'] ?? 0),
-                    'converged' => !empty($log['converged']) ? 'true' : 'false',
+                    'converged' => empty($log['converged']) ? 'false' : 'true',
                     'logged_at' => (string) ($log['logged_at'] ?? date('Y-m-d H:i:s')),
                 ]);
                 $counts['convergence']++;
@@ -407,7 +411,7 @@ class LoadDemoDataCommand extends Command
                         'hits_false_pos' => (int) ($rule['hits_false_pos'] ?? 0),
                         'lead_time_sec' => (int) ($rule['lead_time_sec'] ?? 0),
                         'promoted_at' => isset($rule['promoted_at']) ? (string) $rule['promoted_at'] : null,
-                        'enabled' => !empty($rule['enabled']) ? 'true' : 'false',
+                        'enabled' => empty($rule['enabled']) ? 'false' : 'true',
                         'created_at' => date('Y-m-d H:i:s'),
                         'updated_at' => date('Y-m-d H:i:s'),
                     ]);
@@ -415,7 +419,7 @@ class LoadDemoDataCommand extends Command
 
                 foreach ($matchedMsgs as $match) {
                     /** @var array<string, mixed> $match */
-                    $msgKey = (string) ($match['conv_id'] ?? '') . ':' . (string) ($match['msg_index'] ?? '0');
+                    $msgKey = ($match['conv_id'] ?? '') . ':' . ($match['msg_index'] ?? '0');
                     $msgId = $msgIdMap[$msgKey] ?? null;
 
                     if (!$msgId) {
@@ -444,7 +448,7 @@ class LoadDemoDataCommand extends Command
         }
 
         // ─── 6. Compute structural IOC context (post-commit, non-blocking) ───
-        if ($this->contextService !== null && !empty($allMsgIocs)) {
+        if ($this->contextService instanceof \App\Application\Communication\IocContextService && $allMsgIocs !== []) {
             $io->info(sprintf('Computing structural context for %d messages...', count($allMsgIocs)));
             $ctxCount = 0;
 

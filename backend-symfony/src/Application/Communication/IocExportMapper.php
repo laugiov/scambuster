@@ -146,6 +146,7 @@ final class IocExportMapper
      */
     public function enrichWithExportMetadata(array $iocContext): array
     {
+        /** @var string $type */
         $type = $iocContext['type'] ?? 'unknown';
 
         // Add MISP metadata
@@ -158,7 +159,7 @@ final class IocExportMapper
         // Add STIX metadata
         $iocContext['stix'] = [
             'sco_type' => self::STIX_SCO_MAPPING[$type] ?? 'artifact',
-            'pattern' => $this->buildStixPattern($type, $iocContext['value_norm'] ?? ''),
+            'pattern' => $this->buildStixPattern($type, \is_string($iocContext['value_norm'] ?? null) ? $iocContext['value_norm'] : ''),
         ];
 
         return $iocContext;
