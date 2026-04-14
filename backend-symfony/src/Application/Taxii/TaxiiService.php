@@ -15,15 +15,15 @@ use Doctrine\ORM\EntityManagerInterface;
  * Serves discovery, API root, collection metadata and STIX objects
  * for two fixed collections: IOCs and Campaigns.
  */
-final class TaxiiService
+final readonly class TaxiiService
 {
     private const COLLECTION_IOC_ID = 'a1b2c3d4-0001-4000-8000-000000000001';
     private const COLLECTION_CAMPAIGN_ID = 'a1b2c3d4-0002-4000-8000-000000000002';
     private const COLLECTION_THREAT_ACTORS_ID = 'a1b2c3d4-0003-4000-8000-000000000003';
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly ?ThreatActorStixBuilder $threatActorBuilder = null,
+        private EntityManagerInterface $em,
+        private ?ThreatActorStixBuilder $threatActorBuilder = null,
     ) {
     }
 
@@ -169,7 +169,7 @@ final class TaxiiService
             ->orderBy('i.updated_at', 'ASC')
             ->setMaxResults($limit + 1);
 
-        if ($addedAfter !== null) {
+        if ($addedAfter instanceof \DateTimeImmutable) {
             $qb->andWhere('i.updated_at > :added_after')
                 ->setParameter('added_after', $addedAfter->format('Y-m-d H:i:s'));
         }
@@ -233,7 +233,7 @@ final class TaxiiService
         }
 
         // Enrich with threat-actors from conversations behind these IOCs
-        if ($this->threatActorBuilder !== null && ($type === null || $type === 'threat-actor')) {
+        if ($this->threatActorBuilder instanceof \App\Application\Stix\ThreatActorStixBuilder && ($type === null || $type === 'threat-actor')) {
             $this->enrichIocsWithThreatActors($objects, $rows);
         }
 
@@ -255,7 +255,7 @@ final class TaxiiService
      */
     private function enrichIocsWithThreatActors(array &$objects, array $rows): void
     {
-        if ($this->threatActorBuilder === null || $rows === []) {
+        if (!$this->threatActorBuilder instanceof \App\Application\Stix\ThreatActorStixBuilder || $rows === []) {
             return;
         }
 
@@ -375,7 +375,7 @@ final class TaxiiService
             }
 
             $convIndicatorIds = $convToIndicators[$convId] ?? [];
-            $attackPatternIds = array_map(fn (array $ap) => $ap['id'], $attackPatterns);
+            $attackPatternIds = array_map(fn (array $ap): mixed => $ap['id'], $attackPatterns);
 
             $relationships = $this->threatActorBuilder->buildActorRelationships(
                 $threatActor['id'],
@@ -422,7 +422,7 @@ final class TaxiiService
             ->orderBy('tac.updated_at', 'ASC')
             ->setMaxResults($limit + 1);
 
-        if ($addedAfter !== null) {
+        if ($addedAfter instanceof \DateTimeImmutable) {
             $qb->andWhere('tac.updated_at > :added_after')
                 ->setParameter('added_after', $addedAfter->format('Y-m-d H:i:s'));
         }
@@ -476,7 +476,7 @@ final class TaxiiService
                     ['id' => $clusterId]
                 );
 
-                $indicatorStixIds = array_map(fn (mixed $id) => 'indicator--' . (\is_string($id) ? $id : ''), $indicatorIds);
+                $indicatorStixIds = array_map(fn (mixed $id): string => 'indicator--' . (\is_string($id) ? $id : ''), $indicatorIds);
             }
 
             $clusterData = [
@@ -492,8 +492,8 @@ final class TaxiiService
                 'first_seen' => \is_string($row['first_seen'] ?? null) ? $row['first_seen'] : '',
                 'last_seen' => \is_string($row['last_seen'] ?? null) ? $row['last_seen'] : '',
                 'algorithm_version' => \is_string($row['algorithm_version'] ?? null) ? $row['algorithm_version'] : '1.0',
-                'anchor_ioc_types' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $anchorIocTypes),
-                'attck_techniques' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques),
+                'anchor_ioc_types' => array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $anchorIocTypes),
+                'attck_techniques' => array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $attckTechniques),
                 'indicator_stix_ids' => $indicatorStixIds,
             ];
 
@@ -548,7 +548,7 @@ final class TaxiiService
             ->orderBy('created_at', 'ASC')
             ->setMaxResults($limit + 1);
 
-        if ($addedAfter !== null) {
+        if ($addedAfter instanceof \DateTimeImmutable) {
             $qb->andWhere('created_at > :added_after')
                 ->setParameter('added_after', $addedAfter->format('Y-m-d H:i:s'));
         }

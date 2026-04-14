@@ -33,7 +33,7 @@ class ScamClassifier
      */
     public function classify(array $messages): ?ClassificationResult
     {
-        if (empty($messages)) {
+        if ($messages === []) {
             $this->logger->warning('Cannot classify empty conversation');
 
             return null;
@@ -104,7 +104,7 @@ class ScamClassifier
 
             $scamTypeCode = isset($data['scam_type_code']) && is_string($data['scam_type_code']) ? $data['scam_type_code'] : 'unknown';
             $confidence = isset($data['confidence']) && is_numeric($data['confidence']) ? (float) $data['confidence'] : 0.0;
-            $isNewType = isset($data['is_new_type']) && is_bool($data['is_new_type']) ? $data['is_new_type'] : false;
+            $isNewType = isset($data['is_new_type']) && is_bool($data['is_new_type']) && $data['is_new_type'];
             $reasoning = isset($data['reasoning']) && is_string($data['reasoning']) ? $data['reasoning'] : 'No reasoning provided';
             $detectedLanguage = isset($data['detected_language']) && is_string($data['detected_language']) ? $data['detected_language'] : 'en';
 
@@ -251,11 +251,7 @@ PROMPT;
             $body = trim($msgBody);
             $subject = isset($msg['subject']) && is_string($msg['subject']) ? $msg['subject'] : '';
 
-            if ($subject !== '') {
-                $formatted[] = "=== {$direction} ===\nSujet: {$subject}\n{$body}";
-            } else {
-                $formatted[] = "=== {$direction} ===\n{$body}";
-            }
+            $formatted[] = $subject !== '' ? "=== {$direction} ===\nSujet: {$subject}\n{$body}" : "=== {$direction} ===\n{$body}";
         }
 
         return implode("\n\n", $formatted);

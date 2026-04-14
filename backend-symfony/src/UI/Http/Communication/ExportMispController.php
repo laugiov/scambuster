@@ -23,11 +23,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * - Delegates to IocHandler for IOC retrieval
  * - Transforms IOC context to MISP Event format
  */
-final class ExportMispController
+final readonly class ExportMispController
 {
     public function __construct(
-        private readonly IocHandler $iocHandler,
-        private readonly ?AuditLogger $auditLogger = null,
+        private IocHandler $iocHandler,
+        private ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -77,7 +77,7 @@ final class ExportMispController
         // Retrieve all IOCs for conversation (deduplicated)
         $iocs = $this->iocHandler->getConversationIocs($id);
 
-        if (empty($iocs)) {
+        if ($iocs === []) {
             return new JsonResponse(
                 ['error' => 'No IOCs found for conversation'],
                 Response::HTTP_NOT_FOUND
@@ -165,7 +165,7 @@ final class ExportMispController
             $parts[] = "Source: {$context['source']}";
         }
 
-        return empty($parts) ? 'ScamBuster honeypot IOC' : implode(' | ', $parts);
+        return $parts === [] ? 'ScamBuster honeypot IOC' : implode(' | ', $parts);
     }
 
     /**

@@ -18,7 +18,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class CheckMessageHeadersCommand extends Command
 {
     public function __construct(
-        private EntityManagerInterface $em
+        private readonly EntityManagerInterface $em
     ) {
         parent::__construct();
     }
@@ -32,9 +32,9 @@ class CheckMessageHeadersCommand extends Command
     {
         $msgId = $input->getArgument('msg_id');
 
-        $message = $this->em->getRepository('App\Domain\Communication\Message')->find($msgId);
+        $message = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             $output->writeln('<error>Message not found</error>');
 
             return Command::FAILURE;

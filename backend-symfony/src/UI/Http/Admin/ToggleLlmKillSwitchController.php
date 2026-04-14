@@ -48,14 +48,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [['Bearer' => []]],
 )]
-final class ToggleLlmKillSwitchController
+final readonly class ToggleLlmKillSwitchController
 {
     public function __construct(
-        private readonly CacheItemPoolInterface $cache,
-        private readonly AuditLogger $auditLogger,
+        private CacheItemPoolInterface $cache,
+        private AuditLogger $auditLogger,
     ) {
     }
-
     public function __invoke(Request $request): JsonResponse
     {
         $data = json_decode((string) $request->getContent(), true);

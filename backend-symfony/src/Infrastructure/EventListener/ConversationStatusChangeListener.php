@@ -69,7 +69,7 @@ final class ConversationStatusChangeListener
 
     public function postFlush(PostFlushEventArgs $args): void
     {
-        if (empty($this->pendingOrphanClosures)) {
+        if ($this->pendingOrphanClosures === []) {
             return;
         }
 

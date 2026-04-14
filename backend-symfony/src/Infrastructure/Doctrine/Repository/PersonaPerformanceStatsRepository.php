@@ -74,8 +74,8 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     {
         $stats = $this->findByPersonaAndScamType($persona, $scamType);
 
-        if ($stats === null) {
-            $stats = new PersonaPerformanceStatsEntity(
+        if (!$stats instanceof \App\Infrastructure\Doctrine\Entity\PersonaPerformanceStatsEntity) {
+            return new PersonaPerformanceStatsEntity(
                 persona: $persona,
                 scamType: $scamType,
                 sessionsCount: 0,
@@ -183,13 +183,11 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
              *
              * @return array{scam_type_code: string, total_sessions: int, avg_reward: float}
              */
-            static function (array $row): array {
-                return [
-                    'scam_type_code' => $row['scam_type_code'],
-                    'total_sessions' => (int) $row['total_sessions'],
-                    'avg_reward' => (float) $row['avg_reward'],
-                ];
-            },
+            static fn (array $row): array => [
+                'scam_type_code' => $row['scam_type_code'],
+                'total_sessions' => (int) $row['total_sessions'],
+                'avg_reward' => (float) $row['avg_reward'],
+            ],
             $results
         );
     }

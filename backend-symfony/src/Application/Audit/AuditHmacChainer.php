@@ -24,10 +24,10 @@ namespace App\Application\Audit;
  *
  * Thread safety: stateless after construction.
  */
-final class AuditHmacChainer
+final readonly class AuditHmacChainer
 {
-    private readonly ?string $key;
-    private readonly bool $enabled;
+    private ?string $key;
+    private bool $enabled;
 
     public function __construct(string $hmacKeyHex = '')
     {

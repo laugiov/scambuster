@@ -163,7 +163,7 @@ final class HeaderIocExtractor
         $messageId = trim($messageId);
 
         if (str_starts_with($messageId, '<') && str_ends_with($messageId, '>')) {
-            $messageId = substr($messageId, 1, -1);
+            return substr($messageId, 1, -1);
         }
 
         return $messageId;
@@ -264,11 +264,7 @@ final class HeaderIocExtractor
         }
 
         // Clean email: "Name <email@domain.com>" → "email@domain.com"
-        if (preg_match('/<([^>]+)>/', $value, $matches)) {
-            $email = $matches[1];
-        } else {
-            $email = $value;
-        }
+        $email = preg_match('/<([^>]+)>/', $value, $matches) ? $matches[1] : $value;
 
         $email = trim($email);
 

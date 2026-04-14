@@ -16,10 +16,10 @@ use Psr\Log\LoggerInterface;
  * Accuracy: ~95% for texts > 50 characters, ~80% for 20-50 characters.
  * Falls back to 'en' (English) for very short texts or unknown languages.
  */
-final class LanguageDetector
+final readonly class LanguageDetector
 {
     public function __construct(
-        private readonly ?LoggerInterface $logger = null,
+        private ?LoggerInterface $logger = null,
     ) {
     }
 
@@ -59,7 +59,7 @@ final class LanguageDetector
 
         $textTrigrams = $this->extractTrigrams($text);
 
-        if (empty($textTrigrams)) {
+        if ($textTrigrams === []) {
             return self::DEFAULT_LANGUAGE;
         }
 

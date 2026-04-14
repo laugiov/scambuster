@@ -16,45 +16,17 @@ class Persona
     #[ORM\Id]
     #[ORM\Column(name: 'persona_id', type: 'integer')]
     #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
-    private int $personaId; // @phpstan-ignore-line
+    private int $personaId = 0;
 
-    #[ORM\Column(name: 'persona_code', type: 'string', length: 32, unique: true)]
-    private string $personaCode;
-
-    #[ORM\Column(name: 'persona_label', type: 'string', length: 128)]
-    private string $personaLabel;
-
-    #[ORM\Column(name: 'persona_tone', type: 'string', length: 256)]
-    private string $personaTone;
-
-    #[ORM\Column(name: 'system_prompt', type: 'text')]
-    private string $systemPrompt;
-
-    #[ORM\Column(name: 'created_by', type: 'string', length: 16)]
-    private string $createdBy; // 'manual' | 'llm_auto'
-
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $createdAt;
-
-    #[ORM\Column(name: 'is_active', type: 'boolean')]
-    private bool $isActive = true;
-
-    public function __construct(
-        string $personaCode,
-        string $personaLabel,
-        string $personaTone,
-        string $systemPrompt,
-        string $createdBy = 'manual',
-        ?\DateTimeImmutable $createdAt = null,
-        bool $isActive = true
-    ) {
-        $this->personaCode = $personaCode;
-        $this->personaLabel = $personaLabel;
-        $this->personaTone = $personaTone;
-        $this->systemPrompt = $systemPrompt;
-        $this->createdBy = $createdBy;
-        $this->createdAt = $createdAt ?? new \DateTimeImmutable();
-        $this->isActive = $isActive;
+    public function __construct(#[ORM\Column(name: 'persona_code', type: 'string', length: 32, unique: true)]
+        private string $personaCode, #[ORM\Column(name: 'persona_label', type: 'string', length: 128)]
+        private string $personaLabel, #[ORM\Column(name: 'persona_tone', type: 'string', length: 256)]
+        private string $personaTone, #[ORM\Column(name: 'system_prompt', type: 'text')]
+        private string $systemPrompt, #[ORM\Column(name: 'created_by', type: 'string', length: 16)]
+        private string $createdBy = 'manual', #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $createdAt = new \DateTimeImmutable(), #[ORM\Column(name: 'is_active', type: 'boolean')]
+        private bool $isActive = true)
+    {
     }
 
     public function getPersonaId(): int

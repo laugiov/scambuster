@@ -13,7 +13,7 @@ use Psr\Log\LoggerInterface;
  * Fast (<1ms), zero cost, catches trivially identifiable attacks.
  * Complements the LLM-as-judge (Layer 2) for novel/subtle techniques.
  */
-final class PromptInjectionPatternMatcher
+final readonly class PromptInjectionPatternMatcher
 {
     /** @var array<string, string> Pattern name => regex */
     private const INSTRUCTION_OVERRIDE_PATTERNS = [
@@ -68,7 +68,7 @@ final class PromptInjectionPatternMatcher
     ];
 
     public function __construct(
-        private readonly LoggerInterface $logger,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -106,7 +106,7 @@ final class PromptInjectionPatternMatcher
 
         $score = $this->calculateScore($matches);
 
-        if (count($matches) > 0) {
+        if ($matches !== []) {
             $this->logger->info('[PromptInjectionPatternMatcher] Injection patterns detected', [
                 'matches_count' => count($matches),
                 'score' => $score,
@@ -127,7 +127,7 @@ final class PromptInjectionPatternMatcher
      */
     private function calculateScore(array $matches): float
     {
-        if (count($matches) === 0) {
+        if ($matches === []) {
             return 0.0;
         }
 

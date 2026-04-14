@@ -18,15 +18,14 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
  * Non-blocking: errors are logged but do not interrupt the LLM flow.
  */
 #[AsEventListener(event: LlmCallCompletedEvent::class)]
-final class LlmUsageListener
+final readonly class LlmUsageListener
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly CostEstimator $costEstimator,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private CostEstimator $costEstimator,
+        private LoggerInterface $logger
     ) {
     }
-
     public function __invoke(LlmCallCompletedEvent $event): void
     {
         try {

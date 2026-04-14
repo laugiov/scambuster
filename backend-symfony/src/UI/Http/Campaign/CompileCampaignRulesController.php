@@ -15,13 +15,12 @@ use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/{campaign_id}/rules/compile', name: 'api_campaign_compile_rules', methods: ['POST'])]
 #[IsGranted('campaign:hunt')]
-final class CompileCampaignRulesController
+final readonly class CompileCampaignRulesController
 {
     public function __construct(
-        private readonly CompileRulesHandler $handler
+        private CompileRulesHandler $handler
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/{campaign_id}/rules/compile',
         summary: 'Compiler les règles DSL MailGuard d\'une campagne',

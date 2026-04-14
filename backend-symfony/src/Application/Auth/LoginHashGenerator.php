@@ -6,7 +6,7 @@ namespace App\Application\Auth;
 
 class LoginHashGenerator
 {
-    private string $salt;
+    private readonly string $salt;
 
     public function __construct()
     {

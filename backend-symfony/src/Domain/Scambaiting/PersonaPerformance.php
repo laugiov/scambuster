@@ -8,7 +8,7 @@ namespace App\Domain\Scambaiting;
  * Value Object représentant les performances d'un persona pour un scam_type donné.
  * Utilisé par l'algorithme ε-greedy pour la sélection de persona.
  */
-final readonly class PersonaPerformance
+final readonly class PersonaPerformance implements \Stringable
 {
     // Cold start : minimum 3 sessions avant d'activer l'exploitation
     private const COLD_START_THRESHOLD = 3;
@@ -75,11 +75,11 @@ final readonly class PersonaPerformance
      */
     private function validate(): void
     {
-        if (empty($this->personaCode)) {
+        if ($this->personaCode === '' || $this->personaCode === '0') {
             throw new \InvalidArgumentException('Persona code cannot be empty');
         }
 
-        if (empty($this->scamTypeCode)) {
+        if ($this->scamTypeCode === '' || $this->scamTypeCode === '0') {
             throw new \InvalidArgumentException('Scam type code cannot be empty');
         }
 

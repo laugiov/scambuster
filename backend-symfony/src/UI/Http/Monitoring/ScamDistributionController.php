@@ -18,13 +18,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'Scam type distribution data')],
     security: [['Bearer' => []]],
 )]
-final class ScamDistributionController
+final readonly class ScamDistributionController
 {
     public function __construct(
-        private readonly AnalyticsHandler $handler,
+        private AnalyticsHandler $handler,
     ) {
     }
-
     #[Route('/api/v1/monitoring/analytics/scam-distribution', name: 'api_analytics_scam_distribution', methods: ['GET'])]
     #[IsGranted('monitoring:read')]
     public function __invoke(): JsonResponse

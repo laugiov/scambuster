@@ -10,7 +10,7 @@ namespace App\Application\LLM;
  * Produced by ContextualEnricher, consumed by IngestPostProcessor to
  * update ioc_context rows with semantic fields.
  */
-final class ContextualEnrichmentResult
+final readonly class ContextualEnrichmentResult
 {
     /** @var list<string> Valid semantic roles for IOCs */
     public const VALID_ROLES = [
@@ -47,13 +47,13 @@ final class ContextualEnrichmentResult
      * @param array<string,string> $iocRoles             Map of IOC type => semantic role
      */
     public function __construct(
-        public readonly string $stimulusType,
-        public readonly float $urgencyScore,
-        public readonly bool $languageSwitch,
-        public readonly bool $hesitationDetected,
-        public readonly string $contextExcerpt,
-        public readonly float $enrichmentConfidence,
-        public readonly array $iocRoles,
+        public string $stimulusType,
+        public float $urgencyScore,
+        public bool $languageSwitch,
+        public bool $hesitationDetected,
+        public string $contextExcerpt,
+        public float $enrichmentConfidence,
+        public array $iocRoles,
     ) {
     }
 

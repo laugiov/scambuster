@@ -9,11 +9,11 @@ use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
-final class CampaignHunter
+final readonly class CampaignHunter
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -140,7 +140,7 @@ final class CampaignHunter
         $ppv = $this->calculatePPV($validation);
 
         // Calculer lead-time
-        $leadTime = $this->calculateLeadTime($rule, $hits);
+        $leadTime = $this->calculateLeadTime($hits);
 
         // Le hits_count doit correspondre au nombre de hits validés
         // pour respecter la contrainte: true_pos + false_pos = hits_count
@@ -190,7 +190,7 @@ final class CampaignHunter
 
             $message = $this->em->find(Message::class, $messageId);
 
-            if (!$message) {
+            if ($message === null) {
                 // Message introuvable = faux positif
                 $falsePos++;
 
@@ -236,7 +236,7 @@ final class CampaignHunter
      *
      * @return int|null Lead-time en secondes, null si insuffisant
      */
-    private function calculateLeadTime(CampaignRule $rule, array $hits): ?int
+    private function calculateLeadTime(array $hits): ?int
     {
         if (count($hits) < 5) {
             return null; // Pas assez de hits pour calculer un pic
@@ -245,8 +245,8 @@ final class CampaignHunter
         // Trier hits par timestamp
         usort(
             $hits,
-            fn ($a, $b) =>
-            strtotime($a['ts_msg']) <=> strtotime($b['ts_msg'])
+            fn ($a, $b): int =>
+            strtotime(is_string($a['ts_msg']) ? $a['ts_msg'] : '') <=> strtotime(is_string($b['ts_msg']) ? $b['ts_msg'] : '')
         );
 
         $firstHit = new \DateTimeImmutable($hits[0]['ts_msg']);
@@ -254,7 +254,7 @@ final class CampaignHunter
         // Trouver le pic (fenêtre avec le plus de hits)
         $peakTime = $this->findPeakTime($hits);
 
-        if (!$peakTime) {
+        if (!$peakTime instanceof \DateTimeImmutable) {
             // Fallback : utiliser dernier hit comme pic
             $peakTime = new \DateTimeImmutable($hits[count($hits) - 1]['ts_msg']);
         }
@@ -280,12 +280,12 @@ final class CampaignHunter
         $maxHitsInWindow = 0;
         $peakTime = null;
 
-        foreach ($hits as $i => $hit) {
+        foreach ($hits as $hit) {
             $windowStart = new \DateTimeImmutable($hit['ts_msg']);
             $windowEnd = $windowStart->modify('+1 hour');
 
             // Compter hits dans cette fenêtre
-            $hitsInWindow = array_filter($hits, function ($h) use ($windowStart, $windowEnd) {
+            $hitsInWindow = array_filter($hits, function (array $h) use ($windowStart, $windowEnd): bool {
                 $time = new \DateTimeImmutable($h['ts_msg']);
 
                 return $time >= $windowStart && $time <= $windowEnd;

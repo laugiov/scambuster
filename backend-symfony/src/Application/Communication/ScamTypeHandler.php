@@ -7,10 +7,10 @@ namespace App\Application\Communication;
 use App\Domain\Communication\ScamType;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class ScamTypeHandler
+final readonly class ScamTypeHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em
+        private EntityManagerInterface $em
     ) {
     }
 
@@ -23,7 +23,7 @@ final class ScamTypeHandler
     {
         $scamTypes = $this->em->getRepository(ScamType::class)->findAll();
 
-        return array_map(function (ScamType $scamType) {
+        return array_map(function (ScamType $scamType): array {
             $personas = $scamType->getPersonas();
             $personaCodes = [];
 
@@ -32,7 +32,7 @@ final class ScamTypeHandler
             }
 
             // For backward compatibility, also include 'persona' with first persona code
-            $firstPersona = count($personaCodes) > 0 ? $personaCodes[0] : 'generic_user';
+            $firstPersona = $personaCodes !== [] ? $personaCodes[0] : 'generic_user';
 
             return [
                 'scam_type_id' => $scamType->getScamTypeId(),

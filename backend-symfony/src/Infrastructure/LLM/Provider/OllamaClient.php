@@ -18,17 +18,17 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *
  * Ollama API docs: https://github.com/ollama/ollama/blob/main/docs/api.md
  */
-final class OllamaClient implements LLMClientInterface
+final readonly class OllamaClient implements LLMClientInterface
 {
     private const API_ENDPOINT = '/api/chat';
     private const DEFAULT_TEMPERATURE = 0.6;
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        private readonly LoggerInterface $logger,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly string $baseUrl,
-        private readonly string $model
+        private HttpClientInterface $httpClient,
+        private LoggerInterface $logger,
+        private EventDispatcherInterface $eventDispatcher,
+        private string $baseUrl,
+        private string $model
     ) {
     }
 
@@ -75,7 +75,7 @@ final class OllamaClient implements LLMClientInterface
                 'model' => $model,
                 'latency_ms' => $latencyMs,
                 'input_messages' => count($messages),
-                'output_length' => strlen($assistantText),
+                'output_length' => strlen((string) $assistantText),
                 'eval_count' => $completionTokens,
                 'prompt_eval_count' => $promptTokens,
             ]);
@@ -98,10 +98,7 @@ final class OllamaClient implements LLMClientInterface
                 'latency_ms' => (int) ((microtime(true) - $startTime) * 1000),
             ]);
 
-            throw new \RuntimeException(
-                "Ollama API call failed: {$e->getMessage()}",
-                previous: $e
-            );
+            throw new \RuntimeException("Ollama API call failed: {$e->getMessage()}", $e->getCode(), previous: $e);
         }
     }
 }

@@ -16,13 +16,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Export conversation IOCs as a STIX 2.1 bundle compatible with OpenCTI import.
  */
 #[IsGranted('ioc:export')]
-final class ExportConversationStixController
+final readonly class ExportConversationStixController
 {
     public function __construct(
-        private readonly ConversationStixExportHandler $handler,
+        private ConversationStixExportHandler $handler,
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/conversations/{conv_id}/export/stix',
         summary: 'Export conversation IOCs as STIX 2.1 bundle (OpenCTI compatible)',

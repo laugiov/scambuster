@@ -18,15 +18,14 @@ use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
  * Calcule le reward et met à jour les statistiques de performance du persona.
  */
 #[AsEventListener(event: ConversationEndedEvent::class, method: 'onConversationEnded')]
-final class ConversationEndedListener
+final readonly class ConversationEndedListener
 {
     public function __construct(
-        private readonly PersonaPerformanceStatsRepository $statsRepository,
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger
+        private PersonaPerformanceStatsRepository $statsRepository,
+        private EntityManagerInterface $em,
+        private LoggerInterface $logger
     ) {
     }
-
     /**
      * Traite l'événement ConversationEndedEvent.
      * ⚠️ IMPORTANT : Cette méthode doit être TRANSACTIONNELLE pour éviter les race conditions.

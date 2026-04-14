@@ -8,10 +8,10 @@ use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class DoctrineUserRepository implements UserRepositoryInterface
+final readonly class DoctrineUserRepository implements UserRepositoryInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

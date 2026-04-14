@@ -15,13 +15,12 @@ use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/rule', name: 'api_campaign_rule_store', methods: ['POST'])]
 #[IsGranted('campaign:read')]
-final class StoreRuleController
+final readonly class StoreRuleController
 {
     public function __construct(
-        private readonly StoreRuleHandler $handler,
+        private StoreRuleHandler $handler,
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/rule',
         summary: 'Stocker une règle DSL compilée pour une campagne',

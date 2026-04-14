@@ -19,18 +19,17 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api/v1/auth/2fa/login', name: 'api_auth_2fa_login', methods: ['POST'])]
-final class TotpLoginController
+final readonly class TotpLoginController
 {
     public function __construct(
-        private readonly AuthServiceInterface $handler,
-        private readonly AuditLogger $auditLogger,
-        private readonly UserRepositoryInterface $userRepo,
-        private readonly ValidatorInterface $validator,
+        private AuthServiceInterface $handler,
+        private AuditLogger $auditLogger,
+        private UserRepositoryInterface $userRepo,
+        private ValidatorInterface $validator,
         // Spec 065e — replaces the custom RFC 6238 implementation with scheb
-        private readonly ?TotpAuthenticatorInterface $totpAuthenticator = null,
+        private ?TotpAuthenticatorInterface $totpAuthenticator = null,
     ) {
     }
-
     public function __invoke(Request $request): JsonResponse
     {
         $payload = json_decode($request->getContent(), true);
@@ -80,7 +79,7 @@ final class TotpLoginController
         // fall back to the legacy custom RFC 6238 implementation otherwise.
         $codeValid = false;
 
-        if ($this->totpAuthenticator !== null) {
+        if ($this->totpAuthenticator instanceof \Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Totp\TotpAuthenticatorInterface) {
             $codeValid = $this->totpAuthenticator->checkCode($user, $code);
         } else {
             $secret = $user->getTotpSecret();
@@ -113,7 +112,6 @@ final class TotpLoginController
             'expires_in'    => $response->expiresIn,
         ], Response::HTTP_OK);
     }
-
     private function verifyTotp(string $base32Secret, string $code): bool
     {
         $secret = $this->base32Decode($base32Secret);
@@ -130,7 +128,6 @@ final class TotpLoginController
 
         return false;
     }
-
     private function generateTotpCode(string $secret, int $counter): string
     {
         $counterBytes = pack('N*', 0, $counter);
@@ -146,7 +143,6 @@ final class TotpLoginController
 
         return str_pad((string) $value, 6, '0', STR_PAD_LEFT);
     }
-
     private function base32Decode(string $base32): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

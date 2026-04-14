@@ -69,7 +69,7 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
         $conn = $this->getEntityManager()->getConnection();
         $campaignIds = $conn->executeQuery($sql)->fetchFirstColumn();
 
-        if (empty($campaignIds)) {
+        if ($campaignIds === []) {
             return [];
         }
 
@@ -111,12 +111,12 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
 
         $rows = $stmt->executeQuery()->fetchAllAssociative();
 
-        if (empty($rows)) {
+        if ($rows === []) {
             return [];
         }
 
         // Récupérer les Message entities via EntityManager
-        $messageIds = array_map(fn ($row) => Uuid::fromString($row['msg_id']), $rows);
+        $messageIds = array_map(fn ($row): \Symfony\Component\Uid\Uuid => Uuid::fromString($row['msg_id']), $rows);
 
         $messageRepo = $this->getEntityManager()->getRepository(\App\Domain\Communication\Message::class);
 

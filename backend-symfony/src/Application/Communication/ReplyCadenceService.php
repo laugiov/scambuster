@@ -55,7 +55,7 @@ class ReplyCadenceService
     public function isKillSwitchActive(): bool
     {
         // Layer 1: runtime cache pool toggle
-        if ($this->killSwitchCache !== null) {
+        if ($this->killSwitchCache instanceof \Psr\Cache\CacheItemPoolInterface) {
             try {
                 $item = $this->killSwitchCache->getItem(self::KILL_SWITCH_CACHE_KEY);
 
@@ -116,7 +116,7 @@ class ReplyCadenceService
     public function checkRateLimits(string $convId): ?string
     {
         // Level 1: max replies per conversation per day
-        if ($this->repliesPerConversationLimiter !== null) {
+        if ($this->repliesPerConversationLimiter instanceof \Symfony\Component\RateLimiter\RateLimiterFactory) {
             $limiter = $this->repliesPerConversationLimiter->create($convId);
             $limit = $limiter->consume();
 
@@ -132,7 +132,7 @@ class ReplyCadenceService
         }
 
         // Level 2: max LLM API calls per hour (global)
-        if ($this->llmCallsPerHourLimiter !== null) {
+        if ($this->llmCallsPerHourLimiter instanceof \Symfony\Component\RateLimiter\RateLimiterFactory) {
             $limiter = $this->llmCallsPerHourLimiter->create('global');
             $limit = $limiter->consume();
 
@@ -147,7 +147,7 @@ class ReplyCadenceService
         }
 
         // Level 3: max active conversations per day
-        if ($this->activeConversationsPerDayLimiter !== null) {
+        if ($this->activeConversationsPerDayLimiter instanceof \Symfony\Component\RateLimiter\RateLimiterFactory) {
             $limiter = $this->activeConversationsPerDayLimiter->create('global');
             $limit = $limiter->consume();
 
@@ -172,6 +172,7 @@ class ReplyCadenceService
         // Load safe domains from env var (comma-separated)
         // Use "*" to allow ALL domains (production mode -- ScamBuster only receives from scammers)
         // Use specific domains to restrict during testing
+        /** @var string $envDomains */
         $envDomains = $_ENV['SCAMBUSTER_SAFE_DOMAINS'] ?? $_SERVER['SCAMBUSTER_SAFE_DOMAINS'] ?? '';
 
         // Wildcard: allow all domains in production
@@ -200,7 +201,7 @@ class ReplyCadenceService
 
     public function dispatchRateLimitAudit(string $limitType, string $convId): void
     {
-        if ($this->auditLogger === null) {
+        if (!$this->auditLogger instanceof \App\Application\Audit\AuditLogger) {
             return;
         }
 

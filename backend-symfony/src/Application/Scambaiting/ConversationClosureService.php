@@ -16,14 +16,14 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  * Service pour fermer une conversation et dispatcher l'événement ConversationEndedEvent.
  * Point d'entrée principal pour la fin d'une conversation.
  */
-final class ConversationClosureService
+final readonly class ConversationClosureService
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly ConversationMetricsCollector $metricsCollector,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly LoggerInterface $logger,
-        private readonly ?AuditLogger $auditLogger = null,
+        private EntityManagerInterface $em,
+        private ConversationMetricsCollector $metricsCollector,
+        private EventDispatcherInterface $eventDispatcher,
+        private LoggerInterface $logger,
+        private ?AuditLogger $auditLogger = null,
     ) {
     }
 

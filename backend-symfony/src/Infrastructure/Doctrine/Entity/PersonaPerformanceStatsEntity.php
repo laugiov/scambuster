@@ -16,55 +16,43 @@ use Doctrine\ORM\Mapping as ORM;
  * ⚠️ IMPORTANT : Cette entité est dans Infrastructure/, PAS dans Domain/,
  * car elle contient des annotations Doctrine (violation de la pure business logic).
  */
-#[ORM\Entity(repositoryClass: 'App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository')]
+#[ORM\Entity(repositoryClass: \App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository::class)]
 #[ORM\Table(name: 'persona_performance_stats')]
 #[ORM\Index(name: 'idx_persona_performance_reward', columns: ['reward_avg'])]
 #[ORM\Index(name: 'idx_persona_performance_scam_type', columns: ['scam_type_id'])]
 class PersonaPerformanceStatsEntity
 {
-    /**
-     * Clé composite : (persona_id, scam_type_id)
-     * Doctrine nécessite l'annotation #[ORM\Id] sur les deux colonnes.
-     */
-    #[ORM\Id]
-    #[ORM\ManyToOne(targetEntity: Persona::class)]
-    #[ORM\JoinColumn(name: 'persona_id', referencedColumnName: 'persona_id', nullable: false, onDelete: 'CASCADE')]
-    private Persona $persona;
-
-    #[ORM\Id]
-    #[ORM\ManyToOne(targetEntity: ScamType::class)]
-    #[ORM\JoinColumn(name: 'scam_type_id', referencedColumnName: 'scam_type_id', nullable: false, onDelete: 'CASCADE')]
-    private ScamType $scamType;
-
-    #[ORM\Column(name: 'sessions_count', type: 'integer', nullable: false, options: ['default' => 0])]
-    private int $sessionsCount = 0;
-
     #[ORM\Column(name: 'reward_sum', type: 'decimal', precision: 10, scale: 4, nullable: false, options: ['default' => '0.0000'])]
     private string $rewardSum = '0.0000'; // Doctrine utilise string pour DECIMAL
 
     #[ORM\Column(name: 'reward_avg', type: 'decimal', precision: 5, scale: 4, nullable: false, options: ['default' => '0.0000'])]
     private string $rewardAvg = '0.0000';
 
-    #[ORM\Column(name: 'last_updated', type: 'datetime_immutable', nullable: false)]
-    private \DateTimeImmutable $lastUpdated;
-
     /**
      * Constructeur avec paramètres requis.
      */
     public function __construct(
-        Persona $persona,
-        ScamType $scamType,
-        int $sessionsCount = 0,
+        /**
+         * Clé composite : (persona_id, scam_type_id)
+         * Doctrine nécessite l'annotation #[ORM\Id] sur les deux colonnes.
+         */
+        #[ORM\Id]
+        #[ORM\ManyToOne(targetEntity: Persona::class)]
+        #[ORM\JoinColumn(name: 'persona_id', referencedColumnName: 'persona_id', nullable: false, onDelete: 'CASCADE')]
+        private Persona $persona,
+        #[ORM\Id]
+        #[ORM\ManyToOne(targetEntity: ScamType::class)]
+        #[ORM\JoinColumn(name: 'scam_type_id', referencedColumnName: 'scam_type_id', nullable: false, onDelete: 'CASCADE')]
+        private ScamType $scamType,
+        #[ORM\Column(name: 'sessions_count', type: 'integer', nullable: false, options: ['default' => 0])]
+        private int $sessionsCount = 0,
         float $rewardSum = 0.0,
         float $rewardAvg = 0.0,
-        ?\DateTimeImmutable $lastUpdated = null
+        #[ORM\Column(name: 'last_updated', type: 'datetime_immutable', nullable: false)]
+        private \DateTimeImmutable $lastUpdated = new \DateTimeImmutable()
     ) {
-        $this->persona = $persona;
-        $this->scamType = $scamType;
-        $this->sessionsCount = $sessionsCount;
         $this->rewardSum = number_format($rewardSum, 4, '.', ''); // Convert float → string
         $this->rewardAvg = number_format($rewardAvg, 4, '.', '');
-        $this->lastUpdated = $lastUpdated ?? new \DateTimeImmutable();
     }
 
     /**

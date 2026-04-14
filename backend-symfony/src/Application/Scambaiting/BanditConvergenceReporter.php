@@ -11,12 +11,12 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Computes and persists daily bandit convergence snapshots for each active scam type.
  */
-final class BanditConvergenceReporter
+final readonly class BanditConvergenceReporter
 {
-    private readonly Connection $connection;
+    private Connection $connection;
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
         $this->connection = $em->getConnection();
     }

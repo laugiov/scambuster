@@ -26,13 +26,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 #[Route('/api/v1/meta/config', name: 'api_meta_config', methods: ['GET'])]
 #[IsGranted('monitoring:read')]
-final class ConfigController
+final readonly class ConfigController
 {
     public function __construct(
-        private readonly ConfigHandler $handler
+        private ConfigHandler $handler
     ) {
     }
-
     public function __invoke(): JsonResponse
     {
         return new JsonResponse($this->handler->getConfig(), Response::HTTP_OK);

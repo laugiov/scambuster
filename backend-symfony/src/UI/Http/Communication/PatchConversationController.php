@@ -51,13 +51,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class PatchConversationController
+final readonly class PatchConversationController
 {
     public function __construct(
-        private readonly ConversationHandler $handler
+        private ConversationHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}', name: 'patch_conversation', methods: ['PATCH'])]
     #[IsGranted('conversation:write')]
     public function __invoke(string $convId, Request $request): JsonResponse
@@ -78,7 +77,7 @@ final class PatchConversationController
             return new JsonResponse(['error' => 'No change'], 400);
         }
 
-        if (!$conv) {
+        if (!$conv instanceof \App\Domain\Communication\Conversation) {
             return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
         }
 
