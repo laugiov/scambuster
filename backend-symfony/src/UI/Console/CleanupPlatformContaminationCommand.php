@@ -315,7 +315,9 @@ final class CleanupPlatformContaminationCommand extends Command
         );
 
         foreach ($rows as $r) {
-            fputcsv($fh, ['outgoing', $r['indicator_id'], $r['type'], $r['value_norm'], $r['msg_id'], $r['direction']]);
+            /** @var array<int, string> $csvRow */
+            $csvRow = ['outgoing', $r['indicator_id'] ?? '', $r['type'] ?? '', $r['value_norm'] ?? '', $r['msg_id'] ?? '', $r['direction'] ?? ''];
+            fputcsv($fh, $csvRow);
         }
 
         // Phase 7 candidates
@@ -329,7 +331,9 @@ final class CleanupPlatformContaminationCommand extends Command
             );
 
             foreach ($rows as $r) {
-                fputcsv($fh, ['honeypot', $r['indicator_id'], $r['type'], $r['value_norm'], '', '']);
+                /** @var array<int, string> $honeypotRow */
+                $honeypotRow = ['honeypot', $r['indicator_id'] ?? '', $r['type'] ?? '', $r['value_norm'] ?? '', '', ''];
+                fputcsv($fh, $honeypotRow);
             }
         }
 

@@ -75,6 +75,7 @@ final readonly class CreateMessageController
         }
 
         try {
+            /** @var array<string, mixed> $data */
             $message = $this->handler->createMessage($data);
         } catch (\RuntimeException $e) {
             return new JsonResponse(['error' => $e->getMessage()], 409);

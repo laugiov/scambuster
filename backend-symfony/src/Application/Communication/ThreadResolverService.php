@@ -59,9 +59,14 @@ class ThreadResolverService
                 'existing_conv_id' => $existingMsg['conv_id'],
             ]);
 
+            /** @var string $existMsgId */
+            $existMsgId = $existingMsg['msg_id'];
+            /** @var string $existConvId */
+            $existConvId = $existingMsg['conv_id'];
+
             return [
-                'msg_id' => $existingMsg['msg_id'],
-                'conv_id' => $existingMsg['conv_id'],
+                'msg_id' => $existMsgId,
+                'conv_id' => $existConvId,
             ];
         }
 

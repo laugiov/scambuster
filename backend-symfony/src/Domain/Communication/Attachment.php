@@ -161,6 +161,9 @@ class Attachment
 
     public function setMessage(?Message $message): void
     {
+        if ($message === null) {
+            return; // Doctrine inverse-side cleanup; property is non-nullable
+        }
         $this->message = $message;
     }
 }

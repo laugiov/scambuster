@@ -197,8 +197,11 @@ final readonly class ContextAnalyzer
             }
         }
 
-        // Deduplicate based on type+value
-        return $this->deduplicateIOCs($iocs);
+        // Filter out null values and deduplicate based on type+value
+        /** @var array<int, array{type: string, value: string}> $validIocs */
+        $validIocs = array_filter($iocs, fn (array $ioc): bool => $ioc['value'] !== null);
+
+        return $this->deduplicateIOCs(array_values($validIocs));
     }
 
     /**

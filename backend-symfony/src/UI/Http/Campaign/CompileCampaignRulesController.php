@@ -130,6 +130,7 @@ final readonly class CompileCampaignRulesController
         }
 
         // 3. Appel handler
+        /** @var array{pos: array<int, mixed>, neg: array<int, mixed>} $examples */
         try {
             $result = $this->handler->handle($campaignId, $examples);
         } catch (\RuntimeException $e) {

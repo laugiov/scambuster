@@ -82,7 +82,7 @@ final readonly class MarkReplySentController
 
             $success = $this->handler->markAsSent(
                 $msgId,
-                $data['provider'],
+                \is_string($data['provider']) ? $data['provider'] : '',
                 $data['provider_msg_id'],
                 $tsSent,
                 $sentHeaders,

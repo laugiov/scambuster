@@ -239,7 +239,7 @@ final readonly class BanditAnalyzer
 
         foreach ($byScamType as $scamType => $rows) {
             $first3 = array_slice($rows, 0, 3);
-            $personas = array_map(fn (array $r): string => $r['persona_code'], $first3);
+            $personas = array_map(static fn (array $r): string => \is_string($r['persona_code']) ? $r['persona_code'] : '', $first3);
             $uniquePersonas = count(array_unique($personas));
             $first3Count = count($first3);
 

@@ -192,7 +192,7 @@ final class IocNormalizer
      */
     private function normalizeCreditCard(string $card): string
     {
-        return preg_replace('/[\s\-]/', '', $card);
+        return preg_replace('/[\s\-]/', '', $card) ?? $card;
     }
 
     /**
@@ -204,7 +204,7 @@ final class IocNormalizer
     public function defang(string $value): string
     {
         // Replace http/https
-        $value = preg_replace_callback('/https?/i', fn ($matches): string => str_replace('http', 'hxxp', strtolower((string) $matches[0])), $value);
+        $value = preg_replace_callback('/https?/i', fn ($matches): string => str_replace('http', 'hxxp', strtolower((string) $matches[0])), $value) ?? $value;
 
         // Replace dots
         $value = str_replace('.', '[.]', $value);
@@ -221,7 +221,7 @@ final class IocNormalizer
     public function refang(string $value): string
     {
         // Replace hxxp/hxxps
-        $value = preg_replace_callback('/hxxps?/i', fn ($matches): string => str_replace('hxxp', 'http', strtolower((string) $matches[0])), $value);
+        $value = preg_replace_callback('/hxxps?/i', fn ($matches): string => str_replace('hxxp', 'http', strtolower((string) $matches[0])), $value) ?? $value;
 
         // Replace [.]
         $value = str_replace('[.]', '.', $value);

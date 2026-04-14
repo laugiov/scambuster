@@ -43,10 +43,14 @@ final readonly class PromptBuilder
         /** @var array<string, string> $scamTypeData */
         $scamTypeData = $context['scam_type'] ?? [];
         $scamTypeLabel = (string) ($scamTypeData['label_fr'] ?? 'Unknown threat');
-        $conversationHistory = $this->formatConversationHistory($context['last_messages'] ?? []);
+        /** @var array<int, array<string, mixed>> $lastMessages */
+        $lastMessages = $context['last_messages'] ?? [];
+        $conversationHistory = $this->formatConversationHistory($lastMessages);
 
         // Analyze conversation context using ContextAnalyzer
-        $stateSlots = $this->contextAnalyzer->analyzeConversation($context['last_messages'] ?? []);
+        /** @var array<int, array{direction: string, body_text: string, ts_msg: string, headers: array<string, mixed>}> $lastMsgsTyped */
+        $lastMsgsTyped = $lastMessages;
+        $stateSlots = $this->contextAnalyzer->analyzeConversation($lastMsgsTyped);
         $messageCount = $stateSlots['message_count'];
 
         // Detect language from context (passed by ReplyHandler) or default to 'en'
@@ -82,7 +86,9 @@ final readonly class PromptBuilder
         }
 
         // Reciprocity analysis
-        $reciprocityAnalysis = $this->reciprocityManager->analyze($context['last_messages'] ?? []);
+        /** @var array<int, array{direction: string, body_text: string}> $lastMsgsReciprocity */
+        $lastMsgsReciprocity = $lastMessages;
+        $reciprocityAnalysis = $this->reciprocityManager->analyze($lastMsgsReciprocity);
 
         if ($reciprocityAnalysis['should_give_info']) {
             $userPrompt .= "\nSuggestion: " . $reciprocityAnalysis['suggested_action'] . "\n";
@@ -96,7 +102,9 @@ final readonly class PromptBuilder
 
         // Generation dialogue from previous attempts (if retry)
         if (!empty($context['generation_dialogue'])) {
-            $userPrompt .= $this->formatGenerationDialogue($context['generation_dialogue']);
+            /** @var array<int, array<string, mixed>> $genDialogue */
+            $genDialogue = $context['generation_dialogue'];
+            $userPrompt .= $this->formatGenerationDialogue($genDialogue);
             $userPrompt .= "\n";
         }
 
@@ -211,12 +219,16 @@ PROMPT;
         // Try ConversationAnalyzer first (LLM-powered anti-repetition)
         if ($this->conversationAnalyzer instanceof \App\Application\LLM\ConversationAnalyzer && $messageCount >= 2) {
             try {
+                /** @var array<array{direction: string, body_text: string, ts_msg: string, subject?: string}> $allMsgsForAnalysis */
+                $allMsgsForAnalysis = $context['last_messages'] ?? [];
+                /** @var array<array{type: string, value: string, category?: string}> $iocsForAnalysis */
+                $iocsForAnalysis = $context['extracted_iocs'] ?? [];
                 $analysisContext = [
-                    'conversation_id' => $context['conv_id'] ?? 'unknown',
+                    'conversation_id' => \is_string($context['conv_id'] ?? null) ? $context['conv_id'] : 'unknown',
                     'scam_type' => (string) ($scamTypeData['code'] ?? 'unknown'),
                     'persona_code' => $personaCode,
-                    'all_messages' => $context['last_messages'] ?? [],
-                    'extracted_iocs' => $context['extracted_iocs'] ?? [],
+                    'all_messages' => $allMsgsForAnalysis,
+                    'extracted_iocs' => $iocsForAnalysis,
                 ];
 
                 $analysis = $this->conversationAnalyzer->analyzeAndGenerateInstructions($analysisContext);
@@ -239,7 +251,9 @@ PROMPT;
         }
 
         // Fallback: VariationProvider (basic, PHP-only)
-        $variationInstructions = $this->variationProvider->generateInstructions($context['last_messages'] ?? []);
+        /** @var array<int, array{direction: string, body_text: string}> $lastMsgsVariation */
+        $lastMsgsVariation = $context['last_messages'] ?? [];
+        $variationInstructions = $this->variationProvider->generateInstructions($lastMsgsVariation);
 
         if ($variationInstructions !== '' && $variationInstructions !== '0') {
             return $variationInstructions . "\n\n";

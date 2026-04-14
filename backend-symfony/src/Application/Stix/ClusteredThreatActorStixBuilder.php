@@ -105,7 +105,9 @@ final readonly class ClusteredThreatActorStixBuilder
 
             foreach ($aps as $ap) {
                 $objects[] = $ap;
-                $attackPatternIds[] = $ap['id'];
+                /** @var string $apId */
+                $apId = $ap['id'];
+                $attackPatternIds[] = $apId;
             }
         }
 

@@ -97,6 +97,10 @@ class ReplyHandler
             ]);
         }
 
+        if ($conversation === null) {
+            return null;
+        }
+
         if ($conversation->getStatus()->value !== 'open') {
             throw new \RuntimeException('Cannot generate reply for closed conversation');
         }
@@ -126,6 +130,7 @@ class ReplyHandler
         $context['detected_language'] = $detectedLanguage;
 
         // Generate reply using LLM Orchestrator
+        /** @var string $personaCode */
         $personaCode = $context['persona'];
         $llmResult = $this->replyOrchestrator->generate($context, $personaCode);
 
@@ -139,8 +144,8 @@ class ReplyHandler
 
             throw new \RuntimeException(
                 'Reply rejected by LLM validation: ' . implode(', ', array_merge(
-                    $llmResult['policy_flags'],
-                    $llmResult['validation_reasons']
+                    (array) $llmResult['policy_flags'],
+                    (array) $llmResult['validation_reasons']
                 ))
             );
         }
@@ -155,19 +160,21 @@ class ReplyHandler
             ]);
         }
 
+        /** @var string $newReplyContent */
         $newReplyContent = $llmResult['text'];
 
         // Simple text and HTML versions (no conversation history needed - Gmail handles threading)
         $replyText = $newReplyContent;
-        /** @var string $newReplyContent */
         $replyHtml = '<div>' . nl2br(htmlspecialchars($newReplyContent, ENT_QUOTES, 'UTF-8')) . '</div>';
 
         // Determine recipient
-        $to = $parentMessage->getHeaders()['reply_to'] ?? $parentMessage->getHeaders()['from'] ?? null;
+        $toRaw = $parentMessage->getHeaders()['reply_to'] ?? $parentMessage->getHeaders()['from'] ?? null;
 
-        if (!$to) {
+        if (!$toRaw) {
             throw new \RuntimeException('Cannot determine reply recipient');
         }
+        /** @var string $to */
+        $to = $toRaw;
 
         // Build subject
         $subject = $parentMessage->getSubject() ?? '';

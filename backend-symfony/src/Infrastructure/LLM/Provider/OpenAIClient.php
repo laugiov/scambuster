@@ -78,13 +78,19 @@ final readonly class OpenAIClient implements LLMClientInterface
                 'usage' => $usage,
             ]);
 
+            /** @var string $eventModel */
+            $eventModel = $payload['model'];
+            /** @var string $eventPurpose */
+            $eventPurpose = $options['purpose'] ?? 'unknown';
+            /** @var string|null $eventConvId */
+            $eventConvId = $options['conversation_id'] ?? null;
             $this->eventDispatcher->dispatch(new LlmCallCompletedEvent(
                 provider: 'openai',
-                model: $payload['model'],
-                purpose: $options['purpose'] ?? 'unknown',
+                model: $eventModel,
+                purpose: $eventPurpose,
                 promptTokens: (int) ($usage['prompt_tokens'] ?? 0),
                 completionTokens: (int) ($usage['completion_tokens'] ?? 0),
-                conversationId: $options['conversation_id'] ?? null
+                conversationId: $eventConvId
             ));
 
             return $assistantText;
