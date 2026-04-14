@@ -187,6 +187,9 @@ cs-fixer:        ##@test Check & fix code style
 coverage:      ##@test Generate code coverage report
 	$(DC) exec $(PHP_CONTAINER_DEV) phpdbg -qrr vendor/bin/phpunit --coverage-text > backend-symfony/coverage.txt
 
+mutation:      ##@test Run Infection mutation testing (unit tests only)
+	$(DC) exec $(PHP_CONTAINER_DEV) vendor/bin/infection --threads=4 --show-mutations --min-msi=70 --min-covered-msi=80
+
 # ======================================================================
 #  FIXTURES
 # ======================================================================
