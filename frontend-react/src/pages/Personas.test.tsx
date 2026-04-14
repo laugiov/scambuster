@@ -6,26 +6,14 @@ import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { server } from '@/__tests__/mocks/server';
 import { Personas } from './Personas';
+import { mockMetaConfig as baseMockMetaConfig } from '@/__tests__/fixtures';
 
 const BASE = '/api/v1';
 
 const mockMetaConfig = {
-  personas: [
-    { code: 'elderly_person', label: 'Elderly Person', tone: 'Familiar', active: true },
-    { code: 'bank_customer', label: 'Bank Customer', tone: 'Formal', active: true },
-  ],
+  ...baseMockMetaConfig,
   scam_types: [],
   ioc_types: [],
-  bandit: {
-    strategy: 'epsilon-greedy',
-    epsilon: 0.2,
-    cold_start_threshold: 3,
-    convergence_threshold: 0.6,
-    min_sessions_for_convergence: 10,
-    converged_epsilon: 0.05,
-    reward_weights: { duration: 0.4, iocs_total: 0.25, iocs_sensibles: 0.25, completion: 0.1 },
-  },
-  llm_provider: 'openai', llm_model: 'gpt-4o-mini',
 };
 
 const mockPersonaPerformance = (code: string) => ({
@@ -55,7 +43,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -71,19 +59,12 @@ function createWrapper() {
 }
 
 describe('Personas', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<Personas />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the page title', async () => {
+  it('renders the personas page with title and bandit strategy', async () => {
     setupHandlers();
     render(<Personas />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/Personas/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/epsilon-greedy/i).length).toBeGreaterThan(0);
     });
   });
 

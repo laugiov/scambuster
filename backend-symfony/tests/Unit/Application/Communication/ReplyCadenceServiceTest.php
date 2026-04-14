@@ -188,4 +188,5 @@ class ReplyCadenceServiceTest extends TestCase
         $service->dispatchRateLimitAudit('test_limit', 'some-conv-id');
         $this->assertTrue(true); // no exception
     }
+
 }

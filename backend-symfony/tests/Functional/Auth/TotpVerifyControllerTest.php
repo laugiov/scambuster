@@ -150,4 +150,166 @@ final class TotpVerifyControllerTest extends WebTestCase
 
         $this->assertResponseStatusCodeSame(Response::HTTP_METHOD_NOT_ALLOWED);
     }
+
+    // ================================================================== //
+    //  Merged from TotpVerifyControllerAdditionalTest
+    // ================================================================== //
+
+    public function testAlphabeticCodeReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => 'abcdef']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+
+        if ($statusCode === Response::HTTP_BAD_REQUEST) {
+            $data = json_decode($this->client->getResponse()->getContent(), true);
+            $this->assertSame('Invalid TOTP code', $data['message']);
+        }
+    }
+
+    public function testFiveDigitCodeReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => '12345']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testSevenDigitCodeReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => '1234567']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testNullCodeReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => null]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testIntegerCodeReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => 123456]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Integer fails is_string() check in the controller -> empty string -> 400
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testCodeWithSpacesReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => '123 456']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testBooleanCodeReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => true]));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testValidFormatCodeReachesUserLookup(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => '000000']));
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // InMemoryUser not in DB -> 404 "User not found" or 400 "TOTP not configured"
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('message', $data);
+    }
+
+    public function testResponseAlwaysReturnsJson(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => '123456']));
+
+        $this->assertResponseHeaderSame('content-type', 'application/json');
+    }
+
+    public function testPutMethodNotAllowed(): void
+    {
+        $this->client->request('PUT', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], json_encode(['code' => '123456']));
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_METHOD_NOT_ALLOWED);
+    }
+
+    public function testEmptyBodyReturns400(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ], '');
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        // Empty body -> json_decode returns null -> $payload = [] -> code = '' -> 400
+        $this->assertContains($statusCode, [
+            Response::HTTP_BAD_REQUEST,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
 }

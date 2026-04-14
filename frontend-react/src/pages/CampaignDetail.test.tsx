@@ -35,7 +35,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -55,15 +55,7 @@ function createWrapper() {
 }
 
 describe('CampaignDetail', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<CampaignDetail />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the campaign title with ID', async () => {
+  it('renders the campaign detail with title and ID', async () => {
     setupHandlers();
     render(<CampaignDetail />, { wrapper: createWrapper() });
     await waitFor(() => {

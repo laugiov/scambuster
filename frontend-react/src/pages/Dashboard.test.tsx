@@ -6,24 +6,9 @@ import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { server } from '@/__tests__/mocks/server';
 import { Dashboard } from './Dashboard';
+import { mockMetaConfig as baseMockMetaConfig, mockStats, mockConversations } from '@/__tests__/fixtures';
 
 const BASE = '/api/v1';
-
-const mockStats = {
-  status: 'operational',
-  conversations: { total: 15, open: 3, active: 3, closed: 10, abandoned: 2 },
-  messages: { total: 42, inbound: 20, outbound: 22 },
-  iocs: { total: 89, unique_types: 6 },
-  convergence: { status: 'converging', best_persona: 'elderly_person', best_score: 0.82, exploration_rate: 0.15, converged_types: 0, total_types: 5 },
-  kill_switch: false,
-  kill_switch_active: false,
-  checked_at: new Date().toISOString(),
-};
-
-const mockConversations = [
-  { conv_id: 'aaaa-bbbb-cccc-dddd', status: 'open', score_risk: 50, persona: 'elderly_person', scam_type: 'PHISHING', turns: 4, ts_first: '2026-03-20T10:00:00Z', ts_last: '2026-03-20T12:00:00Z' },
-  { conv_id: 'eeee-ffff-0000-1111', status: 'closed', score_risk: 80, persona: 'bank_customer', scam_type: 'ROMANCE', turns: 12, ts_first: '2026-03-19T08:00:00Z', ts_last: '2026-03-19T16:00:00Z' },
-];
 
 const mockLlmCosts = {
   current_month: { total_usd: 12.34, limit_usd: 50.0, pct_used: 24.7, calls_count: 1842, total_prompt_tokens: 2450000, total_completion_tokens: 890000 },
@@ -33,12 +18,8 @@ const mockLlmCosts = {
 };
 
 const mockMetaConfig = {
+  ...baseMockMetaConfig,
   personas: [{ code: 'elderly_person', label: 'Elderly Person', tone: 'Familiar', active: true }],
-  scam_types: [{ code: 'PHISHING', label: 'Phishing', description: '', active: true }],
-  ioc_types: ['email', 'domain'],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai',
-  llm_model: 'gpt-4o-mini',
 };
 
 const mockPersonaPerformance = {
@@ -67,7 +48,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -83,19 +64,13 @@ function createWrapper() {
 }
 
 describe('Dashboard', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<Dashboard />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the dashboard title', async () => {
+  it('renders the dashboard with title and stat cards', async () => {
     setupHandlers();
     render(<Dashboard />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+      // Stat cards should be visible with mock data values
+      expect(screen.getByText('89')).toBeInTheDocument(); // total IOCs
     });
   });
 
@@ -142,5 +117,16 @@ describe('Dashboard', () => {
     await waitFor(() => {
       expect(screen.getByText(/Recent Activity/i)).toBeInTheDocument();
     });
+  });
+
+  it('has no accessibility violations', async () => {
+    const { axe } = await import('vitest-axe');
+    setupHandlers();
+    const { container } = render(<Dashboard />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText(/Dashboard/i)).toBeInTheDocument();
+    });
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

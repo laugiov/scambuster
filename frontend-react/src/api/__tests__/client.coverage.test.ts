@@ -6,7 +6,7 @@ import client from '../client';
 
 const BASE = '/api/v1';
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => {
   server.resetHandlers();
   clearTokens();

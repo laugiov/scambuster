@@ -26,7 +26,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -42,19 +42,12 @@ function createWrapper() {
 }
 
 describe('Campaigns', () => {
-  it('renders without crashing', async () => {
+  it('renders the campaigns page with title and hunt button', async () => {
     setupHandlers();
     render(<Campaigns />, { wrapper: createWrapper() });
     await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the page title', async () => {
-    setupHandlers();
-    render(<Campaigns />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(screen.getByText(/Campaign/i)).toBeInTheDocument();
+      expect(screen.getByText(/Campaign Radar/i)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Run Hunt|Hunt/i })).toBeInTheDocument();
     });
   });
 

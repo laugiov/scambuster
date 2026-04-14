@@ -9,7 +9,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Additional functional tests for ExportMispController.
+ * Functional tests for ExportMispController.
  *
  * Covers:
  * - MISP Event structure validation (Event key, threat_level_id, etc.)
@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\Response;
  * - PATCH/DELETE methods not allowed
  * - Consistent content-type across error states
  */
-final class ExportMispControllerAdditionalTest extends WebTestCase
+final class ExportMispControllerTest extends WebTestCase
 {
     private KernelBrowser $client;
 

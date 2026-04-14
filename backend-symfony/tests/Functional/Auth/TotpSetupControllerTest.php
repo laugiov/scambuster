@@ -97,4 +97,97 @@ final class TotpSetupControllerTest extends WebTestCase
         $this->assertArrayHasKey('message', $data);
         $this->assertIsString($data['message']);
     }
+
+    // ================================================================== //
+    //  Merged from TotpSetupControllerAdditionalTest
+    // ================================================================== //
+
+    public function testResponseContainsMessageKeyOnNotFound(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('message', $data);
+        $this->assertIsString($data['message']);
+        $this->assertSame('User not found', $data['message']);
+    }
+
+    public function testResponseIsAlwaysJson(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+
+        $this->assertResponseHeaderSame('content-type', 'application/json');
+    }
+
+    public function testDeleteMethodNotAllowed(): void
+    {
+        $this->client->request('DELETE', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_METHOD_NOT_ALLOWED);
+    }
+
+    public function testPutMethodNotAllowed(): void
+    {
+        $this->client->request('PUT', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_METHOD_NOT_ALLOWED);
+    }
+
+    public function testInvalidBearerTokenFormat(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+
+        $statusCode = $this->client->getResponse()->getStatusCode();
+        $this->assertContains($statusCode, [
+            Response::HTTP_UNAUTHORIZED,
+            Response::HTTP_FORBIDDEN,
+            Response::HTTP_NOT_FOUND,
+        ]);
+    }
+
+    public function testAdminJwtAlsoReturnsUserNotFound(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-admin-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+
+        $this->assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+
+        $data = json_decode($this->client->getResponse()->getContent(), true);
+        $this->assertSame('User not found', $data['message']);
+    }
+
+    public function testRepeatedCallsReturnConsistentStatus(): void
+    {
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+        $first = $this->client->getResponse()->getStatusCode();
+
+        $this->client->request('POST', self::ENDPOINT, [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+            'CONTENT_TYPE' => 'application/json',
+        ]);
+        $second = $this->client->getResponse()->getStatusCode();
+
+        $this->assertSame($first, $second);
+    }
 }

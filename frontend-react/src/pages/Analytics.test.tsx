@@ -29,7 +29,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -45,19 +45,12 @@ function createWrapper() {
 }
 
 describe('Analytics', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<Analytics />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the page title', async () => {
+  it('renders the analytics page with title and period selectors', async () => {
     setupHandlers();
     render(<Analytics />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/Analytics/i)).toBeInTheDocument();
+      expect(screen.getByText('7 days')).toBeInTheDocument();
     });
   });
 
