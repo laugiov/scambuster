@@ -13,7 +13,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Post(
     path: '/api/v1/communication/reply/draft',
-    summary: 'Persister un brouillon (idempotent)',
+    summary: 'Persist a draft (idempotent)',
     tags: ['Reply'],
     requestBody: new OA\RequestBody(
         required: true,

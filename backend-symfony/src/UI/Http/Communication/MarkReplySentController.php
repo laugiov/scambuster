@@ -32,7 +32,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
                 new OA\Property(
                     property: 'sent_headers',
                     type: 'object',
-                    description: 'Headers de threading (thread_id, message-id)',
+                    description: 'Threading headers (thread_id, message-id)',
                     properties: [
                         new OA\Property(property: 'thread_id', type: 'string', description: 'Gmail thread ID'),
                         new OA\Property(
@@ -95,7 +95,7 @@ final readonly class MarkReplySentController
 
             return new JsonResponse(null, Response::HTTP_NO_CONTENT);
         } catch (\RuntimeException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Failed to mark reply as sent'], Response::HTTP_BAD_REQUEST);
         }
     }
 }

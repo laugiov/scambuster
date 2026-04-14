@@ -23,7 +23,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Contexte de la conversation',
+            description: 'Conversation context',
             content: new OA\JsonContent(ref: new Model(type: ConversationContextResponseDto::class))
         ),
         new OA\Response(

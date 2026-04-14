@@ -48,7 +48,7 @@ final readonly class CompileCampaignRulesController
                             new OA\Property(
                                 property: 'pos',
                                 type: 'array',
-                                description: 'Messages positifs (membres de la campagne)',
+                                description: 'Positive messages (campaign members)',
                                 items: new OA\Items(type: 'string', format: 'uuid')
                             ),
                             new OA\Property(
@@ -86,7 +86,7 @@ final readonly class CompileCampaignRulesController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Campagne introuvable ou profil YAML manquant',
+                description: 'Campaign not found or YAML profile missing',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]

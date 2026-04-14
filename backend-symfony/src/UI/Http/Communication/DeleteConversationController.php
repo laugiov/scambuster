@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Delete(
     path: '/api/v1/communication/conversation/{convId}',
-    summary: 'Supprimer une conversation',
+    summary: 'Delete a conversation',
     tags: ['Conversations'],
     parameters: [
         new OA\Parameter(name: 'convId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),

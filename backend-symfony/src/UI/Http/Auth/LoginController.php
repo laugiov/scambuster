@@ -23,7 +23,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 #[Route('/api/v1/auth/login', name: 'api_auth_login', methods: ['POST'])]
 #[OA\Post(
     path: '/api/v1/auth/login',
-    summary: 'Authentification utilisateur (login)',
+    summary: 'User authentication (login)',
     tags: ['Auth'],
     requestBody: new OA\RequestBody(
         required: true,
@@ -41,22 +41,22 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         ),
         new OA\Response(
             response: 400,
-            description: 'JSON invalide',
+            description: 'Invalid JSON',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(
             response: 401,
-            description: 'Identifiants invalides',
+            description: 'Invalid credentials',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(
             response: 422,
-            description: 'Erreur de validation',
+            description: 'Validation error',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(
             response: 429,
-            description: 'Trop de tentatives',
+            description: 'Too many attempts',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'retry_after', type: 'integer')])
         )
     ]

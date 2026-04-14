@@ -37,7 +37,7 @@ final readonly class IngestController
     }
     #[OA\Post(
         path: '/api/v1/communication/ingest/raw',
-        summary: 'Ingestion brute d\'un email (format RFC822)',
+        summary: 'Raw email ingestion (RFC822 format)',
         tags: ['Ingest'],
         requestBody: new OA\RequestBody(
             required: true,

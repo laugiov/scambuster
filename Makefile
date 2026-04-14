@@ -424,7 +424,7 @@ evaluate-all: evaluate-corpus evaluate-quality evaluate-bandit ##@evaluate Run f
 # ======================================================================
 #  RESET ALL
 # ======================================================================
-respawn-all: ##@docker Reset all DBs, load fixtures and seed Vault
+respawn-all: ##@docker Reset all DBs and load fixtures
 	$(MAKE) upd
 	$(MAKE) reset-db
 	$(MAKE) reset-db-test
@@ -432,4 +432,3 @@ respawn-all: ##@docker Reset all DBs, load fixtures and seed Vault
 	$(MAKE) fixtures-dev
 	$(MAKE) fixtures
 	$(MAKE) fixtures-e2e
-	$(CONSOLE_DEV) vault:imap-secret:add dummyhash user@example.com changeme-dev
