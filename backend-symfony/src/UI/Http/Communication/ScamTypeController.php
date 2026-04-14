@@ -21,12 +21,12 @@ final readonly class ScamTypeController
     }
     #[OA\Get(
         path: '/api/v1/communication/scam-types',
-        summary: 'Liste tous les types de scam disponibles',
+        summary: 'List all available scam types',
         tags: ['Scam Types'],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Liste des types de scam',
+                description: 'List of scam types',
                 content: new OA\JsonContent(
                     type: 'array',
                     items: new OA\Items(

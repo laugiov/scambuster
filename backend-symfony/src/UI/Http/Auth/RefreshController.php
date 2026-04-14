@@ -19,7 +19,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 #[Route('/api/v1/auth/refresh', name: 'api_auth_refresh', methods: ['POST'])]
 #[OA\Post(
     path: '/api/v1/auth/refresh',
-    summary: 'Rafraîchir le token JWT',
+    summary: 'Refresh JWT token',
     tags: ['Auth'],
     requestBody: new OA\RequestBody(
         required: true,
@@ -28,7 +28,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Nouveaux tokens JWT',
+            description: 'New JWT tokens',
             content: new OA\JsonContent(type: 'object', properties: [
                 new OA\Property(property: 'access_token', type: 'string'),
                 new OA\Property(property: 'refresh_token', type: 'string'),
@@ -37,17 +37,17 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         ),
         new OA\Response(
             response: 400,
-            description: 'JSON invalide',
+            description: 'Invalid JSON',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(
             response: 401,
-            description: 'Refresh token invalide',
+            description: 'Invalid refresh token',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(
             response: 422,
-            description: 'Erreur de validation',
+            description: 'Validation error',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         )
     ]

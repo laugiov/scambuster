@@ -96,10 +96,10 @@ final readonly class ClassifyConversationController
             ], Response::HTTP_OK);
         } catch (\RuntimeException $e) {
             if (str_contains($e->getMessage(), 'not found')) {
-                return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+                return new JsonResponse(['error' => 'Conversation or scam type not found'], Response::HTTP_NOT_FOUND);
             }
 
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Classification failed'], Response::HTTP_BAD_REQUEST);
         }
     }
 }

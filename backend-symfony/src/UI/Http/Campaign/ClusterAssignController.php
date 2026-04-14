@@ -77,7 +77,7 @@ final readonly class ClusterAssignController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Message introuvable',
+                description: 'Message not found',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]

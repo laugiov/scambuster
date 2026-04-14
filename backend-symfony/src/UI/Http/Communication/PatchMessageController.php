@@ -14,7 +14,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Patch(
     path: '/api/v1/communication/message/{msgId}',
-    summary: 'Modifier un message',
+    summary: 'Update a message',
     tags: ['Messages'],
     parameters: [
         new OA\Parameter(name: 'msgId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -31,7 +31,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         ),
         new OA\Response(
             response: 400,
-            description: 'Erreur de validation ou pas de changement',
+            description: 'Validation error or no changes',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         ),
         new OA\Response(
