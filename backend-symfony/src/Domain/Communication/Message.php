@@ -40,10 +40,10 @@ class Message
         #[ORM\ManyToOne(targetEntity: Conversation::class)]
         #[ORM\JoinColumn(name: 'conv_id', referencedColumnName: 'conv_id', nullable: false, onDelete: 'CASCADE')]
         private Conversation $conversation,
-        #[ORM\ManyToOne(targetEntity: Channel::class)]
+        #[ORM\ManyToOne(targetEntity: Channel::class, fetch: 'EAGER')]
         #[ORM\JoinColumn(name: 'channel_id', referencedColumnName: 'channel_id', nullable: false)]
         private Channel $channel,
-        #[ORM\ManyToOne(targetEntity: Direction::class)]
+        #[ORM\ManyToOne(targetEntity: Direction::class, fetch: 'EAGER')]
         #[ORM\JoinColumn(name: 'direction', referencedColumnName: 'dir_id', nullable: false)]
         private Direction $direction,
         #[ORM\Column(name: 'lang_detect', type: 'string', length: 2)]
