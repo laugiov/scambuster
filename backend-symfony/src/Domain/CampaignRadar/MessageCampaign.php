@@ -33,8 +33,8 @@ class MessageCampaign
     private ?array $features = null;
 
     /**
-     * True si le message est un vrai positif (confirmé manuellement ou par règle de référence).
-     * False si faux positif. Null si non encore validé.
+     * True if the message is a true positive (confirmed manually or by reference rule).
+     * False if false positive. Null if not yet validated.
      */
     #[ORM\Column(name: 'is_true_positive', type: Types::BOOLEAN, nullable: true)]
     private ?bool $isTruePositive = null;

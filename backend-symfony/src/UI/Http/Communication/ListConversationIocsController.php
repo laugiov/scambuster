@@ -14,7 +14,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/conversation/{convId}/iocs',
-    summary: 'Liste des IOCs d\'une conversation (dédupliqués)',
+    summary: 'List IOCs for a conversation (deduplicated)',
     tags: ['Conversations'],
     parameters: [
         new OA\Parameter(name: 'convId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Liste des IOCs dédupliqués',
+            description: 'Deduplicated list of IOCs',
             content: new OA\JsonContent(
                 type: 'array',
                 items: new OA\Items(type: 'object', properties: [
@@ -39,7 +39,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         ),
         new OA\Response(
             response: 404,
-            description: 'Conversation non trouvée',
+            description: 'Conversation not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

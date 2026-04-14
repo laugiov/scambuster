@@ -43,9 +43,9 @@ If the private key is suspected compromised:
 5. Investigate: check audit logs for suspicious AUTH_SUCCESS events
 6. Create incident report
 
-### Vault Integration
+### Secrets Management
 
-IMAP credentials are stored in HashiCorp Vault (`secret/scambuster/imap/`). JWT keys are stored on filesystem. Future improvement: store JWT keys in Vault for centralized management.
+IMAP credentials are stored in environment variables (or Docker secrets for production deployments). JWT keys are stored on filesystem. Future improvement: integrate with a secrets manager for centralized key management.
 
 ## Configuration
 

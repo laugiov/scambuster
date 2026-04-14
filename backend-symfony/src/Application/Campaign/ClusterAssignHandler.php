@@ -23,26 +23,26 @@ final readonly class ClusterAssignHandler
     }
 
     /**
-     * Assigne un message à une campagne (existante ou nouvelle).
+     * Assigns a message to a campaign (existing or new).
      *
      * @return array{campaign_id: string, is_new: bool, confidence: float}
      */
     public function handle(Uuid $messageId): array
     {
-        // 1. Récupérer le message
+        // 1. Retrieve the message
         $message = $this->em->find(Message::class, $messageId);
 
         if ($message === null) {
             throw new \RuntimeException("Message not found: {$messageId->toRfc4122()}");
         }
 
-        // 2. Récupérer les campagnes actives
+        // 2. Retrieve active campaigns
         $activeCampaigns = $this->campaignRepository->findActive();
 
         // 3. Clustering
         $result = $this->clusteringService->assignCampaign($message, $activeCampaigns);
 
-        // 4. Si nouvelle campagne, la créer
+        // 4. If new campaign, create it
         if ($result['campaign_id'] === null) {
             $campaign = new Campaign('clustering-service');
             $this->em->persist($campaign);
@@ -60,7 +60,7 @@ final readonly class ClusterAssignHandler
             $isNew = false;
         }
 
-        // 5. Créer association message ↔ campagne
+        // 5. Create message <-> campaign association
         $messageCampaign = new MessageCampaign(
             $messageId,
             Uuid::fromString($campaignId),
@@ -68,12 +68,12 @@ final readonly class ClusterAssignHandler
             'clustering'
         );
 
-        // Stocker les features pour analyse ultérieure
+        // Store features for later analysis
         $messageCampaign->setFeatures($result['features']);
 
         $this->em->persist($messageCampaign);
 
-        // Mettre à jour le centroid de la campagne existante
+        // Update centroid of existing campaign
         if (!$isNew) {
             $this->updateCampaignCentroid(Uuid::fromString($campaignId));
         }
@@ -96,7 +96,7 @@ final readonly class ClusterAssignHandler
 
     /**
      * Recalcule le centroid simhash d'une campagne.
-     * Stratégie : sélectionner le simhash le plus fréquent parmi les messages.
+     * Strategy: select the most frequent simhash among messages.
      */
     private function updateCampaignCentroid(Uuid $campaignId): void
     {

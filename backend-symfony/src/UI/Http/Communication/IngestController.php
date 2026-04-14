@@ -46,7 +46,7 @@ final readonly class IngestController
         responses: [
             new OA\Response(
                 response: 201,
-                description: 'Message ingéré',
+                description: 'Message ingested',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
@@ -58,17 +58,17 @@ final readonly class IngestController
             ),
             new OA\Response(
                 response: 400,
-                description: 'Erreur de validation ou de référence',
+                description: 'Validation or reference error',
                 content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
             ),
             new OA\Response(
                 response: 409,
-                description: 'Conflit (doublon)',
+                description: 'Conflict (duplicate)',
                 content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
             ),
             new OA\Response(
                 response: 422,
-                description: 'Erreur de validation (Unprocessable Entity)',
+                description: 'Validation error (Unprocessable Entity)',
                 content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
             )
         ],
@@ -82,7 +82,7 @@ final readonly class IngestController
         try {
             $dto = $this->serializer->deserialize($request->getContent(), IngestRawRequestDto::class, 'json');
         } catch (\Throwable $e) {
-            // Désérialisation JSON malformé (NotEncodableValueException, JsonException, etc.)
+            // Malformed JSON deserialization (NotEncodableValueException, JsonException, etc.)
             $this->logger->error('[IngestController] JSON deserialization error', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
@@ -158,7 +158,12 @@ final readonly class IngestController
                 'trace' => $e->getTraceAsString()
             ]);
 
-            return new JsonResponse(['error' => 'Internal server error: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
+            $traceId = $request->attributes->get('trace_id', '');
+
+            return new JsonResponse([
+                'error' => 'Internal server error',
+                'trace_id' => $traceId,
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

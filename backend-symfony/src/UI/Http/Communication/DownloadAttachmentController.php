@@ -13,7 +13,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/attachment/{attachmentId}/download',
-    summary: 'Télécharger une pièce jointe',
+    summary: 'Download an attachment',
     description: 'Returns HTTP 501 until a real S3-compatible storage backend is wired (Spec 065a removed the FAKE_CONTENT placeholder).',
     tags: ['Attachments'],
     parameters: [
@@ -22,7 +22,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 404,
-            description: 'Pièce jointe non trouvée ou supprimée',
+            description: 'Attachment not found or deleted',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         ),
         new OA\Response(

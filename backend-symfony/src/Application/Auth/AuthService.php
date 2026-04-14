@@ -31,7 +31,17 @@ class AuthService implements AuthServiceInterface
     {
         $user = $this->em->getRepository(User::class)->findOneBy(['email' => $dto->email]);
 
-        if (!$user || !$this->hasher->isPasswordValid($user, $dto->password)) {
+        if (!$user) {
+            // Constant-time: run bcrypt on a dummy hash to prevent timing-based enumeration
+            $this->hasher->isPasswordValid(
+                new \Symfony\Component\Security\Core\User\InMemoryUser('dummy', '$2y$13$dummy.hash.to.normalize.timing'),
+                $dto->password
+            );
+
+            throw new AuthenticationException('Invalid credentials.');
+        }
+
+        if (!$this->hasher->isPasswordValid($user, $dto->password)) {
             throw new AuthenticationException('Invalid credentials.');
         }
 

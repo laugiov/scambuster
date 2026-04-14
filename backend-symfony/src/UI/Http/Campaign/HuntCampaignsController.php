@@ -21,22 +21,22 @@ final readonly class HuntCampaignsController
     }
     #[OA\Post(
         path: '/api/v1/campaign/hunt',
-        summary: 'Exécuter le hunter sur toutes les règles actives',
-        description: 'Exécute toutes les règles de campagne actives en mode shadow (lecture seule). Calcule PPV, lead-time et met à jour les métriques. Typiquement appelé via CRON toutes les heures.',
+        summary: 'Run the hunter on all active rules',
+        description: 'Executes all active campaign rules in shadow mode (read-only). Computes PPV, lead-time and updates metrics. Typically called via CRON every hour.',
         tags: ['Campaign Radar'],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Chasse terminée avec succès',
+                description: 'Hunt completed successfully',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
-                        new OA\Property(property: 'total_rules', type: 'integer', description: 'Nombre de règles exécutées'),
-                        new OA\Property(property: 'total_hits', type: 'integer', description: 'Nombre total de détections'),
+                        new OA\Property(property: 'total_rules', type: 'integer', description: 'Number of rules executed'),
+                        new OA\Property(property: 'total_hits', type: 'integer', description: 'Total number of detections'),
                         new OA\Property(
                             property: 'results',
                             type: 'array',
-                            description: 'Résultats détaillés par règle',
+                            description: 'Detailed results per rule',
                             items: new OA\Items(
                                 type: 'object',
                                 properties: [
@@ -54,7 +54,7 @@ final readonly class HuntCampaignsController
             ),
             new OA\Response(
                 response: 500,
-                description: 'Erreur lors de l\'exécution du hunter',
+                description: 'Error executing the hunter',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [

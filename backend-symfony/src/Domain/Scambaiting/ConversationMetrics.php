@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace App\Domain\Scambaiting;
 
 /**
- * Value Object représentant les métriques d'une conversation terminée.
- * Calcule le reward selon la formule multi-critères définie dans les specs.
+ * Value Object representing metrics for a completed conversation.
+ * Computes the reward according to the multi-criteria formula defined in specs.
  */
 final readonly class ConversationMetrics implements \Stringable
 {
-    // Constantes de normalisation (valeurs max observées)
-    private const MAX_DURATION_SEC = 86400; // 24 heures (aligné avec specs)
+    // Normalization constants (max observed values)
+    private const MAX_DURATION_SEC = 86400; // 24 hours (aligned with specs)
     private const MAX_IOCS_TOTAL = 50;
     private const MAX_IOCS_SENSIBLES = 10;
 
@@ -22,10 +22,10 @@ final readonly class ConversationMetrics implements \Stringable
     private const WEIGHT_COMPLETION = 0.10;
 
     /**
-     * @param int  $durationSec   Durée de la conversation en secondes (>= 0)
-     * @param int  $iocsTotal     Nombre total d'IOCs capturés (>= 0)
+     * @param int  $durationSec   Conversation duration in seconds (>= 0)
+     * @param int  $iocsTotal     Total number of captured IOCs (>= 0)
      * @param int  $iocsSensibles Nombre d'IOCs haute valeur (IBAN, phone, crypto) (>= 0)
-     * @param bool $isCompleted   True si la conversation s'est terminée normalement
+     * @param bool $isCompleted   True if the conversation ended normally
      *
      * @throws \InvalidArgumentException Si les valeurs sont invalides
      */
@@ -39,7 +39,7 @@ final readonly class ConversationMetrics implements \Stringable
     }
 
     /**
-     * Calcule le reward normalisé [0.0, 1.0]
+     * Computes the normalized reward [0.0, 1.0]
      */
     public function calculateReward(): float
     {
@@ -61,16 +61,16 @@ final readonly class ConversationMetrics implements \Stringable
     /**
      * Normalise une valeur dans [0, 1] selon min-max scaling.
      *
-     * @param int|float $value Valeur à normaliser
+     * @param int|float $value Value to normalize
      * @param int|float $min   Valeur minimale
      * @param int|float $max   Valeur maximale
      *
-     * @return float Valeur normalisée [0.0, 1.0]
+     * @return float Normalized value [0.0, 1.0]
      */
     private function normalize(int|float $value, int|float $min, int|float $max): float
     {
         if ($max === $min) {
-            return 0.0; // Éviter division par zéro
+            return 0.0; // Avoid division by zero
         }
 
         $normalized = ($value - $min) / ($max - $min);
@@ -79,9 +79,9 @@ final readonly class ConversationMetrics implements \Stringable
     }
 
     /**
-     * Valide les contraintes métier.
+     * Validates business constraints.
      *
-     * @throws \InvalidArgumentException Si une contrainte est violée
+     * @throws \InvalidArgumentException If a constraint is violated
      */
     private function validate(): void
     {
@@ -133,7 +133,7 @@ final readonly class ConversationMetrics implements \Stringable
     }
 
     /**
-     * Représentation textuelle pour debugging.
+     * String representation for debugging.
      */
     public function __toString(): string
     {

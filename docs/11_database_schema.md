@@ -371,7 +371,7 @@ Junction table linking messages to campaigns.
 | endpoint | varchar(255) | Server hostname |
 | port | integer | Server port |
 | secure | boolean | TLS enabled |
-| login_hash | varchar(255) | Hashed login (Vault lookup key) |
+| login_hash | varchar(255) | Hashed login identifier |
 | oauth_scopes | json | OAuth scopes if applicable |
 | is_active | boolean | Default true |
 | created_at, updated_at | timestamp | |

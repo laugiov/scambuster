@@ -45,7 +45,7 @@ The following have safe defaults for local development but should be changed in 
 | Variable | Purpose | How to generate |
 |----------|---------|-----------------|
 | `APP_SECRET` | Symfony secret | `php -r "echo bin2hex(random_bytes(16));"` |
-| `VAULT_TOKEN` | Vault dev token | Use `root` for local dev |
+| `HONEYPOT_IMAP_PASSWORD` | IMAP password | Set to your honeypot IMAP password |
 | `LOGIN_HASH_SALT` | Salt for hashing | `openssl rand -hex 16` |
 | `N8N_ENCRYPTION_KEY` | n8n encryption | `openssl rand -hex 32` |
 
@@ -73,7 +73,6 @@ You should see the following services:
 | `backend-dev` | 8081 | Symfony API (development) |
 | `postgres` | 5432 | PostgreSQL 15 database |
 | `redis` | 6379 | Cache and locks |
-| `vault` | 8200 | HashiCorp Vault (dev mode) |
 | `frontend` | 3002 | React frontend |
 | `n8n` | 5678 | Workflow automation |
 
@@ -234,16 +233,14 @@ Open [http://localhost:5678](http://localhost:5678) in your browser. On first ac
 
 > **Note**: n8n workflows connect to the backend at `http://backend-dev:8080` (internal Docker network). They authenticate using the same JWT mechanism as the API.
 
-### Seed Vault (for IMAP accounts)
+### Configure IMAP accounts
 
-If you want n8n to poll real mailboxes, you need to store IMAP credentials in Vault:
+If you want n8n to poll real mailboxes, set the IMAP credentials via environment variables in `.env`:
 
 ```bash
-# Seed a dummy IMAP account (included in respawn-all)
-make console q="vault:imap-secret:add dummyhash user@example.com motdepasse123"
-
-# Or use respawn-all which does everything (reset DBs + fixtures + Vault seed)
-make respawn-all
+HONEYPOT_IMAP_HOST=imap.gmail.com
+HONEYPOT_IMAP_USER=your-honeypot@example.com
+HONEYPOT_IMAP_PASSWORD=your-app-password
 ```
 
 ---
@@ -287,13 +284,13 @@ make debug-router
 
 ### Full Reset (Nuclear Option)
 
-If you need to start completely fresh (drops all databases, recreates everything, loads all fixtures, seeds Vault):
+If you need to start completely fresh (drops all databases, recreates everything, loads all fixtures):
 
 ```bash
 make respawn-all
 ```
 
-This runs: `reset-db` + `reset-db-test` + `reset-db-e2e` + all fixtures + Vault seed.
+This runs: `reset-db` + `reset-db-test` + `reset-db-e2e` + all fixtures.
 
 ### Database Operations
 
@@ -397,7 +394,6 @@ scambuster/
 | `postgres` | postgres:15-alpine | -- | Main database |
 | `postgres-preprod` | postgres:15-alpine | -- | Pre-production database (port 5433) |
 | `redis` | redis:7-alpine | -- | Cache and distributed locks |
-| `vault` | hashicorp/vault | -- | Secrets management (dev mode) |
 | `frontend` | node:20-alpine | -- | React frontend (port 3002) |
 | `n8n` | n8nio/n8n | -- | Workflow automation |
 | `scheduler` | Custom (PHP 8.3) | `dev` | Automated tasks (close stale, rewards, injection detection, embeddings, bandit report, backups) |
@@ -447,7 +443,7 @@ Run `make help` for the full list. Here are the most useful commands:
 | `make migration-diff` | Generate migration from entity changes |
 | `make reset-db` | Drop + create + migrate (dev) |
 | `make fixtures-dev` | Load dev fixtures |
-| `make respawn-all` | Full reset of all environments + Vault |
+| `make respawn-all` | Full reset of all environments |
 
 ### Scambaiting Operations
 

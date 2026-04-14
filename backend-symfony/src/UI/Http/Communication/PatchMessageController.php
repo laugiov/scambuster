@@ -26,7 +26,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Message modifié',
+            description: 'Message updated',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(
@@ -36,7 +36,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         ),
         new OA\Response(
             response: 404,
-            description: 'Message non trouvé',
+            description: 'Message not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

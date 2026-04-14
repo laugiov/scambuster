@@ -22,8 +22,8 @@ final readonly class TranspileRuleController
     }
     #[OA\Post(
         path: '/api/v1/campaign/transpile',
-        summary: 'Transpiler une règle DSL MailGuard en SQL PostgreSQL',
-        description: 'Convertit une règle DSL MailGuard en requête SQL PostgreSQL avec paramètres préparés. Support des prédicats : simhash, containsAny, domain_age, sender_fuzzy, dkim, spf.',
+        summary: 'Transpile a MailGuard DSL rule to PostgreSQL SQL',
+        description: 'Converts a MailGuard DSL rule to a PostgreSQL SQL query with prepared parameters. Supported predicates: simhash, containsAny, domain_age, sender_fuzzy, dkim, spf.',
         tags: ['Campaign Radar'],
         requestBody: new OA\RequestBody(
             required: true,
@@ -34,7 +34,7 @@ final readonly class TranspileRuleController
                     new OA\Property(
                         property: 'dsl',
                         type: 'string',
-                        description: 'Règle DSL MailGuard à transpiler',
+                        description: 'MailGuard DSL rule to transpile',
                         example: 'RULE test { WHERE subject.simhash≈"urgent" ±15% AND dkim.pass ∈ {false, null} ACTION tag="test" }'
                     ),
                 ]
@@ -43,24 +43,24 @@ final readonly class TranspileRuleController
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Transpilation réussie',
+                description: 'Transpilation successful',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
-                        new OA\Property(property: 'sql', type: 'string', description: 'Requête SQL PostgreSQL générée'),
+                        new OA\Property(property: 'sql', type: 'string', description: 'Generated PostgreSQL SQL query'),
                         new OA\Property(
                             property: 'params',
                             type: 'object',
-                            description: 'Paramètres pour prepared statement (clés: p0, p1, ...)',
+                            description: 'Parameters for prepared statement (keys: p0, p1, ...)',
                             additionalProperties: true
                         ),
-                        new OA\Property(property: 'tests', type: 'array', items: new OA\Items(type: 'string'), description: 'Tests générés (MVP: vide)'),
+                        new OA\Property(property: 'tests', type: 'array', items: new OA\Items(type: 'string'), description: 'Generated tests (MVP: empty)'),
                     ]
                 )
             ),
             new OA\Response(
                 response: 400,
-                description: 'Erreur de parsing DSL ou prédicat non supporté',
+                description: 'DSL parsing error or unsupported predicate',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [

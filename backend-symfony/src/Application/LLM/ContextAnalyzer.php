@@ -327,7 +327,7 @@ final readonly class ContextAnalyzer
                 $promises[] = trim($matches[1]);
             }
 
-            // Pattern 3: "je suis disponible à..."
+            // Pattern 3: "je suis disponible à..." (French availability phrase)
             if (preg_match('/\b((?:disponible|joignable) (?:à|pour|ce|demain)[^.!?]{0,50})/iu', $text, $matches)) {
                 $promises[] = trim($matches[1]);
             }

@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Domain\Exception;
 
 /**
- * Exception levée lorsqu'une règle métier du domaine est violée.
+ * Exception thrown when a domain business rule is violated.
  *
- * Utilisée dans les entités du domaine (Campaign, CampaignRule, etc.)
- * pour signaler des violations de contraintes métier.
+ * Used in domain entities (Campaign, CampaignRule, etc.)
+ * to signal business constraint violations.
  */
 class DomainException extends \DomainException
 {

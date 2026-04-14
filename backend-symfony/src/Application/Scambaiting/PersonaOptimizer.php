@@ -13,13 +13,13 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 
 /**
- * Service métier pour la sélection optimisée de persona.
- * Implémente un algorithme ε-greedy contextuel (1 bandit par scam_type).
+ * Business service for optimized persona selection.
+ * Implements a contextual epsilon-greedy algorithm (1 bandit per scam_type).
  *
  * Algorithme :
- * 1. Si TOUS les personas sont en cold start (<3 sessions) → Sélection aléatoire uniforme
- * 2. Sinon avec probabilité ε=0.20 → Exploration (sélection aléatoire)
- * 3. Sinon avec probabilité 1-ε=0.80 → Exploitation (meilleur reward_avg)
+ * 1. If ALL personas are in cold start (<3 sessions) -> Uniform random selection
+ * 2. Otherwise with probability epsilon=0.20 -> Exploration (random selection)
+ * 3. Otherwise with probability 1-epsilon=0.80 -> Exploitation (best reward_avg)
  */
 final readonly class PersonaOptimizer
 {
@@ -60,12 +60,12 @@ final readonly class PersonaOptimizer
     }
 
     /**
-     * Sélectionne le persona optimal pour un scam_type donné.
-     * Retourne le persona_code du persona sélectionné.
+     * Selects the optimal persona for a given scam_type.
+     * Returns the persona_code of the selected persona.
      *
      * @param string $scamTypeCode Code du scam type (ex: 'PHISHING')
      *
-     * @return string|null persona_code du persona sélectionné, ou null si aucun persona actif
+     * @return string|null persona_code of the selected persona, or null if no active persona
      */
     public function selectPersona(string $scamTypeCode): ?string
     {
@@ -75,8 +75,8 @@ final readonly class PersonaOptimizer
     }
 
     /**
-     * Sélectionne le persona optimal pour un scam_type donné.
-     * Retourne le persona_code ET la stratégie utilisée.
+     * Selects the optimal persona for a given scam_type.
+     * Returns the persona_code AND the strategy used.
      *
      * @param string $scamTypeCode Code du scam type (ex: 'PHISHING')
      *
@@ -84,7 +84,7 @@ final readonly class PersonaOptimizer
      */
     public function selectPersonaWithStrategy(string $scamTypeCode): array
     {
-        // 1. Récupérer le ScamType
+        // 1. Retrieve the ScamType
         $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => $scamTypeCode]);
 
         if ($scamType === null) {
@@ -93,7 +93,7 @@ final readonly class PersonaOptimizer
             return ['persona_code' => null, 'strategy' => null];
         }
 
-        // 2. Récupérer tous les personas actifs
+        // 2. Retrieve all active personas
         $allPersonas = $this->em->getRepository(Persona::class)->findBy(['isActive' => true]);
 
         if ($allPersonas === []) {
@@ -102,7 +102,7 @@ final readonly class PersonaOptimizer
             return ['persona_code' => null, 'strategy' => null];
         }
 
-        // 3. Récupérer les stats de performance pour ce scam_type
+        // 3. Retrieve performance stats for this scam_type
         $statsEntities = $this->statsRepository->findAllByScamType($scamType);
 
         // 4. Convertir en map persona_code => PersonaPerformance
@@ -113,7 +113,7 @@ final readonly class PersonaOptimizer
             $statsMap[$performance->getPersonaCode()] = $performance;
         }
 
-        // 5. Construire la liste complète avec cold start pour personas sans stats
+        // 5. Build complete list with cold start for personas without stats
         $performances = [];
 
         foreach ($allPersonas as $persona) {
@@ -132,7 +132,7 @@ final readonly class PersonaOptimizer
             }
         }
 
-        // 6. Vérifier si TOUS les personas sont en cold start
+        // 6. Check if ALL personas are in cold start
         $allInColdStart = true;
 
         foreach ($performances as $perf) {
@@ -143,9 +143,9 @@ final readonly class PersonaOptimizer
             }
         }
 
-        // 7. Sélection selon la stratégie
+        // 7. Selection based on strategy
         if ($allInColdStart) {
-            // TOUS en cold start → Sélection aléatoire uniforme (pure exploration)
+            // ALL in cold start -> Uniform random selection (pure exploration)
             $selectedPersona = $this->selectRandomPersona($performances);
 
             $this->logger->info('Persona selected: ALL COLD START', [
@@ -179,7 +179,7 @@ final readonly class PersonaOptimizer
         $random = mt_rand() / mt_getrandmax();
 
         if ($random < $effectiveEpsilon) {
-            // EXPLORATION (20%) : Sélection aléatoire
+            // EXPLORATION (20%): Random selection
             $selectedPersona = $this->selectRandomPersona($performances);
 
             $this->logger->info('Persona selected: EXPLORATION', [
@@ -243,7 +243,7 @@ final readonly class PersonaOptimizer
     }
 
     /**
-     * Sélectionne un persona aléatoire (distribution uniforme).
+     * Selects a random persona (uniform distribution).
      *
      * @param PersonaPerformance[] $performances
      */
@@ -259,9 +259,9 @@ final readonly class PersonaOptimizer
     }
 
     /**
-     * Sélectionne le persona avec le meilleur reward_avg.
-     * En cas d'égalité, sélectionne celui avec le plus de sessions (plus de confiance).
-     * Si égalité parfaite, sélectionne aléatoirement parmi les ex-aequo.
+     * Selects the persona with the best reward_avg.
+     * In case of tie, selects the one with the most sessions (higher confidence).
+     * If perfect tie, selects randomly among tied candidates.
      *
      * @param PersonaPerformance[] $performances
      */
@@ -271,10 +271,10 @@ final readonly class PersonaOptimizer
             throw new \RuntimeException('Cannot select best persona from empty list');
         }
 
-        // Filtrer les personas en cold start (ne peuvent pas être exploités)
+        // Filter personas in cold start (cannot be exploited)
         $eligiblePerformances = array_filter($performances, fn (PersonaPerformance $perf): bool => !$perf->isInColdStart());
 
-        // Si TOUS sont en cold start (ne devrait pas arriver ici, mais sécurité)
+        // If ALL are in cold start (should not reach here, but safety check)
         if ($eligiblePerformances === []) {
             return $this->selectRandomPersona($performances);
         }
@@ -303,7 +303,7 @@ final readonly class PersonaOptimizer
         $bestScore = $eligiblePerformances[0]->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C);
         $bestPerformances = array_filter($eligiblePerformances, fn (PersonaPerformance $perf): bool => abs($perf->getAdjustedScore($totalSessions, self::EXPLORATION_BONUS_C) - $bestScore) < 0.0001);
 
-        // Si plusieurs ex-aequo, sélection aléatoire
+        // If multiple tied, random selection
         if (count($bestPerformances) > 1) {
             $randomIndex = array_rand($bestPerformances);
 
@@ -378,7 +378,7 @@ final readonly class PersonaOptimizer
     }
 
     /**
-     * Retourne les statistiques de sélection pour un scam_type (pour debugging/monitoring).
+     * Returns selection statistics for a scam_type (for debugging/monitoring).
      *
      * @param string $scamTypeCode Code du scam type
      *

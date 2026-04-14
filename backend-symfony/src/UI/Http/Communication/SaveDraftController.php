@@ -34,10 +34,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         )
     ),
     responses: [
-        new OA\Response(response: 204, description: 'Brouillon sauvegardé'),
+        new OA\Response(response: 204, description: 'Draft saved'),
         new OA\Response(
             response: 404,
-            description: 'Message non trouvé',
+            description: 'Message not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],
