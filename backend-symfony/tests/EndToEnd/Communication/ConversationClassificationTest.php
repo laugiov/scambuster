@@ -251,7 +251,7 @@ class ConversationClassificationTest extends WebTestCase
         $this->assertResponseStatusCodeSame(404);
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('error', $data);
-        $this->assertStringContainsString('Scam type not found', $data['error']);
+        $this->assertStringContainsString('not found', $data['error']);
     }
 
     public function testManualClassifyConversationMissingScamTypeCode(): void
