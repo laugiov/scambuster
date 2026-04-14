@@ -880,4 +880,185 @@ final class StixBundleBuilderMutationTest extends TestCase
     {
         return array_values(array_filter($bundle['objects'], fn ($obj) => ($obj['type'] ?? '') === $type));
     }
+
+    // ── TLP normalization: strtoupper ensures case-insensitivity ──
+
+    public function testTlpLowercaseAmberNormalized(): void
+    {
+        $bundle = $this->builder->buildBundle([], [], 'amber');
+        $marking = $this->findObject($bundle, 'marking-definition');
+        self::assertSame('marking-definition--f88d31f6-486f-44da-b317-01333bde0b82', $marking['id']);
+    }
+
+    public function testTlpMixedCaseGreenNormalized(): void
+    {
+        $bundle = $this->builder->buildBundle([], [], 'Green');
+        $marking = $this->findObject($bundle, 'marking-definition');
+        self::assertSame('marking-definition--34098fce-860f-48ae-8e50-ebd3cc5e41da', $marking['id']);
+    }
+
+    // ── Relationship limit ──
+
+    public function testRelationshipLimitedTo100(): void
+    {
+        $rels = [];
+        for ($i = 0; $i < 110; ++$i) {
+            $rels[] = [
+                'source_indicator_id' => "s{$i}", 'target_indicator_id' => "t{$i}",
+                'source_type' => 'domain', 'source_value_norm' => "s{$i}.com",
+                'target_type' => 'email', 'target_value_norm' => "t{$i}@b.com",
+                'weight' => 1,
+            ];
+        }
+        $bundle = $this->builder->buildBundle([], $rels);
+        $relationships = $this->findAllObjects($bundle, 'relationship');
+        self::assertLessThanOrEqual(100, count($relationships), 'Relationships must be capped at 100');
+    }
+
+    public function testRelationshipBreakNotContinueAt100(): void
+    {
+        // With exactly 101 relationships, only 100 should appear (break, not continue)
+        $rels = [];
+        for ($i = 0; $i < 101; ++$i) {
+            $rels[] = [
+                'source_indicator_id' => "s{$i}", 'target_indicator_id' => "t{$i}",
+                'source_type' => 'domain', 'source_value_norm' => "s{$i}.com",
+                'target_type' => 'email', 'target_value_norm' => "t{$i}@b.com",
+                'weight' => 1,
+            ];
+        }
+        $bundle = $this->builder->buildBundle([], $rels);
+        $relationships = $this->findAllObjects($bundle, 'relationship');
+        self::assertSame(100, count($relationships), 'Must stop at exactly 100 relationships');
+    }
+
+    // ── Report fields ──
+
+    public function testReportTypeExact(): void
+    {
+        $bundle = $this->builder->buildBundle([]);
+        $report = $this->findObject($bundle, 'report');
+        self::assertSame('report', $report['type']);
+        self::assertSame('2.1', $report['spec_version']);
+    }
+
+    public function testReportNameDefault(): void
+    {
+        $bundle = $this->builder->buildBundle([]);
+        $report = $this->findObject($bundle, 'report');
+        self::assertSame('ScamBuster IOC Export', $report['name']);
+    }
+
+    public function testReportCustomName(): void
+    {
+        $bundle = $this->builder->buildBundle([], [], 'AMBER', 'My Report');
+        $report = $this->findObject($bundle, 'report');
+        self::assertSame('My Report', $report['name']);
+    }
+
+    public function testReportDescriptionDefault(): void
+    {
+        $bundle = $this->builder->buildBundle([]);
+        $report = $this->findObject($bundle, 'report');
+        self::assertSame('Threat intelligence collected by ScamBuster automated honeypot', $report['description']);
+    }
+
+    public function testReportCustomDescription(): void
+    {
+        $bundle = $this->builder->buildBundle([], [], 'AMBER', 'Report', 'Custom desc');
+        $report = $this->findObject($bundle, 'report');
+        self::assertSame('Custom desc', $report['description']);
+    }
+
+    public function testReportLabelsContainThreatReportAndScam(): void
+    {
+        $bundle = $this->builder->buildBundle([]);
+        $report = $this->findObject($bundle, 'report');
+        self::assertSame(['threat-report', 'scam'], $report['labels']);
+    }
+
+    public function testReportObjectRefsIncludesIdentity(): void
+    {
+        $bundle = $this->builder->buildBundle([]);
+        $report = $this->findObject($bundle, 'report');
+        self::assertContains('identity--f431f809-377b-45e0-aa1c-6a4751cae5ff', $report['object_refs']);
+    }
+
+    public function testReportObjectRefsIncludesIndicators(): void
+    {
+        $iocs = [['type' => 'domain', 'value' => 'evil.com', 'value_norm' => 'evil.com', 'first_seen' => '2026-01-01']];
+        $bundle = $this->builder->buildBundle($iocs);
+        $report = $this->findObject($bundle, 'report');
+        $ind = $this->findObject($bundle, 'indicator');
+        self::assertContains($ind['id'], $report['object_refs']);
+    }
+
+    public function testReportCreatedByRefIsIdentity(): void
+    {
+        $bundle = $this->builder->buildBundle([]);
+        $report = $this->findObject($bundle, 'report');
+        self::assertSame('identity--f431f809-377b-45e0-aa1c-6a4751cae5ff', $report['created_by_ref']);
+    }
+
+    public function testReportIdStartsWithReportPrefix(): void
+    {
+        $bundle = $this->builder->buildBundle([]);
+        $report = $this->findObject($bundle, 'report');
+        self::assertStringStartsWith('report--', $report['id']);
+    }
+
+    // ── Multiple IOCs ──
+
+    public function testMultipleIocsProduceMultipleIndicators(): void
+    {
+        $iocs = [
+            ['type' => 'domain', 'value' => 'a.com', 'value_norm' => 'a.com', 'first_seen' => '2026-01-01'],
+            ['type' => 'email', 'value' => 'b@c.com', 'value_norm' => 'b@c.com', 'first_seen' => '2026-01-01'],
+        ];
+        $bundle = $this->builder->buildBundle($iocs);
+        $indicators = $this->findAllObjects($bundle, 'indicator');
+        self::assertCount(2, $indicators);
+    }
+
+    // ── Pattern for various types ──
+
+    public function testPatternForUrlType(): void
+    {
+        $iocs = [['type' => 'url', 'value' => 'https://evil.com/phish', 'value_norm' => 'https://evil.com/phish', 'first_seen' => '2026-01-01']];
+        $bundle = $this->builder->buildBundle($iocs);
+        $ind = $this->findObject($bundle, 'indicator');
+        self::assertSame("[url:value = 'https://evil.com/phish']", $ind['pattern']);
+    }
+
+    public function testPatternForIpv4Type(): void
+    {
+        $iocs = [['type' => 'ipv4', 'value' => '192.168.1.1', 'value_norm' => '192.168.1.1', 'first_seen' => '2026-01-01']];
+        $bundle = $this->builder->buildBundle($iocs);
+        $ind = $this->findObject($bundle, 'indicator');
+        self::assertSame("[ipv4-addr:value = '192.168.1.1']", $ind['pattern']);
+    }
+
+    public function testPatternForSha256FileHash(): void
+    {
+        $iocs = [['type' => 'sha256', 'value' => 'abc123def', 'value_norm' => 'abc123def', 'first_seen' => '2026-01-01']];
+        $bundle = $this->builder->buildBundle($iocs);
+        $ind = $this->findObject($bundle, 'indicator');
+        self::assertSame("[file:hashes.'SHA-256' = 'abc123def']", $ind['pattern']);
+    }
+
+    public function testPatternForPhoneNumber(): void
+    {
+        $iocs = [['type' => 'phone', 'value' => '+33612345', 'value_norm' => '+33612345', 'first_seen' => '2026-01-01']];
+        $bundle = $this->builder->buildBundle($iocs);
+        $ind = $this->findObject($bundle, 'indicator');
+        self::assertStringContainsString('+33612345', $ind['pattern']);
+    }
+
+    public function testPatternEscapesSingleQuoteChars(): void
+    {
+        $iocs = [['type' => 'domain', 'value' => "it's.evil.com", 'value_norm' => "it's.evil.com", 'first_seen' => '2026-01-01']];
+        $bundle = $this->builder->buildBundle($iocs);
+        $ind = $this->findObject($bundle, 'indicator');
+        self::assertStringContainsString("\\'", $ind['pattern']);
+    }
 }

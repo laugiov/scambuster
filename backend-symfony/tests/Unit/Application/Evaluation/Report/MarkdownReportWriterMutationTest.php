@@ -496,4 +496,265 @@ final class MarkdownReportWriterMutationTest extends TestCase
         $this->assertStringContainsString('> ' . str_repeat('x', 200), $content);
         $this->assertStringNotContainsString(str_repeat('x', 300), $content);
     }
+
+    // === Metric value formatted to 2 decimal places ===
+
+    public function test_metric_value_formatted_2_decimals(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $metrics = [new MetricResult('m', 'd', 0.12345, 0.6, 'gt', 50, 'detail')];
+        $this->writer->writeQualityReport($metrics, [], [], [], 'PASS', 50, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('0.12', $content);
+    }
+
+    public function test_metric_threshold_formatted_2_decimals(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $metrics = [new MetricResult('m', 'd', 0.5, 0.66789, 'gt', 50, 'detail')];
+        $this->writer->writeQualityReport($metrics, [], [], [], 'PASS', 50, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('0.67', $content);
+    }
+
+    // === INSUFFICIENT_DATA verdict rendered with underscores ===
+
+    public function test_insufficient_data_verdict_italic(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        // sampleSize=5 < minSampleSize=10 => verdict = INSUFFICIENT_DATA
+        $metrics = [new MetricResult('m', 'd', 0.9, 0.6, 'gt', 5, 'detail')];
+        $this->writer->writeQualityReport($metrics, [], [], [], 'PASS', 5, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('_INSUFFICIENT_DATA_', $content);
+    }
+
+    // === Best/worst reply numbering starts at 1 ===
+
+    public function test_best_reply_numbered_from_1(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $best = [
+            ['persona_code' => 'p1', 'scam_type' => 's1', 'text' => 'first', 'naturalness' => 5, 'persona_fit' => 4, 'ti_value' => 3, 'word_count' => 50],
+            ['persona_code' => 'p2', 'scam_type' => 's2', 'text' => 'second', 'naturalness' => 4, 'persona_fit' => 3, 'ti_value' => 2, 'word_count' => 40],
+        ];
+        $this->writer->writeQualityReport([], $best, [], [], 'PASS', 10, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('#1', $content);
+        $this->assertStringContainsString('#2', $content);
+    }
+
+    // === Worst reply also numbered ===
+
+    public function test_worst_reply_numbered_from_1(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $worst = [
+            ['persona_code' => 'p1', 'scam_type' => 's1', 'text' => 'bad1', 'naturalness' => 1, 'persona_fit' => 1, 'ti_value' => 1, 'word_count' => 5],
+        ];
+        $this->writer->writeQualityReport([], [], $worst, [], 'FAIL', 10, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('#1', $content);
+    }
+
+    // === Corpus size exact text format ===
+
+    public function test_corpus_size_format_exact(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $this->writer->writeQualityReport([], [], [], [], 'PASS', 123, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('**Corpus size**: 123 entries', $content);
+    }
+
+    // === Overall verdict format exact ===
+
+    public function test_overall_verdict_format_exact(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $this->writer->writeQualityReport([], [], [], [], 'WARN', 10, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('**Overall verdict**: **WARN**', $content);
+    }
+
+    // === Bandit report: scam type table has correct columns ===
+
+    public function test_bandit_scam_type_table_headers(): void
+    {
+        $path = $this->tmpDir . '/b.md';
+        $report = [
+            'total_conversations' => 10,
+            'overall_convergence' => false,
+            'cumulative_regret' => 0,
+            'random_baseline_regret' => 0,
+            'scam_type_analyses' => [
+                ['scam_type' => 'X', 'sessions_count' => 5, 'dominant_persona' => 'p', 'dominant_percentage' => 0.5, 'converged' => false],
+            ],
+        ];
+        $this->writer->writeBanditReport($report, $path);
+        $content = $this->readReport('b.md');
+        $this->assertStringContainsString('| Scam Type | Sessions | Dominant Persona | Share | Converged |', $content);
+    }
+
+    // === Bandit not-converged shows lowercase 'no' ===
+
+    public function test_bandit_not_converged_lowercase_no(): void
+    {
+        $path = $this->tmpDir . '/b.md';
+        $report = [
+            'total_conversations' => 10,
+            'overall_convergence' => false,
+            'cumulative_regret' => 0,
+            'random_baseline_regret' => 0,
+            'scam_type_analyses' => [
+                ['scam_type' => 'X', 'sessions_count' => 5, 'dominant_persona' => 'p', 'dominant_percentage' => 0.5, 'converged' => false],
+            ],
+        ];
+        $this->writer->writeBanditReport($report, $path);
+        $content = $this->readReport('b.md');
+        // Converged false should show 'no' (lowercase)
+        $this->assertMatchesRegularExpression('/\| no \|/', $content);
+    }
+
+    // === Bandit report: sessions count shown as integer ===
+
+    public function test_bandit_sessions_count_exact(): void
+    {
+        $path = $this->tmpDir . '/b.md';
+        $report = [
+            'total_conversations' => 10,
+            'overall_convergence' => false,
+            'cumulative_regret' => 0,
+            'random_baseline_regret' => 0,
+            'scam_type_analyses' => [
+                ['scam_type' => 'PHISHING', 'sessions_count' => 42, 'dominant_persona' => 'elderly', 'dominant_percentage' => 0.6, 'converged' => false],
+            ],
+        ];
+        $this->writer->writeBanditReport($report, $path);
+        $content = $this->readReport('b.md');
+        $this->assertStringContainsString('| 42 |', $content);
+    }
+
+    // === Bandit regret analysis section present ===
+
+    public function test_bandit_regret_reduction_exact_format(): void
+    {
+        $path = $this->tmpDir . '/b.md';
+        // regretReduction = (1 - 2.0/10.0) * 100 = 80.0%
+        $this->writer->writeBanditReport([
+            'total_conversations' => 10,
+            'overall_convergence' => false,
+            'cumulative_regret' => 2.0,
+            'random_baseline_regret' => 10.0,
+        ], $path);
+        $content = $this->readReport('b.md');
+        $this->assertStringContainsString('Regret reduction vs random: 80.0%', $content);
+    }
+
+    // === Corpus summary: $-formatted cost ===
+
+    public function test_corpus_cost_with_dollar_sign(): void
+    {
+        $path = $this->tmpDir . '/c.md';
+        $this->writer->writeCorpusSummary(['total' => 10, 'approved' => 10, 'fallback' => 0, 'total_cost' => 2.3456], $path);
+        $content = $this->readReport('c.md');
+        $this->assertStringContainsString('$2.3456', $content);
+    }
+
+    // === Corpus summary: exact label text ===
+
+    public function test_corpus_total_entries_label(): void
+    {
+        $path = $this->tmpDir . '/c.md';
+        $this->writer->writeCorpusSummary(['total' => 77, 'approved' => 70, 'fallback' => 7, 'total_cost' => 0], $path);
+        $content = $this->readReport('c.md');
+        $this->assertStringContainsString('**Total entries**: 77', $content);
+        $this->assertStringContainsString('**Approved**: 70', $content);
+        $this->assertStringContainsString('**Fallback used**: 7', $content);
+    }
+
+    // === Corpus summary: table formatting ===
+
+    public function test_corpus_persona_table_format(): void
+    {
+        $path = $this->tmpDir . '/c.md';
+        $this->writer->writeCorpusSummary(['total' => 10, 'approved' => 10, 'fallback' => 0, 'total_cost' => 0, 'personas' => ['elderly' => 3]], $path);
+        $content = $this->readReport('c.md');
+        $this->assertStringContainsString('| elderly | 3 |', $content);
+    }
+
+    // === Persona matrix table header includes persona names ===
+
+    public function test_persona_matrix_header_has_names(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $matrix = ['alpha' => ['alpha' => 1.0, 'beta' => 0.5], 'beta' => ['alpha' => 0.5, 'beta' => 1.0]];
+        $this->writer->writeQualityReport([], [], [], $matrix, 'PASS', 10, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('alpha', $content);
+        $this->assertStringContainsString('beta', $content);
+    }
+
+    // === Reply text blockquote with newline handling ===
+
+    public function test_multiline_reply_text_blockquoted(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $text = "First line\nSecond line";
+        $best = [['persona_code' => 'p', 'scam_type' => 's', 'text' => $text, 'naturalness' => 5, 'persona_fit' => 5, 'ti_value' => 5, 'word_count' => 10]];
+        $this->writer->writeQualityReport([], $best, [], [], 'PASS', 10, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString("> First line\n> Second line", $content);
+    }
+
+    // === Bandit total conversations label ===
+
+    public function test_bandit_total_conversations_label(): void
+    {
+        $path = $this->tmpDir . '/b.md';
+        $this->writer->writeBanditReport(['total_conversations' => 99, 'overall_convergence' => false, 'cumulative_regret' => 0, 'random_baseline_regret' => 0], $path);
+        $content = $this->readReport('b.md');
+        $this->assertStringContainsString('**Total conversations analyzed**: 99', $content);
+    }
+
+    // === Bandit cumulative regret label ===
+
+    public function test_bandit_cumulative_regret_label(): void
+    {
+        $path = $this->tmpDir . '/b.md';
+        $this->writer->writeBanditReport(['total_conversations' => 10, 'overall_convergence' => false, 'cumulative_regret' => 3.14, 'random_baseline_regret' => 7.0], $path);
+        $content = $this->readReport('b.md');
+        $this->assertStringContainsString('Cumulative regret (vs oracle): 3.14', $content);
+        $this->assertStringContainsString('Random baseline regret: 7.00', $content);
+    }
+
+    // === File ends with newline ===
+
+    public function test_file_ends_with_newline(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $this->writer->writeQualityReport([], [], [], [], 'PASS', 0, $path);
+        $content = file_get_contents($path);
+        $this->assertStringEndsWith("\n", $content);
+    }
+
+    // === Missing entry fields default to ? ===
+
+    public function test_missing_persona_code_defaults_to_question_mark(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $best = [['scam_type' => 'PHISHING', 'text' => 'text', 'naturalness' => 5, 'persona_fit' => 5, 'ti_value' => 5, 'word_count' => 10]];
+        $this->writer->writeQualityReport([], $best, [], [], 'PASS', 10, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('? / PHISHING', $content);
+    }
+
+    public function test_missing_scam_type_defaults_to_question_mark(): void
+    {
+        $path = $this->tmpDir . '/q.md';
+        $best = [['persona_code' => 'elderly', 'text' => 'text', 'naturalness' => 5, 'persona_fit' => 5, 'ti_value' => 5, 'word_count' => 10]];
+        $this->writer->writeQualityReport([], $best, [], [], 'PASS', 10, $path);
+        $content = $this->readReport('q.md');
+        $this->assertStringContainsString('elderly / ?', $content);
+    }
 }
