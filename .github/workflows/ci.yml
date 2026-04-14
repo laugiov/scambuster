@@ -234,7 +234,7 @@ jobs:
         run: |
           docker compose exec backend-test vendor/bin/phpunit \
             --configuration phpunit.ci.xml \
-            --testsuite unit,integration \
+            --testsuite unit,integration,functional \
             --exclude-group compiler-pass \
             --coverage-clover /tmp/coverage.xml \
             --testdox --colors=never
