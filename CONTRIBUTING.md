@@ -65,6 +65,10 @@ This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md). By par
 
 ScamBuster is a **defensive research tool** — contributions must align with ethical and legal guidelines (see [SECURITY.md](SECURITY.md)).
 
+## Community
+
+Join the conversation: [GitHub Discussions](https://github.com/laugiov/scambuster/discussions) | [Report security issues](SECURITY.md)
+
 ## Questions?
 
-Open a GitHub Discussion or Issue for questions about contributing.
+Open a [GitHub Discussion](https://github.com/laugiov/scambuster/discussions) or [Issue](https://github.com/laugiov/scambuster/issues) for questions about contributing.

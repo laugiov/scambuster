@@ -18,15 +18,15 @@ use Psr\Log\LoggerInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Générateur de conversations scam réalistes pour environnement preprod
+ * Generator for realistic scam conversations for preprod environment
  *
- * Utilise des templates LLM + variations pour créer 10 000 conversations uniques
- * distribuées uniformément sur 27 personas × 13 scam types
+ * Uses LLM templates + variations to create 10,000 unique conversations
+ * uniformly distributed across 27 personas x 13 scam types
  */
 class ConversationGenerator
 {
     private const MIN_MESSAGES = 2;
-    private const MAX_MESSAGES = 50;  // Augmenté pour conversations réalistes longues
+    private const MAX_MESSAGES = 50;  // Increased for realistic long conversations
     /** @phpstan-ignore-next-line Reserved for future use */
     private const MIN_TURNS = 2;      // Minimum 2 tours (1 scammer + 1 victim)
     /** @phpstan-ignore-next-line Reserved for future use */
@@ -44,10 +44,10 @@ class ConversationGenerator
     }
 
     /**
-     * Génère une conversation scam réaliste
+     * Generates a realistic scam conversation
      *
      * @param ScamType $scamType     Type de scam
-     * @param Persona  $persona      Persona à utiliser
+     * @param Persona  $persona      Persona to use
      * @param Channel  $channel      Canal de communication
      * @param int      $messageCount Nombre de messages (2-15)
      */
@@ -70,7 +70,7 @@ class ConversationGenerator
             'message_count' => $messageCount,
         ]);
 
-        // Générer le contexte et les IOCs
+        // Generate context and IOCs
         $this->logger->info('[DEBUG] Generating context...');
         $context = $this->generateContext($scamType, $persona, $channel);
         $this->logger->info('[DEBUG] Context generated, generating IOCs...');
@@ -80,12 +80,12 @@ class ConversationGenerator
             'iocs_content' => json_encode($iocs, JSON_UNESCAPED_UNICODE),
         ]);
 
-        // Récupérer ou créer un MailAccount factice pour preprod
+        // Retrieve or create a dummy MailAccount for preprod
         $mailAccount = $this->getOrCreatePreprodMailAccount();
 
         $tsFirst = new \DateTimeImmutable(sprintf('-%d days -%d hours', random_int(1, 90), random_int(0, 23)));
 
-        // Créer la conversation avec tous les paramètres requis
+        // Create conversation with all required parameters
         $conversation = new Conversation(
             convId: $this->generateUuid(),
             primaryChannel: $channel,
@@ -111,7 +111,7 @@ class ConversationGenerator
             throw new \RuntimeException('Directions not found in database');
         }
 
-        // Générer la conversation COMPLÈTE via 1 seul appel LLM (plus rapide!)
+        // Generate the COMPLETE conversation via 1 single LLM call (faster!)
         $conversationMessages = $this->generateFullConversationDirect(
             scamType: $scamType,
             persona: $persona,
@@ -126,7 +126,7 @@ class ConversationGenerator
             'message_count' => count($conversationMessages),
         ]);
 
-        // Créer les entités Message
+        // Create Message entities
         $currentTime = $tsFirst;
         $lastMessageTime = $tsFirst;
         $turnsCount = 0;
@@ -169,28 +169,28 @@ class ConversationGenerator
             $this->em->persist($message);
             $messages[] = $message; // Store for IOC extraction
 
-            // Compter les tours de parole (scammer + victim = 1 tour)
+            // Count conversation turns (scammer + victim = 1 turn)
             if ($i % 2 === 1) {
                 $turnsCount++;
             }
 
-            // Incrémenter le temps entre messages (1h à 48h)
+            // Increment time between messages (1h to 48h)
             $hoursGap = random_int(1, 48);
             $lastMessageTime = $currentTime;
             $currentTime = $currentTime->modify(sprintf('+%d hours', $hoursGap));
         }
 
-        // Calculer la durée d'engagement (temps entre premier et dernier message)
+        // Calculate engagement duration (time between first and last message)
         $engagementDurationSec = $lastMessageTime->getTimestamp() - $tsFirst->getTimestamp();
 
-        // Mettre à jour les métriques de la conversation
+        // Update conversation metrics
         $conversation->setEngagementDurationSec($engagementDurationSec);
         $conversation->setTurnsCount($turnsCount);
 
         // Persist conversation explicitly before flush (fixes Doctrine cascade error)
         $this->em->persist($conversation);
 
-        $this->logger->error('[IOC-TRACE-1] AVANT FLUSH - Conversation va être persistée', [
+        $this->logger->error('[IOC-TRACE-1] BEFORE FLUSH - Conversation will be persisted', [
             'message_count' => count($messages),
             'conversation_status' => $conversation->getStatus(),
         ]);
@@ -198,12 +198,12 @@ class ConversationGenerator
         // Flush messages to database BEFORE extracting IOCs (so they have IDs)
         $this->em->flush();
 
-        $this->logger->error('[IOC-TRACE-2] APRÈS FLUSH - Messages persistés, début extraction IOCs', [
+        $this->logger->error('[IOC-TRACE-2] AFTER FLUSH - Messages persisted, starting IOC extraction', [
             'message_count' => count($messages),
         ]);
 
         // Extract IOCs from all messages using production-style extraction (hybrid regex+LLM)
-        // ATTENTION: Mode 'hybrid' utilise le LLM pour chaque message, ceci peut être lent !
+        // WARNING: 'hybrid' mode uses the LLM for each message, this can be slow!
         $convId = $conversation->getConvId();
         $convIdStr = $convId;
 
@@ -218,8 +218,8 @@ class ConversationGenerator
         $messageIndex = 0;
 
         // Extraction IOCs via HTTP API (comme workflow n8n - fonctionne en prod)
-        // Cette approche permet de contourner les problèmes de DATABASE_URL et garantit
-        // que les IOCs sont persistés dans la base preprod via l'endpoint HTTP
+        // This approach works around DATABASE_URL issues and ensures
+        // that IOCs are persisted in the preprod database via the HTTP endpoint
 
         foreach ($messages as $message) {
             $messageIndex++;
@@ -244,7 +244,7 @@ class ConversationGenerator
                 // Utiliser l'approche HTTP API comme le workflow n8n (fonctionne en prod)
                 $iocsCount = $this->extractIocsViaHttp($msgIdStr);
 
-                $this->logger->info('[IOC-HTTP-API] APRÈS extractIocsViaHttp() - Résultat retourné', [
+                $this->logger->info('[IOC-HTTP-API] AFTER extractIocsViaHttp() - Result returned', [
                     'msg_id' => $msgIdStr,
                     'iocs_count' => $iocsCount,
                 ]);
@@ -270,21 +270,21 @@ class ConversationGenerator
             'conversation_id' => $convIdStr,
         ]);
 
-        // NE PAS clôturer ici ! Les conversations restent 'open' pour être fermées
-        // via l'API /close qui calculera les rewards et mettra à jour les stats ε-greedy
+        // DO NOT close here! Conversations remain 'open' to be closed
+        // via the /close API which will calculate rewards and update epsilon-greedy stats
         // (voir doc: docs/scambaiting-adaptatif/RAPPORT-VALIDATION-MULTI-CYCLES.md ligne 42)
 
         return $conversation;
     }
 
     /**
-     * Génère une conversation COMPLÈTE via 1 seul appel LLM (RAPIDE)
-     * Plus simple et plus rapide que l'approche itérative
+     * Generates a COMPLETE conversation via 1 single LLM call (FAST)
+     * Simpler and faster than the iterative approach
      *
      * @param array<string, mixed> $context
      * @param array<string, mixed> $iocs
      *
-     * @return array<int, string> Liste de messages alternés (scammer, victim, scammer, victim...)
+     * @return array<int, string> List of alternating messages (scammer, victim, scammer, victim...)
      */
     private function generateFullConversationDirect(
         ScamType $scamType,
@@ -341,10 +341,10 @@ PROMPT;
             'max_tokens' => 3000,
         ]);
 
-        // Parser la réponse JSON
+        // Parse JSON response
         $cleaned = trim($response);
 
-        // Extraire le JSON s'il y a du texte avant/après
+        // Extract JSON if there is text before/after
         if (preg_match('/\[.*\]/s', $cleaned, $matches)) {
             $cleaned = $matches[0];
         }
@@ -360,7 +360,7 @@ PROMPT;
             throw new \RuntimeException('LLM did not return valid JSON array');
         }
 
-        // S'assurer qu'on a le bon nombre de messages (ajuster si nécessaire)
+        // Ensure we have the correct number of messages (adjust if needed)
         if (count($messages) < $messageCount) {
             $this->logger->warning('LLM returned fewer messages than expected', [
                 'expected' => $messageCount,
@@ -368,7 +368,7 @@ PROMPT;
             ]);
         }
 
-        // Limiter au nombre demandé
+        // Limit to requested count
         /** @var array<int, string> $messages */
         $messages = array_slice($messages, 0, $messageCount);
 
@@ -376,7 +376,7 @@ PROMPT;
     }
 
     /**
-     * Génère un contexte de scam réaliste avec template détaillé
+     * Generates a realistic scam context with detailed template
      *
      * @return array<string, mixed>
      */
@@ -400,7 +400,7 @@ PROMPT;
     }
 
     /**
-     * Génère un sujet d'email réaliste
+     * Generates a realistic email subject
      *
      * @param array<string, mixed> $context
      */
@@ -416,7 +416,7 @@ PROMPT;
     }
 
     /**
-     * Génère des variations pour éviter les répétitions
+     * Generates variations to avoid repetitions
      *
      * @return array<string, mixed>
      */
@@ -432,7 +432,7 @@ PROMPT;
     }
 
     /**
-     * Applique les variations à un template
+     * Applies variations to a template
      *
      * @param array<string, string|int> $variations
      */
@@ -538,18 +538,18 @@ PROMPT;
     }
 
     /**
-     * Récupère ou crée un MailAccount factice pour preprod
+     * Retrieves or creates a dummy MailAccount for preprod
      */
     private function getOrCreatePreprodMailAccount(): MailAccount
     {
-        // Essayer de récupérer un compte existant
+        // Try to retrieve an existing account
         $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
 
         if ($account !== null) {
             return $account;
         }
 
-        // Créer un compte factice si aucun n'existe (basé sur structure réelle dev)
+        // Create a dummy account if none exists (based on real dev structure)
         $account = new MailAccount(
             accountId: $this->generateUuid(),
             ownerId: $this->generateUuid(),
@@ -571,7 +571,7 @@ PROMPT;
     }
 
     /**
-     * Récupère un token JWT d'authentification pour l'API preprod
+     * Retrieves a JWT authentication token for the preprod API
      */
     private function getAuthToken(): string
     {
@@ -609,7 +609,7 @@ PROMPT;
      *
      * @param string $msgId UUID du message
      *
-     * @return int Nombre d'IOCs détectés
+     * @return int Number of detected IOCs
      */
     private function extractIocsViaHttp(string $msgId): int
     {
@@ -626,8 +626,8 @@ PROMPT;
                         'Authorization' => 'Bearer ' . $token,
                     ],
                     'json' => [
-                        'method' => 'llm',  // Utiliser méthode LLM comme en production
-                        'types' => [],      // Extraire tous les types d'IOCs
+                        'method' => 'llm',  // Use LLM method as in production
+                        'types' => [],      // Extract all IOC types
                         'persist' => true,  // Persister en base preprod
                     ],
                     'timeout' => 30,  // 30s timeout pour l'appel LLM
@@ -651,7 +651,7 @@ PROMPT;
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return 0;  // Retourner 0 en cas d'erreur
+            return 0;  // Return 0 on error
         }
     }
 }

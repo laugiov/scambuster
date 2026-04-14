@@ -19,7 +19,7 @@ final readonly class StoreRuleHandler
     }
 
     /**
-     * Crée et stocke une règle DSL compilée.
+     * Creates and stores a compiled DSL rule.
      *
      * @param array{sql: string, params: array<string, mixed>} $compiledData
      *
@@ -34,14 +34,14 @@ final readonly class StoreRuleHandler
             'dsl_length' => mb_strlen($dsl),
         ]);
 
-        // Vérifier existence campagne
+        // Verify campaign exists
         $campaign = $this->em->find(Campaign::class, $campaignId);
 
         if ($campaign === null) {
             throw new \RuntimeException('Campaign not found');
         }
 
-        // Créer règle
+        // Create rule
         $rule = new CampaignRule($campaignId, $dsl);
         $rule->setCompiledData($compiledData); // {sql, params}
         $rule->enable();

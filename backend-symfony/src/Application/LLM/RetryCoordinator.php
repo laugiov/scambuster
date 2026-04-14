@@ -46,6 +46,7 @@ final readonly class RetryCoordinator
         private ?CostEstimator $costEstimator = null,
         private ?OperationalLeakageDetector $leakDetector = null,
         private ?\App\Application\Audit\AuditLogger $auditLogger = null,
+        private string $model = 'gpt-4o',
     ) {
     }
 
@@ -438,6 +439,6 @@ final readonly class RetryCoordinator
 
     private function getModelName(): string
     {
-        return 'gpt-4o';
+        return $this->model;
     }
 }

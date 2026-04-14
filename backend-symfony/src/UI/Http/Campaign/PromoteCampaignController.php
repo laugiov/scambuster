@@ -23,8 +23,8 @@ final readonly class PromoteCampaignController
     }
     #[OA\Post(
         path: '/api/v1/campaign/rule/{ruleId}/promote',
-        summary: 'Promouvoir une règle de campagne',
-        description: 'Promeut une règle de campagne si elle atteint les seuils requis (PPV, nombre de hits). Déclenche également un export STIX automatique.',
+        summary: 'Promote a campaign rule',
+        description: 'Promotes a campaign rule if it meets required thresholds (PPV, hit count). Also triggers an automatic STIX export.',
         security: [['Bearer' => []]],
         tags: ['Campaign'],
         parameters: [
@@ -32,14 +32,14 @@ final readonly class PromoteCampaignController
                 name: 'ruleId',
                 in: 'path',
                 required: true,
-                description: 'UUID de la règle à promouvoir',
+                description: 'UUID of the rule to promote',
                 schema: new OA\Schema(type: 'string', format: 'uuid')
             ),
         ],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Règle promue avec succès',
+                description: 'Rule promoted successfully',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
@@ -61,7 +61,7 @@ final readonly class PromoteCampaignController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Règle introuvable',
+                description: 'Rule not found',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]

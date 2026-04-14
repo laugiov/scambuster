@@ -24,14 +24,14 @@ final readonly class ProfileCampaignController
     #[OA\Post(
         path: '/api/v1/campaign/{campaign_id}/profile',
         summary: 'Profiler une campagne via LLM',
-        description: 'Analyse un échantillon de messages d\'une campagne et génère un profil YAML descriptif via GPT-4. Le profil inclut : résumé, tactiques, cible, CTA, variantes et infrastructure.',
+        description: 'Analyzes a sample of campaign messages and generates a descriptive YAML profile via GPT-4. The profile includes: summary, tactics, target, CTA, variants and infrastructure.',
         tags: ['Campaign Radar'],
         parameters: [
             new OA\Parameter(
                 name: 'campaign_id',
                 in: 'path',
                 required: true,
-                description: 'UUID de la campagne à profiler',
+                description: 'UUID of the campaign to profile',
                 schema: new OA\Schema(type: 'string', format: 'uuid')
             ),
         ],
@@ -43,7 +43,7 @@ final readonly class ProfileCampaignController
                     new OA\Property(
                         property: 'sample_size',
                         type: 'integer',
-                        description: 'Nombre de messages à analyser (min: 3, max: 100)',
+                        description: 'Number of messages to analyze (min: 3, max: 100)',
                         example: 10,
                         default: 10
                     ),
@@ -53,19 +53,19 @@ final readonly class ProfileCampaignController
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Profil généré avec succès',
+                description: 'Profile generated successfully',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
                         new OA\Property(property: 'profile_yaml', type: 'string', description: 'Profil de campagne au format YAML'),
-                        new OA\Property(property: 'cache_hit', type: 'boolean', description: 'True si résultat provient du cache Redis'),
-                        new OA\Property(property: 'attempts', type: 'integer', description: 'Nombre de tentatives LLM nécessaires'),
+                        new OA\Property(property: 'cache_hit', type: 'boolean', description: 'True if result came from Redis cache'),
+                        new OA\Property(property: 'attempts', type: 'integer', description: 'Number of LLM attempts required'),
                     ]
                 )
             ),
             new OA\Response(
                 response: 400,
-                description: 'Paramètres invalides',
+                description: 'Invalid parameters',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -98,7 +98,7 @@ final readonly class ProfileCampaignController
             return new JsonResponse(['error' => 'Invalid campaign_id format'], Response::HTTP_BAD_REQUEST);
         }
 
-        // 2. Paramètres optionnels
+        // 2. Optional parameters
         /** @var array<string, mixed> $data */
         $data = json_decode($request->getContent(), true) ?? [];
         $sampleSize = $data['sample_size'] ?? 10;
@@ -119,7 +119,7 @@ final readonly class ProfileCampaignController
             return new JsonResponse(['error' => 'Profiling failed: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        // 4. Réponse
+        // 4. Response
         return new JsonResponse([
             'profile_yaml' => $result['profile_yaml'],
             'cache_hit' => $result['cache_hit'],

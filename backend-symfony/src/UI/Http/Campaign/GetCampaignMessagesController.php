@@ -23,8 +23,8 @@ final readonly class GetCampaignMessagesController
     }
     #[OA\Get(
         path: '/api/v1/campaign/{campaign_id}/messages',
-        summary: 'Récupérer les messages d\'une campagne',
-        description: 'Retourne la liste des messages appartenant à une campagne, triés par date décroissante. Utile pour inspecter le contenu d\'une campagne détectée.',
+        summary: 'Get messages for a campaign',
+        description: 'Returns messages belonging to a campaign, sorted by date descending. Useful for inspecting detected campaign content.',
         tags: ['Campaign Radar'],
         parameters: [
             new OA\Parameter(
@@ -38,19 +38,19 @@ final readonly class GetCampaignMessagesController
                 name: 'limit',
                 in: 'query',
                 required: false,
-                description: 'Nombre maximum de messages à retourner (défaut: 10, max: 100)',
+                description: 'Maximum number of messages to return (default: 10, max: 100)',
                 schema: new OA\Schema(type: 'integer', default: 10, minimum: 1, maximum: 100)
             ),
         ],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Messages récupérés avec succès',
+                description: 'Messages retrieved successfully',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
                         new OA\Property(property: 'campaign_id', type: 'string', format: 'uuid', description: 'UUID de la campagne'),
-                        new OA\Property(property: 'messages_count', type: 'integer', description: 'Nombre de messages retournés'),
+                        new OA\Property(property: 'messages_count', type: 'integer', description: 'Number of messages returned'),
                         new OA\Property(
                             property: 'messages',
                             type: 'array',
@@ -60,9 +60,9 @@ final readonly class GetCampaignMessagesController
                                 properties: [
                                     new OA\Property(property: 'msg_id', type: 'string', format: 'uuid', description: 'UUID du message'),
                                     new OA\Property(property: 'subject', type: 'string', nullable: true, description: 'Sujet du message'),
-                                    new OA\Property(property: 'from', type: 'string', nullable: true, description: 'Expéditeur (header From)'),
-                                    new OA\Property(property: 'received_at', type: 'string', format: 'date-time', description: 'Date de réception'),
-                                    new OA\Property(property: 'body_preview', type: 'string', description: 'Aperçu du corps (200 premiers caractères)'),
+                                    new OA\Property(property: 'from', type: 'string', nullable: true, description: 'Sender (From header)'),
+                                    new OA\Property(property: 'received_at', type: 'string', format: 'date-time', description: 'Received date'),
+                                    new OA\Property(property: 'body_preview', type: 'string', description: 'Body preview (first 200 characters)'),
                                 ]
                             )
                         ),
@@ -71,7 +71,7 @@ final readonly class GetCampaignMessagesController
             ),
             new OA\Response(
                 response: 400,
-                description: 'Paramètres invalides',
+                description: 'Invalid parameters',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -87,7 +87,7 @@ final readonly class GetCampaignMessagesController
             ),
             new OA\Response(
                 response: 500,
-                description: 'Erreur lors de la récupération des messages',
+                description: 'Error retrieving messages',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -104,7 +104,7 @@ final readonly class GetCampaignMessagesController
             return new JsonResponse(['error' => 'Invalid campaign_id format'], Response::HTTP_BAD_REQUEST);
         }
 
-        // 2. Paramètres query string
+        // 2. Query string parameters
         $limit = (int) ($request->query->get('limit') ?? 10);
 
         if ($limit < 1 || $limit > 100) {

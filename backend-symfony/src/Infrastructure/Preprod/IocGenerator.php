@@ -7,10 +7,10 @@ namespace App\Infrastructure\Preprod;
 use App\Domain\Communication\ScamType;
 
 /**
- * Générateur d'IOCs (Indicators of Compromise) réalistes
+ * Generator for realistic IOCs (Indicators of Compromise)
  *
- * Génère des IOCs fictifs mais plausibles pour les conversations preprod:
- * - Numéros de téléphone
+ * Generates fictitious but plausible IOCs for preprod conversations:
+ * - Phone numbers
  * - IBANs
  * - URLs
  * - Adresses email
@@ -45,7 +45,7 @@ class IocGenerator
     ];
 
     /**
-     * Génère des IOCs adaptés au type de scam
+     * Generates IOCs adapted to the scam type
      *
      * @return array<string, mixed>
      */
@@ -176,7 +176,7 @@ class IocGenerator
     }
 
     /**
-     * Génère un numéro de téléphone réaliste
+     * Generates a realistic phone number
      */
     private function generatePhone(string $type = 'generic'): string
     {
@@ -194,7 +194,7 @@ class IocGenerator
     }
 
     /**
-     * Génère un IBAN réaliste (mais invalide)
+     * Generates a realistic (but invalid) IBAN
      */
     private function generateIban(): string
     {
@@ -212,7 +212,7 @@ class IocGenerator
     }
 
     /**
-     * Génère une adresse Bitcoin réaliste (mais non valide)
+     * Generates a realistic (but invalid) Bitcoin address
      */
     private function generateBitcoinAddress(): string
     {
@@ -260,7 +260,7 @@ class IocGenerator
     }
 
     /**
-     * Génère un email personnel
+     * Generates a personal email
      */
     private function generatePersonalEmail(): string
     {
@@ -276,7 +276,7 @@ class IocGenerator
     }
 
     /**
-     * Génère un email professionnel
+     * Generates a professional email
      */
     private function generateBusinessEmail(): string
     {
@@ -292,7 +292,7 @@ class IocGenerator
     }
 
     /**
-     * Génère un email d'usurpation (spoofed)
+     * Generates a spoofed email
      */
     private function generateSpoofedEmail(string $role = ''): string
     {
@@ -310,7 +310,7 @@ class IocGenerator
     }
 
     /**
-     * Génère un nom de personne
+     * Generates a person name
      */
     private function generateName(): string
     {

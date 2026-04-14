@@ -13,8 +13,8 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
- * Service pour fermer une conversation et dispatcher l'événement ConversationEndedEvent.
- * Point d'entrée principal pour la fin d'une conversation.
+ * Service to close a conversation and dispatch the ConversationEndedEvent.
+ * Main entry point for conversation closure.
  */
 final readonly class ConversationClosureService
 {
@@ -174,11 +174,11 @@ final readonly class ConversationClosureService
 
     /**
      * Ferme plusieurs conversations en batch (pour CRON journalier).
-     * Retourne le nombre de conversations fermées avec succès.
+     * Returns the number of successfully closed conversations.
      *
-     * @param string[] $convIds Liste des IDs de conversations à fermer
+     * @param string[] $convIds List of conversation IDs to close
      *
-     * @return int Nombre de conversations fermées
+     * @return int Number of closed conversations
      */
     public function closeConversationsBatch(array $convIds): int
     {

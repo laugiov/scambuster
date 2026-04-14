@@ -14,9 +14,9 @@ final readonly class DSLTranspiler
     }
 
     /**
-     * Transpile DSL MailGuard vers SQL PostgreSQL avec prepared statements.
+     * Transpile MailGuard DSL to PostgreSQL SQL with prepared statements.
      *
-     * @throws \RuntimeException si parsing échoue
+     * @throws \RuntimeException if parsing fails
      *
      * @return array{sql: string, params: array<string, mixed>, tests: array<string>}
      */
@@ -41,18 +41,18 @@ final readonly class DSLTranspiler
         return [
             'sql' => $compiled['sql'],
             'params' => $compiled['params'],
-            'tests' => [], // TODO pour MVP
+            'tests' => [], // TODO: empty test cases for MVP
         ];
     }
 
     /**
-     * Parse DSL en AST simplifié.
+     * Parses DSL into a simplified AST.
      *
      * @return array{predicates: array<int, array<string, mixed>>}
      */
     private function parseDSL(string $dsl): array
     {
-        // Extraire WHERE clause
+        // Extract WHERE clause
         if (!preg_match('/WHERE\s+(.+?)\s+ACTION/s', $dsl, $whereMatch)) {
             throw new \RuntimeException('DSL parsing failed: WHERE clause not found');
         }
@@ -77,7 +77,7 @@ final readonly class DSLTranspiler
     }
 
     /**
-     * Parse un prédicat individuel.
+     * Parses an individual predicate.
      *
      * @return array{type: string, field?: string, value?: mixed, operator?: string}
      */
@@ -150,7 +150,7 @@ final readonly class DSLTranspiler
     }
 
     /**
-     * Génère SQL depuis AST avec parameterized queries.
+     * Generates SQL from AST with parameterized queries.
      *
      * @param array{predicates: array<int, array<string, mixed>>} $parsed
      *
@@ -184,11 +184,11 @@ final readonly class DSLTranspiler
     }
 
     /**
-     * Génère SQL pour un prédicat avec params.
+     * Generates SQL for a predicate with params.
      *
      * @param array<string, mixed> $pred
-     * @param array<string, mixed> $params Référence modifiée
-     * @param int                  $index  Référence modifiée
+     * @param array<string, mixed> $params Modified by reference
+     * @param int                  $index  Modified by reference
      */
     private function generateSQLForPredicate(array $pred, array &$params, int &$index): string
     {

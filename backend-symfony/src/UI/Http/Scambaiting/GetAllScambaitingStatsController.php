@@ -13,8 +13,8 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Retourne les statistiques agrégées pour tous les scam_types.
- * Affiche un aperçu global des performances.
+ * Returns aggregated statistics for all scam_types.
+ * Shows a global performance overview.
  */
 #[OA\Get(
     path: '/api/v1/scambaiting/stats',

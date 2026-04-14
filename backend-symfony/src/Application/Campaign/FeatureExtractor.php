@@ -62,7 +62,7 @@ final class FeatureExtractor
         $urls = $this->extractUrls($bodyText);
         $domains = array_filter(array_map(fn ($url): ?string => parse_url((string) $url, PHP_URL_HOST) ?: null, $urls));
 
-        // Récupérer métadonnées depuis headers JSONB
+        // Retrieve metadata from headers JSONB
         $headers = $message->getHeaders();
         /** @var array<string, mixed> $auth */
         $auth = $headers['auth'] ?? [];
@@ -79,7 +79,7 @@ final class FeatureExtractor
     }
 
     /**
-     * Features de style : ponctuation, longueur phrases, formalité.
+     * Style features: punctuation, sentence length, formality.
      *
      * @return array{punct_ratio: float, avg_sentence_len: float, formality_score: float}
      */
@@ -94,10 +94,10 @@ final class FeatureExtractor
         ];
     }
 
-    // === Helpers Privés ===
+    // === Private Helpers ===
 
     /**
-     * Simhash (version simplifiée : hash MD5 des tokens normalisés).
+     * Simhash (simplified version: MD5 hash of normalized tokens).
      */
     private function computeSimhash(string $text): string
     {
@@ -167,7 +167,7 @@ final class FeatureExtractor
 
     /**
      * Calcule les âges des domaines (stub pour MVP).
-     * En production : intégrer WHOIS API ou cache Redis.
+     * In production: integrate WHOIS API or Redis cache.
      *
      * @param array<string> $domains
      *
@@ -176,20 +176,20 @@ final class FeatureExtractor
     private function getDomainAges(array $domains): array
     {
         // MVP : retourner âge fictif
-        // TODO : Intégrer WHOIS lookup ou cache externe
-        return array_fill(0, count($domains), 365); // 1 an par défaut
+        // TODO: Integrate WHOIS lookup or external cache
+        return array_fill(0, count($domains), 365); // 1 year default
     }
 
     /** @phpstan-ignore return.unusedType */
     private function getMxProvider(): ?string
     {
         // MVP : stub
-        // TODO : Parser headers Received, détecter provider (Gmail, Office365, OVH, etc.)
+        // TODO: Parse Received headers for provider detection (Gmail, Office365, OVH, etc.)
         return null;
     }
 
     /**
-     * Ratio ponctuation / caractères totaux.
+     * Punctuation / total characters ratio.
      */
     private function calculatePunctuationRatio(string $text): float
     {
@@ -223,7 +223,7 @@ final class FeatureExtractor
     }
 
     /**
-     * Score de formalité (ratio mots longs >6 lettres).
+     * Formality score (ratio of long words >6 letters).
      */
     private function calculateFormalityScore(string $text): float
     {
