@@ -30,7 +30,7 @@ final readonly class GetCampaignDetailController
                 name: 'campaign_id',
                 in: 'path',
                 required: true,
-                description: 'UUID de la campagne',
+                description: 'Campaign UUID',
                 schema: new OA\Schema(type: 'string', format: 'uuid')
             ),
         ],
@@ -70,7 +70,7 @@ final readonly class GetCampaignDetailController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Campagne introuvable',
+                description: 'Campaign not found',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]

@@ -31,7 +31,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         ),
         new OA\Response(
             response: 400,
-            description: 'JSON invalide',
+            description: 'Invalid JSON',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(
@@ -41,7 +41,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         ),
         new OA\Response(
             response: 422,
-            description: 'Erreur de validation',
+            description: 'Validation error',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         )
     ]

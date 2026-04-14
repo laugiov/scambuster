@@ -50,7 +50,7 @@ final readonly class PromoteCampaignController
             ),
             new OA\Response(
                 response: 400,
-                description: 'Seuils de promotion non atteints ou format invalide',
+                description: 'Promotion thresholds not met or invalid format',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [

@@ -209,7 +209,7 @@ final readonly class ExtractIocsController
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'IOC extraction failed'], Response::HTTP_BAD_REQUEST);
         }
     }
 }

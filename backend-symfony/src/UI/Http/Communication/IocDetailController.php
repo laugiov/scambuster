@@ -60,7 +60,7 @@ final readonly class IocDetailController
 
             return new JsonResponse($detail, Response::HTTP_OK);
         } catch (\RuntimeException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+            return new JsonResponse(['error' => 'Indicator not found'], Response::HTTP_NOT_FOUND);
         }
     }
 }

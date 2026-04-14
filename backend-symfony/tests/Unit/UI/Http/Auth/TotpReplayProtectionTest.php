@@ -8,6 +8,7 @@ use App\Application\Audit\AuditLogger;
 use App\Application\Audit\Port\SiemExporterInterface;
 use App\Application\Auth\AuthServiceInterface;
 use App\Application\Auth\Dto\LoginResponseDto;
+use App\Application\Auth\TotpVerifier;
 use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
 use App\UI\Http\Auth\TotpLoginController;
@@ -59,6 +60,7 @@ class TotpReplayProtectionTest extends TestCase
             $this->auditLogger,
             $this->userRepo,
             $this->validator,
+            new TotpVerifier(),  // totpVerifier
             $this->totpAuth,
             null,           // loginIpLimiter
             $this->cache,   // totpReplayCache
@@ -135,6 +137,7 @@ class TotpReplayProtectionTest extends TestCase
             $this->auditLogger,
             $this->userRepo,
             $this->validator,
+            new TotpVerifier(),  // totpVerifier
             $this->totpAuth,
             null,  // loginIpLimiter
             null,  // totpReplayCache — disabled

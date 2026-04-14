@@ -14,7 +14,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Patch(
     path: '/api/v1/communication/conversation/{convId}',
-    summary: 'Modifier une conversation',
+    summary: 'Update a conversation',
     tags: ['Conversations'],
     parameters: [
         new OA\Parameter(name: 'convId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -24,10 +24,10 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         content: new OA\JsonContent(
             type: 'object',
             properties: [
-                new OA\Property(property: 'status', type: 'string', example: 'open', description: 'Statut de la conversation'),
-                new OA\Property(property: 'score_risk', type: 'integer', example: 75, description: 'Score de risque (0-100)'),
-                new OA\Property(property: 'ts_last', type: 'string', format: 'date-time', description: 'Date du dernier message'),
-                new OA\Property(property: 'stix_id', type: 'string', description: 'Identifiant STIX'),
+                new OA\Property(property: 'status', type: 'string', example: 'open', description: 'Conversation status'),
+                new OA\Property(property: 'score_risk', type: 'integer', example: 75, description: 'Risk score (0-100)'),
+                new OA\Property(property: 'ts_last', type: 'string', format: 'date-time', description: 'Date of last message'),
+                new OA\Property(property: 'stix_id', type: 'string', description: 'STIX identifier'),
                 new OA\Property(property: 'scam_type_id', type: 'integer', example: 4, description: 'Scam type ID (allows changing the assigned persona)')
             ]
         )
@@ -40,7 +40,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         ),
         new OA\Response(
             response: 400,
-            description: 'Erreur de validation',
+            description: 'Validation error',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         ),
         new OA\Response(
