@@ -34,20 +34,19 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetMessageByMessageIdController
+final readonly class GetMessageByMessageIdController
 {
     public function __construct(
-        private readonly MessageHandler $handler
+        private MessageHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/message/by-message-id/{messageId}', name: 'get_message_by_message_id', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $messageId): JsonResponse
     {
         $message = $this->handler->getMessageByMessageId($messageId);
 
-        if (!$message || $message->getDeletedAt() !== null) {
+        if (!$message || $message->getDeletedAt() instanceof \DateTimeImmutable) {
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
         }
         $dto = new MessageResponseDto(

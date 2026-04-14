@@ -10,68 +10,23 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'mail_account')]
 class MailAccount
 {
-    #[ORM\Id]
-    #[ORM\Column(name: 'account_id', type: 'uuid', unique: true)]
-    private string $accountId;
-
-    #[ORM\Column(name: 'owner_id', type: 'uuid')]
-    private string $ownerId;
-
-    #[ORM\Column(type: 'string', length: 32)]
-    private string $protocol;
-
-    #[ORM\Column(type: 'string', length: 255)]
-    private string $endpoint;
-
-    #[ORM\Column(name: 'login_hash', type: 'string', length: 255)]
-    private string $loginHash;
-
-    /** @var array<int, string> */
-    #[ORM\Column(name: 'oauth_scopes', type: 'json')]
-    private array $oauthScopes;
-
-    #[ORM\Column(name: 'is_active', type: 'boolean', options: ['default' => true])]
-    private bool $isActive = true;
-
-    #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $createdAt;
-
-    #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $updatedAt;
-
-    #[ORM\Column(name: 'port', type: 'integer', nullable: true)]
-    private ?int $port = null;
-
-    #[ORM\Column(name: 'secure', type: 'boolean', nullable: true)]
-    private ?bool $secure = null;
-
     /**
      * @param array<int, string> $oauthScopes
      */
-    public function __construct(
-        string $accountId,
-        string $ownerId,
-        string $protocol,
-        string $endpoint,
-        string $loginHash,
-        array $oauthScopes,
-        bool $isActive = true,
-        ?\DateTimeImmutable $createdAt = null,
-        ?\DateTimeImmutable $updatedAt = null,
-        ?int $port = null,
-        ?bool $secure = null
-    ) {
-        $this->accountId = $accountId;
-        $this->ownerId = $ownerId;
-        $this->protocol = $protocol;
-        $this->endpoint = $endpoint;
-        $this->loginHash = $loginHash;
-        $this->oauthScopes = $oauthScopes;
-        $this->isActive = $isActive;
-        $this->createdAt = $createdAt ?? new \DateTimeImmutable();
-        $this->updatedAt = $updatedAt ?? new \DateTimeImmutable();
-        $this->port = $port;
-        $this->secure = $secure;
+    public function __construct(#[ORM\Id]
+        #[ORM\Column(name: 'account_id', type: 'uuid', unique: true)]
+        private string $accountId, #[ORM\Column(name: 'owner_id', type: 'uuid')]
+        private string $ownerId, #[ORM\Column(type: 'string', length: 32)]
+        private string $protocol, #[ORM\Column(type: 'string', length: 255)]
+        private string $endpoint, #[ORM\Column(name: 'login_hash', type: 'string', length: 255)]
+        private string $loginHash, #[ORM\Column(name: 'oauth_scopes', type: 'json')]
+        private array $oauthScopes, #[ORM\Column(name: 'is_active', type: 'boolean', options: ['default' => true])]
+        private bool $isActive = true, #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $createdAt = new \DateTimeImmutable(), #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $updatedAt = new \DateTimeImmutable(), #[ORM\Column(name: 'port', type: 'integer', nullable: true)]
+        private ?int $port = null, #[ORM\Column(name: 'secure', type: 'boolean', nullable: true)]
+        private ?bool $secure = null)
+    {
     }
 
     public function getAccountId(): string

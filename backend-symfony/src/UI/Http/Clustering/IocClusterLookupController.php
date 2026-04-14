@@ -22,13 +22,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [['Bearer' => []]],
 )]
-final class IocClusterLookupController
+final readonly class IocClusterLookupController
 {
     public function __construct(
-        private readonly ClusterQueryService $queryService,
+        private ClusterQueryService $queryService,
     ) {
     }
-
     #[Route('/api/v1/iocs/{indicatorId}/cluster', name: 'ioc_cluster_lookup', methods: ['GET'])]
     #[IsGranted('ioc:read')]
     public function __invoke(string $indicatorId): JsonResponse

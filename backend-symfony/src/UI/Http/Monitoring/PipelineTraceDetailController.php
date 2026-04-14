@@ -13,13 +13,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/monitoring/pipeline-traces/{msgId}', name: 'api_monitoring_pipeline_trace_detail', methods: ['GET'])]
 #[IsGranted('monitoring:read')]
-final class PipelineTraceDetailController
+final readonly class PipelineTraceDetailController
 {
     public function __construct(
-        private readonly PipelineTraceHandler $handler,
+        private PipelineTraceHandler $handler,
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/monitoring/pipeline-traces/{msgId}',
         summary: 'Get full pipeline trace for a specific message',

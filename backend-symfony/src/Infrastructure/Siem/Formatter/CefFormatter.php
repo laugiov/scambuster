@@ -28,11 +28,11 @@ final class CefFormatter implements SiemEventFormatterInterface
         $header = sprintf(
             'CEF:%d|%s|%s|%s|%s|%s|%d',
             self::CEF_VERSION,
-            self::escape(self::VENDOR),
-            self::escape(self::PRODUCT),
+            $this->escape(self::VENDOR),
+            $this->escape(self::PRODUCT),
             self::PRODUCT_VERSION,
             $event->eventType->value,
-            self::escape($this->getEventName($event)),
+            $this->escape($this->getEventName($event)),
             $event->severity,
         );
 
@@ -77,33 +77,33 @@ final class CefFormatter implements SiemEventFormatterInterface
 
         $parts[] = 'rt=' . $event->timestamp->format('U') . '000';
         $parts[] = 'cat=' . SiemSeverityMap::getEcsCategory($event->eventType);
-        $parts[] = 'outcome=' . self::escape($event->outcome);
-        $parts[] = 'suser=' . self::escape($event->actorId);
-        $parts[] = 'suid=' . self::escape($event->actorType);
+        $parts[] = 'outcome=' . $this->escape($event->outcome);
+        $parts[] = 'suser=' . $this->escape($event->actorId);
+        $parts[] = 'suid=' . $this->escape($event->actorType);
 
         if ($event->ipAddress !== null) {
             $parts[] = 'src=' . $event->ipAddress;
         }
 
         if ($event->traceId !== null) {
-            $parts[] = 'cs1=' . self::escape($event->traceId);
+            $parts[] = 'cs1=' . $this->escape($event->traceId);
             $parts[] = 'cs1Label=TraceID';
         }
 
         if ($event->resourceType !== null) {
-            $parts[] = 'cs2=' . self::escape($event->resourceType);
+            $parts[] = 'cs2=' . $this->escape($event->resourceType);
             $parts[] = 'cs2Label=ResourceType';
         }
 
         if ($event->resourceId !== null) {
-            $parts[] = 'cs3=' . self::escape($event->resourceId);
+            $parts[] = 'cs3=' . $this->escape($event->resourceId);
             $parts[] = 'cs3Label=ResourceID';
         }
 
         $details = $event->details;
 
         if ($details !== []) {
-            $parts[] = 'msg=' . self::escape(json_encode($details, JSON_UNESCAPED_UNICODE) ?: '{}');
+            $parts[] = 'msg=' . $this->escape(json_encode($details, JSON_UNESCAPED_UNICODE) ?: '{}');
         }
 
         return implode(' ', $parts);
@@ -112,7 +112,7 @@ final class CefFormatter implements SiemEventFormatterInterface
     /**
      * Escape CEF special characters: backslash, pipe, equals, newline.
      */
-    private static function escape(string $value): string
+    private function escape(string $value): string
     {
         return str_replace(
             ['\\', '|', '=', "\n", "\r"],

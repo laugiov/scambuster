@@ -28,6 +28,7 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
      */
     public function findActive(): array
     {
+        /** @var array<Campaign> */
         return $this->createQueryBuilder('c')
             ->where('c.status IN (:statuses)')
             ->setParameter('statuses', [CampaignStatus::Shadow->value, CampaignStatus::Promoted->value])
@@ -47,6 +48,7 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
     /** @return array<Campaign> */
     public function findByStatus(string $status): array
     {
+        /** @var array<Campaign> */
         return $this->createQueryBuilder('c')
             ->where('c.status = :status')
             ->setParameter('status', $status)
@@ -69,10 +71,11 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
         $conn = $this->getEntityManager()->getConnection();
         $campaignIds = $conn->executeQuery($sql)->fetchFirstColumn();
 
-        if (empty($campaignIds)) {
+        if ($campaignIds === []) {
             return [];
         }
 
+        /** @var array<Campaign> */
         return $this->createQueryBuilder('c')
             ->where('c.campaignId IN (:ids)')
             ->setParameter('ids', $campaignIds)
@@ -111,15 +114,16 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
 
         $rows = $stmt->executeQuery()->fetchAllAssociative();
 
-        if (empty($rows)) {
+        if ($rows === []) {
             return [];
         }
 
         // Récupérer les Message entities via EntityManager
-        $messageIds = array_map(fn ($row) => Uuid::fromString($row['msg_id']), $rows);
+        $messageIds = array_map(static fn (array $row): \Symfony\Component\Uid\Uuid => Uuid::fromString(\is_string($row['msg_id']) ? $row['msg_id'] : ''), $rows);
 
         $messageRepo = $this->getEntityManager()->getRepository(\App\Domain\Communication\Message::class);
 
+        /** @var array<\App\Domain\Communication\Message> */
         return $messageRepo->createQueryBuilder('m')
             ->where('m.msgId IN (:ids)')
             ->setParameter('ids', $messageIds)

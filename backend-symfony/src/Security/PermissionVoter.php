@@ -22,7 +22,7 @@ class PermissionVoter extends Voter
 {
     protected function supports(string $attribute, mixed $subject): bool
     {
-        return Permission::tryFrom($attribute) !== null;
+        return Permission::tryFrom($attribute) instanceof \App\Domain\User\Permission;
     }
 
     protected function voteOnAttribute(string $attribute, mixed $subject, TokenInterface $token): bool
@@ -48,10 +48,6 @@ class PermissionVoter extends Voter
         // For InMemoryUser (test environment): ROLE_USER has all permissions
         // This allows test fixtures to work without configuring permissions per user.
         // In production, the real User entity is always used.
-        if (in_array('ROLE_USER', $user->getRoles(), true)) {
-            return true;
-        }
-
-        return false;
+        return in_array('ROLE_USER', $user->getRoles(), true);
     }
 }

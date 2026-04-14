@@ -18,7 +18,7 @@ use Psr\Log\LoggerInterface;
  * - Génération de tests automatiques
  * - Logging détaillé
  */
-final class RuleCompiler
+final readonly class RuleCompiler
 {
     private const MAX_RETRIES = 3;
     private const TIMEOUT_SEC = 45;
@@ -53,9 +53,9 @@ final class RuleCompiler
     ];
 
     public function __construct(
-        private readonly LLMClientInterface $llmClient,
-        private readonly PromptBuilder $promptBuilder,
-        private readonly LoggerInterface $logger
+        private LLMClientInterface $llmClient,
+        private PromptBuilder $promptBuilder,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -204,7 +204,7 @@ final class RuleCompiler
         // 2. Extraire toutes les règles
         preg_match_all('/RULE\s+([\w.]+)\s*\{(.*?)\}/s', $dslText, $matches, PREG_SET_ORDER);
 
-        if (count($matches) === 0) {
+        if ($matches === []) {
             throw new \RuntimeException('No valid RULE blocks found');
         }
 

@@ -21,8 +21,6 @@ class JsonValidator
      */
     public function parseAndValidate(string $jsonString): array
     {
-        $errors = [];
-
         // Level 1: Strict parsing
         $data = $this->parseStrict($jsonString);
 
@@ -99,26 +97,24 @@ class JsonValidator
         }
 
         // Validate persona if present and is_new_type is true
-        if (isset($data['is_new_type']) && $data['is_new_type'] === true) {
-            if (isset($data['persona'])) {
-                if (!is_array($data['persona'])) {
-                    $errors[] = 'persona must be an object';
-                } else {
-                    $requiredPersonaFields = ['persona_code', 'persona_label', 'persona_tone', 'system_prompt'];
+        if (isset($data['is_new_type']) && $data['is_new_type'] === true && isset($data['persona'])) {
+            if (!is_array($data['persona'])) {
+                $errors[] = 'persona must be an object';
+            } else {
+                $requiredPersonaFields = ['persona_code', 'persona_label', 'persona_tone', 'system_prompt'];
 
-                    foreach ($requiredPersonaFields as $field) {
-                        if (!isset($data['persona'][$field]) || !is_string($data['persona'][$field])) {
-                            $errors[] = "persona.{$field} missing or invalid";
-                        }
+                foreach ($requiredPersonaFields as $field) {
+                    if (!isset($data['persona'][$field]) || !is_string($data['persona'][$field])) {
+                        $errors[] = "persona.{$field} missing or invalid";
                     }
+                }
 
-                    if (isset($data['persona']['system_prompt']) && is_string($data['persona']['system_prompt']) && strlen($data['persona']['system_prompt']) < 100) {
-                        $errors[] = 'persona.system_prompt too short (min 100 characters)';
-                    }
+                if (isset($data['persona']['system_prompt']) && is_string($data['persona']['system_prompt']) && strlen($data['persona']['system_prompt']) < 100) {
+                    $errors[] = 'persona.system_prompt too short (min 100 characters)';
+                }
 
-                    if (isset($data['persona']['persona_code']) && is_string($data['persona']['persona_code']) && !preg_match('/^[a-z0-9_]{3,30}$/', $data['persona']['persona_code'])) {
-                        $errors[] = 'persona.persona_code must be snake_case (3-30 chars)';
-                    }
+                if (isset($data['persona']['persona_code']) && is_string($data['persona']['persona_code']) && !preg_match('/^[a-z0-9_]{3,30}$/', $data['persona']['persona_code'])) {
+                    $errors[] = 'persona.persona_code must be snake_case (3-30 chars)';
                 }
             }
         }
@@ -129,7 +125,7 @@ class JsonValidator
         }
 
         return [
-            'valid' => empty($errors),
+            'valid' => $errors === [],
             'errors' => $errors,
         ];
     }
@@ -173,7 +169,7 @@ class JsonValidator
 
         // Try to extract JSON if surrounded by text
         if (preg_match('/\{.*\}/s', $cleaned, $matches)) {
-            $cleaned = $matches[0];
+            return $matches[0];
         }
 
         return $cleaned;

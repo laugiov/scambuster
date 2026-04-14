@@ -11,13 +11,12 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[IsGranted('ioc:read')]
-final class TaxiiApiRootController
+final readonly class TaxiiApiRootController
 {
     public function __construct(
-        private readonly TaxiiService $taxiiService,
+        private TaxiiService $taxiiService,
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/taxii2/api/',
         summary: 'TAXII 2.1 API Root',

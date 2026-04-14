@@ -21,7 +21,7 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  *
  * API docs: https://docs.anthropic.com/en/api/messages
  */
-final class AnthropicClient implements LLMClientInterface
+final readonly class AnthropicClient implements LLMClientInterface
 {
     private const API_URL = 'https://api.anthropic.com/v1/messages';
     private const API_VERSION = '2023-06-01';
@@ -29,11 +29,11 @@ final class AnthropicClient implements LLMClientInterface
     private const DEFAULT_MAX_TOKENS = 1024;
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        private readonly LoggerInterface $logger,
-        private readonly EventDispatcherInterface $eventDispatcher,
-        private readonly string $apiKey,
-        private readonly string $model
+        private HttpClientInterface $httpClient,
+        private LoggerInterface $logger,
+        private EventDispatcherInterface $eventDispatcher,
+        private string $apiKey,
+        private string $model
     ) {
     }
 
@@ -106,18 +106,24 @@ final class AnthropicClient implements LLMClientInterface
                 'model' => $model,
                 'latency_ms' => $latencyMs,
                 'input_messages' => count($messages),
-                'output_length' => strlen($assistantText),
+                'output_length' => strlen((string) $assistantText),
                 'input_tokens' => $usage['input_tokens'] ?? null,
                 'output_tokens' => $usage['output_tokens'] ?? null,
             ]);
 
+            /** @var string $eventModel */
+            $eventModel = $model;
+            /** @var string $eventPurpose */
+            $eventPurpose = $options['purpose'] ?? 'unknown';
+            /** @var string|null $eventConvId */
+            $eventConvId = $options['conversation_id'] ?? null;
             $this->eventDispatcher->dispatch(new LlmCallCompletedEvent(
                 provider: 'anthropic',
-                model: $model,
-                purpose: $options['purpose'] ?? 'unknown',
+                model: $eventModel,
+                purpose: $eventPurpose,
                 promptTokens: (int) ($usage['input_tokens'] ?? 0),
                 completionTokens: (int) ($usage['output_tokens'] ?? 0),
-                conversationId: $options['conversation_id'] ?? null
+                conversationId: $eventConvId
             ));
 
             return $assistantText;
@@ -129,10 +135,7 @@ final class AnthropicClient implements LLMClientInterface
                 'latency_ms' => (int) ((microtime(true) - $startTime) * 1000),
             ]);
 
-            throw new \RuntimeException(
-                "Anthropic API call failed: {$e->getMessage()}",
-                previous: $e
-            );
+            throw new \RuntimeException("Anthropic API call failed: {$e->getMessage()}", $e->getCode(), previous: $e);
         }
     }
 }

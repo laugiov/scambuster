@@ -11,13 +11,13 @@ use App\Domain\CampaignRadar\Campaign;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final class CampaignStixExportHandler
+final readonly class CampaignStixExportHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly STIXExporter $exporter,
-        private readonly StixBundleBuilder $bundleBuilder,
-        private readonly ?AuditLogger $auditLogger = null,
+        private EntityManagerInterface $em,
+        private STIXExporter $exporter,
+        private StixBundleBuilder $bundleBuilder,
+        private ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -33,7 +33,7 @@ final class CampaignStixExportHandler
 
         $campaign = $this->em->find(Campaign::class, $campaignUuid);
 
-        if (!$campaign) {
+        if ($campaign === null) {
             throw new \RuntimeException('Campaign not found');
         }
 
@@ -105,7 +105,7 @@ final class CampaignStixExportHandler
             ['campaignId' => $campaignId]
         )->fetchAllAssociative();
 
-        if (empty($rows)) {
+        if ($rows === []) {
             return null;
         }
 

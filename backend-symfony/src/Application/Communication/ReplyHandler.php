@@ -83,7 +83,7 @@ class ReplyHandler
         // - mode 'warning': log a warning and proceed (used during the
         //   one-week telemetry validation window before flipping to enforce)
         // - cost handler unset: skip entirely (legacy DI compatibility)
-        if ($this->costHandler !== null && $this->costHandler->isLimitExceeded()) {
+        if ($this->costHandler instanceof \App\Application\Monitoring\LlmCostHandler && $this->costHandler->isLimitExceeded()) {
             if ($this->budgetEnforcementMode === 'enforce') {
                 throw new LlmBudgetExceededException(
                     $this->costHandler->getCurrentMonthUsdSpent(),
@@ -95,6 +95,10 @@ class ReplyHandler
                 'limit_usd' => $this->costHandler->getMonthlyLimitUsd(),
                 'mode' => $this->budgetEnforcementMode,
             ]);
+        }
+
+        if ($conversation === null) {
+            return null;
         }
 
         if ($conversation->getStatus()->value !== 'open') {
@@ -117,7 +121,7 @@ class ReplyHandler
 
         $parentMessage = $this->messageHandler->getMessage($lastMsgId);
 
-        if (!$parentMessage) {
+        if (!$parentMessage instanceof \App\Domain\Communication\Message) {
             return null;
         }
 
@@ -126,6 +130,7 @@ class ReplyHandler
         $context['detected_language'] = $detectedLanguage;
 
         // Generate reply using LLM Orchestrator
+        /** @var string $personaCode */
         $personaCode = $context['persona'];
         $llmResult = $this->replyOrchestrator->generate($context, $personaCode);
 
@@ -139,8 +144,8 @@ class ReplyHandler
 
             throw new \RuntimeException(
                 'Reply rejected by LLM validation: ' . implode(', ', array_merge(
-                    $llmResult['policy_flags'],
-                    $llmResult['validation_reasons']
+                    (array) $llmResult['policy_flags'],
+                    (array) $llmResult['validation_reasons']
                 ))
             );
         }
@@ -155,6 +160,7 @@ class ReplyHandler
             ]);
         }
 
+        /** @var string $newReplyContent */
         $newReplyContent = $llmResult['text'];
 
         // Simple text and HTML versions (no conversation history needed - Gmail handles threading)
@@ -162,11 +168,13 @@ class ReplyHandler
         $replyHtml = '<div>' . nl2br(htmlspecialchars($newReplyContent, ENT_QUOTES, 'UTF-8')) . '</div>';
 
         // Determine recipient
-        $to = $parentMessage->getHeaders()['reply_to'] ?? $parentMessage->getHeaders()['from'] ?? null;
+        $toRaw = $parentMessage->getHeaders()['reply_to'] ?? $parentMessage->getHeaders()['from'] ?? null;
 
-        if (!$to) {
+        if (!$toRaw) {
             throw new \RuntimeException('Cannot determine reply recipient');
         }
+        /** @var string $to */
+        $to = $toRaw;
 
         // Build subject
         $subject = $parentMessage->getSubject() ?? '';
@@ -221,7 +229,7 @@ class ReplyHandler
             $conversation,
             $channelEmail,
             $directionOut,
-            (string) $context['detected_language'],
+            $context['detected_language'],
             $subject,
             $replyText,
             $replyHtml,
@@ -250,7 +258,7 @@ class ReplyHandler
                 'model' => $llmResult['model'] ?? 'unknown',
                 'cost' => $llmResult['cost_estimate'] ?? 0,
                 'attempts' => $llmResult['attempts'] ?? 1,
-                'detected_language' => (string) $context['detected_language'],
+                'detected_language' => $context['detected_language'],
                 'fallback_used' => $llmResult['fallback_used'] ?? false,
             ],
         );

@@ -45,28 +45,27 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class ListConversationIocsController
+final readonly class ListConversationIocsController
 {
     public function __construct(
-        private readonly ConversationHandler $handler,
-        private readonly IocHandler $iocHandler
+        private ConversationHandler $handler,
+        private IocHandler $iocHandler
     ) {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}/iocs', name: 'list_conversation_iocs', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $convId): JsonResponse
     {
         $conv = $this->handler->getConversation($convId);
 
-        if (!$conv || $conv->getDeletedAt() !== null) {
+        if (!$conv || $conv->getDeletedAt() instanceof \DateTimeImmutable) {
             return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
         }
 
         // Delegate to IocHandler for deduplicated IOC list
         $iocs = $this->iocHandler->getConversationIocs($convId);
 
-        $result = array_map(function ($ioc) {
+        $result = array_map(function ($ioc): array {
             $confidenceData = $this->iocHandler->computeConfidenceData(
                 $ioc->getIndicatorId(),
                 $ioc->getConfidenceScore(),

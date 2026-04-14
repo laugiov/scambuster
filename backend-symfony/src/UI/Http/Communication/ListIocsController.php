@@ -56,13 +56,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     security: [['Bearer' => []]]
 )]
 #[IsGranted('ioc:read')]
-final class ListIocsController
+final readonly class ListIocsController
 {
     public function __construct(
-        private readonly IocHandler $handler
+        private IocHandler $handler
     ) {
     }
-
     #[Route('/api/v1/iocs', name: 'list_iocs', methods: ['GET'])]
     public function __invoke(Request $request): JsonResponse
     {

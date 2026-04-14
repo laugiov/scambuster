@@ -42,7 +42,7 @@ final class LLMProviderCompilerPass implements CompilerPassInterface
         if ($serviceClass === null) {
             throw new \InvalidArgumentException(sprintf(
                 'Unknown LLM_PROVIDER "%s". Supported: openai, anthropic, ollama, mock.',
-                $provider
+                \is_string($provider) ? $provider : 'unknown'
             ));
         }
 

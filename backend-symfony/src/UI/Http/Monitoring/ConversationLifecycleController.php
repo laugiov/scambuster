@@ -16,13 +16,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
  * Returns active, about-to-timeout, completed today, by scam type.
  */
 #[IsGranted('monitoring:read')]
-final class ConversationLifecycleController
+final readonly class ConversationLifecycleController
 {
     public function __construct(
-        private readonly ConversationLifecycleHandler $handler
+        private ConversationLifecycleHandler $handler
     ) {
     }
-
     #[Route('/api/v1/monitoring/conversation-lifecycle', methods: ['GET'])]
     #[OA\Get(
         path: '/api/v1/monitoring/conversation-lifecycle',

@@ -15,10 +15,10 @@ namespace App\Application\LLM;
  * Prevents the bot from sounding like an interrogator by ensuring
  * natural back-and-forth exchange.
  */
-final class ReciprocityManager
+final readonly class ReciprocityManager
 {
     public function __construct(
-        private readonly ?\Psr\Log\LoggerInterface $logger = null,
+        private ?\Psr\Log\LoggerInterface $logger = null,
     ) {
     }
 
@@ -66,7 +66,7 @@ final class ReciprocityManager
      */
     public function analyze(array $messages): array
     {
-        if (empty($messages)) {
+        if ($messages === []) {
             return [
                 'should_give_info' => false,
                 'reason' => 'first_message',
@@ -250,15 +250,12 @@ final class ReciprocityManager
 
     /**
      * Generate fake data suggestions for the LLM
-     *
-     * @param array<string, mixed> $context
      */
-    public function generateFakeDataSuggestions(array $context): string
+    public function generateFakeDataSuggestions(): string
     {
         $suggestions = "\n📞 FAUSSES DONNÉES À UTILISER SI APPROPRIÉ :\n\n";
         $suggestions .= "Si la situation l'exige, invente et partage des informations crédibles (prénom, numéro de téléphone français, ville, situation professionnelle ou email secondaire).\n";
-        $suggestions .= "⚠️ RÈGLE : Ces informations doivent sembler naturelles et cohérentes avec le contexte. Adapte le ton à celui de l'interlocuteur.\n";
 
-        return $suggestions;
+        return $suggestions . "⚠️ RÈGLE : Ces informations doivent sembler naturelles et cohérentes avec le contexte. Adapte le ton à celui de l'interlocuteur.\n";
     }
 }

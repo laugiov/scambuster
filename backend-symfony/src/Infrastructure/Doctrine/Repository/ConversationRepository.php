@@ -39,6 +39,7 @@ class ConversationRepository extends ServiceEntityRepository implements Conversa
     /** @return array<Conversation> */
     public function findStale(\DateTimeImmutable $threshold): array
     {
+        /** @var array<Conversation> */
         return $this->createQueryBuilder('c')
             ->where('c.status = :status')
             ->andWhere('c.tsLast < :threshold')

@@ -15,10 +15,10 @@ use Doctrine\ORM\EntityManagerInterface;
  * - Bandit convergence state
  * - System readiness for autonomous operation
  */
-final class AutonomyMonitoringHandler
+final readonly class AutonomyMonitoringHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em
+        private EntityManagerInterface $em
     ) {
     }
 
@@ -219,9 +219,9 @@ final class AutonomyMonitoringHandler
         $lastIoc = $conn->fetchOne('SELECT MAX(ts_observed) FROM observed_ioc');
 
         return [
-            'last_inbound' => $lastInbound ?: null,
-            'last_outbound' => $lastOutbound ?: null,
-            'last_ioc' => $lastIoc ?: null,
+            'last_inbound' => \is_string($lastInbound) ? $lastInbound : null,
+            'last_outbound' => \is_string($lastOutbound) ? $lastOutbound : null,
+            'last_ioc' => \is_string($lastIoc) ? $lastIoc : null,
         ];
     }
 }

@@ -19,8 +19,8 @@ use Symfony\Component\Console\Output\OutputInterface;
 class TestConversationContextCommand extends Command
 {
     public function __construct(
-        private EntityManagerInterface $em,
-        private ReplyHandler $replyHandler
+        private readonly EntityManagerInterface $em,
+        private readonly ReplyHandler $replyHandler
     ) {
         parent::__construct();
     }
@@ -39,9 +39,9 @@ class TestConversationContextCommand extends Command
         $output->writeln('');
 
         // Check database directly
-        $conv = $this->em->getRepository('App\Domain\Communication\Conversation')->find($convId);
+        $conv = $this->em->getRepository(\App\Domain\Communication\Conversation::class)->find($convId);
 
-        if (!$conv) {
+        if ($conv === null) {
             $output->writeln('<error>Conversation not found</error>');
 
             return Command::FAILURE;

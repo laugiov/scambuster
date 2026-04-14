@@ -10,10 +10,10 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Queries inbound messages for prompt injection analysis and persists results.
  */
-final class PromptInjectionQueryService
+final readonly class PromptInjectionQueryService
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

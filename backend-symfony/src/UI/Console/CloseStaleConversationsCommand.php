@@ -92,7 +92,7 @@ class CloseStaleConversationsCommand extends Command
             }
         }
 
-        if (empty($toClose)) {
+        if ($toClose === []) {
             $io->success(sprintf('Checked %d open conversations — none need closing.', count($conversations)));
 
             return Command::SUCCESS;

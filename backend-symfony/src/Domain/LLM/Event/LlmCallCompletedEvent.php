@@ -10,15 +10,15 @@ namespace App\Domain\LLM\Event;
  * Carries token usage and cost estimation for persistence.
  * Consumed by LlmUsageListener to track costs.
  */
-final class LlmCallCompletedEvent
+final readonly class LlmCallCompletedEvent
 {
     public function __construct(
-        private readonly string $provider,
-        private readonly string $model,
-        private readonly string $purpose,
-        private readonly int $promptTokens,
-        private readonly int $completionTokens,
-        private readonly ?string $conversationId = null
+        private string $provider,
+        private string $model,
+        private string $purpose,
+        private int $promptTokens,
+        private int $completionTokens,
+        private ?string $conversationId = null
     ) {
     }
 

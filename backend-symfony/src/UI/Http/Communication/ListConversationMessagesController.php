@@ -47,13 +47,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class ListConversationMessagesController
+final readonly class ListConversationMessagesController
 {
     public function __construct(
-        private readonly ConversationHandler $handler
+        private ConversationHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}/messages', name: 'list_conversation_messages', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $convId, Request $request): JsonResponse
@@ -67,25 +66,23 @@ final class ListConversationMessagesController
             // Check if conversation exists (only on first page with no results)
             $conv = $this->handler->getConversation($convId);
 
-            if (!$conv || $conv->getDeletedAt() !== null) {
+            if (!$conv || $conv->getDeletedAt() instanceof \DateTimeImmutable) {
                 return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
             }
         }
 
         /** @var list<\App\Domain\Communication\Message> $resultMessages */
         $resultMessages = $result['messages'];
-        $items = array_map(function (\App\Domain\Communication\Message $msg) {
-            return [
-                'message_id' => $msg->getMsgId(),
-                'direction' => $msg->getDirection()->getCode(),
-                'subject' => $msg->getSubject(),
-                'body_text' => $msg->getBodyText(),
-                'body_html' => $msg->getBodyHtml(),
-                'ts_msg' => $msg->getTsMsg()->format(\DateTimeInterface::ATOM),
-                'lang_detect' => $msg->getLangDetect(),
-                'external_message_id' => $msg->getExternalMessageId(),
-            ];
-        }, $resultMessages);
+        $items = array_map(fn (\App\Domain\Communication\Message $msg): array => [
+            'message_id' => $msg->getMsgId(),
+            'direction' => $msg->getDirection()->getCode(),
+            'subject' => $msg->getSubject(),
+            'body_text' => $msg->getBodyText(),
+            'body_html' => $msg->getBodyHtml(),
+            'ts_msg' => $msg->getTsMsg()->format(\DateTimeInterface::ATOM),
+            'lang_detect' => $msg->getLangDetect(),
+            'external_message_id' => $msg->getExternalMessageId(),
+        ], $resultMessages);
 
         return new JsonResponse($items, Response::HTTP_OK);
     }

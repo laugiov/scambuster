@@ -14,7 +14,7 @@ use Symfony\Contracts\EventDispatcher\Event;
  * avec le système d'event dispatching du projet. C'est un compromis acceptable
  * car l'Event Dispatcher est une abstraction standard (PSR-14 compatible).
  */
-final class ConversationEndedEvent extends Event
+final class ConversationEndedEvent extends Event implements \Stringable
 {
     /**
      * @param string      $conversationId UUID de la conversation terminée

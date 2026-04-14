@@ -11,10 +11,10 @@ use Doctrine\DBAL\Connection;
  *
  * All methods return arrays (no entities) for direct JSON serialization.
  */
-final class ClusterQueryService
+final readonly class ClusterQueryService
 {
     public function __construct(
-        private readonly Connection $conn,
+        private Connection $conn,
     ) {
     }
 
@@ -52,7 +52,7 @@ final class ClusterQueryService
                 'status' => \is_string($row['status'] ?? null) ? $row['status'] : 'active',
                 'conversation_count' => \is_numeric($row['conversation_count'] ?? null) ? (int) $row['conversation_count'] : 0,
                 'anchor_ioc_count' => \is_numeric($row['anchor_ioc_count'] ?? null) ? (int) $row['anchor_ioc_count'] : 0,
-                'anchor_ioc_types' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $anchorIocTypes),
+                'anchor_ioc_types' => array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $anchorIocTypes),
                 'sophistication' => \is_string($row['sophistication'] ?? null) ? $row['sophistication'] : 'none',
                 'primary_scam_types' => $this->parsePostgresArray(\is_string($row['primary_scam_types'] ?? null) ? $row['primary_scam_types'] : '{}'),
                 'first_seen' => \is_string($row['first_seen'] ?? null) ? $row['first_seen'] : null,
@@ -174,7 +174,7 @@ final class ClusterQueryService
         $indicatorIds = array_column($anchors, 'indicator_id');
         $indicatorConvMap = [];
 
-        if (!empty($indicatorIds)) {
+        if ($indicatorIds !== []) {
             $mapRows = $this->conn->fetchAllAssociative(
                 'SELECT oi.indicator_id, m.conv_id
                  FROM observed_ioc oi
@@ -238,7 +238,7 @@ final class ClusterQueryService
         );
 
         $sampleExcerpts = array_map(
-            fn (array $row) => [
+            fn (array $row): array => [
                 'text' => \is_string($row['text'] ?? null) ? $row['text'] : '',
                 'occurrence_count' => \is_numeric($row['occurrence_count'] ?? null) ? (int) $row['occurrence_count'] : 1,
                 'source_conv_id' => \is_string($row['source_conv_id'] ?? null) ? $row['source_conv_id'] : '',
@@ -458,7 +458,7 @@ final class ClusterQueryService
         );
 
         $indicatorStixIds = array_map(
-            fn (mixed $id) => 'indicator--' . (\is_string($id) ? $id : ''),
+            fn (mixed $id): string => 'indicator--' . (\is_string($id) ? $id : ''),
             $indicatorIds
         );
 
@@ -472,7 +472,7 @@ final class ClusterQueryService
                 'SELECT DISTINCT st.attck_technique FROM lkp_scam_type st WHERE st.code = ANY(:codes) AND st.attck_technique IS NOT NULL',
                 ['codes' => '{' . implode(',', $scamTypes) . '}']
             );
-            $attckTechniques = array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques);
+            $attckTechniques = array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $attckTechniques);
         }
 
         // Get full indicator data for STIX indicator objects
@@ -517,16 +517,16 @@ final class ClusterQueryService
 
         // Only include ATT&CK techniques from significant scam types (>=10%)
         $significantScamTypes = array_map(
-            fn (array $s) => $s['code'],
-            array_filter($weightedScamTypes, fn (array $s) => $s['pct'] >= 10.0)
+            fn (array $s): string => $s['code'],
+            array_filter($weightedScamTypes, fn (array $s): bool => $s['pct'] >= 10.0)
         );
 
-        if (!empty($significantScamTypes)) {
+        if ($significantScamTypes !== []) {
             $attckTechniques = $this->conn->fetchFirstColumn(
                 'SELECT DISTINCT st.attck_technique FROM lkp_scam_type st WHERE st.code = ANY(:codes) AND st.attck_technique IS NOT NULL',
                 ['codes' => '{' . implode(',', $significantScamTypes) . '}']
             );
-            $attckTechniques = array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques);
+            $attckTechniques = array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $attckTechniques);
         }
 
         $detail['anchor_ioc_types'] = $anchorIocTypes;

@@ -56,7 +56,7 @@ class IngestRawRequestDto
      * @var array<string>|string|null
      */
     #[OA\Property(type: 'array', items: new OA\Items(type: 'string'), nullable: true)]
-    public $references = null;
+    public $references;
 
     /**
      * @var array<array{
@@ -89,7 +89,7 @@ class IngestRawRequestDto
     #[\Symfony\Component\Validator\Constraints\Callback]
     public function validateRawSource(\Symfony\Component\Validator\Context\ExecutionContextInterface $context): void
     {
-        if (empty($this->raw_source) && empty($this->raw_source_rfc822_b64)) {
+        if (($this->raw_source === null || $this->raw_source === '' || $this->raw_source === '0') && ($this->raw_source_rfc822_b64 === null || $this->raw_source_rfc822_b64 === '' || $this->raw_source_rfc822_b64 === '0')) {
             $context->buildViolation('Either raw_source or raw_source_rfc822_b64 must be provided.')
                 ->atPath('raw_source')
                 ->addViolation();

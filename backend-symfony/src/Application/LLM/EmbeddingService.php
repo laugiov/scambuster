@@ -13,16 +13,16 @@ use Symfony\Contracts\HttpClient\HttpClientInterface;
  * Uses text-embedding-3-small (1536 dimensions, $0.02/1M tokens).
  * Called by the batch command app:generate-embeddings, not during ingestion.
  */
-final class EmbeddingService
+final readonly class EmbeddingService
 {
     private const MODEL = 'text-embedding-3-small';
     private const DIMENSIONS = 1536;
     private const API_URL = 'https://api.openai.com/v1/embeddings';
 
     public function __construct(
-        private readonly HttpClientInterface $httpClient,
-        private readonly string $apiKey,
-        private readonly LoggerInterface $logger,
+        private HttpClientInterface $httpClient,
+        private string $apiKey,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -57,7 +57,7 @@ final class EmbeddingService
      */
     public function generateBatch(array $texts): array
     {
-        if (empty($texts)) {
+        if ($texts === []) {
             return [];
         }
 

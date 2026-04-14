@@ -20,9 +20,6 @@ class Campaign
     #[ORM\Column(name: 'campaign_id', type: 'uuid', unique: true)]
     private Uuid $campaignId;
 
-    #[ORM\Column(name: 'first_seen', type: Types::DATETIMETZ_IMMUTABLE)]
-    private \DateTimeImmutable $firstSeen;
-
     #[ORM\Column(type: Types::STRING, length: 20, enumType: CampaignStatus::class)]
     private CampaignStatus $status;
 
@@ -71,7 +68,8 @@ class Campaign
         string $createdBy,
         ?Uuid $campaignId = null,
         ?CampaignStatus $status = null,
-        ?\DateTimeImmutable $firstSeen = null
+        #[ORM\Column(name: 'first_seen', type: Types::DATETIMETZ_IMMUTABLE)]
+        private \DateTimeImmutable $firstSeen = new \DateTimeImmutable()
     ) {
         if (trim($createdBy) === '') {
             throw new DomainException('createdBy cannot be empty');
@@ -79,7 +77,6 @@ class Campaign
 
         $this->campaignId = $campaignId ?? Uuid::v7();
         $this->status = $status ?? CampaignStatus::Shadow;
-        $this->firstSeen = $firstSeen ?? new \DateTimeImmutable();
         $this->createdBy = $createdBy;
         $this->createdAt = new \DateTimeImmutable();
         $this->updatedAt = new \DateTimeImmutable();
@@ -190,7 +187,7 @@ class Campaign
      */
     public function setDslHash(string $dslHash): void
     {
-        if (strlen($dslHash) === 0) {
+        if ($dslHash === '') {
             throw new DomainException('dslHash cannot be empty');
         }
 

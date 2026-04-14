@@ -69,6 +69,7 @@ final class EvaluateReplyQualityCommand extends Command
             return Command::FAILURE;
         }
 
+        /** @var array<int, array<string, mixed>> $corpus */
         $corpus = $data['entries'] ?? $data;
 
         if (empty($corpus)) {
@@ -88,7 +89,7 @@ final class EvaluateReplyQualityCommand extends Command
         $this->jsonWriter->write([
             'overall_verdict' => $result['overall_verdict'],
             'corpus_size' => $result['corpus_size'],
-            'metrics' => array_map(fn ($m) => $m->toArray(), $result['metrics']),
+            'metrics' => array_map(fn ($m): array => $m->toArray(), $result['metrics']),
             'best_replies' => $result['best_replies'],
             'worst_replies' => $result['worst_replies'],
             'generated_at' => date(\DATE_ATOM),

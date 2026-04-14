@@ -25,7 +25,7 @@ final class LlmBudgetExceededException extends \RuntimeException
         public readonly float $monthlyLimitUsd,
         ?\DateTimeImmutable $resetAt = null,
     ) {
-        $this->resetAt = $resetAt ?? self::defaultResetAt();
+        $this->resetAt = $resetAt ?? $this->defaultResetAt();
 
         parent::__construct(sprintf(
             'LLM monthly budget exceeded: %.2f USD spent, %.2f USD limit, resets at %s',
@@ -38,7 +38,7 @@ final class LlmBudgetExceededException extends \RuntimeException
     /**
      * Default reset: first day of next month at 00:00:00 UTC.
      */
-    private static function defaultResetAt(): \DateTimeImmutable
+    private function defaultResetAt(): \DateTimeImmutable
     {
         return (new \DateTimeImmutable('first day of next month', new \DateTimeZone('UTC')))
             ->setTime(0, 0, 0);

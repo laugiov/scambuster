@@ -14,18 +14,18 @@ namespace App\Domain\Validation;
  *
  * Plus a binary security gate (pass/fail).
  */
-final class ValidationResult
+final readonly class ValidationResult
 {
     public function __construct(
-        public readonly bool $approved,
-        public readonly int $naturalness,
-        public readonly int $personaFit,
-        public readonly int $tiValue,
-        public readonly bool $securityPass,
-        public readonly string $feedback,
+        public bool $approved,
+        public int $naturalness,
+        public int $personaFit,
+        public int $tiValue,
+        public bool $securityPass,
+        public string $feedback,
         /** @var array<string> */
-        public readonly array $reasons = [],
-        public readonly ?string $fixSuggestion = null,
+        public array $reasons = [],
+        public ?string $fixSuggestion = null,
     ) {
     }
 

@@ -26,6 +26,7 @@ class ObservedIocRepository extends ServiceEntityRepository implements ObservedI
     /** @return array<ObservedIoc> */
     public function findByMessage(Uuid $msgId): array
     {
+        /** @var array<ObservedIoc> */
         return $this->createQueryBuilder('oi')
             ->where('oi.message = :msgId')
             ->setParameter('msgId', $msgId)
@@ -37,6 +38,7 @@ class ObservedIocRepository extends ServiceEntityRepository implements ObservedI
     /** @return array<ObservedIoc> */
     public function findByIndicator(Uuid $indicatorId): array
     {
+        /** @var array<ObservedIoc> */
         return $this->createQueryBuilder('oi')
             ->where('oi.indicatorId = :indicatorId')
             ->setParameter('indicatorId', $indicatorId)
@@ -48,6 +50,7 @@ class ObservedIocRepository extends ServiceEntityRepository implements ObservedI
     /** @return array<ObservedIoc> */
     public function findByConversation(Uuid $convId): array
     {
+        /** @var array<ObservedIoc> */
         return $this->createQueryBuilder('oi')
             ->join('oi.message', 'm')
             ->where('m.conversation = :convId')

@@ -17,13 +17,13 @@ use Symfony\Component\Uid\Uuid;
  * Utilise le profil YAML généré par ProfileCampaignHandler pour générer
  * des règles DSL exécutables et les stocker dans campaign_rule.
  */
-final class CompileRulesHandler
+final readonly class CompileRulesHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly CampaignRepository $campaignRepository,
-        private readonly RuleCompiler $compiler,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private CampaignRepository $campaignRepository,
+        private RuleCompiler $compiler,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -50,7 +50,7 @@ final class CompileRulesHandler
         // 1. Vérifier que la campagne existe
         $campaign = $this->campaignRepository->findById($campaignId);
 
-        if ($campaign === null) {
+        if (!$campaign instanceof \App\Domain\CampaignRadar\Campaign) {
             throw new \RuntimeException("Campaign not found: {$campaignId->toRfc4122()}");
         }
 

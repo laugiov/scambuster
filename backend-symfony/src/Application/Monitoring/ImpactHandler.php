@@ -6,7 +6,7 @@ namespace App\Application\Monitoring;
 
 use Doctrine\DBAL\Connection;
 
-final class ImpactHandler
+final readonly class ImpactHandler
 {
     private const HEADER_TYPES = [
         'message_id',
@@ -29,7 +29,7 @@ final class ImpactHandler
     ];
 
     public function __construct(
-        private readonly Connection $connection,
+        private Connection $connection,
     ) {
     }
 
@@ -123,7 +123,7 @@ final class ImpactHandler
             . ' GROUP BY DATE(created_at) ORDER BY date ASC',
         );
 
-        $dailyTrend = array_map(static fn (array $row) => [
+        $dailyTrend = array_map(static fn (array $row): array => [
             'date' => self::rowStr($row, 'date'),
             'total' => self::rowInt($row, 'total'),
             'novel' => self::rowInt($row, 'novel'),
@@ -176,7 +176,7 @@ final class ImpactHandler
             . ' ORDER BY week ASC',
         );
 
-        $weeklyTrend = array_map(static fn (array $r) => [
+        $weeklyTrend = array_map(static fn (array $r): array => [
             'week' => self::rowStr($r, 'week'),
             'hours' => round(self::rowFloat($r, 'hours'), 2),
         ], $trendRows);
@@ -226,7 +226,7 @@ final class ImpactHandler
             . ' GROUP BY type ORDER BY count DESC LIMIT 10',
         );
 
-        $byType = array_map(static fn (array $r) => [
+        $byType = array_map(static fn (array $r): array => [
             'type' => self::rowStr($r, 'type'),
             'count' => self::rowInt($r, 'count'),
         ], $byTypeRows);
@@ -335,7 +335,7 @@ final class ImpactHandler
             . ' LIMIT 5',
         );
 
-        $topCampaigns = array_map(static fn (array $r) => [
+        $topCampaigns = array_map(static fn (array $r): array => [
             'campaign_id' => self::rowStr($r, 'campaign_id'),
             'status' => self::rowStr($r, 'status'),
             'severity' => self::rowStr($r, 'severity'),

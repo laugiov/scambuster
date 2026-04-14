@@ -15,40 +15,26 @@ class BanditConvergenceLog
     #[ORM\Id]
     #[ORM\GeneratedValue(strategy: 'IDENTITY')]
     #[ORM\Column(type: 'integer')]
-    private ?int $id = null; // @phpstan-ignore property.unusedType
-
-    #[ORM\Column(name: 'scam_type_code', type: 'string', length: 32)]
-    private string $scamTypeCode;
-
-    #[ORM\Column(name: 'dominant_persona_code', type: 'string', length: 32)]
-    private string $dominantPersonaCode;
+    /** @phpstan-ignore-next-line Property is written by Doctrine ORM */
+    private ?int $id = null;
 
     #[ORM\Column(name: 'dominant_pct', type: 'decimal', precision: 5, scale: 2)]
     private string $dominantPct;
 
-    #[ORM\Column(name: 'sessions_count', type: 'integer')]
-    private int $sessionsCount;
-
-    #[ORM\Column(name: 'converged', type: 'boolean')]
-    private bool $converged;
-
-    #[ORM\Column(name: 'logged_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $loggedAt;
-
     public function __construct(
-        string $scamTypeCode,
-        string $dominantPersonaCode,
+        #[ORM\Column(name: 'scam_type_code', type: 'string', length: 32)]
+        private string $scamTypeCode,
+        #[ORM\Column(name: 'dominant_persona_code', type: 'string', length: 32)]
+        private string $dominantPersonaCode,
         float $dominantPct,
-        int $sessionsCount,
-        bool $converged,
-        ?\DateTimeImmutable $loggedAt = null,
+        #[ORM\Column(name: 'sessions_count', type: 'integer')]
+        private int $sessionsCount,
+        #[ORM\Column(name: 'converged', type: 'boolean')]
+        private bool $converged,
+        #[ORM\Column(name: 'logged_at', type: 'datetime_immutable')]
+        private \DateTimeImmutable $loggedAt = new \DateTimeImmutable(),
     ) {
-        $this->scamTypeCode = $scamTypeCode;
-        $this->dominantPersonaCode = $dominantPersonaCode;
         $this->dominantPct = (string) $dominantPct;
-        $this->sessionsCount = $sessionsCount;
-        $this->converged = $converged;
-        $this->loggedAt = $loggedAt ?? new \DateTimeImmutable();
     }
 
     public function getId(): ?int

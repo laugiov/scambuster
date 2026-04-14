@@ -26,7 +26,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
  * - SIEM export is synchronous (blocking) for AUTH_* and INJECTION_DETECTED
  *   events; non-blocking for all other events
  */
-final class AuditLogger
+final readonly class AuditLogger
 {
     /** @var list<string> Event types where SIEM export failure is blocking */
     private const BLOCKING_SIEM_EVENTS = [
@@ -38,12 +38,12 @@ final class AuditLogger
     ];
 
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger,
-        private readonly RequestStack $requestStack,
-        private readonly SiemExporterInterface $siemExporter,
+        private EntityManagerInterface $em,
+        private LoggerInterface $logger,
+        private RequestStack $requestStack,
+        private SiemExporterInterface $siemExporter,
         // Spec 065f — HMAC chainer (optional for backward compat)
-        private readonly ?AuditHmacChainer $hmacChainer = null,
+        private ?AuditHmacChainer $hmacChainer = null,
     ) {
     }
 
@@ -65,11 +65,11 @@ final class AuditLogger
         try {
             $request = $this->requestStack->getCurrentRequest();
 
-            if ($ipAddress === null && $request !== null) {
+            if ($ipAddress === null && $request instanceof \Symfony\Component\HttpFoundation\Request) {
                 $ipAddress = $request->getClientIp();
             }
 
-            if ($traceId === null && $request !== null) {
+            if ($traceId === null && $request instanceof \Symfony\Component\HttpFoundation\Request) {
                 $traceId = TraceIdListener::getTraceId($request);
             }
 
@@ -87,7 +87,7 @@ final class AuditLogger
             );
 
             // Spec 065f — Compute HMAC chain before persist (only if key is configured)
-            if ($this->hmacChainer !== null && $this->hmacChainer->isEnabled()) {
+            if ($this->hmacChainer instanceof \App\Application\Audit\AuditHmacChainer && $this->hmacChainer->isEnabled()) {
                 $this->computeHmacChain($entry);
             }
 
@@ -171,7 +171,11 @@ final class AuditLogger
         }
 
         $canonicalRow = $entry->toCanonicalRow();
-        $newHmac = $this->hmacChainer->compute($prevHmacBin, $canonicalRow);
+        $newHmac = $this->hmacChainer?->compute($prevHmacBin, $canonicalRow);
+
+        if ($newHmac === null) {
+            return;
+        }
 
         $entry->setPrevHmac($prevHmacBin === '' ? null : $prevHmacBin);
         $entry->setRowHmac($newHmac);

@@ -16,9 +16,14 @@ final class OpeningDiversityMetric implements MetricInterface
         $openings = [];
 
         foreach ($corpus as $entry) {
+            /** @var string $text */
             $text = $entry['text'] ?? '';
 
-            if ($text === '' || ($entry['fallback_used'] ?? false)) {
+            if ($text === '') {
+                continue;
+            }
+
+            if ($entry['fallback_used'] ?? false) {
                 continue;
             }
 
@@ -70,7 +75,7 @@ final class OpeningDiversityMetric implements MetricInterface
         // Take first 8 words of the actual content
         $words = preg_split('/\s+/', $text, -1, PREG_SPLIT_NO_EMPTY);
 
-        if ($words === false || empty($words)) {
+        if ($words === false || $words === []) {
             return '';
         }
 

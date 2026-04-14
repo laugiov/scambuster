@@ -17,13 +17,13 @@ use Psr\Log\LoggerInterface;
  * Spec 066d — Uses Domain repository interfaces instead of EntityManager.
  * Stateless service: safe to inject as a singleton.
  */
-final class EntityReferenceResolver
+final readonly class EntityReferenceResolver
 {
     public function __construct(
-        private readonly MailAccountRepositoryInterface $mailAccountRepo,
-        private readonly ChannelRepositoryInterface $channelRepo,
-        private readonly DirectionRepositoryInterface $directionRepo,
-        private readonly LoggerInterface $logger,
+        private MailAccountRepositoryInterface $mailAccountRepo,
+        private ChannelRepositoryInterface $channelRepo,
+        private DirectionRepositoryInterface $directionRepo,
+        private LoggerInterface $logger,
     ) {
     }
 
@@ -37,7 +37,7 @@ final class EntityReferenceResolver
     {
         $account = $this->mailAccountRepo->findById($accountId);
 
-        if (!$account) {
+        if (!$account instanceof \App\Domain\Communication\MailAccount) {
             $this->logger->error('[EntityReferenceResolver] Unknown account_id', ['account_id' => $accountId]);
 
             throw new \RuntimeException('Unknown account_id');
@@ -45,7 +45,7 @@ final class EntityReferenceResolver
 
         $channel = $this->channelRepo->findByCode($channelCode);
 
-        if (!$channel) {
+        if (!$channel instanceof \App\Domain\Communication\Channel) {
             $this->logger->error('[EntityReferenceResolver] Unknown channel', ['channel' => $channelCode]);
 
             throw new \RuntimeException('Unknown channel');
@@ -53,7 +53,7 @@ final class EntityReferenceResolver
 
         $direction = $this->directionRepo->findByCode('in');
 
-        if (!$direction) {
+        if (!$direction instanceof \App\Domain\Communication\Direction) {
             $this->logger->error('[EntityReferenceResolver] Unknown direction');
 
             throw new \RuntimeException('Unknown direction');
