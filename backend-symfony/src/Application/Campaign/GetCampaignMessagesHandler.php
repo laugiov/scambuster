@@ -9,9 +9,9 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Handler pour récupérer les messages d'une campagne.
+ * Handler to retrieve messages for a campaign.
  *
- * Retourne un échantillon de messages pour inspection/analyse.
+ * Returns a message sample for inspection/analysis.
  */
 final readonly class GetCampaignMessagesHandler
 {
@@ -22,7 +22,7 @@ final readonly class GetCampaignMessagesHandler
     }
 
     /**
-     * Récupère les messages d'une campagne.
+     * Retrieves messages for a campaign.
      *
      * @param Uuid $campaignId ID de la campagne
      * @param int  $limit      Nombre max de messages (1-100)
@@ -38,14 +38,14 @@ final readonly class GetCampaignMessagesHandler
             'limit' => $limit,
         ]);
 
-        // 1. Vérifier que la campagne existe
+        // 1. Verify campaign exists
         $campaign = $this->campaignRepository->findById($campaignId);
 
         if (!$campaign instanceof \App\Domain\CampaignRadar\Campaign) {
             throw new \RuntimeException("Campaign not found: {$campaignId->toRfc4122()}");
         }
 
-        // 2. Récupérer les messages
+        // 2. Retrieve messages
         $messages = $this->campaignRepository->findMessagesByCampaign($campaignId, $limit);
 
         // 3. Mapper vers DTOs

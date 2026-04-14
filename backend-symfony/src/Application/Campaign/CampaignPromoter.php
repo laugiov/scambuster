@@ -26,7 +26,7 @@ final readonly class CampaignPromoter
     }
 
     /**
-     * Évalue les candidats à la promotion.
+     * Evaluates promotion candidates.
      *
      * @return array{candidates: list<array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, created_at: string}>, promoted: list<array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, promoted_at: ?string}>}
      */
@@ -34,13 +34,13 @@ final readonly class CampaignPromoter
     {
         $this->logger->info('Evaluating promotion candidates');
 
-        // Utiliser la vue SQL créée en Phase 1
+        // Use the SQL view created in Phase 1
         $candidates = $this->campaignRepository->findPromotionCandidates();
 
         $candidatesData = [];
 
         foreach ($candidates as $campaign) {
-            // Récupérer règles de cette campagne
+            // Retrieve rules for this campaign
             $rules = $this->em->getRepository(CampaignRule::class)
                 ->findBy([
                     'campaignId' => $campaign->getCampaignId(),
@@ -62,7 +62,7 @@ final readonly class CampaignPromoter
             }
         }
 
-        // Récupérer aussi les règles déjà promues (20 dernières)
+        // Also retrieve already promoted rules (last 20)
         /** @var list<CampaignRule> $promotedRules */
         $promotedRules = $this->em->getRepository(CampaignRule::class)
             ->createQueryBuilder('cr')
@@ -94,10 +94,10 @@ final readonly class CampaignPromoter
     }
 
     /**
-     * Promeut une règle de campagne.
+     * Promotes a campaign rule.
      *
      * @throws \DomainException  si seuils non atteints
-     * @throws \RuntimeException si la règle n'est pas trouvée
+     * @throws \RuntimeException if the rule is not found
      */
     public function promote(Uuid $ruleId): void
     {
@@ -132,7 +132,7 @@ final readonly class CampaignPromoter
             ]);
         }
 
-        // Promouvoir la règle
+        // Promote the rule
         $rule->promote();
 
         // Promouvoir la campagne
@@ -166,7 +166,7 @@ final readonly class CampaignPromoter
     }
 
     /**
-     * Récupère les seuils de promotion configurés.
+     * Retrieves configured promotion thresholds.
      *
      * @return array{ppv_threshold: float, min_hits: int, min_lead_time_sec: int}
      */

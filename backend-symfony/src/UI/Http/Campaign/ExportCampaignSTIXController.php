@@ -22,7 +22,7 @@ final readonly class ExportCampaignSTIXController
     #[OA\Post(
         path: '/api/v1/campaign/{campaignId}/export/stix',
         summary: 'Exporter une campagne au format STIX 2.1',
-        description: 'Génère un bundle STIX 2.1 pour une campagne donnée en extrayant les IoCs depuis le profil YAML. Le fichier JSON est sauvegardé sur disque.',
+        description: 'Generates a STIX 2.1 bundle for a given campaign by extracting IoCs from the YAML profile. The JSON file is saved to disk.',
         security: [['Bearer' => []]],
         tags: ['Campaign'],
         parameters: [
@@ -30,19 +30,19 @@ final readonly class ExportCampaignSTIXController
                 name: 'campaignId',
                 in: 'path',
                 required: true,
-                description: 'UUID de la campagne à exporter',
+                description: 'UUID of the campaign to export',
                 schema: new OA\Schema(type: 'string', format: 'uuid')
             ),
         ],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Export STIX terminé avec succès',
+                description: 'STIX export completed successfully',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
                         new OA\Property(property: 'message', type: 'string', example: 'STIX export completed'),
-                        new OA\Property(property: 'file_path', type: 'string', description: 'Chemin du fichier STIX généré'),
+                        new OA\Property(property: 'file_path', type: 'string', description: 'Path of the generated STIX file'),
                         new OA\Property(property: 'bundle_id', type: 'string', description: 'Identifiant du bundle STIX (bundle--uuid)'),
                     ]
                 )

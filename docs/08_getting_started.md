@@ -240,7 +240,7 @@ If you want n8n to poll real mailboxes, you need to store IMAP credentials in Va
 
 ```bash
 # Seed a dummy IMAP account (included in respawn-all)
-make console q="vault:imap-secret:add dummyhash user@example.com motdepasse123"
+make console q="vault:imap-secret:add dummyhash user@example.com changeme-dev"
 
 # Or use respawn-all which does everything (reset DBs + fixtures + Vault seed)
 make respawn-all

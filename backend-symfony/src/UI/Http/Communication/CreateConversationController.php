@@ -17,7 +17,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Post(
     path: '/api/v1/communication/conversation',
-    summary: 'Créer une conversation',
+    summary: 'Create a conversation',
     tags: ['Conversations'],
     requestBody: new OA\RequestBody(
         required: true,
@@ -39,12 +39,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 201,
-            description: 'Conversation créée',
+            description: 'Conversation created',
             content: new OA\JsonContent(ref: new Model(type: ConversationCreateResponseDto::class))
         ),
         new OA\Response(
             response: 400,
-            description: 'Erreur de validation ou de référence',
+            description: 'Validation or reference error',
             content: new OA\JsonContent(
                 type: 'object',
                 properties: [

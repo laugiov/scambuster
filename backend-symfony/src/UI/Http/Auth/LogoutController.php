@@ -18,7 +18,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 #[Route('/api/v1/auth/logout', name: 'api_auth_logout', methods: ['POST'])]
 #[OA\Post(
     path: '/api/v1/auth/logout',
-    summary: 'Déconnexion utilisateur (logout)',
+    summary: 'User logout',
     tags: ['Auth'],
     requestBody: new OA\RequestBody(
         required: true,
@@ -27,7 +27,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
     responses: [
         new OA\Response(
             response: 204,
-            description: 'Déconnexion réussie (no content)'
+            description: 'Successful logout (no content)'
         ),
         new OA\Response(
             response: 400,
@@ -36,7 +36,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         ),
         new OA\Response(
             response: 401,
-            description: 'Refresh token invalide ou déjà utilisé',
+            description: 'Refresh token invalid or already used',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         ),
         new OA\Response(

@@ -18,7 +18,7 @@ final readonly class CampaignHunter
     }
 
     /**
-     * Exécute toutes les règles actives en shadow mode.
+     * Executes all active rules in shadow mode.
      *
      * @return array{total_rules: int, total_hits: int, results: array<int, array<string, mixed>>}
      */
@@ -26,7 +26,7 @@ final readonly class CampaignHunter
     {
         $this->logger->info('Starting campaign hunter');
 
-        // Récupérer toutes les règles actives
+        // Retrieve all active rules
         $rules = $this->em->getRepository(CampaignRule::class)
             ->findBy(['enabled' => true]);
 
@@ -59,7 +59,7 @@ final readonly class CampaignHunter
     }
 
     /**
-     * Exécute une règle individuelle.
+     * Executes an individual rule.
      *
      * @return array{rule_id: string, status: string, hits_count: int, ppv: float, lead_time_sec: ?int, latency_ms: int}
      */
@@ -68,7 +68,7 @@ final readonly class CampaignHunter
         $startTime = microtime(true);
         $ruleId = $rule->getRuleId()->toRfc4122();
 
-        // Vérifier que SQL compilé existe
+        // Verify compiled SQL exists
         $compiledData = $rule->getCompiledData();
 
         if ($compiledData === null) {
@@ -85,7 +85,7 @@ final readonly class CampaignHunter
             ];
         }
 
-        // Valider la structure des données compilées
+        // Validate compiled data structure
         if (!isset($compiledData['sql']) || !is_string($compiledData['sql']) || !isset($compiledData['params']) || !is_array($compiledData['params'])) {
             $this->logger->warning('Compiled data has invalid structure', [
                 'rule_id' => $ruleId,
@@ -106,7 +106,7 @@ final readonly class CampaignHunter
         $sql = $compiledData['sql'];
         $params = $compiledData['params'];
 
-        // Exécuter SQL avec prepared statement
+        // Execute SQL with prepared statement
         try {
             $conn = $this->em->getConnection();
             $stmt = $conn->prepare($sql);
@@ -132,17 +132,17 @@ final readonly class CampaignHunter
 
         $latencyMs = (int) ((microtime(true) - $startTime) * 1000);
 
-        // Valider hits (échantillon de 10 max)
+        // Validate hits (sample of max 10)
         $hitsToValidate = array_slice($hits, 0, 10);
         $validation = $this->validateHits($hitsToValidate);
 
-        // Calculer PPV
+        // Calculate PPV
         $ppv = $this->calculatePPV($validation);
 
-        // Calculer lead-time
+        // Calculate lead-time
         $leadTime = $this->calculateLeadTime($hits);
 
-        // Le hits_count doit correspondre au nombre de hits validés
+        // hits_count must match the number of validated hits
         // pour respecter la contrainte: true_pos + false_pos = hits_count
         $validatedHitsCount = $validation['true_pos'] + $validation['false_pos'];
 
@@ -232,7 +232,7 @@ final readonly class CampaignHunter
     /**
      * Calcule le lead-time (premier hit → pic campagne).
      *
-     * @param array<int, array<string, mixed>> $hits Résultats SQL triés par ts_msg
+     * @param array<int, array<string, mixed>> $hits SQL results sorted by ts_msg
      *
      * @return int|null Lead-time en secondes, null si insuffisant
      */
@@ -253,7 +253,7 @@ final readonly class CampaignHunter
         $firstHitTs = $hits[0]['ts_msg'];
         $firstHit = new \DateTimeImmutable($firstHitTs);
 
-        // Trouver le pic (fenêtre avec le plus de hits)
+        // Find the peak (window with the most hits)
         $peakTime = $this->findPeakTime($hits);
 
         if (!$peakTime instanceof \DateTimeImmutable) {
@@ -269,9 +269,9 @@ final readonly class CampaignHunter
     }
 
     /**
-     * Trouve le moment du pic de la campagne (fenêtre glissante 1h).
+     * Finds the campaign peak time (1h sliding window).
      *
-     * @param array<int, array<string, mixed>> $hits Hits triés par ts_msg
+     * @param array<int, array<string, mixed>> $hits Hits sorted by ts_msg
      *
      * @return \DateTimeImmutable|null Timestamp du pic
      */
@@ -290,7 +290,7 @@ final readonly class CampaignHunter
             $windowStart = new \DateTimeImmutable($hitTs);
             $windowEnd = $windowStart->modify('+1 hour');
 
-            // Compter hits dans cette fenêtre
+            // Count hits in this window
             $hitsInWindow = array_filter($hits, function (array $h) use ($windowStart, $windowEnd): bool {
                 /** @var string $hTs */
                 $hTs = $h['ts_msg'];
@@ -311,13 +311,13 @@ final readonly class CampaignHunter
     }
 
     /**
-     * Met à jour les métriques d'une règle.
+     * Updates a rule's metrics.
      *
      * @param array<string, mixed> $result
      */
     private function updateRuleMetrics(CampaignRule $rule, array $result): void
     {
-        // Récupérer validation pour true_pos et false_pos
+        // Retrieve validation for true_pos and false_pos
         /** @var array{true_pos: int, false_pos: int} $validation */
         $validation = $result['validation'];
 
@@ -329,7 +329,7 @@ final readonly class CampaignHunter
             $validation['false_pos']
         );
 
-        // Update PPV directement depuis résultat
+        // Update PPV directly from result
         /** @var float $ppv */
         $ppv = $result['ppv'];
         $rule->setPpv($ppv);

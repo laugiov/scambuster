@@ -10,10 +10,10 @@ use App\Domain\Scambaiting\PersonaPerformance;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Entité Doctrine pour la table persona_performance_stats.
- * Stocke les statistiques de performance d'un persona pour un scam_type donné.
+ * Doctrine entity for the persona_performance_stats table.
+ * Stores performance statistics for a persona for a given scam_type.
  *
- * ⚠️ IMPORTANT : Cette entité est dans Infrastructure/, PAS dans Domain/,
+ * IMPORTANT: This entity is in Infrastructure/, NOT in Domain/,
  * car elle contient des annotations Doctrine (violation de la pure business logic).
  */
 #[ORM\Entity(repositoryClass: \App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository::class)]
@@ -29,12 +29,12 @@ class PersonaPerformanceStatsEntity
     private string $rewardAvg = '0.0000';
 
     /**
-     * Constructeur avec paramètres requis.
+     * Constructor with required parameters.
      */
     public function __construct(
         /**
-         * Clé composite : (persona_id, scam_type_id)
-         * Doctrine nécessite l'annotation #[ORM\Id] sur les deux colonnes.
+         * Composite key: (persona_id, scam_type_id)
+         * Doctrine requires the #[ORM\Id] annotation on both columns.
          */
         #[ORM\Id]
         #[ORM\ManyToOne(targetEntity: Persona::class)]
@@ -56,7 +56,7 @@ class PersonaPerformanceStatsEntity
     }
 
     /**
-     * Convertit cette entité en Value Object PersonaPerformance (Domain layer).
+     * Converts this entity to a PersonaPerformance Value Object (Domain layer).
      * Permet de passer du monde Infrastructure au monde Domain.
      */
     public function toPersonaPerformance(): PersonaPerformance
@@ -70,8 +70,8 @@ class PersonaPerformanceStatsEntity
     }
 
     /**
-     * Met à jour les stats avec un nouveau reward (moyenne mobile).
-     * Cette méthode est MUTABLE (modifie l'entité) car c'est une entité Doctrine.
+     * Updates stats with a new reward (moving average).
+     * This method is MUTABLE (modifies the entity) because it is a Doctrine entity.
      *
      * @param float $newReward Nouveau reward [0.0, 1.0]
      *

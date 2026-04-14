@@ -23,8 +23,8 @@ final readonly class StoreRuleController
     }
     #[OA\Post(
         path: '/api/v1/campaign/rule',
-        summary: 'Stocker une règle DSL compilée pour une campagne',
-        description: 'Crée une nouvelle règle de campagne avec le DSL et le SQL compilé. La règle est activée par défaut en mode shadow.',
+        summary: 'Store a compiled DSL rule for a campaign',
+        description: 'Creates a new campaign rule with DSL and compiled SQL. The rule is enabled by default in shadow mode.',
         tags: ['Campaign Radar'],
         requestBody: new OA\RequestBody(
             required: true,
@@ -33,11 +33,11 @@ final readonly class StoreRuleController
                 required: ['campaign_id', 'dsl', 'compiled_sql'],
                 properties: [
                     new OA\Property(property: 'campaign_id', type: 'string', format: 'uuid', description: 'UUID de la campagne'),
-                    new OA\Property(property: 'dsl', type: 'string', description: 'Règle DSL MailGuard source'),
+                    new OA\Property(property: 'dsl', type: 'string', description: 'MailGuard DSL rule source'),
                     new OA\Property(
                         property: 'compiled_sql',
                         type: 'object',
-                        description: 'SQL compilé avec paramètres (retour de /transpile)',
+                        description: 'Compiled SQL with parameters (from /transpile)',
                         properties: [
                             new OA\Property(property: 'sql', type: 'string'),
                             new OA\Property(property: 'params', type: 'object', additionalProperties: true),
@@ -49,7 +49,7 @@ final readonly class StoreRuleController
         responses: [
             new OA\Response(
                 response: 201,
-                description: 'Règle créée avec succès',
+                description: 'Rule created successfully',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
@@ -62,7 +62,7 @@ final readonly class StoreRuleController
             ),
             new OA\Response(
                 response: 400,
-                description: 'Paramètres invalides',
+                description: 'Invalid parameters',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -94,7 +94,7 @@ final readonly class StoreRuleController
             return new JsonResponse(['error' => 'Invalid campaign_id format'], Response::HTTP_BAD_REQUEST);
         }
 
-        // Déléguer au Handler
+        // Delegate to Handler
         try {
             /** @var string $dsl */
             $dsl = $data['dsl'];

@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/reply/{msgId}/compose',
-    summary: 'Obtenir les headers pour l\'envoi threadé',
+    summary: 'Get headers for threaded sending',
     tags: ['Reply'],
     parameters: [
         new OA\Parameter(name: 'msgId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -28,7 +28,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
         ),
         new OA\Response(
             response: 404,
-            description: 'Message non trouvé',
+            description: 'Message not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

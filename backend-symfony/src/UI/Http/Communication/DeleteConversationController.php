@@ -23,12 +23,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Conversation supprimée',
+            description: 'Conversation deleted',
             content: new OA\JsonContent(ref: new Model(type: ConversationDeleteResponseDto::class))
         ),
         new OA\Response(
             response: 404,
-            description: 'Conversation non trouvée',
+            description: 'Conversation not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

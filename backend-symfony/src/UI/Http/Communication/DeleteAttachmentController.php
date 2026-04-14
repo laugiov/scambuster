@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Delete(
     path: '/api/v1/communication/attachment/{attachmentId}',
-    summary: 'Supprimer une pièce jointe',
+    summary: 'Delete an attachment',
     tags: ['Attachments'],
     parameters: [
         new OA\Parameter(name: 'attachmentId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -23,12 +23,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Pièce jointe supprimée',
+            description: 'Attachment deleted',
             content: new OA\JsonContent(ref: new Model(type: AttachmentDeleteResponseDto::class))
         ),
         new OA\Response(
             response: 404,
-            description: 'Pièce jointe non trouvée',
+            description: 'Attachment not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

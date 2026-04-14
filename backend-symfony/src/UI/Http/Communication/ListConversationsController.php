@@ -16,7 +16,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/conversation',
-    summary: 'Liste paginée des conversations',
+    summary: 'Paginated list of conversations',
     tags: ['Conversations'],
     parameters: [
         new OA\Parameter(name: 'page', in: 'query', required: false, schema: new OA\Schema(type: 'integer', minimum: 1)),
@@ -28,7 +28,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Liste paginée des conversations',
+            description: 'Paginated list of conversations',
             content: new OA\JsonContent(
                 type: 'array',
                 items: new OA\Items(ref: new Model(type: ConversationListItemDto::class))

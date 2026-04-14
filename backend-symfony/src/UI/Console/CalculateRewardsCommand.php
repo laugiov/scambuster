@@ -29,7 +29,7 @@ class CalculateRewardsCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('force', 'f', InputOption::VALUE_NONE, 'Recalculer même si reward déjà présent');
+        $this->addOption('force', 'f', InputOption::VALUE_NONE, 'Recalculate even if reward already exists');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -37,9 +37,9 @@ class CalculateRewardsCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $force = $input->getOption('force');
 
-        $io->title('🧮 Calcul des rewards pour conversations preprod');
+        $io->title('Reward calculation for preprod conversations');
 
-        // Récupérer toutes les conversations CLOSED
+        // Retrieve all CLOSED conversations
         $qb = $this->em->getRepository(Conversation::class)->createQueryBuilder('c');
         $qb->where("c.status = 'closed' OR c.status = 'CLOSED'");
 
@@ -51,12 +51,12 @@ class CalculateRewardsCommand extends Command
         $conversations = $qb->getQuery()->getResult();
 
         if (empty($conversations)) {
-            $io->success('Aucune conversation à traiter');
+            $io->success('No conversations to process');
 
             return Command::SUCCESS;
         }
 
-        $io->info(sprintf('Trouvé %d conversations à traiter', count($conversations)));
+        $io->info(sprintf('Found %d conversations to process', count($conversations)));
 
         $progressBar = $io->createProgressBar(count($conversations));
         $progressBar->start();
@@ -80,9 +80,9 @@ class CalculateRewardsCommand extends Command
         $io->newLine(2);
 
         $io->table(
-            ['Métrique', 'Valeur'],
+            ['Metric', 'Value'],
             [
-                ['Succès', $success],
+                ['Success', $success],
                 ['Erreurs', $errors],
                 ['Total', count($conversations)],
             ]

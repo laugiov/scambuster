@@ -7,24 +7,24 @@ namespace App\Domain\Scambaiting\Event;
 use Symfony\Contracts\EventDispatcher\Event;
 
 /**
- * Domain Event déclenché quand une conversation se termine.
- * Permet de calculer le reward et mettre à jour les stats de performance.
+ * Domain Event dispatched when a conversation ends.
+ * Allows computing the reward and updating performance stats.
  *
- * ⚠️ EXCEPTION : Cet event hérite de Symfony\Event pour être compatible
- * avec le système d'event dispatching du projet. C'est un compromis acceptable
+ * EXCEPTION: This event extends Symfony\Event for compatibility
+ * with the project's event dispatching system. This is an acceptable tradeoff
  * car l'Event Dispatcher est une abstraction standard (PSR-14 compatible).
  */
 final class ConversationEndedEvent extends Event implements \Stringable
 {
     /**
-     * @param string      $conversationId UUID de la conversation terminée
+     * @param string      $conversationId UUID of the ended conversation
      * @param string      $scamTypeCode   Code du scam type (ex: 'PHISHING')
-     * @param string|null $personaCode    Code du persona utilisé (null si aucun)
-     * @param int         $durationSec    Durée de la conversation en secondes
+     * @param string|null $personaCode    Code of the persona used (null if none)
+     * @param int         $durationSec    Conversation duration in seconds
      * @param int         $turnsCount     Nombre de tours de parole
-     * @param int         $iocsTotal      Nombre total d'IOCs capturés
+     * @param int         $iocsTotal      Total number of captured IOCs
      * @param int         $iocsSensibles  Nombre d'IOCs haute valeur
-     * @param bool        $isCompleted    True si terminée normalement (vs timeout/erreur)
+     * @param bool        $isCompleted    True if completed normally (vs timeout/error)
      */
     public function __construct(
         private readonly string $conversationId,
@@ -79,8 +79,8 @@ final class ConversationEndedEvent extends Event implements \Stringable
     }
 
     /**
-     * Vérifie si l'événement concerne une conversation avec persona assigné.
-     * Les conversations sans persona ne participent pas à l'apprentissage.
+     * Checks if the event concerns a conversation with an assigned persona.
+     * Conversations without a persona do not participate in learning.
      */
     public function hasPersona(): bool
     {
@@ -88,7 +88,7 @@ final class ConversationEndedEvent extends Event implements \Stringable
     }
 
     /**
-     * Représentation textuelle pour logging.
+     * String representation for logging.
      */
     public function __toString(): string
     {

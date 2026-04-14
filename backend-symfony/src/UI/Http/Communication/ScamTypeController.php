@@ -36,7 +36,7 @@ final readonly class ScamTypeController
                             new OA\Property(property: 'code', type: 'string', example: 'phishing'),
                             new OA\Property(property: 'label_en', type: 'string', example: 'Phishing'),
                             new OA\Property(property: 'label_fr', type: 'string', example: 'Hameçonnage'),
-                            new OA\Property(property: 'persona', type: 'string', example: 'bank_customer', description: 'Persona associé à ce type de scam')
+                            new OA\Property(property: 'persona', type: 'string', example: 'bank_customer', description: 'Persona associated with this scam type')
                         ]
                     )
                 )

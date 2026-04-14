@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/reply/{msgId}',
-    summary: 'Récupérer un brouillon de réponse',
+    summary: 'Get a reply draft',
     tags: ['Reply'],
     parameters: [
         new OA\Parameter(name: 'msgId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -23,12 +23,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Détail du brouillon',
+            description: 'Draft detail',
             content: new OA\JsonContent(ref: new Model(type: ReplyDetailResponseDto::class))
         ),
         new OA\Response(
             response: 404,
-            description: 'Message non trouvé',
+            description: 'Message not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

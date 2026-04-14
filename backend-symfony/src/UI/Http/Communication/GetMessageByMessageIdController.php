@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/message/by-message-id/{messageId}',
-    summary: 'Récupère un message par son message-id',
+    summary: 'Get a message by its message-id',
     tags: ['Messages'],
     parameters: [
         new OA\Parameter(name: 'messageId', in: 'path', required: true, schema: new OA\Schema(type: 'string')),
@@ -23,12 +23,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Message trouvé',
+            description: 'Message found',
             content: new OA\JsonContent(ref: new Model(type: MessageResponseDto::class))
         ),
         new OA\Response(
             response: 404,
-            description: 'Message non trouvé',
+            description: 'Message not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],
