@@ -87,8 +87,13 @@ final class CreateConversationController
             return new JsonResponse(['error' => 'Invalid reference'], Response::HTTP_BAD_REQUEST);
         }
         $scoreRisk = (int)$data['score_risk'];
-        $tsFirst = new \DateTimeImmutable((string)$data['ts_first']);
-        $tsLast = new \DateTimeImmutable((string)$data['ts_last']);
+
+        try {
+            $tsFirst = new \DateTimeImmutable((string) $data['ts_first']);
+            $tsLast = new \DateTimeImmutable((string) $data['ts_last']);
+        } catch (\Exception) {
+            return new JsonResponse(['error' => 'Invalid date format'], Response::HTTP_BAD_REQUEST);
+        }
         $stixId = (string)$data['stix_id'];
         $conv = $this->handler->createConversation(
             $channel,
