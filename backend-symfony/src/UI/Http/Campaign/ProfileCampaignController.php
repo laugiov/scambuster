@@ -23,7 +23,7 @@ final readonly class ProfileCampaignController
     }
     #[OA\Post(
         path: '/api/v1/campaign/{campaign_id}/profile',
-        summary: 'Profiler une campagne via LLM',
+        summary: 'Profile a campaign via LLM',
         description: 'Analyzes a sample of campaign messages and generates a descriptive YAML profile via GPT-4. The profile includes: summary, tactics, target, CTA, variants and infrastructure.',
         tags: ['Campaign Radar'],
         parameters: [
@@ -57,7 +57,7 @@ final readonly class ProfileCampaignController
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
-                        new OA\Property(property: 'profile_yaml', type: 'string', description: 'Profil de campagne au format YAML'),
+                        new OA\Property(property: 'profile_yaml', type: 'string', description: 'Campaign profile in YAML format'),
                         new OA\Property(property: 'cache_hit', type: 'boolean', description: 'True if result came from Redis cache'),
                         new OA\Property(property: 'attempts', type: 'integer', description: 'Number of LLM attempts required'),
                     ]
@@ -73,7 +73,7 @@ final readonly class ProfileCampaignController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Campagne introuvable ou pas assez de messages',
+                description: 'Campaign not found or insufficient messages',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -81,7 +81,7 @@ final readonly class ProfileCampaignController
             ),
             new OA\Response(
                 response: 500,
-                description: 'Erreur lors du profiling LLM',
+                description: 'LLM profiling error',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]

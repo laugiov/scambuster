@@ -7,9 +7,11 @@ namespace App\UI\Http\Auth;
 use App\Application\Audit\AuditLogger;
 use App\Application\Auth\AuthServiceInterface;
 use App\Application\Auth\Dto\LoginRequestDto;
+use App\Application\Auth\TotpVerifier;
 use App\Domain\Audit\AuditEventType;
 use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
+use OpenApi\Attributes as OA;
 use Scheb\TwoFactorBundle\Security\TwoFactor\Provider\Totp\TotpAuthenticatorInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,6 +22,49 @@ use Symfony\Component\Security\Core\Exception\AuthenticationException;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/api/v1/auth/2fa/login', name: 'api_auth_2fa_login', methods: ['POST'])]
+#[OA\Post(
+    path: '/api/v1/auth/2fa/login',
+    summary: 'Two-factor authentication login',
+    tags: ['Auth'],
+    requestBody: new OA\RequestBody(
+        required: true,
+        content: new OA\JsonContent(
+            type: 'object',
+            required: ['email', 'password', 'code'],
+            properties: [
+                new OA\Property(property: 'email', type: 'string', format: 'email'),
+                new OA\Property(property: 'password', type: 'string'),
+                new OA\Property(property: 'code', type: 'string', pattern: '^\d{6}$', example: '123456', description: '6-digit TOTP code from authenticator app'),
+            ]
+        )
+    ),
+    responses: [
+        new OA\Response(
+            response: 200,
+            description: 'Successful 2FA login',
+            content: new OA\JsonContent(type: 'object', properties: [
+                new OA\Property(property: 'access_token', type: 'string'),
+                new OA\Property(property: 'refresh_token', type: 'string'),
+                new OA\Property(property: 'expires_in', type: 'integer'),
+            ])
+        ),
+        new OA\Response(
+            response: 400,
+            description: 'Invalid format or TOTP not configured',
+            content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
+        ),
+        new OA\Response(
+            response: 401,
+            description: 'Invalid credentials or TOTP code',
+            content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
+        ),
+        new OA\Response(
+            response: 429,
+            description: 'Rate limited',
+            content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'retry_after', type: 'integer')])
+        ),
+    ]
+)]
 final readonly class TotpLoginController
 {
     public function __construct(
@@ -27,6 +72,7 @@ final readonly class TotpLoginController
         private AuditLogger $auditLogger,
         private UserRepositoryInterface $userRepo,
         private ValidatorInterface $validator,
+        private TotpVerifier $totpVerifier,
         // Spec 065e — replaces the custom RFC 6238 implementation with scheb
         private ?TotpAuthenticatorInterface $totpAuthenticator = null,
         // Spec 066 — rate limiting on 2FA endpoint (reuses login_ip limiter)
@@ -132,7 +178,7 @@ final readonly class TotpLoginController
             $codeValid = $this->totpAuthenticator->checkCode($user, $code);
         } else {
             $secret = $user->getTotpSecret();
-            $codeValid = $secret !== null && $this->verifyTotp($secret, $code);
+            $codeValid = $secret !== null && $this->totpVerifier->verify($secret, $code);
         }
 
         if (!$codeValid) {
@@ -169,63 +215,5 @@ final readonly class TotpLoginController
             'refresh_token' => $response->refreshToken,
             'expires_in'    => $response->expiresIn,
         ], Response::HTTP_OK);
-    }
-    private function verifyTotp(string $base32Secret, string $code): bool
-    {
-        $secret = $this->base32Decode($base32Secret);
-        $currentCounter = (int) floor(time() / 30);
-
-        for ($i = -1; $i <= 1; $i++) {
-            $counter = $currentCounter + $i;
-            $generated = $this->generateTotpCode($secret, $counter);
-
-            if (hash_equals($generated, $code)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-    private function generateTotpCode(string $secret, int $counter): string
-    {
-        $counterBytes = pack('N*', 0, $counter);
-        $hash = hash_hmac('sha1', $counterBytes, $secret, true);
-
-        $offset = ord($hash[19]) & 0x0F;
-        $value = (
-            ((ord($hash[$offset]) & 0x7F) << 24) |
-            ((ord($hash[$offset + 1]) & 0xFF) << 16) |
-            ((ord($hash[$offset + 2]) & 0xFF) << 8) |
-            (ord($hash[$offset + 3]) & 0xFF)
-        ) % 1000000;
-
-        return str_pad((string) $value, 6, '0', STR_PAD_LEFT);
-    }
-    private function base32Decode(string $base32): string
-    {
-        $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-        $base32 = strtoupper(rtrim($base32, '='));
-        $binary = '';
-
-        foreach (str_split($base32) as $char) {
-            $index = strpos($alphabet, $char);
-
-            if ($index === false) {
-                continue;
-            }
-            $binary .= str_pad(decbin($index), 5, '0', STR_PAD_LEFT);
-        }
-
-        $result = '';
-        $chunks = str_split($binary, 8);
-
-        foreach ($chunks as $chunk) {
-            if (\strlen($chunk) < 8) {
-                break;
-            }
-            $result .= \chr((int) bindec($chunk));
-        }
-
-        return $result;
     }
 }

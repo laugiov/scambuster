@@ -52,14 +52,14 @@ final readonly class SendEmailController
             $message = $e->getMessage();
 
             if (str_contains($message, 'not found')) {
-                return new JsonResponse(['error' => $message], Response::HTTP_NOT_FOUND);
+                return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
             }
 
             if (str_contains($message, 'Safety checks') || str_contains($message, 'non-outbound')) {
-                return new JsonResponse(['error' => $message], Response::HTTP_UNPROCESSABLE_ENTITY);
+                return new JsonResponse(['error' => 'Message is not sendable'], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            return new JsonResponse(['error' => 'SMTP send failed: ' . $message], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['error' => 'SMTP send failed'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

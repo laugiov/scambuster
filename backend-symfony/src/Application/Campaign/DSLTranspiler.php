@@ -41,7 +41,7 @@ final readonly class DSLTranspiler
         return [
             'sql' => $compiled['sql'],
             'params' => $compiled['params'],
-            'tests' => [], // TODO: empty test cases for MVP
+            'tests' => [],
         ];
     }
 

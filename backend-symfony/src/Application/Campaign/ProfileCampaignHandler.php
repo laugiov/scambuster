@@ -72,8 +72,6 @@ final readonly class ProfileCampaignHandler
 
         // 4. Stocker le profil dans la campagne
         $campaign->setProfileYaml($result['profile_yaml']);
-        // TODO: Add profiled_at field via migration and call $campaign->setProfiledAt()
-
         $this->em->flush();
 
         $latencyMs = (int) ((microtime(true) - $startTime) * 1000);

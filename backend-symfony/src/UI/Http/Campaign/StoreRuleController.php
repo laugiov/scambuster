@@ -32,7 +32,7 @@ final readonly class StoreRuleController
                 type: 'object',
                 required: ['campaign_id', 'dsl', 'compiled_sql'],
                 properties: [
-                    new OA\Property(property: 'campaign_id', type: 'string', format: 'uuid', description: 'UUID de la campagne'),
+                    new OA\Property(property: 'campaign_id', type: 'string', format: 'uuid', description: 'Campaign UUID'),
                     new OA\Property(property: 'dsl', type: 'string', description: 'MailGuard DSL rule source'),
                     new OA\Property(
                         property: 'compiled_sql',
@@ -70,7 +70,7 @@ final readonly class StoreRuleController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Campagne introuvable',
+                description: 'Campaign not found',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]

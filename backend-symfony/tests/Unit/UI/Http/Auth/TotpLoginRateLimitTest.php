@@ -7,6 +7,7 @@ namespace App\Tests\Unit\UI\Http\Auth;
 use App\Application\Audit\AuditLogger;
 use App\Application\Audit\Port\SiemExporterInterface;
 use App\Application\Auth\AuthServiceInterface;
+use App\Application\Auth\TotpVerifier;
 use App\Domain\User\Repository\UserRepositoryInterface;
 use App\UI\Http\Auth\TotpLoginController;
 use Doctrine\ORM\EntityManagerInterface;
@@ -69,6 +70,7 @@ class TotpLoginRateLimitTest extends TestCase
             $this->auditLogger,
             $this->userRepo,
             $this->validator,
+            new TotpVerifier(),  // totpVerifier
             null,           // totpAuthenticator
             $factory,       // loginIpLimiter
             null,           // totpReplayCache
@@ -107,6 +109,7 @@ class TotpLoginRateLimitTest extends TestCase
             $this->auditLogger,
             $this->userRepo,
             $this->validator,
+            new TotpVerifier(),  // totpVerifier
             null,  // totpAuthenticator
             null,  // loginIpLimiter — not injected
             null,  // totpReplayCache

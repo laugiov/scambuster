@@ -100,10 +100,10 @@ final readonly class AutoClassifyConversationController
             ], Response::HTTP_OK);
         } catch (\RuntimeException $e) {
             if (str_contains($e->getMessage(), 'not found')) {
-                return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_NOT_FOUND);
+                return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
             }
 
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_BAD_REQUEST);
+            return new JsonResponse(['error' => 'Auto-classification failed'], Response::HTTP_BAD_REQUEST);
         }
     }
 }

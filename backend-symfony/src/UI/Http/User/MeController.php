@@ -23,7 +23,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Profil utilisateur',
+            description: 'User profile',
             content: new OA\JsonContent(ref: new Model(type: MeResponseDto::class))
         ),
         new OA\Response(

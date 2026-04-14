@@ -21,7 +21,7 @@ final readonly class ExportCampaignSTIXController
     }
     #[OA\Post(
         path: '/api/v1/campaign/{campaignId}/export/stix',
-        summary: 'Exporter une campagne au format STIX 2.1',
+        summary: 'Export a campaign in STIX 2.1 format',
         description: 'Generates a STIX 2.1 bundle for a given campaign by extracting IoCs from the YAML profile. The JSON file is saved to disk.',
         security: [['Bearer' => []]],
         tags: ['Campaign'],
@@ -43,13 +43,13 @@ final readonly class ExportCampaignSTIXController
                     properties: [
                         new OA\Property(property: 'message', type: 'string', example: 'STIX export completed'),
                         new OA\Property(property: 'file_path', type: 'string', description: 'Path of the generated STIX file'),
-                        new OA\Property(property: 'bundle_id', type: 'string', description: 'Identifiant du bundle STIX (bundle--uuid)'),
+                        new OA\Property(property: 'bundle_id', type: 'string', description: 'STIX bundle identifier (bundle--uuid)'),
                     ]
                 )
             ),
             new OA\Response(
                 response: 400,
-                description: 'Format campaign_id invalide',
+                description: 'Invalid campaign_id format',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -57,7 +57,7 @@ final readonly class ExportCampaignSTIXController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Campagne introuvable',
+                description: 'Campaign not found',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -65,7 +65,7 @@ final readonly class ExportCampaignSTIXController
             ),
             new OA\Response(
                 response: 500,
-                description: 'Erreur lors de l\'export STIX',
+                description: 'STIX export error',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\UI\Http\Auth;
 
+use App\Application\Auth\TotpVerifier;
 use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
 use App\UI\Http\Auth\TotpVerifyController;
@@ -23,7 +24,7 @@ class TotpVerifyControllerTest extends TestCase
     {
         $this->userRepo = $this->createMock(UserRepositoryInterface::class);
         $this->tokenStorage = $this->createMock(TokenStorageInterface::class);
-        $this->controller = new TotpVerifyController($this->userRepo, $this->tokenStorage);
+        $this->controller = new TotpVerifyController($this->userRepo, $this->tokenStorage, new TotpVerifier());
     }
 
     public function test_returns_401_when_no_token(): void

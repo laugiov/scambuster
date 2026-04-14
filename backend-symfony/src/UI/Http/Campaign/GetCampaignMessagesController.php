@@ -31,7 +31,7 @@ final readonly class GetCampaignMessagesController
                 name: 'campaign_id',
                 in: 'path',
                 required: true,
-                description: 'UUID de la campagne',
+                description: 'Campaign UUID',
                 schema: new OA\Schema(type: 'string', format: 'uuid')
             ),
             new OA\Parameter(
@@ -49,17 +49,17 @@ final readonly class GetCampaignMessagesController
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
-                        new OA\Property(property: 'campaign_id', type: 'string', format: 'uuid', description: 'UUID de la campagne'),
+                        new OA\Property(property: 'campaign_id', type: 'string', format: 'uuid', description: 'Campaign UUID'),
                         new OA\Property(property: 'messages_count', type: 'integer', description: 'Number of messages returned'),
                         new OA\Property(
                             property: 'messages',
                             type: 'array',
-                            description: 'Liste des messages',
+                            description: 'List of messages',
                             items: new OA\Items(
                                 type: 'object',
                                 properties: [
-                                    new OA\Property(property: 'msg_id', type: 'string', format: 'uuid', description: 'UUID du message'),
-                                    new OA\Property(property: 'subject', type: 'string', nullable: true, description: 'Sujet du message'),
+                                    new OA\Property(property: 'msg_id', type: 'string', format: 'uuid', description: 'Message UUID'),
+                                    new OA\Property(property: 'subject', type: 'string', nullable: true, description: 'Message subject'),
                                     new OA\Property(property: 'from', type: 'string', nullable: true, description: 'Sender (From header)'),
                                     new OA\Property(property: 'received_at', type: 'string', format: 'date-time', description: 'Received date'),
                                     new OA\Property(property: 'body_preview', type: 'string', description: 'Body preview (first 200 characters)'),
@@ -79,7 +79,7 @@ final readonly class GetCampaignMessagesController
             ),
             new OA\Response(
                 response: 404,
-                description: 'Campagne introuvable',
+                description: 'Campaign not found',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
