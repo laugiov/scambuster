@@ -217,10 +217,14 @@ final class ConversationAnalyzer
         $messageCount = count($contextMessages);
 
         // Format IOCs summary
-        $iocsSummary = $this->formatIocsSummary($context['extracted_iocs'] ?? []);
+        /** @var array<array{type: string, value: string, category?: string}> $extractedIocs */
+        $extractedIocs = $context['extracted_iocs'] ?? [];
+        /** @var array<array{direction: string, body_text: string, ts_msg: string}> $allMessages */
+        $allMessages = $context['all_messages'] ?? [];
+        $iocsSummary = $this->formatIocsSummary($extractedIocs);
 
         // Check if IBAN was recently captured (in last 2 messages)
-        $recentIbanCaptured = $this->hasRecentIbanCapture($context['extracted_iocs'] ?? [], $context['all_messages'] ?? []);
+        $recentIbanCaptured = $this->hasRecentIbanCapture($extractedIocs, $allMessages);
 
         // Format conversation history
         $conversationHistory = $this->formatConversationHistory($preparedMessages);
@@ -653,7 +657,7 @@ PROMPT;
         // Remove any trailing commas before closing brackets/braces
         $json = preg_replace('/,\s*([}\]])/', '$1', (string) $json);
 
-        return $json;
+        return (string) $json;
     }
 
     /**

@@ -354,6 +354,7 @@ final readonly class StixBundleBuilder
         $contextRow = \is_array($ioc['context'] ?? null) ? $ioc['context'] : null;
 
         if ($contextRow !== null) {
+            /** @var array<string, mixed> $contextRow */
             $contextExt = IocContextStixExtensionBuilder::build($contextRow);
 
             if ($contextExt !== null) {

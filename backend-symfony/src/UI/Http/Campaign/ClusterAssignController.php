@@ -95,7 +95,9 @@ final readonly class ClusterAssignController
         }
 
         try {
-            $messageId = Uuid::fromString($data['msg_id']);
+            /** @var string $msgIdStr */
+            $msgIdStr = $data['msg_id'];
+            $messageId = Uuid::fromString($msgIdStr);
         } catch (\InvalidArgumentException) {
             return new JsonResponse(['error' => 'Invalid msg_id format'], Response::HTTP_BAD_REQUEST);
         }

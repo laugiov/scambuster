@@ -47,7 +47,7 @@ class EmailParsingService
      *     to: ?string,
      *     subject: ?string,
      *     date: ?string,
-     *     bodyText: ?string,
+     *     bodyText: string,
      *     bodyHtml: ?string,
      *     headers: array<string, string>,
      *     langDetect: string,
@@ -106,6 +106,7 @@ class EmailParsingService
             $split = preg_split('/[\s\r\n]+/', trim($referencesHeader));
             $referencesArray = $split !== false ? $split : [];
         }
+        /** @var list<string> $references */
         $references = array_values(array_filter(array_map($normalizeMessageId, $referencesArray)));
 
         $this->logger->info('[EmailParsingService] Parsed headers', [
@@ -115,9 +116,12 @@ class EmailParsingService
         ]);
 
         // Extract other headers and content
-        $to = $message->getHeaderValue('to') ?: null;
-        $subject = $message->getHeaderValue('subject') ?: null;
-        $date = $message->getHeaderValue('date') ?: null;
+        $toRaw = $message->getHeaderValue('to');
+        $to = ($toRaw !== null && $toRaw !== '') ? $toRaw : null;
+        $subjectRaw = $message->getHeaderValue('subject');
+        $subject = ($subjectRaw !== null && $subjectRaw !== '') ? $subjectRaw : null;
+        $dateRaw = $message->getHeaderValue('date');
+        $date = ($dateRaw !== null && $dateRaw !== '') ? $dateRaw : null;
         $contentType = $message->getHeaderValue('content-type') ?: null;
         $bodyText = $message->getTextContent();
         $bodyHtml = $message->getHtmlContent();
@@ -145,7 +149,7 @@ class EmailParsingService
         $allHeaders = [];
 
         foreach ($message->getAllHeaders() as $header) {
-            $allHeaders[strtolower($header->getName())] = $header->getValue();
+            $allHeaders[strtolower($header->getName())] = $header->getValue() ?? '';
         }
 
         // Detect language

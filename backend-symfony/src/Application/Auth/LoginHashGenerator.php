@@ -10,7 +10,9 @@ class LoginHashGenerator
 
     public function __construct()
     {
-        $this->salt = $_ENV['LOGIN_HASH_SALT'];
+        /** @var string $salt */
+        $salt = $_ENV['LOGIN_HASH_SALT'] ?? '';
+        $this->salt = $salt;
     }
 
     public function generate(string $login): string

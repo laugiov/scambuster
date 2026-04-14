@@ -28,7 +28,7 @@ final readonly class CampaignPromoter
     /**
      * Évalue les candidats à la promotion.
      *
-     * @return array{candidates: array<int, array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, created_at: string}>, promoted: array<int, array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, promoted_at: string}>}
+     * @return array{candidates: list<array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, created_at: string}>, promoted: list<array{campaign_id: string, rule_id: string, ppv: float, hits_total: int, lead_time_sec: ?int, lead_time_hours: ?float, promoted_at: ?string}>}
      */
     public function evaluateCandidates(): array
     {
@@ -79,7 +79,7 @@ final readonly class CampaignPromoter
             'hits_total' => $r->getHitsTotal(),
             'lead_time_sec' => $r->getLeadTimeSec(),
             'lead_time_hours' => $r->getLeadTimeSec() ? round($r->getLeadTimeSec() / 3600, 1) : null,
-            'promoted_at' => $r->getPromotedAt()->format('Y-m-d H:i:s'),
+            'promoted_at' => $r->getPromotedAt()?->format('Y-m-d H:i:s'),
         ], $promotedRules);
 
         $this->logger->info('Promotion candidates evaluated', [

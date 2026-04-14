@@ -131,8 +131,11 @@ final readonly class UpdateIocEnrichmentController
         }
 
         // Delegate to handler
+        /** @var array<string, mixed> $enrichment */
+        $enrichment = $data['enrichment'];
+
         try {
-            $observedIoc = $this->handler->updateIocEnrichment($obs_id, $data['enrichment']);
+            $observedIoc = $this->handler->updateIocEnrichment($obs_id, $enrichment);
 
             return new JsonResponse([
                 'obs_id' => $observedIoc->getObsId(),

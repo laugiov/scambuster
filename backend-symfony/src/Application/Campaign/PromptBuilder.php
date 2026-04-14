@@ -65,7 +65,7 @@ PROMPT;
                 "---\nMessage %d:\nSujet: %s\nDe: %s\nCorps (extrait): %s\nURL(s): %s\nDKIM: %s\n---\n\n",
                 $i + 1,
                 $message->getSubject() ?: 'no subject',
-                $this->maskEmail($message->getHeaders()['from'] ?? 'unknown'),
+                $this->maskEmail(\is_string($message->getHeaders()['from'] ?? null) ? $message->getHeaders()['from'] : 'unknown'),
                 $this->truncateText($sanitizedBody, 200),
                 implode(', ', $this->extractUrls($bodyText)),
                 $this->getDkimStatus($message)
@@ -194,7 +194,7 @@ PROMPT;
             '/\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i',
             fn ($matches): string => $this->maskEmail($matches[0]),
             $text
-        );
+        ) ?? $text;
     }
 
     /**

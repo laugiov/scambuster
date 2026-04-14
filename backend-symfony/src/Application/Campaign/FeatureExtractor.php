@@ -44,7 +44,7 @@ final class FeatureExtractor
         $fullText = $subject . ' ' . $bodyNormalized;
 
         return [
-            'subject' => $subject,
+            'subject' => $subject ?? '',
             'body_normalized' => $bodyNormalized,
             'simhash' => $this->computeSimhash($fullText),
             'ngrams' => $this->extractNgrams($fullText, 3),

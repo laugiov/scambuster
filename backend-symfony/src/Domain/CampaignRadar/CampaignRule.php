@@ -189,7 +189,9 @@ class CampaignRule
 
         // Convertir la string JSON en array pour stockage
         try {
-            $this->compiledSql = json_decode($sql, true, 512, JSON_THROW_ON_ERROR);
+            /** @var array<string, mixed>|null $decoded */
+            $decoded = json_decode($sql, true, 512, JSON_THROW_ON_ERROR);
+            $this->compiledSql = $decoded;
         } catch (\JsonException) {
             // Si ce n'est pas du JSON, créer une structure simple
             $this->compiledSql = ['sql' => $sql, 'params' => []];
@@ -211,6 +213,7 @@ class CampaignRule
 
         /** @var string $sql */
         $sql = $compiledData['sql'];
+
         if (trim($sql) === '') {
             throw new DomainException('Compiled SQL cannot be empty');
         }

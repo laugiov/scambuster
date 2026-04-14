@@ -369,6 +369,7 @@ PROMPT;
         }
 
         // Limiter au nombre demandé
+        /** @var array<int, string> $messages */
         $messages = array_slice($messages, 0, $messageCount);
 
         return $messages;
@@ -408,7 +409,10 @@ PROMPT;
         $subjects = $this->getSubjectTemplates($scamType);
         $template = $subjects[array_rand($subjects)];
 
-        return $this->applyVariations($template, $context['variations']);
+        /** @var array<string, int|string> $variations */
+        $variations = $context['variations'] ?? [];
+
+        return $this->applyVariations($template, $variations);
     }
 
     /**

@@ -375,10 +375,12 @@ final readonly class TaxiiService
             }
 
             $convIndicatorIds = $convToIndicators[$convId] ?? [];
-            $attackPatternIds = array_map(fn (array $ap): mixed => $ap['id'], $attackPatterns);
+            $attackPatternIds = array_map(static fn (array $ap): string => \is_string($ap['id']) ? $ap['id'] : '', $attackPatterns);
 
+            /** @var string $threatActorId */
+            $threatActorId = $threatActor['id'];
             $relationships = $this->threatActorBuilder->buildActorRelationships(
-                $threatActor['id'],
+                $threatActorId,
                 $convIndicatorIds,
                 $attackPatternIds,
             );

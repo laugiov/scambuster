@@ -62,12 +62,14 @@ final class VerifyAuditChainCommand extends Command
             }
 
             foreach ($rows as $row) {
+                /** @var int $rowId */
+                $rowId = $row['id'];
                 // Extract stored HMACs (PG BYTEA → PHP resource or string)
                 $storedRowHmac = $this->toBin($row['row_hmac'] ?? null);
 
                 if ($storedRowHmac === null || $storedRowHmac === '') {
                     // Row was inserted before the backfill or has a null hmac
-                    $output->writeln(sprintf('<comment>[ID=%d] row_hmac is NULL — skipped</comment>', $row['id']));
+                    $output->writeln(sprintf('<comment>[ID=%d] row_hmac is NULL — skipped</comment>', $rowId));
                     $verified++;
 
                     continue;
@@ -89,7 +91,7 @@ final class VerifyAuditChainCommand extends Command
                 if ($expectedHmac !== $storedRowHmac) {
                     $output->writeln(sprintf(
                         '<error>[ID=%d] ROW_HMAC MISMATCH expected=%s actual=%s</error>',
-                        $row['id'],
+                        $rowId,
                         bin2hex($expectedHmac),
                         bin2hex($storedRowHmac),
                     ));

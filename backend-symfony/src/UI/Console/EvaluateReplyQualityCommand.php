@@ -69,6 +69,7 @@ final class EvaluateReplyQualityCommand extends Command
             return Command::FAILURE;
         }
 
+        /** @var array<int, array<string, mixed>> $corpus */
         $corpus = $data['entries'] ?? $data;
 
         if (empty($corpus)) {
