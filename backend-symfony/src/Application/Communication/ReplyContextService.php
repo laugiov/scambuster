@@ -151,7 +151,8 @@ class ReplyContextService
         if ($this->iocHandler instanceof \App\Application\Communication\IocHandler) {
             try {
                 $iocs = $this->iocHandler->getConversationIocs($convId);
-                $extractedIocs = array_map(fn ($ioc): array => [
+                /** @var array<array<string, mixed>> $iocs */
+                $extractedIocs = array_map(fn (array $ioc): array => [
                     'type' => $ioc['type'] ?? 'unknown',
                     'value' => $ioc['value'] ?? '',
                     'category' => $ioc['category'] ?? null,
