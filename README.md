@@ -12,8 +12,11 @@
 [![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](docker-compose.yml)
 [![STIX](https://img.shields.io/badge/STIX-2.1-red.svg)](docs/16_taxii_server.md)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
+![Tests](https://img.shields.io/badge/tests-3930%2B%20backend%20%7C%20628%20frontend-brightgreen)
 
-> **Last updated**: 2026-04-07 | **Data period**: December 2025 -- ongoing
+> **Community**: [GitHub Discussions](https://github.com/laugiov/scambuster/discussions) | [Report security issues](SECURITY.md)
+>
+> **Last updated**: 2026-04-12 | **Data period**: December 2025 -- ongoing
 
 <p align="center">
   <img src="frontend-react/public/scambuster_screenshots.gif" alt="ScamBuster Operations Dashboard" width="100%" />
@@ -118,7 +121,7 @@ Adaptive strategy selection validated on synthetic conversations with statistica
 | **Frontend** | React 19, TypeScript, TailwindCSS, i18n (EN/FR) |
 | **LLM** | Multi-provider: OpenAI, Anthropic, Ollama (full local), Mock (dev) |
 | **Orchestration** | n8n (self-hosted) |
-| **Secrets** | HashiCorp Vault |
+| **Secrets** | Environment variables / Docker secrets |
 | **Monitoring** | Prometheus metrics, LLM cost tracking, pipeline tracing |
 | **Infrastructure** | Docker Compose, GitHub Actions CI |
 | **SIEM** | CEF, ECS, JSON -- pluggable connector |
@@ -212,7 +215,7 @@ See [Security & Guardrails](docs/04_security_guardrails.md) and [SECURITY.md](SE
 | Quality assurance & validation | Complete |
 | Rich contextual IOC enrichment | Complete |
 | STIX threat-actor export & OpenCTI integration | Complete |
-| Threat-actor clustering (Union-Find on financial IOCs) | Planned |
+| Threat-actor clustering (Union-Find on financial IOCs) | Complete |
 | Thompson Sampling (v2 bandit algorithm) | Planned |
 
 See [Roadmap](docs/06_roadmap.md) and [Changelog](CHANGELOG.md).

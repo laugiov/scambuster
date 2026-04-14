@@ -6,6 +6,7 @@ namespace App\UI\Http\Auth;
 
 use App\Domain\User\Repository\UserRepositoryInterface;
 use App\Domain\User\User;
+use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -14,6 +15,37 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/2fa/setup', name: 'api_2fa_setup', methods: ['POST'])]
 #[IsGranted('ROLE_USER')]
+#[OA\Post(
+    path: '/api/v1/2fa/setup',
+    summary: 'Initialize TOTP two-factor authentication setup',
+    security: [['Bearer' => []]],
+    tags: ['Auth'],
+    responses: [
+        new OA\Response(
+            response: 200,
+            description: 'TOTP secret generated — scan QR code with authenticator app',
+            content: new OA\JsonContent(type: 'object', properties: [
+                new OA\Property(property: 'secret', type: 'string', example: 'JBSWY3DPEHPK3PXP'),
+                new OA\Property(property: 'qr_uri', type: 'string', example: 'otpauth://totp/ScamBuster:user@example.com?secret=JBSWY3DPEHPK3PXP&issuer=ScamBuster&digits=6&period=30'),
+                new OA\Property(property: 'message', type: 'string', example: 'Scan QR code with authenticator app'),
+            ])
+        ),
+        new OA\Response(
+            response: 401,
+            description: 'Not authenticated',
+            content: new OA\JsonContent(type: 'object', properties: [
+                new OA\Property(property: 'message', type: 'string', example: 'Not authenticated'),
+            ])
+        ),
+        new OA\Response(
+            response: 404,
+            description: 'User not found',
+            content: new OA\JsonContent(type: 'object', properties: [
+                new OA\Property(property: 'message', type: 'string', example: 'User not found'),
+            ])
+        ),
+    ]
+)]
 final readonly class TotpSetupController
 {
     public function __construct(

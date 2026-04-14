@@ -32,6 +32,10 @@ class Message
 
     /**
      * @param array<string, mixed> $headers
+     * @param string               $compositeHash Dedup nonce for the UNIQUE constraint. Named
+     *                                            "composite_hash" for historical reasons — this
+     *                                            is NOT a content-derived hash. Callers should
+     *                                            pass bin2hex(random_bytes(32)).
      */
     public function __construct(
         #[ORM\Id]

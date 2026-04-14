@@ -33,6 +33,7 @@ final readonly class ReplyOrchestrator
         ?CostEstimator $costEstimator = null,
         ?OperationalLeakageDetector $leakDetector = null,
         ?\App\Application\Audit\AuditLogger $auditLogger = null,
+        string $model = 'gpt-4o',
     ) {
         $this->coordinator = new RetryCoordinator(
             $llmClient,
@@ -46,6 +47,7 @@ final readonly class ReplyOrchestrator
             $costEstimator,
             $leakDetector,
             $auditLogger,
+            $model,
         );
     }
 

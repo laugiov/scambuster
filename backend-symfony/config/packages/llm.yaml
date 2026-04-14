@@ -148,6 +148,7 @@ services:
             # Spec 065d — wire the leak detector + audit logger
             $leakDetector: '@App\Application\LLM\OperationalLeakageDetector'
             $auditLogger: '@App\Application\Audit\AuditLogger'
+            $model: '%llm.model%'
 
     # Application - JsonValidator (validates LLM JSON responses)
     App\Application\LLM\JsonValidator:
