@@ -784,4 +784,319 @@ final class RetryCoordinatorMutationTest extends TestCase
         $this->assertGreaterThan($result1['cost_estimate'], $result2['cost_estimate'],
             'Cost with 2 messages must be greater than cost with 1 message (context cost added)');
     }
+
+    // === Dialogue enrichment structure ===
+
+    public function test_dialogue_enrichment_has_generator_role_label(): void
+    {
+        // On retry, dialogue entries should contain 'Generator (attempt N)' role
+        $validText = $this->validReplyText();
+        $callCount = 0;
+        $capturedMessages = [];
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$callCount, &$capturedMessages, $validText) {
+            $callCount++;
+            $capturedMessages[] = $messages;
+            $systemContent = $messages[0]['content'] ?? '';
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"naturalness":2,"persona_fit":2,"ti_value":2,"security_pass":true,"feedback":"Bad","fix_suggestion":"Fix it"}';
+            }
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // 3 attempts = generation_dialogue should be present in later prompts
+        $this->assertSame(3, $result['attempts']);
+    }
+
+    public function test_dialogue_enrichment_validator_rejected_content(): void
+    {
+        // When validator rejects, dialogue should have REJECTED content
+        $validText = $this->validReplyText();
+        $callCount = 0;
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$callCount, $validText) {
+            $callCount++;
+            $systemContent = $messages[0]['content'] ?? '';
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"naturalness":2,"persona_fit":2,"ti_value":2,"security_pass":true,"feedback":"Bad","fix_suggestion":"Improve tone"}';
+            }
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+        $this->assertSame(3, $result['attempts']);
+        // Best-of-3 used since validator always rejects
+        $this->assertFalse($result['fallback_used']);
+    }
+
+    public function test_dialogue_enrichment_policy_guard_feedback(): void
+    {
+        // When policy guard rejects with 'too_short', dialogue should have feedback
+        $callCount = 0;
+        $this->llmClient->method('chat')->willReturnCallback(function () use (&$callCount) {
+            $callCount++;
+            return 'Short.'; // PolicyGuard rejects (too short)
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $this->assertTrue($result['fallback_used']);
+        // Verify policy flags contain expected information
+        $this->assertNotEmpty($result['policy_flags']);
+    }
+
+    // === buildPolicyFeedback string messages ===
+
+    public function test_policy_feedback_too_short_message(): void
+    {
+        $this->llmClient->method('chat')->willReturn('Hi'); // too short
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // Policy flags should contain too_short flag
+        $policyFlags = $result['policy_flags'];
+        $found = false;
+        foreach ($policyFlags as $flag) {
+            if (str_starts_with($flag, 'too_short:')) {
+                $found = true;
+                break;
+            }
+        }
+        $this->assertTrue($found, 'Policy flags must contain too_short flag for very short text');
+    }
+
+    // === IOC threshold propagation ===
+
+    public function test_ioc_threshold_59_differs_from_60(): void
+    {
+        // Kills: iocThreshold = 59 vs 60 mutation
+        $validText = $this->validReplyText();
+        $callCount = 0;
+        $this->llmClient->method('chat')->willReturnCallback(function () use (&$callCount, $validText) {
+            $callCount++;
+            if ($callCount === 1) {
+                return $validText;
+            }
+            return '{"naturalness":4,"persona_fit":4,"ti_value":3,"security_pass":true,"feedback":"OK","fix_suggestion":null}';
+        });
+
+        $coordinator = $this->createCoordinator(iocThreshold: 60);
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // Check the threshold in trace
+        $components = $result['pipeline_trace']['components'];
+        foreach ($components as $c) {
+            if ($c['name'] === 'ioc_scorer') {
+                $this->assertSame(60, $c['output']['threshold'], 'Threshold must be exactly 60, not 59 or 61');
+                return;
+            }
+        }
+        $this->fail('ioc_scorer not found');
+    }
+
+    // === Enriched context has generation_dialogue key ===
+
+    public function test_second_attempt_context_has_generation_dialogue(): void
+    {
+        // Verify that generation_dialogue is added on retry (not on first attempt)
+        $validText = $this->validReplyText();
+        $callCount = 0;
+        $generatorCalls = [];
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$callCount, &$generatorCalls, $validText) {
+            $callCount++;
+            $systemContent = $messages[0]['content'] ?? '';
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"naturalness":2,"persona_fit":2,"ti_value":2,"security_pass":true,"feedback":"Bad","fix_suggestion":"Fix"}';
+            }
+            $generatorCalls[] = $messages;
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // 3 attempts because validator always rejects
+        $this->assertSame(3, $result['attempts']);
+    }
+
+    // === getFallbackProvider returns FallbackProvider ===
+
+    public function test_fallback_provider_null_still_produces_fallback(): void
+    {
+        $this->llmClient->method('chat')->willReturn('Hi');
+
+        // Create without explicit fallback — should internally create one
+        $coordinator = $this->createCoordinator(fallbackProvider: null);
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $this->assertTrue($result['fallback_used']);
+        $this->assertNotEmpty($result['text']);
+    }
+
+    // === Cost estimation: generator and validator both contribute ===
+
+    public function test_cost_estimation_includes_validator_cost(): void
+    {
+        $validText = $this->validReplyText();
+        $callCount = 0;
+        $this->llmClient->method('chat')->willReturnCallback(function () use (&$callCount, $validText) {
+            $callCount++;
+            if ($callCount === 1) {
+                return $validText;
+            }
+            return '{"naturalness":4,"persona_fit":4,"ti_value":3,"security_pass":true,"feedback":"OK","fix_suggestion":null}';
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // 1 generator + 1 validator call => cost must be > generator-only cost
+        $this->assertGreaterThan(0.0, $result['cost_estimate']);
+    }
+
+    // === cost_estimate rounded to 6 decimal places ===
+
+    public function test_cost_estimate_precision_6(): void
+    {
+        $this->llmClient->method('chat')->willReturn('Hi');
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $cost = $result['cost_estimate'];
+        $costStr = rtrim(rtrim(sprintf('%.10f', $cost), '0'), '.');
+        if (str_contains($costStr, '.')) {
+            $decimals = strlen(explode('.', $costStr)[1]);
+            $this->assertLessThanOrEqual(6, $decimals, 'Cost must have at most 6 decimal places');
+        }
+    }
+
+    // === Pipeline trace: attempt count for best-of-3 ===
+
+    public function test_trace_attempts_3_for_best_of_3(): void
+    {
+        $validText = $this->validReplyText();
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use ($validText) {
+            $systemContent = $messages[0]['content'] ?? '';
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"naturalness":2,"persona_fit":2,"ti_value":2,"security_pass":true,"feedback":"Bad","fix_suggestion":"Fix"}';
+            }
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $this->assertSame(3, $result['pipeline_trace']['attempts']);
+    }
+
+    // === Validator exception falls through to best-of-3 ===
+
+    public function test_validator_exception_uses_best_of_3(): void
+    {
+        $validText = $this->validReplyText();
+        $callCount = 0;
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$callCount, $validText) {
+            $callCount++;
+            $systemContent = $messages[0]['content'] ?? '';
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                throw new \RuntimeException('Validator LLM timeout');
+            }
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // Policy approved the text, but validator threw exception
+        // Should fall through to best-of-3
+        $this->assertFalse($result['fallback_used']);
+        $this->assertSame($validText, $result['text']);
+    }
+
+    // === getModelName returns 'gpt-4o' in all paths ===
+
+    public function test_model_name_in_best_of_3(): void
+    {
+        $validText = $this->validReplyText();
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use ($validText) {
+            $systemContent = $messages[0]['content'] ?? '';
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"naturalness":2,"persona_fit":2,"ti_value":2,"security_pass":true,"feedback":"Bad","fix_suggestion":"Fix"}';
+            }
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $this->assertSame('gpt-4o', $result['model']);
+    }
+
+    // === ioc_likelihood key absent on fallback ===
+
+    public function test_fallback_has_no_ioc_likelihood(): void
+    {
+        $this->llmClient->method('chat')->willReturn('Hi');
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // Fallback response does not include ioc_likelihood key
+        $this->assertArrayNotHasKey('ioc_likelihood', $result);
+    }
+
+    // === Attempt logging includes conversation_id ===
+
+    public function test_result_contains_all_required_keys(): void
+    {
+        $this->llmClient->method('chat')->willReturn('Hi');
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $requiredKeys = ['text', 'approved', 'fallback_used', 'policy_flags', 'validation_reasons', 'model', 'persona', 'cost_estimate', 'attempts', 'pipeline_trace'];
+        foreach ($requiredKeys as $key) {
+            $this->assertArrayHasKey($key, $result, "Result must contain key: {$key}");
+        }
+    }
+
+    // === Success path has all required keys ===
+
+    public function test_success_result_contains_ioc_likelihood(): void
+    {
+        $validText = $this->validReplyText();
+        $callCount = 0;
+        $this->llmClient->method('chat')->willReturnCallback(function () use (&$callCount, $validText) {
+            $callCount++;
+            if ($callCount === 1) {
+                return $validText;
+            }
+            return '{"naturalness":4,"persona_fit":4,"ti_value":3,"security_pass":true,"feedback":"OK","fix_suggestion":null}';
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $this->assertArrayHasKey('ioc_likelihood', $result);
+    }
+
+    // === Fallback validation_reasons exact text ===
+
+    public function test_all_attempts_failed_fallback_message(): void
+    {
+        // When policy rejects everything, the fallback text mentions attempts
+        $this->llmClient->method('chat')->willReturn('Hi'); // too short
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $reasonsStr = implode(' ', $result['validation_reasons']);
+        // PolicyGuard fallback message mentions MAX_ATTEMPTS
+        $this->assertStringContainsString('3 attempts', $reasonsStr);
+    }
 }

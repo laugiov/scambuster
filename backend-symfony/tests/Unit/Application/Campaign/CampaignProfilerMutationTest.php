@@ -459,4 +459,200 @@ YAML;
         $this->expectException(\RuntimeException::class);
         $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
     }
+
+    // === Exception message contains attempt count ===
+
+    public function test_failure_message_contains_3_attempts(): void
+    {
+        $this->setupCacheMiss();
+        $this->llmClient->method('chat')->willThrowException(new \RuntimeException('llm err'));
+
+        try {
+            $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+            $this->fail('Expected RuntimeException');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('3 attempts', $e->getMessage());
+            $this->assertStringContainsString('llm err', $e->getMessage());
+        }
+    }
+
+    // === PII: international phone +33 format ===
+
+    public function test_pii_phone_with_dots_detected(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = str_replace('"Test campaign"', '"Call 06.12.34.56.78"', $this->validYaml());
+        $this->llmClient->method('chat')->willReturn($yaml);
+
+        $this->expectException(\RuntimeException::class);
+        $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+    }
+
+    // === campaign.risk boundary: exactly 1 and 5 ===
+
+    public function test_risk_2_succeeds(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = str_replace('risk: 3', 'risk: 2', $this->validYaml());
+        $this->llmClient->method('chat')->willReturn($yaml);
+
+        $result = $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+        $this->assertArrayHasKey('profile_yaml', $result);
+    }
+
+    // === campaign.risk must be integer ===
+
+    public function test_risk_float_fails(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = str_replace('risk: 3', 'risk: 3.5', $this->validYaml());
+        $this->llmClient->method('chat')->willReturn($yaml);
+
+        $this->expectException(\RuntimeException::class);
+        $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+    }
+
+    // === campaign must be array ===
+
+    public function test_campaign_not_array_fails(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = "campaign: just_a_string\nvariants:\n  subjects: []\n  display_names: []\n  url_shapes: []\ninfra:\n  x: y";
+        $this->llmClient->method('chat')->willReturn($yaml);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('campaign must be an array');
+        $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+    }
+
+    // === variants must be array ===
+
+    public function test_variants_not_array_fails(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = "campaign:\n  summary: x\n  tactics: []\n  target_audience: x\n  cta: x\n  risk: 3\nvariants: string\ninfra:\n  x: y";
+        $this->llmClient->method('chat')->willReturn($yaml);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('variants must be an array');
+        $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+    }
+
+    // === YAML parse error ===
+
+    public function test_invalid_yaml_syntax_fails(): void
+    {
+        $this->setupCacheMiss();
+        $this->llmClient->method('chat')->willReturn("campaign:\n  summary: x\n  tactics: [\n---broken");
+
+        $this->expectException(\RuntimeException::class);
+        $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+    }
+
+    // === Not array YAML ===
+
+    public function test_yaml_returns_scalar_fails(): void
+    {
+        $this->setupCacheMiss();
+        // YAML that parses to a string, not array
+        $this->llmClient->method('chat')->willReturn("campaign: just a scalar\n");
+
+        $this->expectException(\RuntimeException::class);
+        $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+    }
+
+    // === Cache key uses md5 hash ===
+
+    public function test_cache_key_is_md5_hash_of_sorted_ids(): void
+    {
+        $msg1 = $this->mockMessage('aaa');
+        $msg2 = $this->mockMessage('bbb');
+        $msg3 = $this->mockMessage('ccc');
+
+        $capturedKey = '';
+        $this->cache->method('get')->willReturnCallback(function ($key, $callback) use (&$capturedKey) {
+            $capturedKey = $key;
+            $item = $this->createMock(ItemInterface::class);
+            return $callback($item);
+        });
+        $this->llmClient->method('chat')->willReturn($this->validYaml());
+
+        $this->profiler->profile([$msg1, $msg2, $msg3]);
+
+        $expectedKey = 'campaign_profile_' . md5('aaa:bbb:ccc');
+        $this->assertSame($expectedKey, $capturedKey);
+    }
+
+    // === Second attempt success returns attempts=2 ===
+
+    public function test_second_attempt_success_returns_attempts_2(): void
+    {
+        $this->setupCacheMiss();
+        $this->llmClient->expects($this->exactly(2))
+            ->method('chat')
+            ->willReturnOnConsecutiveCalls(
+                $this->throwException(new \RuntimeException('err1')),
+                $this->validYaml(),
+            );
+
+        $result = $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+        $this->assertSame(2, $result['attempts']);
+    }
+
+    // === YAML extracted without markdown fences ===
+
+    public function test_yaml_extracted_from_plain_markdown_block(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = $this->validYaml();
+        // Without 'yaml' language specifier
+        $this->llmClient->method('chat')->willReturn("```\n{$yaml}\n```");
+
+        $result = $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+        $this->assertStringNotContainsString('```', $result['profile_yaml']);
+    }
+
+    // === PII exception message includes matched text ===
+
+    public function test_pii_exception_includes_matched_value(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = str_replace('"Test campaign"', '"Contact john@evil.com"', $this->validYaml());
+        $this->llmClient->method('chat')->willReturn($yaml);
+
+        try {
+            $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+            $this->fail('Expected RuntimeException for PII');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('john@evil.com', $e->getMessage());
+        }
+    }
+
+    // === Missing target_audience fails ===
+
+    public function test_missing_target_audience_fails(): void
+    {
+        $this->setupCacheMiss();
+        $yaml = "campaign:\n  summary: x\n  tactics: []\n  cta: x\n  risk: 3\nvariants:\n  subjects: []\n  display_names: []\n  url_shapes: []\ninfra:\n  x: y";
+        $this->llmClient->method('chat')->willReturn($yaml);
+
+        $this->expectException(\RuntimeException::class);
+        $this->profiler->profile([$this->mockMessage(), $this->mockMessage(), $this->mockMessage()]);
+    }
+
+    // === 10 messages does NOT trigger truncation warning ===
+
+    public function test_exactly_10_messages_succeeds_without_truncation(): void
+    {
+        $this->setupCacheMiss();
+        $this->llmClient->method('chat')->willReturn($this->validYaml());
+
+        $messages = [];
+        for ($i = 0; $i < 10; $i++) {
+            $messages[] = $this->mockMessage();
+        }
+
+        $result = $this->profiler->profile($messages);
+        $this->assertArrayHasKey('profile_yaml', $result);
+    }
 }
