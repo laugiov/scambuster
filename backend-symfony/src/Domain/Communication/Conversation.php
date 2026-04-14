@@ -37,7 +37,7 @@ class Conversation
         #[ORM\Column(name: 'conv_id', type: 'uuid', unique: true)]
         private string $convId, #[ORM\ManyToOne(targetEntity: Channel::class)]
         #[ORM\JoinColumn(name: 'primary_channel_id', referencedColumnName: 'channel_id', nullable: false)]
-        private Channel $primaryChannel, #[ORM\ManyToOne(targetEntity: ScamType::class)]
+        private Channel $primaryChannel, #[ORM\ManyToOne(targetEntity: ScamType::class, fetch: 'EAGER')]
         #[ORM\JoinColumn(name: 'scam_type_id', referencedColumnName: 'scam_type_id', nullable: false)]
         private ScamType $scamType, #[ORM\ManyToOne(targetEntity: MailAccount::class)]
         #[ORM\JoinColumn(name: 'account_id', referencedColumnName: 'account_id', nullable: false)]
