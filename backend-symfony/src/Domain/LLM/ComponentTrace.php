@@ -82,13 +82,15 @@ final readonly class ComponentTrace
         $status = $data['status'] ?? 'ran';
         /** @var float $durationMs */
         $durationMs = $data['duration_ms'] ?? 0.0;
+        /** @var array<string, mixed> $outputData */
+        $outputData = (array) ($data['output'] ?? []);
 
         return new self(
             name: $name,
             status: $status,
             durationMs: (float) $durationMs,
             cost: isset($data['cost']) && \is_numeric($data['cost']) ? (float) $data['cost'] : null,
-            output: (array) ($data['output'] ?? []),
+            output: $outputData,
             error: isset($data['error']) && \is_string($data['error']) ? $data['error'] : null,
             skipReason: isset($data['skip_reason']) && \is_string($data['skip_reason']) ? $data['skip_reason'] : null,
         );

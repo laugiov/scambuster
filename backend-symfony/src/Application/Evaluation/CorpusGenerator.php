@@ -59,6 +59,7 @@ class CorpusGenerator
                 break;
             }
 
+            /** @var string $convId */
             $convId = $conv['conv_id'];
             $lastMsgId = $conv['last_msg_id'] ?? null;
 

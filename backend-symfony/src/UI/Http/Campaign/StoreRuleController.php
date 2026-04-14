@@ -96,7 +96,9 @@ final readonly class StoreRuleController
 
         // Déléguer au Handler
         try {
-            $result = $this->handler->handle($campaignId, $data['dsl'], $data['compiled_sql']);
+            /** @var string $dsl */
+            $dsl = $data['dsl'];
+            $result = $this->handler->handle($campaignId, $dsl, $data['compiled_sql']);
 
             return new JsonResponse($result, Response::HTTP_CREATED);
         } catch (\RuntimeException $e) {

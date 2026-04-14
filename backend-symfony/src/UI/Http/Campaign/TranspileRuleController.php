@@ -80,7 +80,9 @@ final readonly class TranspileRuleController
         }
 
         try {
-            $result = $this->transpiler->transpile($data['dsl']);
+            /** @var string $dsl */
+            $dsl = $data['dsl'];
+            $result = $this->transpiler->transpile($dsl);
 
             return new JsonResponse($result);
         } catch (\RuntimeException $e) {

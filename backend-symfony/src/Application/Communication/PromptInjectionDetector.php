@@ -59,7 +59,7 @@ final readonly class PromptInjectionDetector
         $llmResult = null;
 
         try {
-            $senderFrom = $message->getHeaders()['from'] ?? 'unknown';
+            $senderFrom = \is_string($message->getHeaders()['from'] ?? null) ? $message->getHeaders()['from'] : 'unknown';
             $llmResult = $this->llmAnalyzer->analyze($subject, $bodyText, $senderFrom);
         } catch (\Exception $e) {
             $this->logger->warning('[PromptInjectionDetector] Layer 2 (LLM) failed, using Layer 1 only', [

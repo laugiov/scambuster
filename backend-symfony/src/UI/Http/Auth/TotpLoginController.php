@@ -38,7 +38,9 @@ final readonly class TotpLoginController
             return new JsonResponse(['message' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
 
+        /** @var string $email */
         $email = $payload['email'] ?? '';
+        /** @var string $password */
         $password = $payload['password'] ?? '';
         $code = $payload['code'] ?? '';
 

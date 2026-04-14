@@ -171,7 +171,11 @@ final readonly class AuditLogger
         }
 
         $canonicalRow = $entry->toCanonicalRow();
-        $newHmac = $this->hmacChainer->compute($prevHmacBin, $canonicalRow);
+        $newHmac = $this->hmacChainer?->compute($prevHmacBin, $canonicalRow);
+
+        if ($newHmac === null) {
+            return;
+        }
 
         $entry->setPrevHmac($prevHmacBin === '' ? null : $prevHmacBin);
         $entry->setRowHmac($newHmac);

@@ -16,6 +16,7 @@ final class OpeningDiversityMetric implements MetricInterface
         $openings = [];
 
         foreach ($corpus as $entry) {
+            /** @var string $text */
             $text = $entry['text'] ?? '';
 
             if ($text === '') {

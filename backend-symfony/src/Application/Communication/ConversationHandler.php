@@ -79,7 +79,9 @@ class ConversationHandler
         $updated = false;
 
         if (array_key_exists('status', $data)) {
-            $status = ConversationStatus::tryFrom($data['status']);
+            /** @var string $statusValue */
+            $statusValue = $data['status'];
+            $status = ConversationStatus::tryFrom($statusValue);
 
             if (!$status instanceof \App\Domain\Communication\ConversationStatus) {
                 throw new \RuntimeException('Invalid status');
@@ -96,12 +98,16 @@ class ConversationHandler
         }
 
         if (array_key_exists('ts_last', $data)) {
-            $conv->setTsLast(new \DateTimeImmutable($data['ts_last']));
+            /** @var string $tsLastStr */
+            $tsLastStr = $data['ts_last'];
+            $conv->setTsLast(new \DateTimeImmutable($tsLastStr));
             $updated = true;
         }
 
         if (array_key_exists('stix_id', $data)) {
-            $conv->setStixId($data['stix_id']);
+            /** @var string $stixIdVal */
+            $stixIdVal = $data['stix_id'];
+            $conv->setStixId($stixIdVal);
             $updated = true;
         }
 
@@ -193,6 +199,7 @@ class ConversationHandler
                 ->setParameter('to', new \DateTimeImmutable($to));
         }
 
+        /** @var array<int, Conversation> */
         return $qb->getQuery()->getResult();
     }
 
@@ -253,7 +260,7 @@ class ConversationHandler
     /**
      * Get paginated messages for a conversation.
      *
-     * @return array{total: int, messages: array<int, mixed>}
+     * @return array{total: int, messages: mixed}
      */
     public function getConversationMessages(string $convId, int $page, int $limit): array
     {

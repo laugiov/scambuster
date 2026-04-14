@@ -66,7 +66,7 @@ final readonly class STIXExporter
 
         return [
             'file_path' => $filePath,
-            'bundle_id' => $bundle['id'],
+            'bundle_id' => \is_string($bundle['id']) ? $bundle['id'] : '',
             'bundle' => $bundle,
         ];
     }
@@ -99,6 +99,8 @@ final readonly class STIXExporter
         if (!is_array($profile)) {
             return $this->emptyIoCs();
         }
+
+        /** @var array<string, mixed> $profile */
 
         // Validation structure minimale
         if (!$this->validateProfileSchema($profile)) {
@@ -191,7 +193,8 @@ final readonly class STIXExporter
             }
         }
 
-        return array_values(array_unique(array_filter($domains)));
+        /** @var list<string> */
+        return array_values(array_unique(array_filter($domains, 'is_string')));
     }
 
     /**
@@ -226,8 +229,9 @@ final readonly class STIXExporter
         }
 
         // Filtrer les emails personnels (PII)
-        $emails = array_filter($emails, fn ($email): bool => !$this->isPersonalEmail($email));
+        $emails = array_filter($emails, fn ($email): bool => \is_string($email) && !$this->isPersonalEmail($email));
 
+        /** @var list<string> */
         return array_values(array_unique($emails));
     }
 
@@ -281,6 +285,7 @@ final readonly class STIXExporter
         // Filtrer les patterns (enlever placeholders)
         $urls = array_filter($urls, fn ($url): bool => is_string($url) && !str_contains($url, '{'));
 
+        /** @var list<string> */
         return array_values(array_unique($urls));
     }
 
@@ -315,6 +320,7 @@ final readonly class STIXExporter
             }
         }
 
+        /** @var list<string> */
         return array_values(array_unique($phones));
     }
 
@@ -344,6 +350,7 @@ final readonly class STIXExporter
             }
         }
 
+        /** @var list<string> */
         return array_values(array_unique($ips));
     }
 
@@ -378,6 +385,7 @@ final readonly class STIXExporter
             }
         }
 
+        /** @var list<string> */
         return array_values(array_unique($hashes));
     }
 

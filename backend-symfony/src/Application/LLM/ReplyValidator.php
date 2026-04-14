@@ -95,6 +95,7 @@ final readonly class ReplyValidator
             if (!is_array($data)) {
                 throw new \RuntimeException('Invalid validator response: not a JSON object');
             }
+            /** @var array<string, mixed> $data */
 
             // Support both legacy and multi-criteria format
             $result = $this->parseValidatorResponse($data);
@@ -151,8 +152,8 @@ final readonly class ReplyValidator
             tiValue: $data['approved'] ? 3 : 1,
             securityPass: $data['approved'],
             feedback: implode('; ', $reasons),
-            reasons: $reasons,
-            fixSuggestion: $data['fix_suggestion'] ?? null,
+            reasons: array_map(static fn (mixed $r): string => \is_string($r) ? $r : '', $reasons),
+            fixSuggestion: isset($data['fix_suggestion']) && \is_string($data['fix_suggestion']) ? $data['fix_suggestion'] : null,
         );
     }
 

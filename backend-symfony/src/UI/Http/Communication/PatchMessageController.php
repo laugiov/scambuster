@@ -58,6 +58,7 @@ final readonly class PatchMessageController
             return new JsonResponse(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
 
+        /** @var array<string, mixed> $data */
         try {
             $message = $this->handler->patchMessage($msgId, $data);
         } catch (\RuntimeException $e) {

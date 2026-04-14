@@ -30,6 +30,7 @@ class GenerateLoginHashCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        /** @var string $login */
         $login = $input->getArgument('login');
         $hash = $this->generator->generate($login);
         $output->writeln($hash);

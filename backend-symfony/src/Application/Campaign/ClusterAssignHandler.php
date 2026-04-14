@@ -52,7 +52,9 @@ final readonly class ClusterAssignHandler
             // Initialiser centroid avec simhash du premier message
             /** @var array<string, array<string, mixed>> $features */
             $features = $result['features'];
-            $campaign->setCentroidSimhash($features['text']['simhash']);
+            /** @var string $simhash */
+            $simhash = $features['text']['simhash'];
+            $campaign->setCentroidSimhash($simhash);
         } else {
             $campaignId = $result['campaign_id'];
             $isNew = false;
@@ -116,7 +118,9 @@ final readonly class ClusterAssignHandler
             $campaign = $this->em->find(Campaign::class, $campaignId);
 
             if ($campaign !== null) {
-                $campaign->setCentroidSimhash($result['simhash']);
+                /** @var string $centroidHash */
+                $centroidHash = $result['simhash'];
+                $campaign->setCentroidSimhash($centroidHash);
             }
         }
     }

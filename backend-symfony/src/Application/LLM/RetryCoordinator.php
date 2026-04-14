@@ -70,7 +70,9 @@ final readonly class RetryCoordinator
         $scamTypeLabel = $scamTypeData['code'] ?? 'unknown';
         $trace = new PipelineTrace($convId, $personaCode, $scamTypeLabel, $detectedLanguage ?? 'en');
 
-        $messageCount = count($context['last_messages'] ?? []);
+        /** @var array<int, mixed> $lastMsgs */
+        $lastMsgs = $context['last_messages'] ?? [];
+        $messageCount = count($lastMsgs);
         $bestPolicyApprovedText = null;
         $fallbackProvider = $this->getFallbackProvider();
 
