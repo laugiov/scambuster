@@ -6,22 +6,9 @@ import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { server } from '@/__tests__/mocks/server';
 import Conversations from './Conversations';
+import { mockMetaConfig } from '@/__tests__/fixtures';
 
 const BASE = '/api/v1';
-
-const mockMetaConfig = {
-  personas: [
-    { code: 'elderly_person', label: 'Elderly Person', tone: 'Familiar', active: true },
-    { code: 'bank_customer', label: 'Bank Customer', tone: 'Formal', active: true },
-  ],
-  scam_types: [
-    { code: 'PHISHING', label: 'Phishing', description: '', active: true },
-    { code: 'ROMANCE', label: 'Romance', description: '', active: true },
-  ],
-  ioc_types: ['email', 'domain'],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai', llm_model: 'gpt-4o-mini',
-};
 
 const mockConversations = [
   {
@@ -83,7 +70,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 

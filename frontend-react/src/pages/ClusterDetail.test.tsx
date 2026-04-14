@@ -74,7 +74,7 @@ const mockClusterDetail = {
 
 const detailHandler = http.get(`${BASE}/clusters/:id`, () => HttpResponse.json(mockClusterDetail));
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => {
   server.resetHandlers();
   mockNavigate.mockReset();

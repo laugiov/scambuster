@@ -6,27 +6,19 @@ import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { server } from '@/__tests__/mocks/server';
 import { Settings } from './Settings';
+import { mockMetaConfig as baseMockMetaConfig, mockStats as baseMockStats } from '@/__tests__/fixtures';
 
 const BASE = '/api/v1';
 
 const mockStats = {
-  status: 'operational',
-  conversations: { total: 15, open: 3, active: 3, closed: 10, abandoned: 2 },
-  messages: { total: 42, inbound: 20, outbound: 22 },
-  iocs: { total: 89, unique_types: 6 },
-  convergence: { status: 'converging', best_persona: 'elderly_person', best_score: 0.82, exploration_rate: 0.15, converged_types: 1, total_types: 5 },
-  kill_switch: false,
-  kill_switch_active: false,
-  checked_at: new Date().toISOString(),
+  ...baseMockStats,
+  convergence: { ...baseMockStats.convergence, converged_types: 1 },
 };
 
 const mockMetaConfig = {
+  ...baseMockMetaConfig,
   personas: [{ code: 'elderly_person', label: 'Elderly Person', tone: 'Familiar', active: true }],
   scam_types: [],
-  ioc_types: ['email', 'domain'],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai',
-  llm_model: 'gpt-4o-mini',
 };
 
 function setupHandlers() {
@@ -36,7 +28,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -52,19 +44,12 @@ function createWrapper() {
 }
 
 describe('Settings', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<Settings />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the page title', async () => {
+  it('renders the settings page with title and system status', async () => {
     setupHandlers();
     render(<Settings />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/Settings/i)).toBeInTheDocument();
+      expect(screen.getByText(/System Status/i)).toBeInTheDocument();
     });
   });
 

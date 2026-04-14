@@ -6,6 +6,7 @@ import { http, HttpResponse } from 'msw';
 import type { ReactNode } from 'react';
 import { server } from '@/__tests__/mocks/server';
 import { ConversationDetail } from './ConversationDetail';
+import { mockMetaConfig as baseMockMetaConfig, mockConversations as baseConversations } from '@/__tests__/fixtures';
 
 const BASE = '/api/v1';
 const CONV_ID = 'aaaa-bbbb-cccc-dddd';
@@ -29,16 +30,11 @@ const mockIocs = [
   { obs_id: 'obs-1', ioc_id: 'ind-1', type: 'email', value: 'scammer@evil.com', value_norm: 'scammer@evil[.]com', score: { vt: 0, urlscan: 0 }, category: 'PHISHING', ts_observed: '2026-03-20T10:00:00Z', confidence: 0.9 },
 ];
 
-const mockConversations = [
-  { conv_id: CONV_ID, status: 'open', score_risk: 50, persona: 'elderly_person', scam_type: 'PHISHING', turns: 4, ts_first: '2026-03-20T10:00:00Z', ts_last: '2026-03-20T12:00:00Z' },
-];
+const mockConversations = [baseConversations[0]];
 
 const mockMetaConfig = {
+  ...baseMockMetaConfig,
   personas: [{ code: 'elderly_person', label: 'Elderly Person', tone: 'Familiar', active: true }],
-  scam_types: [{ code: 'PHISHING', label: 'Phishing', description: '', active: true }],
-  ioc_types: ['email', 'domain'],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai', llm_model: 'gpt-4o-mini',
 };
 
 function setupHandlers() {
@@ -52,7 +48,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -72,15 +68,7 @@ function createWrapper() {
 }
 
 describe('ConversationDetail', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<ConversationDetail />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays conversation ID in header', async () => {
+  it('renders the conversation detail with ID in header', async () => {
     setupHandlers();
     render(<ConversationDetail />, { wrapper: createWrapper() });
     await waitFor(() => {

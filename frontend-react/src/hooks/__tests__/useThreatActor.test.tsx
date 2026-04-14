@@ -8,7 +8,7 @@ import { useThreatActorProfile, useThreatActorSummary } from '../useThreatActor'
 
 const BASE = '/api/v1';
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 

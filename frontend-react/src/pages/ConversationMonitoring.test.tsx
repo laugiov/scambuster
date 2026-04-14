@@ -37,7 +37,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -53,19 +53,12 @@ function createWrapper() {
 }
 
 describe('ConversationMonitoring', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<ConversationMonitoring />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the page title', async () => {
+  it('renders the monitoring page with title and stat cards', async () => {
     setupHandlers();
     render(<ConversationMonitoring />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/Conversation Monitoring|monitoring/i)).toBeInTheDocument();
+      expect(screen.getByText('10')).toBeInTheDocument(); // active conversations
     });
   });
 

@@ -23,6 +23,7 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\HttpFoundation\RequestStack;
+use App\Domain\Communication\Persona;
 
 /**
  * Tests for RetryCoordinator.
@@ -233,5 +234,26 @@ class RetryCoordinatorTest extends TestCase
         $this->assertArrayHasKey('persona', $trace);
         $this->assertArrayHasKey('components', $trace);
         $this->assertSame('test-conv-1', $trace['conversation_id']);
+    }
+
+    // ================================================================== //
+    //  Merged from RetryCoordinatorCoverageTest
+    // ================================================================== //
+
+    public function testAllAttemptsFallbackWhenPolicyGuardAlwaysRejectsCoverage(): void
+    {
+        // Generate text that is always too short (PolicyGuard rejects)
+        $this->llmClient->method('chat')
+            ->willReturn('Hi'); // Too short for PolicyGuard
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // Should use fallback after all 3 attempts
+        $this->assertTrue($result['fallback_used'] ?? $result['approved']);
+        $this->assertSame(3, $result['attempts']);
+        $this->assertArrayHasKey('pipeline_trace', $result);
+        // CostEstimator is always present in createCoordinator, so cost > 0
+        $this->assertIsFloat($result['cost_estimate']);
     }
 }

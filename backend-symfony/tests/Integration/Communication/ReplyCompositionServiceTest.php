@@ -42,7 +42,7 @@ class ReplyCompositionServiceTest extends KernelTestCase
      *
      * @return array{inbound: Message, outbound: Message}
      */
-    private function createThreadedMessages(): array
+    private function createThreadedMessages(?string $fromHeader = null): array
     {
         $channel = $this->em->getRepository(Channel::class)->findOneBy(['code' => 'email']);
         $scamType = $this->em->getRepository(ScamType::class)->findOneBy([]);
@@ -83,6 +83,7 @@ class ReplyCompositionServiceTest extends KernelTestCase
                 'to' => 'honeypot@test.com',
                 'message-id' => $parentMsgId,
                 'message_id' => $parentMsgId,
+                'references' => '<older-ref@test.com>',
             ],
             bin2hex(random_bytes(32)),
             null,
@@ -103,9 +104,9 @@ class ReplyCompositionServiceTest extends KernelTestCase
             'en',
             'Re: Scam subject',
             'Sure, what account?',
-            null,
+            '<p>Sure, what do you need?</p>',
             [
-                'from' => 'honeypot@test.com',
+                'from' => $fromHeader ?? 'honeypot@test.com',
                 'to' => 'scammer@evil.test',
             ],
             bin2hex(random_bytes(32)),
@@ -301,5 +302,92 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $this->assertSame('thread-123', $headers['thread_id']);
         // Message-ID should be stored without chevrons
         $this->assertSame('real-msg-id@smtp.test', $headers['message-id']);
+    }
+
+    // ================================================================== //
+    //  Merged from ReplyCompositionServiceAdditionalTest
+    // ================================================================== //
+
+    public function testComposeHeadersBuildsReferencesChain(): void
+    {
+        $msgs = $this->createThreadedMessages();
+        $result = $this->service->composeHeaders($msgs['outbound']->getMsgId());
+
+        $this->assertNotNull($result);
+        $references = $result['references'] ?? '';
+
+        // Should contain both the older reference and the parent message ID
+        $parentMsgId = $msgs['inbound']->getHeaders()['message-id'] ?? '';
+        $this->assertStringContainsString($parentMsgId, $references);
+    }
+
+    public function testComposeHeadersResolvesFromWhenInvalid(): void
+    {
+        // Create with invalid from (no @ sign, simulating IMAP hostname)
+        $msgs = $this->createThreadedMessages('imap-server-hostname');
+        $result = $this->service->composeHeaders($msgs['outbound']->getMsgId());
+
+        $this->assertNotNull($result);
+        // The from should be resolved from parent's to header
+        $from = $result['from'] ?? '';
+        $this->assertStringContainsString('@', $from, 'From should be resolved to a valid email');
+    }
+
+    public function testMarkAsSentWithCorrectConvId(): void
+    {
+        $msgs = $this->createThreadedMessages();
+        $outboundId = $msgs['outbound']->getMsgId();
+        $convId = $msgs['outbound']->getConversation()->getConvId();
+
+        $result = $this->service->markAsSent(
+            $outboundId,
+            'gmail',
+            '<gmail-sent@test.com>',
+            new \DateTimeImmutable(),
+            null,
+            $convId // matching conv_id
+        );
+
+        $this->assertTrue($result);
+    }
+
+    public function testMarkAsSentWithMismatchedConvIdStillSucceeds(): void
+    {
+        $msgs = $this->createThreadedMessages();
+        $outboundId = $msgs['outbound']->getMsgId();
+
+        // Provide a wrong conv_id -- should log warning but still succeed
+        $result = $this->service->markAsSent(
+            $outboundId,
+            'gmail',
+            '<gmail-sent-2@test.com>',
+            new \DateTimeImmutable(),
+            null,
+            'ffffffff-ffff-ffff-ffff-ffffffffffff' // wrong conv_id
+        );
+
+        $this->assertTrue($result);
+    }
+
+    public function testSendEmailThrowsWhenMailerNotConfigured(): void
+    {
+        // The default test env may or may not have a mailer configured
+        // If sendEmail is available, it should either work or throw with a clear message
+        $msgs = $this->createThreadedMessages();
+
+        try {
+            $this->service->sendEmail($msgs['outbound']->getMsgId());
+            // If we get here, mailer is configured and send succeeded
+            $this->assertTrue(true);
+        } catch (\RuntimeException $e) {
+            // Expected: Mailer not configured, safety check failure, or similar
+            $this->assertNotEmpty($e->getMessage());
+        }
+    }
+
+    public function testSendEmailThrowsForNonexistentMessage(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->service->sendEmail('ffffffff-ffff-ffff-ffff-ffffffffffff');
     }
 }

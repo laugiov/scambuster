@@ -21,15 +21,16 @@ const mockConvergence = {
   },
 };
 
+import { mockMetaConfig as baseMockMetaConfig } from '@/__tests__/fixtures';
+
 const mockMetaConfig = {
+  ...baseMockMetaConfig,
   personas: [
     { code: 'elderly_person', label: 'Elderly Person', tone: 'Familiar', active: true },
     { code: 'lonely_person', label: 'Lonely Person', tone: 'Warm', active: true },
   ],
   scam_types: [],
   ioc_types: [],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai', llm_model: 'gpt-4o-mini',
 };
 
 function setupHandlers() {
@@ -39,7 +40,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
@@ -55,19 +56,12 @@ function createWrapper() {
 }
 
 describe('ConvergenceHistory', () => {
-  it('renders without crashing', async () => {
-    setupHandlers();
-    render(<ConvergenceHistory />, { wrapper: createWrapper() });
-    await waitFor(() => {
-      expect(document.body.textContent?.length).toBeGreaterThan(0);
-    });
-  });
-
-  it('displays the page title', async () => {
+  it('renders the convergence history with title and data', async () => {
     setupHandlers();
     render(<ConvergenceHistory />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/Convergence History/i)).toBeInTheDocument();
+      expect(screen.getByText('75.0%')).toBeInTheDocument(); // PHISHING dominant_pct
     });
   });
 

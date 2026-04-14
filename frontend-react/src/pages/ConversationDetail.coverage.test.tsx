@@ -38,12 +38,11 @@ const mockConversations = [
   { conv_id: CONV_ID, status: 'open', score_risk: 50, persona: 'elderly_person', scam_type: 'PHISHING', turns: 4, ts_first: '2026-03-20T10:00:00Z', ts_last: '2026-03-20T12:00:00Z' },
 ];
 
+import { mockMetaConfig as baseMockMetaConfig } from '@/__tests__/fixtures';
+
 const mockMetaConfig = {
+  ...baseMockMetaConfig,
   personas: [{ code: 'elderly_person', label: 'Elderly Person', tone: 'Familiar', active: true }],
-  scam_types: [{ code: 'PHISHING', label: 'Phishing', description: '', active: true }],
-  ioc_types: ['email', 'domain'],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai', llm_model: 'gpt-4o-mini',
 };
 
 const mockThreatActor = {
@@ -64,7 +63,7 @@ function setupHandlers() {
   );
 }
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 

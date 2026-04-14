@@ -150,4 +150,140 @@ final class ActorProfileGeneratorTest extends KernelTestCase
 
         return $result !== false ? (string) $result : null;
     }
+
+    // ================================================================== //
+    //  Merged from ActorProfileGeneratorAdditionalTest
+    // ================================================================== //
+
+    public function testRandomUuidCampaignIdReturnsNull(): void
+    {
+        // UUID that does not exist in any fixture
+        $result = $this->generator->generateForCampaign('aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+        $this->assertNull($result);
+    }
+
+    public function testStyleDnaAvgSentenceLengthIsNonNegative(): void
+    {
+        $campaignId = $this->findCampaignWithMessages(3);
+
+        if ($campaignId === null) {
+            $this->markTestSkipped('No campaign with 3+ inbound messages found in test fixtures');
+        }
+
+        $result = $this->generator->generateForCampaign($campaignId);
+
+        if ($result === null) {
+            $this->markTestSkipped('Campaign found but insufficient qualifying messages');
+        }
+
+        $this->assertGreaterThanOrEqual(0, $result['style_dna']['avg_sentence_length']);
+    }
+
+    public function testStyleDnaAvgWordLengthIsNonNegative(): void
+    {
+        $campaignId = $this->findCampaignWithMessages(3);
+
+        if ($campaignId === null) {
+            $this->markTestSkipped('No campaign with 3+ inbound messages found in test fixtures');
+        }
+
+        $result = $this->generator->generateForCampaign($campaignId);
+
+        if ($result === null) {
+            $this->markTestSkipped('Campaign found but insufficient qualifying messages');
+        }
+
+        $this->assertGreaterThanOrEqual(0, $result['style_dna']['avg_word_length']);
+    }
+
+    public function testStyleDnaTop20WordsMaxSize(): void
+    {
+        $campaignId = $this->findCampaignWithMessages(3);
+
+        if ($campaignId === null) {
+            $this->markTestSkipped('No campaign with 3+ inbound messages found in test fixtures');
+        }
+
+        $result = $this->generator->generateForCampaign($campaignId);
+
+        if ($result === null) {
+            $this->markTestSkipped('Campaign found but insufficient qualifying messages');
+        }
+
+        $this->assertLessThanOrEqual(20, count($result['style_dna']['top_20_words']));
+    }
+
+    public function testStyleDnaLanguageDistributionNotEmpty(): void
+    {
+        $campaignId = $this->findCampaignWithMessages(3);
+
+        if ($campaignId === null) {
+            $this->markTestSkipped('No campaign with 3+ inbound messages found in test fixtures');
+        }
+
+        $result = $this->generator->generateForCampaign($campaignId);
+
+        if ($result === null) {
+            $this->markTestSkipped('Campaign found but insufficient qualifying messages');
+        }
+
+        $this->assertNotEmpty($result['style_dna']['language_distribution']);
+    }
+
+    public function testStyleDnaTotalWordsPositive(): void
+    {
+        $campaignId = $this->findCampaignWithMessages(3);
+
+        if ($campaignId === null) {
+            $this->markTestSkipped('No campaign with 3+ inbound messages found in test fixtures');
+        }
+
+        $result = $this->generator->generateForCampaign($campaignId);
+
+        if ($result === null) {
+            $this->markTestSkipped('Campaign found but insufficient qualifying messages');
+        }
+
+        $this->assertGreaterThan(0, $result['style_dna']['total_words']);
+    }
+
+    public function testInfraDnaIocCountIsNonNegative(): void
+    {
+        $campaignId = $this->findCampaignWithMessages(3);
+
+        if ($campaignId === null) {
+            $this->markTestSkipped('No campaign with 3+ inbound messages found in test fixtures');
+        }
+
+        $result = $this->generator->generateForCampaign($campaignId);
+
+        if ($result === null) {
+            $this->markTestSkipped('Campaign found but insufficient qualifying messages');
+        }
+
+        $this->assertGreaterThanOrEqual(0, $result['infra_dna']['ioc_count']);
+    }
+
+    public function testInfraDnaArraysAreIndexed(): void
+    {
+        $campaignId = $this->findCampaignWithMessages(3);
+
+        if ($campaignId === null) {
+            $this->markTestSkipped('No campaign with 3+ inbound messages found in test fixtures');
+        }
+
+        $result = $this->generator->generateForCampaign($campaignId);
+
+        if ($result === null) {
+            $this->markTestSkipped('Campaign found but insufficient qualifying messages');
+        }
+
+        $infraDna = $result['infra_dna'];
+
+        // Verify arrays are sequential (array_values == itself)
+        $this->assertSame(array_values($infraDna['unique_domains']), $infraDna['unique_domains']);
+        $this->assertSame(array_values($infraDna['email_providers']), $infraDna['email_providers']);
+        $this->assertSame(array_values($infraDna['payment_methods']), $infraDna['payment_methods']);
+        $this->assertSame(array_values($infraDna['tlds']), $infraDna['tlds']);
+    }
 }
