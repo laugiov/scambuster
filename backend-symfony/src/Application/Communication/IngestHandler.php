@@ -164,7 +164,10 @@ class IngestHandler
                 $parsed['headers'],
                 $extraThreatIntel
             ),
-            bin2hex(random_bytes(32)), // composite_hash
+            // Unique dedup nonce (random, not a content hash). Used for ON CONFLICT
+            // detection on the composite_hash unique constraint. Named composite_hash
+            // for historical reasons — this is NOT a hash of the message content.
+            bin2hex(random_bytes(32)),
             null, // vector_id
             $replyToMessage,
             $now,

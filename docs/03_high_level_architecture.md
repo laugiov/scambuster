@@ -42,10 +42,10 @@ ScamBuster is designed as a **modular, event-driven system** with clear separati
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          DATA LAYER                                      │
 │  ┌─────────────────────┐  ┌─────────────────────┐  ┌─────────────────┐ │
-│  │     PostgreSQL      │  │       Redis         │  │   Vault (KV)    │ │
-│  │   (conversations,   │  │  (cache, sessions,  │  │  (credentials,  │ │
-│  │   messages, IOCs)   │  │   rate limiting)    │  │   API keys)     │ │
-│  └─────────────────────┘  └─────────────────────┘  └─────────────────┘ │
+│  │     PostgreSQL      │  │       Redis         │                     │
+│  │   (conversations,   │  │  (cache, sessions,  │                     │
+│  │   messages, IOCs)   │  │   rate limiting)    │                     │
+│  └─────────────────────┘  └─────────────────────┘                     │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                          EXPORT LAYER                                    │
 │         ┌─────────────┐  ┌─────────────┐                               │
@@ -165,7 +165,6 @@ Domain-Driven Design (DDD) architecture:
 |-------|---------|--------------|
 | **PostgreSQL** | Primary data | Access control, application-level audit trail |
 | **Redis** | Cache, sessions | Rate limiting, temporary state |
-| **Vault** | Credentials | IMAP passwords, API keys |
 
 ### 6. Export Layer
 
@@ -315,7 +314,7 @@ ScamBuster is deployed as a **containerized application** with:
 
 - **Isolated environments**: Separate production and pre-production
 - **Automated CI/CD**: GitHub Actions (PHPStan, PHP-CS-Fixer, PHPUnit)
-- **Secrets management**: HashiCorp Vault (credentials never in code)
+- **Secrets management**: Environment variables / Docker secrets (credentials never in code)
 - **Network isolation**: Docker Compose, defense-in-depth
 
 > **Note**: See docker-compose.yml for full infrastructure configuration.
@@ -345,7 +344,7 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 | **LLM** | OpenAI API (GPT-4o generation, GPT-4o-mini validation) | Quality for generation, cost-effective for validation |
 | **Embeddings** | OpenAI text-embedding-3-small | Semantic similarity for campaign clustering ($0.02/1M tokens) |
 | **Orchestration** | n8n | Visual debugging, 400+ integrations |
-| **Secrets** | HashiCorp Vault | IMAP credentials, API keys |
+| **Secrets** | Environment variables / Docker secrets | IMAP credentials, API keys |
 | **CI/CD** | GitHub Actions | PHPStan, PHP-CS-Fixer, PHPUnit |
 
 ---
