@@ -29,7 +29,7 @@ final readonly class GetCampaignMessagesHandler
      *
      * @throws \RuntimeException Si la campagne n'existe pas
      *
-     * @return array{campaign_id: string, messages_count: int, messages: array<array{msg_id: string, subject: string, from: string|null, received_at: string|null, body_preview: string}>}
+     * @return array{campaign_id: string, messages_count: int, messages: array<array{msg_id: string, subject: string|null, from: mixed, received_at: string, body_preview: string}>}
      */
     public function handle(Uuid $campaignId, int $limit): array
     {

@@ -111,13 +111,19 @@ final readonly class AnthropicClient implements LLMClientInterface
                 'output_tokens' => $usage['output_tokens'] ?? null,
             ]);
 
+            /** @var string $eventModel */
+            $eventModel = $model;
+            /** @var string $eventPurpose */
+            $eventPurpose = $options['purpose'] ?? 'unknown';
+            /** @var string|null $eventConvId */
+            $eventConvId = $options['conversation_id'] ?? null;
             $this->eventDispatcher->dispatch(new LlmCallCompletedEvent(
                 provider: 'anthropic',
-                model: $model,
-                purpose: $options['purpose'] ?? 'unknown',
+                model: $eventModel,
+                purpose: $eventPurpose,
                 promptTokens: (int) ($usage['input_tokens'] ?? 0),
                 completionTokens: (int) ($usage['output_tokens'] ?? 0),
-                conversationId: $options['conversation_id'] ?? null
+                conversationId: $eventConvId
             ));
 
             return $assistantText;

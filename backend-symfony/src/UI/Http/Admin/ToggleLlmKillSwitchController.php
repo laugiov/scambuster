@@ -78,7 +78,7 @@ final readonly class ToggleLlmKillSwitchController
 
         $this->auditLogger->log(
             eventType: AuditEventType::KILL_SWITCH_TOGGLED,
-            actorId: $request->headers->get('X-User-Id', 'admin'),
+            actorId: $request->headers->get('X-User-Id') ?? 'admin',
             action: 'toggle',
             outcome: $active ? 'activated' : 'deactivated',
             resourceType: 'llm_kill_switch',

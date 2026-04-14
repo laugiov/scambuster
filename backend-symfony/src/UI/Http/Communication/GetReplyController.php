@@ -60,7 +60,7 @@ final readonly class GetReplyController
         $dto = new ReplyDetailResponseDto(
             $message->getMsgId(),
             $message->getSendStatus() ?? 'unknown',
-            $message->getHeaders()['to'] ?? '',
+            \is_string($message->getHeaders()['to'] ?? null) ? $message->getHeaders()['to'] : '',
             $message->getSubject() ?? '',
             [
                 'text' => $message->getBodyText(),

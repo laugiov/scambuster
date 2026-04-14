@@ -50,17 +50,37 @@ final readonly class ComposeReplyController
                 return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
             }
 
+            /** @var string $cMsgId */
+            $cMsgId = $composeData['msg_id'] ?? '';
+            /** @var string $cTo */
+            $cTo = $composeData['to'] ?? '';
+            /** @var string $cFrom */
+            $cFrom = $composeData['from'] ?? '';
+            /** @var string $cSubject */
+            $cSubject = $composeData['subject'] ?? '';
+            /** @var string|null $cInReplyTo */
+            $cInReplyTo = $composeData['in_reply_to'] ?? null;
+            /** @var string|null $cReferences */
+            $cReferences = $composeData['references'] ?? null;
+            /** @var string|null $cThreadId */
+            $cThreadId = $composeData['thread_id'] ?? null;
+            /** @var bool $cSafe */
+            $cSafe = $composeData['safe_to_send'] ?? false;
+            /** @var bool $cRateLimited */
+            $cRateLimited = $composeData['rate_limited'] ?? false;
+            /** @var array<string, mixed> $checks */
+            $checks = $composeData['checks'] ?? [];
             $dto = new ReplyComposeResponseDto(
-                $composeData['msg_id'],
-                $composeData['to'],
-                $composeData['from'],
-                $composeData['subject'],
-                $composeData['in_reply_to'],
-                $composeData['references'],
-                $composeData['thread_id'],
-                $composeData['safe_to_send'],
-                $composeData['rate_limited'],
-                $composeData['checks']
+                $cMsgId,
+                $cTo,
+                $cFrom,
+                $cSubject,
+                $cInReplyTo,
+                $cReferences,
+                $cThreadId,
+                $cSafe,
+                $cRateLimited,
+                $checks
             );
 
             return new JsonResponse($dto->toArray(), Response::HTTP_OK);

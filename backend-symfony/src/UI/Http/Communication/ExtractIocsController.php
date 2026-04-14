@@ -147,8 +147,9 @@ final readonly class ExtractIocsController
 
         /** @var array<string, mixed> $data */
         $method = $data['method'] ?? 'hybrid';
+        /** @var array<int, string> $types */
         $types = $data['types'] ?? [];
-        $persist = $data['persist'] ?? false; // New parameter to persist IOCs
+        $persist = (bool) ($data['persist'] ?? false); // New parameter to persist IOCs
 
         $this->logger->info('[IOC-EXTRACT-DEBUG] Extraction parameters', [
             'msg_id' => $msgId,

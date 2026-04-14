@@ -80,13 +80,19 @@ final readonly class OllamaClient implements LLMClientInterface
                 'prompt_eval_count' => $promptTokens,
             ]);
 
+            /** @var string $eventModel */
+            $eventModel = $model;
+            /** @var string $eventPurpose */
+            $eventPurpose = $options['purpose'] ?? 'unknown';
+            /** @var string|null $eventConvId */
+            $eventConvId = $options['conversation_id'] ?? null;
             $this->eventDispatcher->dispatch(new LlmCallCompletedEvent(
                 provider: 'ollama',
-                model: $model,
-                purpose: $options['purpose'] ?? 'unknown',
+                model: $eventModel,
+                purpose: $eventPurpose,
                 promptTokens: $promptTokens,
                 completionTokens: $completionTokens,
-                conversationId: $options['conversation_id'] ?? null
+                conversationId: $eventConvId
             ));
 
             return $assistantText;

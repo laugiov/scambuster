@@ -259,7 +259,9 @@ class Message
      */
     public function getSendStatus(): ?string
     {
-        return $this->headers['send_status'] ?? null;
+        $status = $this->headers['send_status'] ?? null;
+
+        return \is_string($status) ? $status : null;
     }
 
     /**
@@ -276,7 +278,9 @@ class Message
      */
     public function getProviderMsgId(): ?string
     {
-        return $this->headers['provider_msg_id'] ?? null;
+        $id = $this->headers['provider_msg_id'] ?? null;
+
+        return \is_string($id) ? $id : null;
     }
 
     /**
@@ -292,7 +296,7 @@ class Message
      */
     public function getTsSent(): ?\DateTimeImmutable
     {
-        if (isset($this->headers['ts_sent'])) {
+        if (isset($this->headers['ts_sent']) && \is_string($this->headers['ts_sent'])) {
             return new \DateTimeImmutable($this->headers['ts_sent']);
         }
 

@@ -90,7 +90,7 @@ class ReplyCompositionService
 
         // Run safety checks
         $checks = [
-            'safelist_ok' => $this->cadenceService->checkSafelist($to),
+            'safelist_ok' => $this->cadenceService->checkSafelist(\is_string($to) ? $to : ''),
             'kill_switch_off' => !$this->cadenceService->isKillSwitchActive(),
             'cadence_ok' => $this->cadenceService->checkCadence($message->getConversation()->getConvId()),
             'conversation_open' => $message->getConversation()->getStatus()->value === 'open',
@@ -291,18 +291,28 @@ class ReplyCompositionService
         $tsSent = new \DateTimeImmutable();
 
         // Build the email -- composeHeaders() already resolves correct from/to
+        /** @var string $composeFrom */
+        $composeFrom = $compose['from'] ?? '';
+        /** @var string $composeTo */
+        $composeTo = $compose['to'] ?? '';
+        /** @var string $composeSubject */
+        $composeSubject = $compose['subject'] ?? '';
         $email = (new Email())
-            ->from($compose['from'])
-            ->to($compose['to'])
-            ->subject($compose['subject']);
+            ->from($composeFrom)
+            ->to($composeTo)
+            ->subject($composeSubject);
 
         // Set threading headers
         if (!empty($compose['in_reply_to'])) {
-            $email->getHeaders()->addIdHeader('In-Reply-To', $compose['in_reply_to']);
+            /** @var string $inReplyTo */
+            $inReplyTo = $compose['in_reply_to'];
+            $email->getHeaders()->addIdHeader('In-Reply-To', $inReplyTo);
         }
 
         if (!empty($compose['references'])) {
-            $email->getHeaders()->addTextHeader('References', $compose['references']);
+            /** @var string $refs */
+            $refs = $compose['references'];
+            $email->getHeaders()->addTextHeader('References', $refs);
         }
         // Message-ID must use addIdHeader (IdentificationHeader), not addTextHeader
         // Strip chevrons -- Symfony adds them automatically

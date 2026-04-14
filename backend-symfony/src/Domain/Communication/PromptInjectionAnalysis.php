@@ -127,14 +127,21 @@ final readonly class PromptInjectionAnalysis
         /** @var string $modelVersion */
         $modelVersion = $data['model_version'] ?? '';
 
+        /** @var array<int, array{technique: string, evidence: string, severity: string}> $techniques */
+        $techniques = $data['detected_techniques'] ?? [];
+        /** @var array<int, string> $patterns */
+        $patterns = $data['pattern_matches'] ?? [];
+        /** @var string $analyzedAt */
+        $analyzedAt = $data['analyzed_at'] ?? 'now';
+
         return new self(
             riskScore: (float) $riskScore,
-            detectedTechniques: $data['detected_techniques'] ?? [],
+            detectedTechniques: $techniques,
             confidence: (float) $confidence,
             summary: (string) $summary,
-            patternMatches: $data['pattern_matches'] ?? [],
+            patternMatches: $patterns,
             modelVersion: (string) $modelVersion,
-            analyzedAt: new \DateTimeImmutable($data['analyzed_at'] ?? 'now'),
+            analyzedAt: new \DateTimeImmutable($analyzedAt),
         );
     }
 }

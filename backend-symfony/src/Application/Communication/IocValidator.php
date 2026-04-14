@@ -134,10 +134,10 @@ final class IocValidator
     private function validateCreditCard(string $value): bool
     {
         // Remove spaces and hyphens
-        $value = preg_replace('/[\s\-]/', '', $value);
+        $value = preg_replace('/[\s\-]/', '', $value) ?? $value;
 
         // Check format
-        if (!preg_match('/^\d{13,19}$/', (string) $value)) {
+        if (!preg_match('/^\d{13,19}$/', $value)) {
             return false;
         }
 

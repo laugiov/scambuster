@@ -69,6 +69,7 @@ final readonly class ContextualEnricher
 
                 return null;
             }
+            /** @var array<string, mixed> $data */
 
             // Count how many messages in the window were available
             $availableMessages = 1; // revelation is always present

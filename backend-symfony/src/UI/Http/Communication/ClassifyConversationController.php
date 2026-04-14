@@ -82,7 +82,7 @@ final readonly class ClassifyConversationController
         try {
             $result = $this->classificationHandler->manualClassifyConversation(
                 $convId,
-                $data['scam_type_code'],
+                \is_string($data['scam_type_code']) ? $data['scam_type_code'] : '',
                 $data['persona_code'] ?? null
             );
 

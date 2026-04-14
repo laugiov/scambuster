@@ -422,6 +422,7 @@ final readonly class IocClusteringService
         $anchorCount = (int) $rawAnchorCount;
 
         // Get metadata from conversations
+        /** @var array<string> $convIds */
         $convIds = $this->conn->fetchFirstColumn(
             'SELECT conv_id FROM threat_actor_cluster_conversation WHERE cluster_id = :id',
             ['id' => $clusterId]

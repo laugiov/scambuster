@@ -19,7 +19,9 @@ final readonly class HealthCheckHandler
     public function __construct(
         private EntityManagerInterface $em
     ) {
-        $this->startTime = $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true);
+        /** @var float $startTime */
+        $startTime = $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true);
+        $this->startTime = $startTime;
     }
 
     /**

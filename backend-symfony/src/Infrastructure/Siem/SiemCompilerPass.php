@@ -63,6 +63,7 @@ final class SiemCompilerPass implements CompilerPassInterface
             return;
         }
 
+        /** @var string $endpoint */
         $endpoint = $_ENV['SIEM_ENDPOINT'] ?? '';
 
         if ($endpoint === '') {
