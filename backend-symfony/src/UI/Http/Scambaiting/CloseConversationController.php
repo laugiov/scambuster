@@ -14,8 +14,8 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Ferme une conversation et déclenche le calcul de reward + mise à jour des stats.
- * Ce endpoint est appelé par le workflow n8n WF-SCAMBAITING-END-CONVERSATION.
+ * Closes a conversation and triggers reward calculation + stats update.
+ * This endpoint is called by the n8n workflow WF-SCAMBAITING-END-CONVERSATION.
  */
 #[OA\Post(
     path: '/api/v1/scambaiting/conversation/{convId}/close',

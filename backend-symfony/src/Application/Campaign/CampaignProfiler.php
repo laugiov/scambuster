@@ -14,15 +14,15 @@ use Symfony\Contracts\Cache\ItemInterface;
 /**
  * Campaign Profiler - Analyse des campagnes via LLM
  *
- * Génère un profil YAML structuré décrivant une campagne de phishing/scam
- * à partir d'un échantillon de messages.
+ * Generates a structured YAML profile describing a phishing/scam campaign
+ * from a sample of messages.
  *
  * Features:
  * - Retry logic avec exponential backoff (1s, 2s, 4s)
  * - Cache Redis (TTL 2h)
  * - Validation YAML stricte
  * - PII detection et masquage
- * - Logging détaillé
+ * - Detailed logging
  */
 final readonly class CampaignProfiler
 {
@@ -46,11 +46,11 @@ final readonly class CampaignProfiler
     }
 
     /**
-     * Profile une campagne via LLM et retourne un profil YAML structuré.
+     * Profiles a campaign via LLM and returns a structured YAML profile.
      *
      * @param array<Message> $sampleMessages Échantillon de 3-10 messages
      *
-     * @throws \RuntimeException Si le profiling échoue après MAX_RETRIES tentatives
+     * @throws \RuntimeException If profiling fails after MAX_RETRIES attempts
      *
      * @return array{profile_yaml: string, cache_hit: bool, attempts: int}
      */
@@ -61,18 +61,18 @@ final readonly class CampaignProfiler
         }
 
         if (count($sampleMessages) > 10) {
-            $this->logger->warning('Trop de messages fournis, limitation à 10', [
+            $this->logger->warning('Too many messages provided, limiting to 10', [
                 'provided' => count($sampleMessages),
             ]);
             $sampleMessages = array_slice($sampleMessages, 0, 10);
         }
 
-        // Générer une clé de cache basée sur les IDs des messages
+        // Generate a cache key based on message IDs
         $cacheKey = $this->generateCacheKey($sampleMessages);
 
         $startTime = microtime(true);
 
-        // Tenter de récupérer depuis le cache
+        // Try to retrieve from cache
         try {
             $cached = $this->cache->get($cacheKey, function (ItemInterface $item) use ($sampleMessages): array {
                 $item->expiresAfter(self::CACHE_TTL);
@@ -117,7 +117,7 @@ final readonly class CampaignProfiler
      *
      * @param array<Message> $sampleMessages
      *
-     * @throws \RuntimeException Si toutes les tentatives échouent
+     * @throws \RuntimeException If all attempts fail
      *
      * @return array{profile_yaml: string, attempts: int}
      */
@@ -141,12 +141,12 @@ final readonly class CampaignProfiler
                 ];
 
                 $response = $this->llmClient->chat($messages, [
-                    'temperature' => 0.3, // Basse température pour sortie structurée
+                    'temperature' => 0.3, // Low temperature for structured output
                     'max_tokens' => 800,
                     'timeout' => self::TIMEOUT_SEC,
                 ]);
 
-                // 3. Extraire YAML depuis la réponse (peut contenir markdown)
+                // 3. Extract YAML from response (may contain markdown)
                 $yamlText = $this->extractYaml($response);
 
                 // 4. Valider YAML
@@ -172,7 +172,7 @@ final readonly class CampaignProfiler
                     'error' => $e->getMessage(),
                 ]);
 
-                // Si ce n'est pas la dernière tentative, attendre avec backoff
+                // If not the last attempt, wait with backoff
                 if ($attempt < self::MAX_RETRIES) {
                     $delay = self::BACKOFF_DELAYS[$attempt - 1];
                     $this->logger->debug("Retrying in {$delay}s...");
@@ -181,7 +181,7 @@ final readonly class CampaignProfiler
             }
         }
 
-        // Toutes les tentatives ont échoué
+        // All attempts failed
         /** @var \Throwable $lastException */
         throw new \RuntimeException(
             'Campaign profiling failed after ' . self::MAX_RETRIES . ' attempts: ' . $lastException->getMessage(),
@@ -190,7 +190,7 @@ final readonly class CampaignProfiler
     }
 
     /**
-     * Extrait le YAML depuis une réponse LLM (peut contenir markdown).
+     * Extracts YAML from an LLM response (may contain markdown).
      */
     private function extractYaml(string $response): string
     {
@@ -226,7 +226,7 @@ final readonly class CampaignProfiler
             throw new \RuntimeException('Invalid YAML: expected an array');
         }
 
-        // Vérifier structure minimale requise
+        // Verify minimum required structure
         $requiredKeys = ['campaign', 'variants', 'infra'];
 
         foreach ($requiredKeys as $key) {
@@ -235,7 +235,7 @@ final readonly class CampaignProfiler
             }
         }
 
-        // Vérifier sous-clés campaign
+        // Verify campaign sub-keys
         $campaignData = $data['campaign'];
 
         if (!is_array($campaignData)) {
@@ -250,7 +250,7 @@ final readonly class CampaignProfiler
             }
         }
 
-        // Vérifier sous-clés variants
+        // Verify variants sub-keys
         $variantsData = $data['variants'];
 
         if (!is_array($variantsData)) {
@@ -265,7 +265,7 @@ final readonly class CampaignProfiler
             }
         }
 
-        // Vérifier types
+        // Verify types
         if (!is_array($campaignData['tactics'])) {
             throw new \RuntimeException('campaign.tactics must be an array');
         }
@@ -276,16 +276,16 @@ final readonly class CampaignProfiler
     }
 
     /**
-     * Détecte les PII (données personnelles) dans le YAML.
+     * Detects PII (personal data) in the YAML.
      *
-     * @throws \RuntimeException Si des PII sont détectées
+     * @throws \RuntimeException If PII is detected
      */
     private function detectPII(string $yamlText): void
     {
         $patterns = [
             // Email en clair (ex: user@example.com)
             '/\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i',
-            // Téléphone français (ex: 06 12 34 56 78, +33612345678)
+            // French phone number (e.g. 06 12 34 56 78, +33612345678)
             '/\b(?:\+33|0)[1-9](?:[\s.-]?\d{2}){4}\b/',
             // IBAN (commence par 2 lettres + 2 chiffres)
             '/\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b/',
@@ -304,7 +304,7 @@ final readonly class CampaignProfiler
     }
 
     /**
-     * Génère une clé de cache basée sur les IDs des messages.
+     * Generates a cache key based on message IDs.
      *
      * @param array<Message> $messages
      */

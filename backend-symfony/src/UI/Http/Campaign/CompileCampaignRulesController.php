@@ -23,15 +23,15 @@ final readonly class CompileCampaignRulesController
     }
     #[OA\Post(
         path: '/api/v1/campaign/{campaign_id}/rules/compile',
-        summary: 'Compiler les règles DSL MailGuard d\'une campagne',
-        description: 'Génère des règles de détection au format MailGuard DSL à partir du profil YAML de la campagne. Les règles utilisent simhash, patterns d\'URLs, DKIM, et autres features pour détecter les variantes de la campagne.',
+        summary: 'Compile MailGuard DSL rules for a campaign',
+        description: 'Generates detection rules in MailGuard DSL format from the campaign YAML profile. Rules use simhash, URL patterns, DKIM, and other features to detect campaign variants.',
         tags: ['Campaign Radar'],
         parameters: [
             new OA\Parameter(
                 name: 'campaign_id',
                 in: 'path',
                 required: true,
-                description: 'UUID de la campagne dont on veut compiler les règles',
+                description: 'UUID of the campaign to compile rules for',
                 schema: new OA\Schema(type: 'string', format: 'uuid')
             ),
         ],
@@ -43,7 +43,7 @@ final readonly class CompileCampaignRulesController
                     new OA\Property(
                         property: 'examples',
                         type: 'object',
-                        description: 'Exemples de messages pour affiner les règles',
+                        description: 'Example messages to refine the rules',
                         properties: [
                             new OA\Property(
                                 property: 'pos',
@@ -54,7 +54,7 @@ final readonly class CompileCampaignRulesController
                             new OA\Property(
                                 property: 'neg',
                                 type: 'array',
-                                description: 'Messages négatifs (hors campagne)',
+                                description: 'Negative messages (outside campaign)',
                                 items: new OA\Items(type: 'string', format: 'uuid')
                             ),
                         ]
@@ -65,20 +65,20 @@ final readonly class CompileCampaignRulesController
         responses: [
             new OA\Response(
                 response: 201,
-                description: 'Règles compilées avec succès',
+                description: 'Rules compiled successfully',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
-                        new OA\Property(property: 'rules_dsl', type: 'string', description: 'Règles au format MailGuard DSL'),
-                        new OA\Property(property: 'rules_count', type: 'integer', description: 'Nombre de règles générées'),
-                        new OA\Property(property: 'attempts', type: 'integer', description: 'Nombre de tentatives LLM nécessaires'),
-                        new OA\Property(property: 'rule_ids', type: 'array', items: new OA\Items(type: 'string', format: 'uuid'), description: 'UUIDs des règles créées en base'),
+                        new OA\Property(property: 'rules_dsl', type: 'string', description: 'Rules in MailGuard DSL format'),
+                        new OA\Property(property: 'rules_count', type: 'integer', description: 'Number of rules generated'),
+                        new OA\Property(property: 'attempts', type: 'integer', description: 'Number of LLM attempts required'),
+                        new OA\Property(property: 'rule_ids', type: 'array', items: new OA\Items(type: 'string', format: 'uuid'), description: 'UUIDs of rules created in database'),
                     ]
                 )
             ),
             new OA\Response(
                 response: 400,
-                description: 'Paramètres invalides',
+                description: 'Invalid parameters',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -94,7 +94,7 @@ final readonly class CompileCampaignRulesController
             ),
             new OA\Response(
                 response: 500,
-                description: 'Erreur lors de la compilation des règles',
+                description: 'Error compiling rules',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [new OA\Property(property: 'error', type: 'string')]
@@ -111,7 +111,7 @@ final readonly class CompileCampaignRulesController
             return new JsonResponse(['error' => 'Invalid campaign_id format'], Response::HTTP_BAD_REQUEST);
         }
 
-        // 2. Paramètres optionnels (exemples pour affiner les règles)
+        // 2. Optional parameters (examples to refine rules)
         /** @var array<string, mixed> $data */
         $data = json_decode($request->getContent(), true) ?? [];
         /** @var array<string, mixed> $examplesData */
@@ -139,7 +139,7 @@ final readonly class CompileCampaignRulesController
             return new JsonResponse(['error' => 'Rule compilation failed: ' . $e->getMessage()], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        // 4. Réponse
+        // 4. Response
         return new JsonResponse([
             'rules_dsl' => $result['rules_dsl'],
             'rules_count' => $result['rules_count'],

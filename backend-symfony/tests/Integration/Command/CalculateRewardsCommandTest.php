@@ -62,7 +62,7 @@ class CalculateRewardsCommandTest extends KernelTestCase
 
         $this->assertSame(0, $tester->getStatusCode());
         $output = $tester->getDisplay();
-        $this->assertStringContainsString('Aucune conversation', $output);
+        $this->assertStringContainsString('No conversations to process', $output);
     }
 
     public function testForceOptionRecalculatesExistingRewards(): void
@@ -98,7 +98,7 @@ class CalculateRewardsCommandTest extends KernelTestCase
 
         $this->assertSame(0, $tester->getStatusCode());
         $output = $tester->getDisplay();
-        $this->assertStringContainsString('Calcul des rewards', $output);
+        $this->assertStringContainsString('Reward calculation', $output);
     }
 
     public function testOutputContainsSuccessAndErrorMetrics(): void
@@ -120,7 +120,7 @@ class CalculateRewardsCommandTest extends KernelTestCase
         $this->assertSame(0, $tester->getStatusCode());
         $output = $tester->getDisplay();
 
-        if (!str_contains($output, 'Aucune conversation')) {
+        if (!str_contains($output, 'No conversations to process')) {
             $this->assertStringContainsString('Erreurs', $output);
         }
     }

@@ -158,7 +158,7 @@ ScamBuster operates at the intersection of adversarial communications, LLM pipel
 | Control | Implementation | Location |
 |---------|---------------|----------|
 | n8n email sending | Replies sent through standard email infrastructure, not directly from the application server | n8n workflows |
-| Multiple mailboxes | Distributed across different providers via Vault-managed IMAP credentials | `VaultImapSecretProvider` |
+| Multiple mailboxes | Distributed across different providers via environment-managed IMAP credentials | Environment variables |
 | Rate limiting | Variable response delays prevent timing analysis | `ReplyHandler` rate limiters |
 | Standard headers | No custom X-ScamBuster headers or identifiers in outbound email | n8n workflow configuration |
 
@@ -182,12 +182,12 @@ ScamBuster operates at the intersection of adversarial communications, LLM pipel
 |---------|---------------|----------|
 | `.gitignore` | `.env` and all secret-containing files excluded from version control | `.gitignore` |
 | `.env.dist` template | Only placeholder values committed; real secrets never in versioned files | `.env.dist` |
-| HashiCorp Vault | IMAP credentials stored in Vault with token-based access control | `VaultImapSecretProvider` |
+| Environment variables | IMAP credentials stored in environment variables or Docker secrets | `.env` / Docker secrets |
 | Environment variables | All secrets injected via environment, never hardcoded | `docker-compose.yml`, Symfony config |
 | Framework logging | Monolog configured to avoid logging sensitive parameters | Symfony configuration |
 | JWT via env | JWT signing key stored exclusively in `JWT_SECRET` environment variable | `lexik/jwt-authentication-bundle` config |
 
-**Residual risk**: Low. Defense in depth across storage (Vault), transport (env vars), and prevention (`.gitignore`). Regular secret rotation is recommended for production deployments.
+**Residual risk**: Low. Defense in depth across storage (env vars / Docker secrets), transport (env vars), and prevention (`.gitignore`). Regular secret rotation is recommended for production deployments.
 
 ---
 

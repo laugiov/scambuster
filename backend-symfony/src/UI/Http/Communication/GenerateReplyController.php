@@ -17,7 +17,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Post(
     path: '/api/v1/communication/reply/generate',
-    summary: 'Générer un brouillon de réponse',
+    summary: 'Generate a reply draft',
     tags: ['Reply'],
     requestBody: new OA\RequestBody(
         required: true,
@@ -35,7 +35,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 201,
-            description: 'Brouillon généré avec succès',
+            description: 'Draft generated successfully',
             content: new OA\JsonContent(ref: new Model(type: ReplyGenerateResponseDto::class))
         ),
         new OA\Response(

@@ -25,17 +25,36 @@ services:
     restart: always
 
   backend-dev:
-    # Override the dev container to behave as production
+    # Override the dev container: use php-fpm Dockerfile for production
     container_name: scambuster-backend-prod
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile.prod
     volumes:
       # NO source volume mount — the image is self-contained
       - ./.env:/app/.env:ro
-    command: ["sh", "-c", "php bin/console cache:warmup --env=prod && php -S 0.0.0.0:8080 -t public"]
+    command: ["sh", "-c", "php bin/console cache:warmup --env=prod && php-fpm"]
     environment:
       - APP_ENV=prod
       - APP_DEBUG=0
       - APP_API_BASE_URL=${APP_API_BASE_URL}
     restart: always
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: scambuster-nginx
+    ports:
+      - "${BACKEND_PORT:-8080}:8080"
+    volumes:
+      - ./infra/docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend-dev
+    restart: always
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/nginx-health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
 
   backend-test:
     profiles: ["never-in-prod"]

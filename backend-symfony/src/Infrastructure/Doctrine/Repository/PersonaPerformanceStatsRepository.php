@@ -12,7 +12,7 @@ use Doctrine\Persistence\ManagerRegistry;
 
 /**
  * Repository pour PersonaPerformanceStatsEntity.
- * Gère l'accès aux statistiques de performance des personas.
+ * Manages access to persona performance statistics.
  *
  * @extends ServiceEntityRepository<PersonaPerformanceStatsEntity>
  */
@@ -24,7 +24,7 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupère les stats d'un persona pour un scam_type donné.
+     * Retrieves stats for a persona for a given scam_type.
      * Retourne null si aucune stat n'existe (cold start).
      */
     public function findByPersonaAndScamType(Persona $persona, ScamType $scamType): ?PersonaPerformanceStatsEntity
@@ -36,8 +36,8 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupère toutes les stats pour un scam_type donné.
-     * Utilisé par PersonaOptimizer pour sélectionner le meilleur persona.
+     * Retrieves all stats for a given scam_type.
+     * Used by PersonaOptimizer to select the best persona.
      *
      * @return PersonaPerformanceStatsEntity[]
      */
@@ -45,12 +45,12 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     {
         return $this->findBy(
             ['scamType' => $scamType],
-            ['rewardAvg' => 'DESC'] // Tri par reward décroissant
+            ['rewardAvg' => 'DESC'] // Sort by reward descending
         );
     }
 
     /**
-     * Récupère toutes les stats pour un persona donné.
+     * Retrieves all stats for a given persona.
      * Utile pour afficher la performance d'un persona sur tous les scam types.
      *
      * @return PersonaPerformanceStatsEntity[]
@@ -64,11 +64,11 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupère ou crée une entité stats.
-     * Si l'entité n'existe pas, elle est créée avec des valeurs par défaut (cold start).
+     * Retrieves or creates a stats entity.
+     * If the entity does not exist, it is created with default values (cold start).
      *
-     * ⚠️ IMPORTANT : Cette méthode ne fait PAS de persist() automatique.
-     * Vous devez appeler $em->persist() et $em->flush() après.
+     * IMPORTANT: This method does NOT auto-persist().
+     * You must call $em->persist() and $em->flush() afterwards.
      */
     public function findOrCreate(Persona $persona, ScamType $scamType): PersonaPerformanceStatsEntity
     {
@@ -108,7 +108,7 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupère le meilleur persona (reward_avg max) pour un scam_type.
+     * Retrieves the best persona (max reward_avg) for a scam_type.
      * Retourne null si aucune stat n'existe.
      */
     public function findBestPerformingPersona(ScamType $scamType): ?PersonaPerformanceStatsEntity
@@ -128,7 +128,7 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     }
 
     /**
-     * Récupère les N meilleurs personas pour un scam_type.
+     * Retrieves the top N personas for a scam_type.
      *
      * @param int $limit (default: 5)
      *
@@ -151,7 +151,7 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
     }
 
     /**
-     * Retourne les statistiques agrégées pour tous les scam types.
+     * Returns aggregated statistics for all scam types.
      * Format : [
      *   ['scam_type_code' => 'PHISHING', 'total_sessions' => 42, 'avg_reward' => 0.6543],
      *   ...
@@ -176,7 +176,7 @@ class PersonaPerformanceStatsRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
 
-        // Conversion des types (Doctrine retourne des strings pour les agrégats)
+        // Type conversion (Doctrine returns strings for aggregates)
         return array_map(
             /**
              * @param array{scam_type_code: string, total_sessions: string, avg_reward: string} $row

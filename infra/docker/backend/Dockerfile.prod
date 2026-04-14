@@ -1,0 +1,88 @@
+# --- Build stage: install PHP dependencies and copy source code ---
+FROM php:8.3.27-cli AS build
+
+WORKDIR /app
+
+# Install system dependencies for Composer
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git unzip curl postgresql-client libpq-dev libzip-dev \
+    && pecl install mailparse redis \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Composer (inside the container)
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer
+
+# Copy Composer files and install ALL dependencies (dev+prod) for build
+COPY backend-symfony/composer.* ./
+RUN composer install --no-interaction --no-scripts --no-progress
+
+# Copy the rest of the application code
+COPY backend-symfony/ ./
+
+# --- Runtime stage: php-fpm for production ---
+FROM php:8.3.27-fpm
+
+WORKDIR /app
+
+# OCI labels for provenance and compliance
+LABEL org.opencontainers.image.source="https://github.com/laugiov/scambuster" \
+        org.opencontainers.image.description="Symfony Backend (production, php-fpm)" \
+        org.opencontainers.image.licenses="MIT" \
+        org.opencontainers.image.sbom="true"
+
+RUN adduser --disabled-password --gecos '' --uid 10001 appuser
+
+# Install runtime dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client curl libpq-dev git unzip libzip-dev \
+    && pecl install mailparse redis \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip opcache \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Composer (for production dependency install)
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer
+
+# php-fpm production tuning
+RUN { \
+    echo '[www]'; \
+    echo 'listen = 0.0.0.0:9000'; \
+    echo 'pm = dynamic'; \
+    echo 'pm.max_children = 20'; \
+    echo 'pm.start_servers = 4'; \
+    echo 'pm.min_spare_servers = 2'; \
+    echo 'pm.max_spare_servers = 8'; \
+    echo 'pm.max_requests = 1000'; \
+    echo 'access.log = /dev/null'; \
+} > /usr/local/etc/php-fpm.d/zz-production.conf
+
+# OPcache production settings
+RUN { \
+    echo 'opcache.enable=1'; \
+    echo 'opcache.memory_consumption=256'; \
+    echo 'opcache.max_accelerated_files=20000'; \
+    echo 'opcache.validate_timestamps=0'; \
+    echo 'opcache.preload_user=appuser'; \
+} > /usr/local/etc/php/conf.d/opcache-prod.ini
+
+# Copy built application from the build stage
+COPY --from=build /app /app
+
+# Install only production dependencies
+RUN composer install --no-dev --prefer-dist --optimize-autoloader \
+    --no-interaction --no-scripts --no-progress
+
+USER 10001
+
+EXPOSE 9000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD php-fpm -t 2>/dev/null || exit 1
+
+CMD ["php-fpm"]

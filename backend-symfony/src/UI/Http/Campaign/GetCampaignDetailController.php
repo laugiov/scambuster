@@ -21,8 +21,8 @@ final readonly class GetCampaignDetailController
     }
     #[OA\Get(
         path: '/api/v1/campaign/{campaign_id}/detail',
-        summary: 'Obtenir le détail d\'une campagne',
-        description: 'Retourne les métadonnées d\'une campagne ainsi que la meilleure règle associée (triée par PPV décroissant).',
+        summary: 'Get campaign detail',
+        description: 'Returns campaign metadata along with the best associated rule (sorted by PPV descending).',
         security: [['Bearer' => []]],
         tags: ['Campaign'],
         parameters: [
@@ -37,7 +37,7 @@ final readonly class GetCampaignDetailController
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Détail de la campagne',
+                description: 'Campaign detail',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [

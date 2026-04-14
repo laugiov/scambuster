@@ -1,9 +1,9 @@
 # ======================================================================
-#  Makefile – Scambuster : outillage dev / test Symfony + PostgreSQL
+#  Makefile – Scambuster: dev / test tooling for Symfony + PostgreSQL
 # ======================================================================
 
 # ----------------------------------------------------------------------
-#  Paramètres surchargeables
+#  Overridable parameters
 # ----------------------------------------------------------------------
 -include .env.makefile.local
 
@@ -14,7 +14,7 @@ PHP_CONTAINER_E2E ?= backend-e2e
 FRONT_CONTAINER  ?= frontend
 
 # ----------------------------------------------------------------------
-#  Raccourcis commandes
+#  Command shortcuts
 # ----------------------------------------------------------------------
 COMPOSER_DEV      = $(DC) run --rm $(PHP_CONTAINER_DEV) composer
 COMPOSER_TEST     = $(DC) run --rm $(PHP_CONTAINER_TEST) composer
@@ -27,7 +27,7 @@ CONSOLE_E2E       = $(DC) exec $(PHP_CONTAINER_E2E) php bin/console
 q ?=
 
 # ----------------------------------------------------------------------
-#  Aide
+#  Help
 # ----------------------------------------------------------------------
 HELP_FUN = \
 	%help; \
@@ -374,7 +374,7 @@ testOne: ##@test Run a single integration/unit test (q=filter)
 	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,functional,unit --filter $(q)
 
 # ======================================================================
-#  DÉCLARATION .PHONY
+#  .PHONY DECLARATION
 # ======================================================================
 .PHONY: help \
         up upd down ps build log-backend log-db \
@@ -432,4 +432,4 @@ respawn-all: ##@docker Reset all DBs, load fixtures and seed Vault
 	$(MAKE) fixtures-dev
 	$(MAKE) fixtures
 	$(MAKE) fixtures-e2e
-	$(CONSOLE_DEV) vault:imap-secret:add dummyhash user@example.com motdepasse123
+	$(CONSOLE_DEV) vault:imap-secret:add dummyhash user@example.com changeme-dev

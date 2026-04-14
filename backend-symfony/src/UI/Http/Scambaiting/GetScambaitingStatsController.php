@@ -13,7 +13,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Retourne les statistiques de sélection de persona pour un scam_type donné.
+ * Returns persona selection statistics for a given scam_type.
  * Utile pour monitoring et debugging.
  */
 #[OA\Get(

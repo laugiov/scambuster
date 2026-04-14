@@ -29,14 +29,14 @@ class PreprodCopyConversationsCommand extends Command
 
         $io->title('Copie Conversations Preprod → Dev');
 
-        // 1. Vérifier connexion preprod
-        $io->section('1. Connexion à preprod');
+        // 1. Verify preprod connection
+        $io->section('1. Connecting to preprod');
 
         try {
             $preprodCount = $this->copyService->countPreprodConversations();
-            $io->success(sprintf('Connecté à preprod: %d conversations trouvées', $preprodCount));
+            $io->success(sprintf('Connected to preprod: %d conversations found', $preprodCount));
         } catch (\Exception $e) {
-            $io->error('Impossible de se connecter à preprod: ' . $e->getMessage());
+            $io->error('Unable to connect to preprod: ' . $e->getMessage());
 
             return Command::FAILURE;
         }
@@ -46,7 +46,7 @@ class PreprodCopyConversationsCommand extends Command
 
         try {
             $this->copyService->clearDevData();
-            $io->success('Base dev nettoyée');
+            $io->success('Dev database cleaned');
         } catch (\Exception $e) {
             $io->error('Erreur lors du nettoyage: ' . $e->getMessage());
 
@@ -58,10 +58,10 @@ class PreprodCopyConversationsCommand extends Command
 
         try {
             $convCopied = $this->copyService->copyConversations();
-            $io->success(sprintf('%d conversations copiées', $convCopied));
+            $io->success(sprintf('%d conversations copied', $convCopied));
         } catch (\Exception $e) {
             $io->error('Erreur lors de la copie: ' . $e->getMessage());
-            $io->note('Assurez-vous que l\'extension dblink est installée: CREATE EXTENSION IF NOT EXISTS dblink;');
+            $io->note('Ensure the dblink extension is installed: CREATE EXTENSION IF NOT EXISTS dblink;');
 
             return Command::FAILURE;
         }
@@ -71,7 +71,7 @@ class PreprodCopyConversationsCommand extends Command
 
         try {
             $msgCopied = $this->copyService->copyMessages();
-            $io->success(sprintf('%d messages copiés', $msgCopied));
+            $io->success(sprintf('%d messages copied', $msgCopied));
         } catch (\Exception $e) {
             $io->warning('Erreur lors de la copie des messages: ' . $e->getMessage());
         }
@@ -82,14 +82,14 @@ class PreprodCopyConversationsCommand extends Command
         $stats = $this->copyService->getDevStats();
 
         $io->table(
-            ['Métrique', 'Valeur'],
+            ['Metric', 'Value'],
             [
                 ['Conversations en dev', $stats['conversations']],
                 ['Messages en dev', $stats['messages']],
             ]
         );
 
-        $io->success('Copie terminée avec succès !');
+        $io->success('Copy completed successfully!');
         $io->note('Les conversations de preprod sont maintenant accessibles via l\'API dev');
 
         return Command::SUCCESS;

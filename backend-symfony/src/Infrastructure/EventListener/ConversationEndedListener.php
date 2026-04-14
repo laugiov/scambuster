@@ -14,8 +14,8 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 
 /**
- * Event Listener qui réagit à la fin d'une conversation.
- * Calcule le reward et met à jour les statistiques de performance du persona.
+ * Event Listener that reacts to the end of a conversation.
+ * Calculates the reward and updates persona performance statistics.
  */
 #[AsEventListener(event: ConversationEndedEvent::class, method: 'onConversationEnded')]
 final readonly class ConversationEndedListener
@@ -27,8 +27,8 @@ final readonly class ConversationEndedListener
     ) {
     }
     /**
-     * Traite l'événement ConversationEndedEvent.
-     * ⚠️ IMPORTANT : Cette méthode doit être TRANSACTIONNELLE pour éviter les race conditions.
+     * Handles the ConversationEndedEvent.
+     * IMPORTANT: This method must be TRANSACTIONAL to avoid race conditions.
      */
     public function onConversationEnded(ConversationEndedEvent $event): void
     {

@@ -224,7 +224,7 @@ Not intended for external use. Used by n8n and internal services.
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/api/v1/internal/mail-account/active` | ROLE_ADMIN | List active mail accounts |
-| GET | `/api/v1/internal/mail-account/resolve-secret/{hash}` | ROLE_ADMIN | Resolve IMAP credentials via Vault |
+| GET | `/api/v1/internal/mail-account/resolve-secret/{hash}` | ROLE_ADMIN | Resolve IMAP credentials |
 
 ---
 

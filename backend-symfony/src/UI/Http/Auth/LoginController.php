@@ -32,7 +32,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Connexion réussie',
+            description: 'Successful login',
             content: new OA\JsonContent(type: 'object', properties: [
                 new OA\Property(property: 'access_token', type: 'string'),
                 new OA\Property(property: 'refresh_token', type: 'string'),
