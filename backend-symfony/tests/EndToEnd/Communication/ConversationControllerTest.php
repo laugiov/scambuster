@@ -572,10 +572,7 @@ class ConversationControllerTest extends WebTestCase
             ],
             json_encode($payload)
         );
-        $this->assertTrue(
-            in_array($client->getResponse()->getStatusCode(), [400, 500]),
-            'Malformed date should return 400 or 500.'
-        );
+        $this->assertSame(400, $client->getResponse()->getStatusCode(), 'Malformed date should return 400.');
         $data = json_decode($client->getResponse()->getContent(), true);
         $this->assertArrayHasKey('error', $data);
         $this->assertNotEmpty($data['error']);

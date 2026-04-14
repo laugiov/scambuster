@@ -39,8 +39,11 @@ class IocHandlerTest extends KernelTestCase
         $this->em = $container->get('doctrine')->getManager();
     }
 
-    private function createTestMessage(string $externalMessageId = null): Message
-    {
+    private function createTestMessage(
+        ?string $externalMessageId = null,
+        string $bodyText = 'Click here: https://evil-site.com/login',
+        ?array $headers = null,
+    ): Message {
         $channel = $this->em->getRepository(Channel::class)->findOneBy(['code' => 'email']);
         $scamType = $this->em->getRepository(ScamType::class)->findOneBy([]);
         $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
@@ -63,6 +66,14 @@ class IocHandlerTest extends KernelTestCase
         );
 
         $msgId = uuid_create(UUID_TYPE_RANDOM);
+        $defaultHeaders = [
+            'from' => 'scammer@test.com',
+            'to' => 'victim@test.com',
+            'message-id' => $externalMessageId ?? '<test-' . bin2hex(random_bytes(8)) . '@test.com>',
+            'reply-to' => 'reply-scammer@evil-reply.test',
+            'return-path' => 'bounce@evil-bounce.test',
+        ];
+
         $message = new Message(
             $msgId,
             $conv,
@@ -70,13 +81,9 @@ class IocHandlerTest extends KernelTestCase
             $direction,
             'en',
             'Phishing Email',
-            'Click here: https://evil-site.com/login',
-            '<p>Click here: https://evil-site.com/login</p>',
-            [
-                'from' => 'scammer@test.com',
-                'to' => 'victim@test.com',
-                'message-id' => $externalMessageId ?? '<test-' . bin2hex(random_bytes(8)) . '@test.com>',
-            ],
+            $bodyText,
+            '<p>' . $bodyText . '</p>',
+            $headers ?? $defaultHeaders,
             bin2hex(random_bytes(32)),
             null,
             null,
@@ -328,10 +335,10 @@ class IocHandlerTest extends KernelTestCase
         // Get conversation IOCs (should be deduplicated)
         $iocs = $this->iocHandler->getConversationIocs($conv->getConvId());
 
-        // Should have 2 IOCs total (one per message due to different msg_id in unique constraint)
-        // But they should be grouped by ioc_id if we had same ioc_id
-        $this->assertGreaterThanOrEqual(1, count($iocs));
-        $this->assertLessThanOrEqual(2, count($iocs));
+        // Two observations of the same domain on two different messages share
+        // the same indicator_id. getConversationIocs deduplicates by indicator_id,
+        // so exactly 1 unique IOC is returned.
+        $this->assertCount(1, $iocs);
     }
 
     public function testResolveMessageByExternalMessageId(): void
@@ -461,5 +468,546 @@ class IocHandlerTest extends KernelTestCase
                 "Unexpected extraction method: {$method}"
             );
         }
+    }
+
+    // ================================================================== //
+    //  Merged from IocHandlerAdditionalTest
+    // ================================================================== //
+
+    public function testExtractAndUpsertHeaderIocsReturnsCountOfExtractedIocs(): void
+    {
+        $message = $this->createTestMessage();
+        $count = $this->iocHandler->extractAndUpsertHeaderIocs($message);
+
+        $this->assertGreaterThanOrEqual(1, $count, 'Should extract at least 1 header IOC');
+    }
+
+    public function testExtractAndUpsertHeaderIocsIsIdempotent(): void
+    {
+        $message = $this->createTestMessage();
+        $count1 = $this->iocHandler->extractAndUpsertHeaderIocs($message);
+        $count2 = $this->iocHandler->extractAndUpsertHeaderIocs($message);
+
+        $this->assertSame($count1, $count2, 'Header IOC extraction should be idempotent');
+    }
+
+    public function testExtractAndUpsertHeaderIocsWithMinimalHeaders(): void
+    {
+        $message = $this->createTestMessage(null, 'Click here', [
+            'from' => 'onlysender@minimal.test',
+            'message-id' => '<minimal-' . bin2hex(random_bytes(4)) . '@test.com>',
+        ]);
+        $count = $this->iocHandler->extractAndUpsertHeaderIocs($message);
+
+        $this->assertGreaterThanOrEqual(0, $count, 'Should handle minimal headers gracefully');
+    }
+
+    public function testUpdateIocEnrichmentUpdatesContext(): void
+    {
+        $message = $this->createTestMessage();
+
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://enrich-target.com',
+                'value_norm' => 'enrich-target.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+        ]);
+
+        $updated = $this->iocHandler->updateIocEnrichment($ioc->getObsId(), [
+            'virustotal' => ['malicious' => 3, 'suspicious' => 1],
+            'abuseipdb' => ['confidence' => 92],
+        ]);
+
+        $this->assertSame($ioc->getObsId(), $updated->getObsId());
+        $context = $updated->getContext();
+        $this->assertArrayHasKey('enrichment', $context);
+        $this->assertSame(3, $context['enrichment']['virustotal']['malicious']);
+    }
+
+    public function testUpdateIocEnrichmentThrowsForUnknownObsId(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->iocHandler->updateIocEnrichment('ffffffff-ffff-ffff-ffff-ffffffffffff', ['foo' => 'bar']);
+    }
+
+    public function testGetAllIocsWithConfidenceReturnsArray(): void
+    {
+        $message = $this->createTestMessage();
+        $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://confidence-test.com',
+                'value_norm' => 'confidence-test.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => ['virustotal' => ['malicious' => 2]],
+        ]);
+
+        $results = $this->iocHandler->getAllIocsWithConfidence();
+        $this->assertIsArray($results);
+        $this->assertGreaterThan(0, count($results));
+    }
+
+    public function testGetAllIocsWithConfidenceMinScoreFilters(): void
+    {
+        $results = $this->iocHandler->getAllIocsWithConfidence(999.0);
+        $this->assertIsArray($results);
+        $this->assertLessThanOrEqual(count($this->iocHandler->getAllIocsWithConfidence()), count($results));
+    }
+
+    public function testGetIocDetailReturnsStructuredData(): void
+    {
+        $message = $this->createTestMessage();
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'domain',
+                'value' => 'detail-test.com',
+                'value_norm' => 'detail-test.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => ['virustotal' => ['malicious' => 1]],
+        ]);
+
+        $detail = $this->iocHandler->getIocDetail($ioc->getIndicatorId());
+
+        $this->assertIsArray($detail);
+        $this->assertArrayHasKey('indicator_id', $detail);
+        $this->assertSame($ioc->getIndicatorId(), $detail['indicator_id']);
+    }
+
+    public function testGetIocDetailThrowsForUnknownIndicator(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        $this->iocHandler->getIocDetail('ffffffff-ffff-ffff-ffff-ffffffffffff');
+    }
+
+    public function testGetCoOccurrenceGraphReturnsNodesAndEdges(): void
+    {
+        $message = $this->createTestMessage();
+
+        $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://cooccur-a.com',
+                'value_norm' => 'cooccur-a.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+        ]);
+
+        $iocB = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'domain',
+                'value' => 'cooccur-b.com',
+                'value_norm' => 'cooccur-b.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+        ]);
+
+        $graph = $this->iocHandler->getCoOccurrenceGraph($iocB->getIndicatorId());
+
+        $this->assertArrayHasKey('nodes', $graph);
+        $this->assertArrayHasKey('edges', $graph);
+        $this->assertIsArray($graph['nodes']);
+        $this->assertIsArray($graph['edges']);
+    }
+
+    public function testComputeConfidenceDataReturnsExpectedKeys(): void
+    {
+        $message = $this->createTestMessage();
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://confidence-calc.com',
+                'value_norm' => 'confidence-calc.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => ['virustotal' => ['malicious' => 5]],
+        ]);
+
+        $data = $this->iocHandler->computeConfidenceData(
+            $ioc->getIndicatorId(),
+            75.0,
+            new \DateTimeImmutable()
+        );
+
+        $this->assertArrayHasKey('confidence', $data);
+        $this->assertArrayHasKey('decay_factor', $data);
+        $this->assertArrayHasKey('effective_score', $data);
+        $this->assertIsFloat($data['confidence']);
+        $this->assertIsFloat($data['decay_factor']);
+        $this->assertIsFloat($data['effective_score']);
+    }
+
+    public function testComputeConfidenceDataWithNullScore(): void
+    {
+        $message = $this->createTestMessage();
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'email',
+                'value' => 'nullscore@test.com',
+                'value_norm' => 'nullscore@test.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+        ]);
+
+        $data = $this->iocHandler->computeConfidenceData(
+            $ioc->getIndicatorId(),
+            null,
+            new \DateTimeImmutable()
+        );
+
+        $this->assertArrayHasKey('confidence', $data);
+        $this->assertArrayHasKey('effective_score', $data);
+    }
+
+    public function testComputeConfidenceDataWithOldObservation(): void
+    {
+        $message = $this->createTestMessage();
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://old-observation.com',
+                'value_norm' => 'old-observation.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => ['virustotal' => ['malicious' => 3]],
+        ]);
+
+        $data = $this->iocHandler->computeConfidenceData(
+            $ioc->getIndicatorId(),
+            80.0,
+            new \DateTimeImmutable('-90 days')
+        );
+
+        $this->assertLessThanOrEqual(1.0, $data['decay_factor']);
+        $this->assertGreaterThanOrEqual(0.0, $data['decay_factor']);
+    }
+
+    // ================================================================== //
+    //  Merged from IocHandlerDeepTest
+    // ================================================================== //
+
+    public function testExtractIocsFromMessageWithPersistTrue(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Visit https://evil-persist.com and contact scammer@evil-persist.com'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage(
+            $message->getMsgId(),
+            'regex',
+            [],
+            true
+        );
+
+        $this->assertIsArray($iocs);
+
+        foreach ($iocs as $ioc) {
+            $this->assertArrayHasKey('type', $ioc);
+            $this->assertArrayHasKey('value', $ioc);
+            $this->assertArrayHasKey('context', $ioc);
+            if (isset($ioc['context']['obs_id'])) {
+                $this->assertNotEmpty($ioc['context']['obs_id']);
+            }
+        }
+    }
+
+    public function testExtractIocsFromMessageWithPersistTrueAndTypeFilter(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Visit https://evil-filter.com and email scammer@evil-filter.com'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage(
+            $message->getMsgId(),
+            'regex',
+            ['email'],
+            true
+        );
+
+        $this->assertIsArray($iocs);
+        $emailIocs = array_filter($iocs, fn ($ioc) => $ioc['type'] === 'email');
+        $this->assertGreaterThanOrEqual(1, count($emailIocs), 'Should contain at least one email IOC');
+    }
+
+    public function testExtractIocsFromMessageWithPersistTrueIsIdempotent(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Contact evil-idempotent@test.com'
+        );
+
+        $iocs1 = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', [], true);
+        $iocs2 = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', [], true);
+
+        $this->assertCount(count($iocs1), $iocs2);
+    }
+
+    public function testExtractIocsHybridWithPersist(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Visit https://hybrid-persist.com for your prize'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage(
+            $message->getMsgId(),
+            'hybrid',
+            [],
+            true
+        );
+
+        $this->assertIsArray($iocs);
+    }
+
+    public function testExtractIocsFromMessageWithEmptyBody(): void
+    {
+        $message = $this->createTestMessage(bodyText: '');
+
+        $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', []);
+
+        $this->assertIsArray($iocs);
+    }
+
+    public function testUpsertEnrichedIocWithAllOptionalFields(): void
+    {
+        $message = $this->createTestMessage();
+
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'email',
+                'value' => 'full-field-test@evil.com',
+                'value_norm' => 'full-field-test@evil.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => ['virustotal' => ['malicious' => 2]],
+            'tags' => ['phishing', 'credential-theft'],
+            'tlp' => 'RED',
+            'category' => 'Credential_phish',
+        ]);
+
+        $this->assertNotNull($ioc);
+        $context = $ioc->getContext();
+        $this->assertSame('email', $context['type']);
+    }
+
+    public function testUpsertEnrichedIocWithSha256Type(): void
+    {
+        $message = $this->createTestMessage();
+
+        $hash = hash('sha256', 'test-content');
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'sha256',
+                'value' => $hash,
+                'value_norm' => $hash,
+                'source' => 'attachment',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+            'tlp' => 'AMBER',
+        ]);
+
+        $this->assertNotNull($ioc);
+        $this->assertSame('sha256', $ioc->getContext()['type']);
+    }
+
+    public function testCalculateMessageRiskWithMultipleDiverseIocTypes(): void
+    {
+        $message = $this->createTestMessage();
+
+        $types = [
+            ['type' => 'url', 'value' => 'https://diverse-risk.com', 'value_norm' => 'diverse-risk.com'],
+            ['type' => 'email', 'value' => 'diverse@evil.com', 'value_norm' => 'diverse@evil.com'],
+            ['type' => 'iban', 'value' => 'DE89370400440532013000', 'value_norm' => 'DE89370400440532013000'],
+        ];
+
+        foreach ($types as $t) {
+            $this->iocHandler->upsertEnrichedIoc([
+                'msg_id' => $message->getMsgId(),
+                'ioc' => array_merge($t, [
+                    'source' => 'body',
+                    'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+                ]),
+                'enrichment' => [],
+            ]);
+        }
+
+        $risk = $this->iocHandler->calculateMessageRisk($message->getMsgId());
+
+        $this->assertIsInt($risk['score_agg']);
+        $this->assertContains($risk['level'], ['high', 'medium', 'low']);
+        $this->assertIsBool($risk['should_reply']);
+    }
+
+    public function testGetConversationIocsReturnsEmptyForNewConversation(): void
+    {
+        $message = $this->createTestMessage();
+        $convId = $message->getConversation()->getConvId();
+
+        $iocs = $this->iocHandler->getConversationIocs($convId);
+        $this->assertIsArray($iocs);
+    }
+
+    // ================================================================== //
+    //  Merged from IocHandlerExtendedTest
+    // ================================================================== //
+
+    public function testRegexExtractionFindsUrlAndEmail(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Contact me at scammer@evil.com or visit https://evil-phish.example.com/login'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', []);
+
+        $this->assertIsArray($iocs);
+        $this->assertGreaterThan(0, count($iocs));
+
+        $types = array_column($iocs, 'type');
+        $this->assertContains('url', $types);
+        $this->assertContains('email', $types);
+    }
+
+    public function testRegexExtractionFindsIban(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Transfer to FR7612345678901234567890123 immediately'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', []);
+
+        $types = array_column($iocs, 'type');
+        $this->assertContains('iban', $types);
+    }
+
+    public function testRegexExtractionFindsPhone(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Call me at +33 6 12 34 56 78 for details'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', []);
+
+        $this->assertIsArray($iocs);
+    }
+
+    public function testRegexExtractionWithTypeFilter(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Visit https://evil.com or mail scammer@evil.com'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', ['url']);
+
+        foreach ($iocs as $ioc) {
+            $this->assertContains($ioc['type'], ['url', 'domain']);
+        }
+    }
+
+    public function testHybridExtractionReturnsArray(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Send Bitcoin to bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'hybrid', []);
+
+        $this->assertIsArray($iocs);
+    }
+
+    public function testHybridExtractionDeduplicates(): void
+    {
+        $message = $this->createTestMessage(
+            bodyText: 'Visit https://evil-dedup.example.com mentioned twice https://evil-dedup.example.com'
+        );
+
+        $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'hybrid', []);
+
+        $urlValues = [];
+        foreach ($iocs as $ioc) {
+            if ($ioc['type'] === 'url') {
+                $urlValues[] = $ioc['value_norm'] ?? $ioc['value'];
+            }
+        }
+
+        $this->assertCount(count(array_unique($urlValues)), $urlValues, 'Should not have duplicate URL IOCs');
+    }
+
+    public function testExtractIocsFromMessageThrowsForUnknownMessage(): void
+    {
+        $this->expectException(\RuntimeException::class);
+
+        $this->iocHandler->extractIocsFromMessage('ffffffff-ffff-ffff-ffff-ffffffffffff', 'regex', []);
+    }
+
+    public function testUpsertWithUrlScanCleanVerdictScoresLower(): void
+    {
+        $message = $this->createTestMessage();
+
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://clean-site.example.com',
+                'value_norm' => 'clean-site.example.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [
+                'virustotal' => ['malicious' => 0, 'suspicious' => 0, 'harmless' => 90],
+                'urlscan' => ['verdict' => 'clean'],
+            ],
+        ]);
+
+        $context = $ioc->getContext();
+        $score = $context['score']['agg'] ?? 0;
+
+        $this->assertLessThan(50, $score, 'Clean site should score low');
+    }
+
+    public function testUpsertWithDomainType(): void
+    {
+        $message = $this->createTestMessage();
+
+        $ioc = $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'domain',
+                'value' => 'domain-ext-test.example.com',
+                'value_norm' => 'domain-ext-test.example.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+        ]);
+
+        $context = $ioc->getContext();
+        $this->assertSame('domain', $context['type']);
+        $this->assertArrayHasKey('stix', $context);
+        $this->assertStringContainsString('domain-name:value', $context['stix']['pattern']);
     }
 }

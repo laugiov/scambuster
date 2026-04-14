@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw';
 
 const BASE = '/api/v1';
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => {
   server.resetHandlers();
   // Reset the store between tests
