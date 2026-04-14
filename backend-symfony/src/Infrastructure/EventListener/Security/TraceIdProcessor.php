@@ -25,7 +25,7 @@ class TraceIdProcessor implements ProcessorInterface
     {
         $request = $this->requestStack->getCurrentRequest();
 
-        if ($request !== null) {
+        if ($request instanceof \Symfony\Component\HttpFoundation\Request) {
             $traceId = $request->attributes->get(TraceIdListener::ATTRIBUTE_KEY);
 
             if (is_string($traceId) && $traceId !== '') {

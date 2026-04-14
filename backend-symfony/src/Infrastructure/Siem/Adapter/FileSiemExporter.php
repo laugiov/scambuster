@@ -21,12 +21,12 @@ use Psr\Log\LoggerInterface;
  * - SIEM_PROVIDER=file
  * - SIEM_ENDPOINT=/var/log/scambuster/siem-events.ndjson
  */
-final class FileSiemExporter implements SiemExporterInterface
+final readonly class FileSiemExporter implements SiemExporterInterface
 {
     public function __construct(
-        private readonly SiemEventFormatterInterface $formatter,
-        private readonly LoggerInterface $logger,
-        private readonly string $filePath,
+        private SiemEventFormatterInterface $formatter,
+        private LoggerInterface $logger,
+        private string $filePath,
     ) {
     }
 

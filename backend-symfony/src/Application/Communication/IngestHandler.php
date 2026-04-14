@@ -47,7 +47,7 @@ class IngestHandler
         ]);
 
         // Spec 065h — delegate reference resolution to EntityReferenceResolver
-        if ($this->referenceResolver !== null) {
+        if ($this->referenceResolver instanceof \App\Application\Communication\EntityReferenceResolver) {
             $refs = $this->referenceResolver->resolve($dto->account_id, $dto->channel ?? 'email');
             $account = $refs->account;
             $channel = $refs->channel;
@@ -56,17 +56,17 @@ class IngestHandler
             // Legacy inline fallback (backward compat for tests without the resolver)
             $account = $this->em->getRepository(\App\Domain\Communication\MailAccount::class)->find($dto->account_id);
 
-            if (!$account) {
+            if ($account === null) {
                 throw new \RuntimeException('Unknown account_id');
             }
             $channel = $this->em->getRepository(\App\Domain\Communication\Channel::class)->findOneBy(['code' => $dto->channel ?? 'email']);
 
-            if (!$channel) {
+            if ($channel === null) {
                 throw new \RuntimeException('Unknown channel');
             }
             $direction = $this->em->getRepository(\App\Domain\Communication\Direction::class)->findOneBy(['code' => 'in']);
 
-            if (!$direction) {
+            if ($direction === null) {
                 throw new \RuntimeException('Unknown direction');
             }
         }
@@ -122,7 +122,7 @@ class IngestHandler
         // Build extra threat intel from DTO
         $extraThreatIntel = [];
 
-        if (isset($dto->raw_headers_b64) && !empty($dto->raw_headers_b64)) {
+        if ($dto->raw_headers_b64 !== null && ($dto->raw_headers_b64 !== '' && $dto->raw_headers_b64 !== '0')) {
             $decodedHeaders = base64_decode($dto->raw_headers_b64, true);
 
             if ($decodedHeaders !== false) {
@@ -130,11 +130,11 @@ class IngestHandler
             } else {
                 $this->logger->warning('[IngestHandler] Invalid base64 for raw_headers_b64');
             }
-        } elseif (isset($dto->raw_headers) && !empty($dto->raw_headers)) {
+        } elseif ($dto->raw_headers !== null && ($dto->raw_headers !== '' && $dto->raw_headers !== '0')) {
             $extraThreatIntel['raw_headers'] = $dto->raw_headers;
         }
 
-        if (isset($dto->parsed) && !empty($dto->parsed)) {
+        if ($dto->parsed !== null && $dto->parsed !== []) {
             $extraThreatIntel['parsed'] = $dto->parsed;
         }
 
@@ -173,7 +173,7 @@ class IngestHandler
         );
         $messageEntity->setRawSource($rawSourceB64);
 
-        if (isset($dto->url_analysis) && !empty($dto->url_analysis)) {
+        if ($dto->url_analysis !== null && $dto->url_analysis !== []) {
             $messageEntity->setUrlAnalysis($dto->url_analysis);
         }
 
@@ -369,7 +369,7 @@ class IngestHandler
      */
     private function linkAttachmentsAsIocs(?array $attachmentDataList, string $msgId, \DateTimeImmutable $now): void
     {
-        if ($this->iocUpsertService === null || $attachmentDataList === null || $attachmentDataList === []) {
+        if (!$this->iocUpsertService instanceof \App\Application\Communication\IocUpsertService || $attachmentDataList === null || $attachmentDataList === []) {
             return;
         }
 
@@ -379,7 +379,11 @@ class IngestHandler
         foreach ($attachmentDataList as $attData) {
             $contentHash = $attData['sha256'] ?? null;
 
-            if (!is_string($contentHash) || $contentHash === '') {
+            if (!is_string($contentHash)) {
+                continue;
+            }
+
+            if ($contentHash === '') {
                 continue;
             }
 

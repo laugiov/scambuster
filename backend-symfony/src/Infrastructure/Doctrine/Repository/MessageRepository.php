@@ -26,6 +26,7 @@ class MessageRepository extends ServiceEntityRepository implements MessageReposi
     /** @return array<Message> */
     public function findByConversation(Uuid $convId, int $limit = 50, int $offset = 0): array
     {
+        /** @var array<Message> */
         return $this->createQueryBuilder('m')
             ->where('m.conversation = :convId')
             ->setParameter('convId', $convId)

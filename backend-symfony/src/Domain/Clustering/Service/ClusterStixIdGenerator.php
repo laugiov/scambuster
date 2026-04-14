@@ -40,7 +40,7 @@ final class ClusterStixIdGenerator
      */
     public function generate(array $anchorNormalizedValues): string
     {
-        if (empty($anchorNormalizedValues)) {
+        if ($anchorNormalizedValues === []) {
             throw new \InvalidArgumentException('Cannot generate cluster STIX ID from empty anchor IOC set');
         }
 

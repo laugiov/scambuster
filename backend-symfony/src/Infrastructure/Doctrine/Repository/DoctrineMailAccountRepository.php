@@ -8,10 +8,10 @@ use App\Domain\Communication\MailAccount;
 use App\Domain\Communication\Repository\MailAccountRepositoryInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class DoctrineMailAccountRepository implements MailAccountRepositoryInterface
+final readonly class DoctrineMailAccountRepository implements MailAccountRepositoryInterface
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

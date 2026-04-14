@@ -59,9 +59,14 @@ class ThreadResolverService
                 'existing_conv_id' => $existingMsg['conv_id'],
             ]);
 
+            /** @var string $existMsgId */
+            $existMsgId = $existingMsg['msg_id'];
+            /** @var string $existConvId */
+            $existConvId = $existingMsg['conv_id'];
+
             return [
-                'msg_id' => $existingMsg['msg_id'],
-                'conv_id' => $existingMsg['conv_id'],
+                'msg_id' => $existMsgId,
+                'conv_id' => $existConvId,
             ];
         }
 
@@ -100,7 +105,7 @@ class ThreadResolverService
             if ($replyToMessageId !== false) {
                 $replyToMessage = $this->em->find(Message::class, $replyToMessageId);
 
-                if ($replyToMessage) {
+                if ($replyToMessage !== null) {
                     $conversation = $replyToMessage->getConversation();
                 }
             }
@@ -130,7 +135,7 @@ class ThreadResolverService
                 if ($fallbackMessageId !== false) {
                     $fallbackMessage = $this->em->find(Message::class, $fallbackMessageId);
 
-                    if ($fallbackMessage) {
+                    if ($fallbackMessage !== null) {
                         $conversation = $fallbackMessage->getConversation();
                         $this->logger->info('[ThreadResolverService] Found conversation via fallback search', [
                             'in_reply_to' => $inReplyTo,
@@ -142,7 +147,7 @@ class ThreadResolverService
         }
 
         // 2. Search by References
-        if (!$conversation && !empty($references)) {
+        if (!$conversation && $references !== []) {
             $this->logger->info('[ThreadResolverService] Searching by references', ['references' => $references]);
             $conn = $this->em->getConnection();
 
@@ -162,7 +167,7 @@ class ThreadResolverService
                 if ($refMessageId !== false) {
                     $refMessage = $this->em->find(Message::class, $refMessageId);
 
-                    if ($refMessage) {
+                    if ($refMessage !== null) {
                         $conversation = $refMessage->getConversation();
                         $this->logger->info('[ThreadResolverService] Found conversation via references', [
                             'ref' => $ref,
@@ -201,7 +206,7 @@ class ThreadResolverService
             if ($referencingMessageId !== false) {
                 $referencingMessage = $this->em->find(Message::class, $referencingMessageId);
 
-                if ($referencingMessage) {
+                if ($referencingMessage !== null) {
                     $conversation = $referencingMessage->getConversation();
                 }
             }
@@ -225,7 +230,7 @@ class ThreadResolverService
         $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'unknown'])
             ?? $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'UNKNOWN']);
 
-        if (!$scamType) {
+        if ($scamType === null) {
             throw new \RuntimeException('Unknown scam_type');
         }
 
@@ -266,7 +271,7 @@ class ThreadResolverService
                 'error' => $e->getMessage(),
             ]);
 
-            throw new \RuntimeException('Conversation with this stixId already exists');
+            throw new \RuntimeException('Conversation with this stixId already exists', $e->getCode(), $e);
         }
 
         return $conversation;

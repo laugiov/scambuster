@@ -42,13 +42,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class PatchMessageController
+final readonly class PatchMessageController
 {
     public function __construct(
-        private readonly MessageHandler $handler
+        private MessageHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/message/{msgId}', name: 'patch_message', methods: ['PATCH'])]
     #[IsGranted('conversation:write')]
     public function __invoke(string $msgId, Request $request): JsonResponse
@@ -59,6 +58,7 @@ final class PatchMessageController
             return new JsonResponse(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);
         }
 
+        /** @var array<string, mixed> $data */
         try {
             $message = $this->handler->patchMessage($msgId, $data);
         } catch (\RuntimeException $e) {
@@ -69,7 +69,7 @@ final class PatchMessageController
             return new JsonResponse(['error' => 'No change'], 400);
         }
 
-        if (!$message) {
+        if (!$message instanceof \App\Domain\Communication\Message) {
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
         }
 

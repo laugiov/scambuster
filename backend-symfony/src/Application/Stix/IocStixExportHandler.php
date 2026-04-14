@@ -6,11 +6,11 @@ namespace App\Application\Stix;
 
 use Doctrine\ORM\EntityManagerInterface;
 
-final class IocStixExportHandler
+final readonly class IocStixExportHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly StixBundleBuilder $bundleBuilder,
+        private EntityManagerInterface $em,
+        private StixBundleBuilder $bundleBuilder,
     ) {
     }
 
@@ -103,7 +103,7 @@ final class IocStixExportHandler
             ];
         }
 
-        if (empty($iocs)) {
+        if ($iocs === []) {
             return $this->bundleBuilder->buildBundle([], [], $tlp, 'ScamBuster IOC Export (empty)');
         }
 

@@ -18,10 +18,13 @@ final class NaturalnessMetric implements MetricInterface
         $firstAttempt = 0;
 
         foreach ($corpus as $entry) {
-            if (($entry['fallback_used'] ?? false) || ($entry['text'] ?? '') === '') {
+            if ($entry['fallback_used'] ?? false) {
                 continue;
             }
 
+            if (($entry['text'] ?? '') === '') {
+                continue;
+            }
             ++$total;
 
             $rawAttempts = $entry['attempts'] ?? 1;

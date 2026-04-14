@@ -65,7 +65,7 @@ PROMPT;
                 "---\nMessage %d:\nSujet: %s\nDe: %s\nCorps (extrait): %s\nURL(s): %s\nDKIM: %s\n---\n\n",
                 $i + 1,
                 $message->getSubject() ?: 'no subject',
-                $this->maskEmail($message->getHeaders()['from'] ?? 'unknown'),
+                $this->maskEmail(\is_string($message->getHeaders()['from'] ?? null) ? $message->getHeaders()['from'] : 'unknown'),
                 $this->truncateText($sanitizedBody, 200),
                 implode(', ', $this->extractUrls($bodyText)),
                 $this->getDkimStatus($message)
@@ -192,9 +192,9 @@ PROMPT;
     {
         return preg_replace_callback(
             '/\b[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}\b/i',
-            fn ($matches) => $this->maskEmail($matches[0]),
+            fn ($matches): string => $this->maskEmail($matches[0]),
             $text
-        );
+        ) ?? $text;
     }
 
     /**
@@ -218,7 +218,7 @@ PROMPT;
         $urls = $matches[0];
 
         // Defang URLs
-        return array_map(fn ($url) => str_replace(['http://', 'https://'], ['hxxp://', 'hxxps://'], $url), $urls);
+        return array_map(fn ($url): string => str_replace(['http://', 'https://'], ['hxxp://', 'hxxps://'], $url), $urls);
     }
 
     /**
@@ -233,7 +233,9 @@ PROMPT;
 
         if ($dkim === true) {
             return 'pass';
-        } elseif ($dkim === false) {
+        }
+
+        if ($dkim === false) {
             return 'fail';
         }
 

@@ -52,7 +52,7 @@ class ReplyContextService
 
         // Automatic classification if scam_type is 'unknown' and classifier is available
         // This MUST happen BEFORE building the context to avoid race conditions
-        if ($conversation->getScamType()->getCode() === 'unknown' && $this->scamClassificationHandler !== null) {
+        if ($conversation->getScamType()->getCode() === 'unknown' && $this->scamClassificationHandler instanceof \App\Application\Communication\ScamClassificationHandler) {
             try {
                 $classificationResult = $this->scamClassificationHandler->classifyConversation($convId);
 
@@ -93,22 +93,20 @@ class ReplyContextService
         $messages = array_reverse($messages);
 
         /** @var array<int, array<string, mixed>> $lastMessages */
-        $lastMessages = array_map(function (Message $msg) {
-            return [
-                'msg_id' => $msg->getMsgId(),
-                'direction' => $msg->getDirection()->getCode(),
-                'lang_detect' => $msg->getLangDetect(),
-                'subject' => $msg->getSubject(),
-                'body_text' => $msg->getBodyText(),
-                'headers' => [
-                    'from' => $msg->getHeaders()['from'] ?? null,
-                    'message_id' => $msg->getHeaders()['message_id'] ?? null,
-                    'references' => $msg->getHeaders()['references'] ?? null,
-                    'in_reply_to' => $msg->getHeaders()['in_reply_to'] ?? null,
-                ],
-                'ts_msg' => $msg->getTsMsg()->format(DATE_ATOM),
-            ];
-        }, $messages);
+        $lastMessages = array_map(fn (Message $msg): array => [
+            'msg_id' => $msg->getMsgId(),
+            'direction' => $msg->getDirection()->getCode(),
+            'lang_detect' => $msg->getLangDetect(),
+            'subject' => $msg->getSubject(),
+            'body_text' => $msg->getBodyText(),
+            'headers' => [
+                'from' => $msg->getHeaders()['from'] ?? null,
+                'message_id' => $msg->getHeaders()['message_id'] ?? null,
+                'references' => $msg->getHeaders()['references'] ?? null,
+                'in_reply_to' => $msg->getHeaders()['in_reply_to'] ?? null,
+            ],
+            'ts_msg' => $msg->getTsMsg()->format(DATE_ATOM),
+        ], $messages);
 
         // Get persona from conversation (already assigned) or assign randomly if first time
         $scamType = $conversation->getScamType();
@@ -150,16 +148,15 @@ class ReplyContextService
         // Get extracted IOCs for this conversation (for ConversationAnalyzer)
         $extractedIocs = [];
 
-        if ($this->iocHandler !== null) {
+        if ($this->iocHandler instanceof \App\Application\Communication\IocHandler) {
             try {
                 $iocs = $this->iocHandler->getConversationIocs($convId);
-                $extractedIocs = array_map(function ($ioc) {
-                    return [
-                        'type' => $ioc['type'] ?? 'unknown',
-                        'value' => $ioc['value'] ?? '',
-                        'category' => $ioc['category'] ?? null,
-                    ];
-                }, $iocs);
+                /** @var array<array<string, mixed>> $iocs */
+                $extractedIocs = array_map(fn (array $ioc): array => [
+                    'type' => $ioc['type'] ?? 'unknown',
+                    'value' => $ioc['value'] ?? '',
+                    'category' => $ioc['category'] ?? null,
+                ], $iocs);
             } catch (\Throwable $e) {
                 $this->logger->debug('[ReplyContextService] Failed to fetch IOCs', [
                     'conv_id' => $convId,
@@ -173,11 +170,11 @@ class ReplyContextService
 
         $this->logger->debug('[ReplyContextService] Checking for conversation history service', [
             'conv_id' => $convId,
-            'service_available' => $this->conversationHistoryService !== null,
+            'service_available' => $this->conversationHistoryService instanceof \App\Application\Communication\ConversationHistoryService,
             'has_messages' => !empty($lastMessages),
         ]);
 
-        if ($this->conversationHistoryService !== null && !empty($lastMessages)) {
+        if ($this->conversationHistoryService instanceof \App\Application\Communication\ConversationHistoryService && !empty($lastMessages)) {
             // Find the first inbound message to get sender email
             $firstInboundMsg = null;
 
@@ -263,7 +260,7 @@ class ReplyContextService
                 /** @var string $bodyText */
                 $bodyText = $msg['body_text'] ?? '';
 
-                if ($bodyText !== '' && $this->languageDetector !== null) {
+                if ($bodyText !== '' && $this->languageDetector instanceof \App\Application\LLM\LanguageDetector) {
                     return $this->languageDetector->detect($bodyText);
                 }
 

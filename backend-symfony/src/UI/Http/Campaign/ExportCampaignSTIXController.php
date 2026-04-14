@@ -13,13 +13,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/campaign/{campaignId}/export/stix', name: 'api_campaign_export_stix', methods: ['POST'])]
 #[IsGranted('campaign:read')]
-final class ExportCampaignSTIXController
+final readonly class ExportCampaignSTIXController
 {
     public function __construct(
-        private readonly CampaignStixExportHandler $handler,
+        private CampaignStixExportHandler $handler,
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/{campaignId}/export/stix',
         summary: 'Exporter une campagne au format STIX 2.1',

@@ -16,7 +16,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class PurgeRgpdCommand extends Command
 {
-    public function __construct(private PurgeService $purgeService)
+    public function __construct(private readonly PurgeService $purgeService)
     {
         parent::__construct();
     }

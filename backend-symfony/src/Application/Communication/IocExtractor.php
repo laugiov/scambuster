@@ -22,7 +22,7 @@ use Psr\Log\LoggerInterface;
  * - Uses JsonValidator for response parsing
  * - Logs extraction attempts for debugging
  */
-final class IocExtractor
+final readonly class IocExtractor
 {
     /**
      * All supported IOC types (40+ types from Sprint 3 spec)
@@ -52,8 +52,8 @@ final class IocExtractor
     ];
 
     public function __construct(
-        private readonly LLMClientInterface $llmClient,
-        private readonly LoggerInterface $logger
+        private LLMClientInterface $llmClient,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -67,7 +67,7 @@ final class IocExtractor
      */
     public function extractIocsWithLLM(string $text, array $types = []): array
     {
-        if (empty($text)) {
+        if ($text === '' || $text === '0') {
             $this->logger->warning('Cannot extract IOCs from empty text');
 
             return [];
@@ -79,7 +79,7 @@ final class IocExtractor
             $this->logger->info('Truncated text for LLM IOC extraction', ['original_length' => strlen($text)]);
         }
 
-        $allowedTypes = empty($types) ? self::ALL_IOC_TYPES : $types;
+        $allowedTypes = $types === [] ? self::ALL_IOC_TYPES : $types;
 
         // Build prompt
         $prompt = $this->buildIocExtractionPrompt($text, $allowedTypes);

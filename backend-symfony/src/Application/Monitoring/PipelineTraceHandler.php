@@ -13,10 +13,10 @@ use Doctrine\DBAL\Connection;
  * All traces are stored in message.headers JSONB column as 'pipeline_trace'.
  * This handler provides read-only access with volume-safe pagination and filtering.
  */
-final class PipelineTraceHandler
+final readonly class PipelineTraceHandler
 {
     public function __construct(
-        private readonly Connection $connection,
+        private Connection $connection,
     ) {
     }
 
@@ -76,7 +76,7 @@ final class PipelineTraceHandler
             if (!\is_array($traceData)) {
                 continue;
             }
-
+            /** @var array<string, mixed> $traceData */
             $trace = PipelineTrace::fromArray($traceData);
             $summary = $trace->toSummary();
             $summary['msg_id'] = $row['msg_id'];
@@ -113,7 +113,12 @@ final class PipelineTraceHandler
 
         $data = json_decode(\is_string($result) ? $result : '', true);
 
-        return \is_array($data) ? $data : null;
+        if (!\is_array($data)) {
+            return null;
+        }
+        /** @var array<string, mixed> $data */
+
+        return $data;
     }
 
     /**
@@ -151,7 +156,7 @@ final class PipelineTraceHandler
             if (!\is_array($traceData)) {
                 continue;
             }
-
+            /** @var array<string, mixed> $traceData */
             $trace = PipelineTrace::fromArray($traceData);
             ++$totalReplies;
             $totalDuration += $trace->getTotalDurationMs();

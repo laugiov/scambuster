@@ -8,7 +8,7 @@ namespace App\Domain\Scambaiting;
  * Value Object représentant les métriques d'une conversation terminée.
  * Calcule le reward selon la formule multi-critères définie dans les specs.
  */
-final readonly class ConversationMetrics
+final readonly class ConversationMetrics implements \Stringable
 {
     // Constantes de normalisation (valeurs max observées)
     private const MAX_DURATION_SEC = 86400; // 24 heures (aligné avec specs)

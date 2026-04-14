@@ -27,13 +27,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 #[Route('/api/v1/iocs/{indicatorId}/context', name: 'api_ioc_context', methods: ['GET'])]
 #[IsGranted('ioc:read')]
-final class IocContextController
+final readonly class IocContextController
 {
     public function __construct(
-        private readonly IocContextQueryService $iocContextQueryService,
+        private IocContextQueryService $iocContextQueryService,
     ) {
     }
-
     public function __invoke(string $indicatorId): JsonResponse
     {
         if (!$this->iocContextQueryService->indicatorExists($indicatorId)) {

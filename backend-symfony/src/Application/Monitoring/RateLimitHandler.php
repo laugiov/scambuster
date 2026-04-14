@@ -6,10 +6,10 @@ namespace App\Application\Monitoring;
 
 use Doctrine\DBAL\Connection;
 
-final class RateLimitHandler
+final readonly class RateLimitHandler
 {
     public function __construct(
-        private readonly Connection $connection,
+        private Connection $connection,
     ) {
     }
 

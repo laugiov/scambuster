@@ -10,22 +10,22 @@ namespace App\Domain\Audit;
  * Immutable value object that encapsulates all data needed
  * to format an audit event for any SIEM platform (CEF, LEEF, ECS, Syslog).
  */
-final class SiemEvent
+final readonly class SiemEvent
 {
     public function __construct(
-        public readonly \DateTimeImmutable $timestamp,
-        public readonly AuditEventType $eventType,
-        public readonly int $severity,
-        public readonly string $actorType,
-        public readonly string $actorId,
-        public readonly string $action,
-        public readonly string $outcome,
+        public \DateTimeImmutable $timestamp,
+        public AuditEventType $eventType,
+        public int $severity,
+        public string $actorType,
+        public string $actorId,
+        public string $action,
+        public string $outcome,
         /** @var array<string, mixed> */
-        public readonly array $details,
-        public readonly ?string $resourceType = null,
-        public readonly ?string $resourceId = null,
-        public readonly ?string $ipAddress = null,
-        public readonly ?string $traceId = null,
+        public array $details,
+        public ?string $resourceType = null,
+        public ?string $resourceId = null,
+        public ?string $ipAddress = null,
+        public ?string $traceId = null,
     ) {
     }
 

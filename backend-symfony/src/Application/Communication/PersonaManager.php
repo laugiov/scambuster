@@ -83,7 +83,7 @@ class PersonaManager
         // Check if persona already exists
         $existing = $this->findByCode($personaCode);
 
-        if ($existing) {
+        if ($existing instanceof \App\Domain\Communication\Persona) {
             throw new \RuntimeException(
                 "Persona with code '{$personaCode}' already exists"
             );

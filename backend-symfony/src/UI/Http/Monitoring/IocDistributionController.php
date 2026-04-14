@@ -18,13 +18,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'IOC distribution data')],
     security: [['Bearer' => []]],
 )]
-final class IocDistributionController
+final readonly class IocDistributionController
 {
     public function __construct(
-        private readonly AnalyticsHandler $handler,
+        private AnalyticsHandler $handler,
     ) {
     }
-
     #[Route('/api/v1/monitoring/analytics/ioc-distribution', name: 'api_analytics_ioc_distribution', methods: ['GET'])]
     #[IsGranted('monitoring:read')]
     public function __invoke(): JsonResponse

@@ -12,10 +12,10 @@ use Doctrine\DBAL\Connection;
  *
  * Computes: active, about_to_timeout, completed_today, by_scam_type.
  */
-final class ConversationLifecycleHandler
+final readonly class ConversationLifecycleHandler
 {
     public function __construct(
-        private readonly Connection $connection
+        private Connection $connection
     ) {
     }
 
@@ -33,7 +33,7 @@ final class ConversationLifecycleHandler
             ['today' => (new \DateTimeImmutable('today'))->format('Y-m-d 00:00:00')]
         ));
 
-        $abandonedToday = $this->toInt($this->connection->fetchOne(
+        $this->toInt($this->connection->fetchOne(
             "SELECT COUNT(*) FROM conversation WHERE status = 'abandoned' AND deleted_at IS NULL AND updated_at >= :today",
             ['today' => (new \DateTimeImmutable('today'))->format('Y-m-d 00:00:00')]
         ));

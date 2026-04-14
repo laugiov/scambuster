@@ -14,19 +14,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[Route('/api/v1/2fa/setup', name: 'api_2fa_setup', methods: ['POST'])]
 #[IsGranted('ROLE_USER')]
-final class TotpSetupController
+final readonly class TotpSetupController
 {
     public function __construct(
-        private readonly UserRepositoryInterface $userRepo,
-        private readonly TokenStorageInterface $tokenStorage,
+        private UserRepositoryInterface $userRepo,
+        private TokenStorageInterface $tokenStorage,
     ) {
     }
-
     public function __invoke(): JsonResponse
     {
         $token = $this->tokenStorage->getToken();
 
-        if ($token === null) {
+        if (!$token instanceof \Symfony\Component\Security\Core\Authentication\Token\TokenInterface) {
             return new JsonResponse(['message' => 'Not authenticated'], Response::HTTP_UNAUTHORIZED);
         }
 
@@ -56,7 +55,6 @@ final class TotpSetupController
             'message' => 'Scan QR code with authenticator app',
         ], Response::HTTP_OK);
     }
-
     private function base32Encode(string $data): string
     {
         $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

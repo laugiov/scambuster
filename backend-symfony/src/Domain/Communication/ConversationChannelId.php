@@ -6,12 +6,7 @@ namespace App\Domain\Communication;
 
 class ConversationChannelId
 {
-    public string $conversation;
-    public int $channel;
-
-    public function __construct(string $conversation = null, int $channel = null)
+    public function __construct(public ?string $conversation = null, public ?int $channel = null)
     {
-        $this->conversation = $conversation;
-        $this->channel = $channel;
     }
 }

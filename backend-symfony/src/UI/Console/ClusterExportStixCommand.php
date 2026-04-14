@@ -76,7 +76,7 @@ final class ClusterExportStixCommand extends Command
         $sql .= ' ORDER BY tac.last_seen DESC';
         $rows = $this->conn->fetchAllAssociative($sql, $params);
 
-        if (empty($rows)) {
+        if ($rows === []) {
             $io->warning('No clusters found matching the criteria.');
 
             return Command::SUCCESS;
@@ -123,9 +123,9 @@ final class ClusterExportStixCommand extends Command
                 'first_seen' => \is_string($row['first_seen'] ?? null) ? $row['first_seen'] : '',
                 'last_seen' => \is_string($row['last_seen'] ?? null) ? $row['last_seen'] : '',
                 'algorithm_version' => \is_string($row['algorithm_version'] ?? null) ? $row['algorithm_version'] : '1.0',
-                'anchor_ioc_types' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $anchorIocTypes),
-                'attck_techniques' => array_map(fn (mixed $v) => \is_string($v) ? $v : '', $attckTechniques),
-                'indicator_stix_ids' => array_map(fn (mixed $id) => 'indicator--' . (\is_string($id) ? $id : ''), $indicatorIds),
+                'anchor_ioc_types' => array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $anchorIocTypes),
+                'attck_techniques' => array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $attckTechniques),
+                'indicator_stix_ids' => array_map(fn (mixed $id): string => 'indicator--' . (\is_string($id) ? $id : ''), $indicatorIds),
             ];
 
             $bundle = $builder->buildBundle($clusterData);
@@ -167,7 +167,7 @@ final class ClusterExportStixCommand extends Command
      */
     private function countType(array $objects, string $type): int
     {
-        return \count(array_filter($objects, fn (array $o) => ($o['type'] ?? '') === $type));
+        return \count(array_filter($objects, fn (array $o): bool => ($o['type'] ?? '') === $type));
     }
 
     /**

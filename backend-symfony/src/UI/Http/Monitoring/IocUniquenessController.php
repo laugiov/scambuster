@@ -23,13 +23,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'IOC uniqueness data')],
     security: [['Bearer' => []]],
 )]
-final class IocUniquenessController
+final readonly class IocUniquenessController
 {
     public function __construct(
-        private readonly ImpactHandler $handler,
+        private ImpactHandler $handler,
     ) {
     }
-
     #[Route('/api/v1/impact/ioc-uniqueness', name: 'api_impact_ioc_uniqueness', methods: ['GET'])]
     #[IsGranted('monitoring:read')]
     public function __invoke(Request $request): JsonResponse

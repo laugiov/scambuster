@@ -29,7 +29,7 @@ final class NonRepetitivenessMetric implements MetricInterface
             }
 
             for ($i = 1, $n = count($replies); $i < $n; ++$i) {
-                $sim = $this->jaccardTrigram($replies[$i - 1], $replies[$i]);
+                $sim = $this->jaccardTrigram(\is_string($replies[$i - 1]) ? $replies[$i - 1] : '', \is_string($replies[$i]) ? $replies[$i] : '');
                 $similarities[] = $sim;
             }
         }
@@ -67,11 +67,11 @@ final class NonRepetitivenessMetric implements MetricInterface
         $triA = $this->trigrams($a);
         $triB = $this->trigrams($b);
 
-        if (empty($triA) && empty($triB)) {
+        if ($triA === [] && $triB === []) {
             return 1.0;
         }
 
-        if (empty($triA) || empty($triB)) {
+        if ($triA === [] || $triB === []) {
             return 0.0;
         }
 

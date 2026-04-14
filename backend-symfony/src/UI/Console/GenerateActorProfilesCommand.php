@@ -53,7 +53,7 @@ final class GenerateActorProfilesCommand extends Command
             ORDER BY msg_count DESC
         ", ['minMsgs' => $minConvs * 2]); // at least 2 messages per conversation
 
-        if (empty($campaigns)) {
+        if ($campaigns === []) {
             $io->success('No campaigns need actor profiling.');
 
             return Command::SUCCESS;
@@ -93,8 +93,8 @@ final class GenerateActorProfilesCommand extends Command
             $io->text(sprintf(
                 '  Created profile for campaign %s (%d words, %d IOCs)',
                 substr($campaignId, 0, 8),
-                $profile['style_dna']['total_words'] ?? 0,
-                $profile['infra_dna']['ioc_count'] ?? 0,
+                \is_numeric($profile['style_dna']['total_words'] ?? null) ? (int) $profile['style_dna']['total_words'] : 0,
+                \is_numeric($profile['infra_dna']['ioc_count'] ?? null) ? (int) $profile['infra_dna']['ioc_count'] : 0,
             ));
         }
 

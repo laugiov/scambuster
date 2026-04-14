@@ -39,7 +39,7 @@ class AnalyzeThreadingCommand extends Command
 
         $messages = $this->threadingAnalyzer->findMessagesBySubjectPattern($subjectPattern);
 
-        if (empty($messages)) {
+        if ($messages === []) {
             $output->writeln('<error>No messages found</error>');
 
             return Command::FAILURE;

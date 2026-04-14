@@ -61,20 +61,19 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
         )
     ]
 )]
-final class LoginController
+final readonly class LoginController
 {
     public function __construct(
-        private readonly AuthServiceInterface $handler,
-        private readonly AuditLogger $auditLogger,
-        private readonly RateLimiterFactory $loginIpLimiter,
-        private readonly UserTotpCheckerInterface $totpChecker,
+        private AuthServiceInterface $handler,
+        private AuditLogger $auditLogger,
+        private RateLimiterFactory $loginIpLimiter,
+        private UserTotpCheckerInterface $totpChecker,
         private ValidatorInterface $validator,
         private SerializerInterface $serializer,
         // Spec 065e — per-email brute-force rate limiter
-        private readonly ?RateLimiterFactory $loginEmailLimiter = null,
+        private ?RateLimiterFactory $loginEmailLimiter = null,
     ) {
     }
-
     public function __invoke(Request $request): JsonResponse
     {
         // Rate limit check (Redis-backed, persistent across requests)
@@ -114,7 +113,7 @@ final class LoginController
         // Spec 065e — Per-email rate limit. Complements the per-IP limiter
         // above: a distributed attacker on a VPN/botnet rotating IPs but
         // targeting the same email is throttled at the email level.
-        if ($this->loginEmailLimiter !== null) {
+        if ($this->loginEmailLimiter instanceof \Symfony\Component\RateLimiter\RateLimiterFactory) {
             $emailKey = strtolower(trim($dto->email));
             $emailLimiter = $this->loginEmailLimiter->create($emailKey);
             $emailLimit = $emailLimiter->consume(1);
@@ -172,7 +171,7 @@ final class LoginController
         // Successful login: reset both limiters
         $limiter->reset();
 
-        if ($this->loginEmailLimiter !== null) {
+        if ($this->loginEmailLimiter instanceof \Symfony\Component\RateLimiter\RateLimiterFactory) {
             $this->loginEmailLimiter->create(strtolower(trim($dto->email)))->reset();
         }
 

@@ -14,7 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class ConversationService implements ConversationServiceInterface
 {
-    public function __construct(private EntityManagerInterface $em)
+    public function __construct(private readonly EntityManagerInterface $em)
     {
     }
 
@@ -56,7 +56,7 @@ class ConversationService implements ConversationServiceInterface
     {
         $managed = $this->em->find(Conversation::class, $conversation->getConvId());
 
-        if (!$managed) {
+        if ($managed === null) {
             throw new ConversationNotFoundException('Conversation not found');
         }
         $reflection = new \ReflectionObject($conversation);
@@ -73,7 +73,7 @@ class ConversationService implements ConversationServiceInterface
     {
         $managed = $this->em->find(Conversation::class, $conversation->getConvId());
 
-        if (!$managed) {
+        if ($managed === null) {
             throw new ConversationNotFoundException('Conversation not found');
         }
         $reflection = new \ReflectionObject($managed);
@@ -92,7 +92,7 @@ class ConversationService implements ConversationServiceInterface
     {
         $conv = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conv) {
+        if ($conv === null) {
             throw new ConversationNotFoundException('Conversation not found');
         }
 
@@ -108,7 +108,7 @@ class ConversationService implements ConversationServiceInterface
     {
         $conv = $this->em->getRepository(Conversation::class)->findOneBy(['stixId' => $stixId]);
 
-        if (!$conv) {
+        if ($conv === null) {
             throw new ConversationNotFoundException('Conversation not found');
         }
 
@@ -126,7 +126,7 @@ class ConversationService implements ConversationServiceInterface
     {
         $conv = $this->em->getRepository(Conversation::class)->find($convId);
 
-        if (!$conv) {
+        if ($conv === null) {
             throw new ConversationNotFoundException('Conversation not found');
         }
         $allowedFields = [

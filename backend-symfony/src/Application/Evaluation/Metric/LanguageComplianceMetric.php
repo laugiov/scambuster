@@ -20,7 +20,15 @@ final class LanguageComplianceMetric implements MetricInterface
             $detected = $entry['detected_language'] ?? null;
             $reply = $entry['reply_language'] ?? null;
 
-            if ($detected === null || $reply === null || ($entry['fallback_used'] ?? false)) {
+            if ($detected === null) {
+                continue;
+            }
+
+            if ($reply === null) {
+                continue;
+            }
+
+            if ($entry['fallback_used'] ?? false) {
                 continue;
             }
 
