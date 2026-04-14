@@ -57,4 +57,26 @@ describe('IocTimeline', () => {
     render(<IocTimeline observations={observations} />);
     expect(screen.getByText('Observation Timeline')).toBeInTheDocument();
   });
+
+  it('renders with different extraction methods', () => {
+    const observations = [
+      makeObs({ obs_id: 'obs-1', ts_observed: '2025-03-01T12:00:00Z', extraction_method: 'regex' }),
+      makeObs({ obs_id: 'obs-2', ts_observed: '2025-03-05T12:00:00Z', extraction_method: 'derived_from_url' }),
+      makeObs({ obs_id: 'obs-3', ts_observed: '2025-03-10T12:00:00Z', extraction_method: 'headers' }),
+      makeObs({ obs_id: 'obs-4', ts_observed: '2025-03-15T12:00:00Z', extraction_method: 'extraction' }),
+      makeObs({ obs_id: 'obs-5', ts_observed: '2025-03-20T12:00:00Z', extraction_method: 'derived_from_email' }),
+      makeObs({ obs_id: 'obs-6', ts_observed: '2025-03-25T12:00:00Z', extraction_method: 'unknown_method' }),
+    ];
+    render(<IocTimeline observations={observations} />);
+    expect(screen.getByText('Observation Timeline')).toBeInTheDocument();
+  });
+
+  it('renders without subject in observation', () => {
+    const observations = [
+      makeObs({ obs_id: 'obs-1', ts_observed: '2025-03-01T12:00:00Z', conv_subject: null }),
+      makeObs({ obs_id: 'obs-2', ts_observed: '2025-03-05T12:00:00Z', conv_subject: '' }),
+    ];
+    render(<IocTimeline observations={observations} />);
+    expect(screen.getByText('Observation Timeline')).toBeInTheDocument();
+  });
 });
