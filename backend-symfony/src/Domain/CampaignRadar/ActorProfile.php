@@ -82,7 +82,7 @@ class ActorProfile
     }
 
     /**
-     * Ajoute une campagne liée à cet acteur.
+     * Adds a campaign linked to this actor.
      */
     public function linkCampaign(Uuid $campaignId): void
     {

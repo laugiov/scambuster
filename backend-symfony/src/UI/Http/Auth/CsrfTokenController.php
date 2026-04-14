@@ -17,7 +17,7 @@ use Symfony\Component\Security\Csrf\CsrfTokenManagerInterface;
 #[Route('/csrf-token', name: 'api_csrf_token', methods: ['GET'])]
 #[OA\Get(
     path: '/csrf-token',
-    summary: 'Récupérer un token CSRF',
+    summary: 'Retrieve a CSRF token',
     tags: ['Auth'],
     responses: [
         new OA\Response(

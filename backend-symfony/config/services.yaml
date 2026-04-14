@@ -75,6 +75,17 @@ services:
     # along with the rest of the Vault dead code (n8n holds the IMAP
     # credentials internally since the 2026-03-31 migration).
 
+    App\UI\Http\Auth\TotpLoginController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+        arguments:
+            # Spec 066 — reuse login_ip rate limiter for 2FA endpoint
+            $loginIpLimiter: '@limiter.login_ip'
+            # Spec 066 — TOTP replay protection cache (90s TTL)
+            $totpReplayCache: '@cache.app'
+
     App\UI\Http\Auth\LoginController:
         public: true
         tags: ['controller.service_arguments']

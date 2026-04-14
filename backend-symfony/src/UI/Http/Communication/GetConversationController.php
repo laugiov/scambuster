@@ -15,7 +15,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[OA\Get(
     path: '/api/v1/communication/conversation/{convId}',
-    summary: 'Détail d\'une conversation',
+    summary: 'Conversation detail',
     tags: ['Conversations'],
     parameters: [
         new OA\Parameter(name: 'convId', in: 'path', required: true, schema: new OA\Schema(type: 'string', format: 'uuid')),
@@ -23,12 +23,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [
         new OA\Response(
             response: 200,
-            description: 'Détail de la conversation',
+            description: 'Conversation detail',
             content: new OA\JsonContent(ref: new Model(type: ConversationDetailResponseDto::class))
         ),
         new OA\Response(
             response: 404,
-            description: 'Conversation non trouvée',
+            description: 'Conversation not found',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'error', type: 'string')])
         )
     ],

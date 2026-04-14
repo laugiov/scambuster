@@ -38,12 +38,12 @@ class PreprodClearConversationsCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        // Vérifier qu'on est bien en preprod
+        // Verify we are in preprod
         $dbUrl = $_ENV['DATABASE_URL'] ?? '';
 
         /** @var string $dbUrl */
         if (!str_contains($dbUrl, 'preprod')) {
-            $io->error('ATTENTION: Cette commande ne peut être exécutée que sur la base preprod!');
+            $io->error('WARNING: This command can only be run on the preprod database!');
             $io->note('DATABASE_URL doit contenir "preprod"');
 
             return Command::FAILURE;
@@ -54,14 +54,14 @@ class PreprodClearConversationsCommand extends Command
         $countMsg = $counts['messages'];
 
         if ($countConv === 0) {
-            $io->success('Aucune conversation à supprimer');
+            $io->success('No conversations to delete');
 
             return Command::SUCCESS;
         }
 
         $io->section('État actuel de la base preprod');
         $io->table(
-            ['Métrique', 'Valeur'],
+            ['Metric', 'Value'],
             [
                 ['Conversations', $countConv],
                 ['Messages', $countMsg],
@@ -69,8 +69,8 @@ class PreprodClearConversationsCommand extends Command
         );
 
         // Demander confirmation sauf si --force
-        if (!$input->getOption('force') && !$io->confirm('Voulez-vous VRAIMENT supprimer toutes ces données ?', false)) {
-            $io->warning('Opération annulée');
+        if (!$input->getOption('force') && !$io->confirm('Do you REALLY want to delete all this data?', false)) {
+            $io->warning('Operation cancelled');
 
             return Command::SUCCESS;
         }
@@ -81,7 +81,7 @@ class PreprodClearConversationsCommand extends Command
             $this->clearService->clearAll();
 
             $io->success(sprintf(
-                'Base preprod nettoyée: %d conversations et %d messages supprimés',
+                'Preprod database cleaned: %d conversations and %d messages deleted',
                 $countConv,
                 $countMsg
             ));

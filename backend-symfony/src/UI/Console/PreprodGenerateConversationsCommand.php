@@ -20,7 +20,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'preprod:generate-conversations',
-    description: 'Génère 10 000 conversations scam réalistes pour preprod'
+    description: 'Generate 10,000 realistic scam conversations for preprod'
 )]
 class PreprodGenerateConversationsCommand extends Command
 {
@@ -40,7 +40,7 @@ class PreprodGenerateConversationsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('count', 'c', InputOption::VALUE_OPTIONAL, 'Nombre de conversations à générer', self::TOTAL_CONVERSATIONS)
+            ->addOption('count', 'c', InputOption::VALUE_OPTIONAL, 'Number of conversations to generate', self::TOTAL_CONVERSATIONS)
             ->addOption('batch-size', 'b', InputOption::VALUE_OPTIONAL, 'Taille des batches', self::BATCH_SIZE)
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Simulation sans sauvegarde')
         ;
@@ -56,33 +56,33 @@ class PreprodGenerateConversationsCommand extends Command
         $batchSize = is_numeric($batchSizeOption) && (int) $batchSizeOption > 0 ? (int) $batchSizeOption : self::BATCH_SIZE;
         $dryRun = $input->getOption('dry-run');
 
-        $io->title('🤖 Génération de conversations scam pour preprod');
+        $io->title('Generating scam conversations for preprod');
 
         if ($dryRun) {
-            $io->warning('Mode DRY-RUN: aucune donnée ne sera sauvegardée');
+            $io->warning('DRY-RUN mode: no data will be saved');
         }
 
-        // Charger les entités de référence
-        $io->section('📊 Chargement des données de référence');
+        // Load reference entities
+        $io->section('Loading reference data');
 
         $personas = $this->em->getRepository(Persona::class)->findBy(['isActive' => true]);
         $scamTypes = $this->em->getRepository(ScamType::class)->findBy(['active' => true]);
         $channels = $this->em->getRepository(Channel::class)->findAll();
 
         if ($personas === [] || $scamTypes === [] || $channels === []) {
-            $io->error('Données de référence manquantes. Assurez-vous que personas, scam_types et channels sont chargés.');
+            $io->error('Missing reference data. Ensure personas, scam_types and channels are loaded.');
 
             return Command::FAILURE;
         }
 
         $io->success(sprintf(
-            'Chargé: %d personas, %d scam types, %d channels',
+            'Loaded: %d personas, %d scam types, %d channels',
             count($personas),
             count($scamTypes),
             count($channels)
         ));
 
-        // Calculer la distribution
+        // Calculate distribution
         $distribution = $this->calculateDistribution($count, count($personas), count($scamTypes));
 
         $io->section('📈 Distribution des conversations');
@@ -102,8 +102,8 @@ class PreprodGenerateConversationsCommand extends Command
             return Command::SUCCESS;
         }
 
-        // Générer les conversations
-        $io->section('🔧 Génération des conversations');
+        // Generate conversations
+        $io->section('Generating conversations');
         $this->logger->info('[CMD] Section started, creating progress bar');
 
         $progressBar = new ProgressBar($output, $count);
@@ -116,7 +116,7 @@ class PreprodGenerateConversationsCommand extends Command
         $errors = 0;
         $startTime = microtime(true);
 
-        // Créer un plan de génération distribué
+        // Create a distributed generation plan
         $this->logger->info('[CMD] Creating generation plan', ['count' => $count]);
         $plan = $this->createGenerationPlan($count, $personas, $scamTypes, $channels);
         $this->logger->info('[CMD] Plan created', ['plan_size' => count($plan)]);
@@ -196,20 +196,20 @@ class PreprodGenerateConversationsCommand extends Command
         $duration = microtime(true) - $startTime;
 
         // Statistiques finales
-        $io->section('✅ Génération terminée');
+        $io->section('Generation completed');
         $io->table(
             ['Metric', 'Value'],
             [
-                ['Conversations générées', number_format($generated)],
+                ['Conversations generated', number_format($generated)],
                 ['Erreurs', number_format($errors)],
-                ['Durée', sprintf('%.2f secondes', $duration)],
+                ['Duration', sprintf('%.2f seconds', $duration)],
                 ['Vitesse', sprintf('%.2f conv/sec', $generated / $duration)],
                 ['Mode', $dryRun ? 'DRY-RUN' : 'PRODUCTION'],
             ]
         );
 
         if ($errors > 0) {
-            $io->warning(sprintf('%d conversations ont échoué (voir les logs)', $errors));
+            $io->warning(sprintf('%d conversations failed (see logs)', $errors));
         }
 
         return Command::SUCCESS;
@@ -232,7 +232,7 @@ class PreprodGenerateConversationsCommand extends Command
     }
 
     /**
-     * Crée un plan de génération distribué uniformément
+     * Creates a uniformly distributed generation plan
      *
      * Uses entity IDs instead of entity references to survive EntityManager::clear()
      *
@@ -241,13 +241,13 @@ class PreprodGenerateConversationsCommand extends Command
      * @param ScamType[] $scamTypes Liste des scam types
      * @param Channel[]  $channels  Liste des channels
      *
-     * @return array<int, array{persona_id: int, scam_type_id: int, channel_id: int, message_count: int}> Plan de génération
+     * @return array<int, array{persona_id: int, scam_type_id: int, channel_id: int, message_count: int}> Generation plan
      */
     private function createGenerationPlan(int $count, array $personas, array $scamTypes, array $channels): array
     {
         $plan = [];
 
-        // Créer toutes les combinaisons possibles (using IDs)
+        // Create all possible combinations (using IDs)
         $combinations = [];
 
         foreach ($personas as $persona) {
@@ -259,7 +259,7 @@ class PreprodGenerateConversationsCommand extends Command
             }
         }
 
-        // Mélanger pour distribution aléatoire
+        // Shuffle for random distribution
         shuffle($combinations);
 
         // Collect channel IDs
@@ -281,7 +281,7 @@ class PreprodGenerateConversationsCommand extends Command
             $combinationIndex++;
         }
 
-        // Mélanger le plan final pour plus de variété
+        // Shuffle final plan for more variety
         shuffle($plan);
 
         return $plan;

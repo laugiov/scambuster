@@ -14,7 +14,7 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
- * Endpoint de test pour sélectionner un persona via l'algorithme ε-greedy.
+ * Test endpoint to select a persona via the epsilon-greedy algorithm.
  * Utile pour debugging et validation du comportement de l'algorithme.
  */
 #[OA\Post(
@@ -100,7 +100,7 @@ final class SelectPersonaController extends AbstractController
 
         $scamTypeCode = $data['scam_type_code'];
 
-        // 2. Sélectionner le persona avec stratégie
+        // 2. Select persona with strategy
         $selection = $this->personaOptimizer->selectPersonaWithStrategy($scamTypeCode);
 
         if ($selection['persona_code'] === null) {
@@ -110,7 +110,7 @@ final class SelectPersonaController extends AbstractController
             ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        // 3. Récupérer les stats de sélection (pour contexte)
+        // 3. Retrieve selection stats (for context)
         $stats = $this->personaOptimizer->getSelectionStats($scamTypeCode);
 
         return new JsonResponse([

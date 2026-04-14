@@ -18,7 +18,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[Route('/api/v1/me', name: 'api_v1_me', methods: ['GET'])]
 #[OA\Get(
     path: '/api/v1/me',
-    summary: 'Récupérer le profil utilisateur authentifié',
+    summary: 'Get authenticated user profile',
     tags: ['Auth'],
     responses: [
         new OA\Response(
@@ -28,7 +28,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
         ),
         new OA\Response(
             response: 401,
-            description: 'Non authentifié',
+            description: 'Not authenticated',
             content: new OA\JsonContent(type: 'object', properties: [new OA\Property(property: 'message', type: 'string')])
         )
     ],

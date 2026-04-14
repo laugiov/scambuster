@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Scambaiting;
 
 /**
- * Value Object représentant les performances d'un persona pour un scam_type donné.
- * Utilisé par l'algorithme ε-greedy pour la sélection de persona.
+ * Value Object representing performance for a persona for a given scam_type.
+ * Used by the epsilon-greedy algorithm for persona selection.
  */
 final readonly class PersonaPerformance implements \Stringable
 {
@@ -16,7 +16,7 @@ final readonly class PersonaPerformance implements \Stringable
     /**
      * @param string $personaCode   Code du persona (ex: 'elderly_person')
      * @param string $scamTypeCode  Code du scam type (ex: 'PHISHING')
-     * @param int    $sessionsCount Nombre de sessions complétées (>= 0)
+     * @param int    $sessionsCount Number of completed sessions (>= 0)
      * @param float  $rewardAvg     Reward moyen [0.0, 1.0]
      *
      * @throws \InvalidArgumentException Si les valeurs sont invalides
@@ -31,12 +31,12 @@ final readonly class PersonaPerformance implements \Stringable
     }
 
     /**
-     * Calcule la nouvelle moyenne mobile après ajout d'un nouveau reward.
+     * Computes the new moving average after adding a new reward.
      * Formule : reward_avg_new = (reward_avg_old × sessions_count + reward_new) / (sessions_count + 1)
      *
-     * @param float $newReward Nouveau reward à intégrer [0.0, 1.0]
+     * @param float $newReward New reward to integrate [0.0, 1.0]
      *
-     * @return self Nouvelle instance avec stats mises à jour
+     * @return self New instance with updated stats
      */
     public function withNewReward(float $newReward): self
     {
@@ -58,8 +58,8 @@ final readonly class PersonaPerformance implements \Stringable
     }
 
     /**
-     * Détermine si le persona est en phase de cold start.
-     * Un persona en cold start doit être sélectionné de manière uniforme (pure exploration).
+     * Determines if the persona is in cold start phase.
+     * A persona in cold start must be selected uniformly (pure exploration).
      *
      * @return bool True si sessionsCount < COLD_START_THRESHOLD
      */
@@ -69,9 +69,9 @@ final readonly class PersonaPerformance implements \Stringable
     }
 
     /**
-     * Valide les contraintes métier.
+     * Validates business constraints.
      *
-     * @throws \InvalidArgumentException Si une contrainte est violée
+     * @throws \InvalidArgumentException If a constraint is violated
      */
     private function validate(): void
     {
@@ -139,7 +139,7 @@ final readonly class PersonaPerformance implements \Stringable
     }
 
     /**
-     * Représentation textuelle pour debugging.
+     * String representation for debugging.
      */
     public function __toString(): string
     {

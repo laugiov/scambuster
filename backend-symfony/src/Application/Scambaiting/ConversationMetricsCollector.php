@@ -11,8 +11,8 @@ use App\Domain\Scambaiting\ConversationMetrics;
 use Psr\Log\LoggerInterface;
 
 /**
- * Service pour collecter les métriques d'une conversation terminée.
- * Utilise les services existants (IocHandler) pour éviter duplication.
+ * Service to collect metrics for a completed conversation.
+ * Uses existing services (IocHandler) to avoid duplication.
  */
 class ConversationMetricsCollector
 {
@@ -23,13 +23,13 @@ class ConversationMetricsCollector
     }
 
     /**
-     * Collecte les métriques d'une conversation et retourne un Value Object.
+     * Collects conversation metrics and returns a Value Object.
      *
-     * @param Conversation $conversation Conversation terminée
+     * @param Conversation $conversation Completed conversation
      *
-     * @throws \InvalidArgumentException Si les métriques sont invalides
+     * @throws \InvalidArgumentException If metrics are invalid
      *
-     * @return ConversationMetrics Value Object avec métriques calculées
+     * @return ConversationMetrics Value Object with calculated metrics
      */
     /**
      * Collect metrics for a closed conversation and return a Value Object.
@@ -67,9 +67,9 @@ class ConversationMetricsCollector
 
     /**
      * Compte le nombre d'IOCs sensibles dans une liste d'ObservedIoc.
-     * Méthode utilitaire pour éviter duplication de logique.
+     * Utility method to avoid logic duplication.
      *
-     * Le type d'IOC est extrait du context JSON (clé 'type').
+     * The IOC type is extracted from the context JSON ('type' key).
      * Types sensibles: IBAN, phone, crypto_wallet, telegram_username, url
      *
      * @param array<ObservedIoc> $iocs Liste d'IOCs

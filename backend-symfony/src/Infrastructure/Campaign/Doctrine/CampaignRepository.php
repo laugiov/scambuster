@@ -22,7 +22,7 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
     }
 
     /**
-     * Récupère toutes les campagnes actives (shadow + promoted).
+     * Retrieves all active campaigns (shadow + promoted).
      *
      * @return array<Campaign>
      */
@@ -38,7 +38,7 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
     }
 
     /**
-     * Récupère une campagne par son ID.
+     * Retrieves a campaign by its ID.
      */
     public function findById(Uuid $campaignId): ?Campaign
     {
@@ -58,14 +58,14 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
     }
 
     /**
-     * Récupère les candidats à la promotion (PPV≥0.85, status=shadow).
+     * Retrieves promotion candidates (PPV>=0.85, status=shadow).
      * Utilise la vue SQL v_campaign_promotion_candidates.
      *
      * @return array<Campaign>
      */
     public function findPromotionCandidates(): array
     {
-        // Utiliser la vue SQL créée en Phase 1
+        // Use the SQL view created in Phase 1
         $sql = 'SELECT campaign_id FROM v_campaign_promotion_candidates ORDER BY ppv DESC, hits_total DESC';
 
         $conn = $this->getEntityManager()->getConnection();
@@ -84,10 +84,10 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
     }
 
     /**
-     * Récupère tous les messages d'une campagne (via message_campaign).
+     * Retrieves all messages for a campaign (via message_campaign).
      *
      * @param Uuid $campaignId ID de la campagne
-     * @param int  $limit      Nombre max de messages (défaut 10, max 100)
+     * @param int  $limit      Max number of messages (default 10, max 100)
      *
      * @return array<\App\Domain\Communication\Message>
      */
@@ -97,7 +97,7 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
             throw new \InvalidArgumentException("Limit must be between 1 and 100, got {$limit}");
         }
 
-        // Query SQL directe car on croise 2 entités distinctes (Message + MessageCampaign)
+        // Direct SQL query because we cross 2 distinct entities (Message + MessageCampaign)
         $sql = <<<SQL
             SELECT m.*
             FROM message m
@@ -118,7 +118,7 @@ final class CampaignRepository extends ServiceEntityRepository implements Campai
             return [];
         }
 
-        // Récupérer les Message entities via EntityManager
+        // Retrieve Message entities via EntityManager
         $messageIds = array_map(static fn (array $row): \Symfony\Component\Uid\Uuid => Uuid::fromString(\is_string($row['msg_id']) ? $row['msg_id'] : ''), $rows);
 
         $messageRepo = $this->getEntityManager()->getRepository(\App\Domain\Communication\Message::class);

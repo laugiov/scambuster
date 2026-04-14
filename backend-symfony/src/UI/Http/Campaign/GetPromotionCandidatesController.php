@@ -20,21 +20,21 @@ final readonly class GetPromotionCandidatesController
     }
     #[OA\Get(
         path: '/api/v1/campaign/candidates',
-        summary: 'Lister les candidats à la promotion',
-        description: 'Évalue et retourne les règles de campagne éligibles à la promotion ainsi que les règles déjà promues (20 dernières).',
+        summary: 'List promotion candidates',
+        description: 'Evaluates and returns campaign rules eligible for promotion along with already promoted rules (last 20).',
         security: [['Bearer' => []]],
         tags: ['Campaign'],
         responses: [
             new OA\Response(
                 response: 200,
-                description: 'Liste des candidats et règles promues',
+                description: 'List of candidates and promoted rules',
                 content: new OA\JsonContent(
                     type: 'object',
                     properties: [
                         new OA\Property(
                             property: 'candidates',
                             type: 'array',
-                            description: 'Règles éligibles à la promotion',
+                            description: 'Rules eligible for promotion',
                             items: new OA\Items(
                                 type: 'object',
                                 properties: [
@@ -51,7 +51,7 @@ final readonly class GetPromotionCandidatesController
                         new OA\Property(
                             property: 'thresholds',
                             type: 'object',
-                            description: 'Seuils de promotion configurés',
+                            description: 'Configured promotion thresholds',
                             properties: [
                                 new OA\Property(property: 'ppv_threshold', type: 'number', format: 'float'),
                                 new OA\Property(property: 'min_hits', type: 'integer'),
