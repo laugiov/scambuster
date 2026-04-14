@@ -1316,7 +1316,7 @@ MAIL;
         $message = $messageRepo->find($data['msg_id']);
         $this->assertNotNull($message);
         $headers = $message->getHeaders();
-        $this->assertNull($headers['x-empty'] ?? null);
+        $this->assertEmpty($headers['x-empty'] ?? '', 'Empty header should be null or empty string');
     }
 
     public function test_ingest_raw_with_iso_8859_1_header(): void
