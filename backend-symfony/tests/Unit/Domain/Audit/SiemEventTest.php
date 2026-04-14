@@ -61,6 +61,31 @@ class SiemEventTest extends TestCase
         $this->assertNull($event->traceId);
     }
 
+    public function testFromAuditLogCreatesCorrectEvent(): void
+    {
+        $log = $this->createMock(\App\Domain\Audit\AuditLog::class);
+        $ts = new \DateTimeImmutable('2026-01-15 10:00:00');
+        $log->method('getCreatedAt')->willReturn($ts);
+        $log->method('getEventType')->willReturn('AUTH_SUCCESS');
+        $log->method('getActorType')->willReturn('user');
+        $log->method('getActorId')->willReturn('admin@test.com');
+        $log->method('getAction')->willReturn('login');
+        $log->method('getOutcome')->willReturn('success');
+        $log->method('getDetails')->willReturn(['browser' => 'Chrome']);
+        $log->method('getResourceType')->willReturn('session');
+        $log->method('getResourceId')->willReturn('s-1');
+        $log->method('getIpAddress')->willReturn('10.0.0.1');
+        $log->method('getTraceId')->willReturn('t-1');
+
+        $event = SiemEvent::fromAuditLog($log);
+
+        $this->assertSame($ts, $event->timestamp);
+        $this->assertSame(AuditEventType::AUTH_SUCCESS, $event->eventType);
+        $this->assertSame('admin@test.com', $event->actorId);
+        $this->assertSame(['browser' => 'Chrome'], $event->details);
+        $this->assertSame('10.0.0.1', $event->ipAddress);
+    }
+
     public function testIsImmutable(): void
     {
         $event = new SiemEvent(

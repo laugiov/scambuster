@@ -1,0 +1,269 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\Application\Communication;
+
+use App\Application\Audit\AuditLogger;
+use App\Application\Communication\MessageHandler;
+use App\Application\Communication\ReplyCadenceService;
+use App\Application\Communication\ReplyCompositionService;
+use App\Domain\Communication\Conversation;
+use App\Domain\Communication\ConversationStatus;
+use App\Domain\Communication\Direction;
+use App\Domain\Communication\Message;
+use Doctrine\ORM\AbstractQuery;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\EntityRepository;
+use Doctrine\ORM\QueryBuilder;
+use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\Mailer\MailerInterface;
+
+class ReplyCompositionServiceTest extends TestCase
+{
+    private EntityManagerInterface&MockObject $em;
+    private MessageHandler&MockObject $messageHandler;
+    private ReplyCadenceService&MockObject $cadenceService;
+
+    protected function setUp(): void
+    {
+        $this->em = $this->createMock(EntityManagerInterface::class);
+        $this->messageHandler = $this->createMock(MessageHandler::class);
+        $this->cadenceService = $this->createMock(ReplyCadenceService::class);
+    }
+
+    private function createService(
+        ?AuditLogger $auditLogger = null,
+        ?MailerInterface $mailer = null,
+    ): ReplyCompositionService {
+        return new ReplyCompositionService(
+            em: $this->em,
+            messageHandler: $this->messageHandler,
+            cadenceService: $this->cadenceService,
+            logger: new NullLogger(),
+            auditLogger: $auditLogger,
+            mailer: $mailer,
+        );
+    }
+
+    // --- composeHeaders tests ---
+
+    public function test_composeHeaders_returns_null_when_message_not_found(): void
+    {
+        $this->messageHandler->method('getMessage')->willReturn(null);
+
+        $service = $this->createService();
+        $this->assertNull($service->composeHeaders('nonexistent'));
+    }
+
+    public function test_composeHeaders_throws_when_no_parent(): void
+    {
+        $message = $this->createMock(Message::class);
+        $message->method('getReplyTo')->willReturn(null);
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Message is not a reply');
+        $service->composeHeaders('msg-1');
+    }
+
+    public function test_composeHeaders_throws_when_missing_to_or_from(): void
+    {
+        $parent = $this->createMock(Message::class);
+        $parent->method('getHeaders')->willReturn(['message_id' => 'parent-id@example.com']);
+
+        $conversation = $this->createMock(Conversation::class);
+        $conversation->method('getConvId')->willReturn('conv-1');
+        $conversation->method('getStatus')->willReturn(ConversationStatus::OPEN);
+
+        $message = $this->createMock(Message::class);
+        $message->method('getReplyTo')->willReturn($parent);
+        $message->method('getHeaders')->willReturn([]); // No to/from
+        $message->method('getConversation')->willReturn($conversation);
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Missing to/from headers');
+        $service->composeHeaders('msg-1');
+    }
+
+    public function test_composeHeaders_builds_proper_headers(): void
+    {
+        $parent = $this->createMock(Message::class);
+        $parent->method('getHeaders')->willReturn([
+            'message_id' => 'parent@example.com',
+            'references' => 'ref1@example.com ref2@example.com',
+            'in_reply_to' => 'earlier@example.com',
+            'to' => 'honeypot@scambuster.local',
+        ]);
+
+        $conversation = $this->createMock(Conversation::class);
+        $conversation->method('getConvId')->willReturn('conv-1');
+        $conversation->method('getStatus')->willReturn(ConversationStatus::OPEN);
+
+        $message = $this->createMock(Message::class);
+        $message->method('getReplyTo')->willReturn($parent);
+        $message->method('getHeaders')->willReturn([
+            'to' => 'scammer@example.com',
+            'from' => 'honeypot@scambuster.local',
+        ]);
+        $message->method('getConversation')->willReturn($conversation);
+        $message->method('getSubject')->willReturn('Re: Test');
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $this->cadenceService->method('checkSafelist')->willReturn(true);
+        $this->cadenceService->method('isKillSwitchActive')->willReturn(false);
+        $this->cadenceService->method('checkCadence')->willReturn(true);
+
+        $service = $this->createService();
+        $result = $service->composeHeaders('msg-1');
+
+        $this->assertNotNull($result);
+        $this->assertSame('msg-1', $result['msg_id']);
+        $this->assertSame('scammer@example.com', $result['to']);
+        $this->assertSame('honeypot@scambuster.local', $result['from']);
+        $this->assertSame('Re: Test', $result['subject']);
+        $this->assertTrue($result['safe_to_send']);
+        $this->assertFalse($result['rate_limited']);
+        // References should contain parent refs + parent message_id
+        $this->assertStringContainsString('parent@example.com', $result['references']);
+    }
+
+    public function test_composeHeaders_resolves_from_when_invalid(): void
+    {
+        $parent = $this->createMock(Message::class);
+        $parent->method('getHeaders')->willReturn([
+            'message_id' => 'parent@example.com',
+            'to' => 'honeypot@scambuster.local',
+        ]);
+
+        $conversation = $this->createMock(Conversation::class);
+        $conversation->method('getConvId')->willReturn('conv-1');
+        $conversation->method('getStatus')->willReturn(ConversationStatus::OPEN);
+
+        $message = $this->createMock(Message::class);
+        $message->method('getReplyTo')->willReturn($parent);
+        // From is an IMAP hostname, not email - should be resolved from parent's to
+        $message->method('getHeaders')->willReturn([
+            'to' => 'scammer@example.com',
+            'from' => 'imap.gmail.com',
+        ]);
+        $message->method('getConversation')->willReturn($conversation);
+        $message->method('getSubject')->willReturn('Re: Test');
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+        $this->cadenceService->method('checkSafelist')->willReturn(true);
+        $this->cadenceService->method('isKillSwitchActive')->willReturn(false);
+        $this->cadenceService->method('checkCadence')->willReturn(true);
+
+        $service = $this->createService();
+        $result = $service->composeHeaders('msg-1');
+
+        $this->assertNotNull($result);
+        $this->assertSame('honeypot@scambuster.local', $result['from']);
+    }
+
+    public function test_composeHeaders_rate_limited_when_cadence_fails(): void
+    {
+        $parent = $this->createMock(Message::class);
+        $parent->method('getHeaders')->willReturn(['message_id' => 'parent@example.com']);
+
+        $conversation = $this->createMock(Conversation::class);
+        $conversation->method('getConvId')->willReturn('conv-1');
+        $conversation->method('getStatus')->willReturn(ConversationStatus::OPEN);
+
+        $message = $this->createMock(Message::class);
+        $message->method('getReplyTo')->willReturn($parent);
+        $message->method('getHeaders')->willReturn([
+            'to' => 'scammer@example.com',
+            'from' => 'honeypot@test.com',
+        ]);
+        $message->method('getConversation')->willReturn($conversation);
+        $message->method('getSubject')->willReturn('Re: Test');
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+        $this->cadenceService->method('checkSafelist')->willReturn(true);
+        $this->cadenceService->method('isKillSwitchActive')->willReturn(false);
+        $this->cadenceService->method('checkCadence')->willReturn(false); // Rate limited
+
+        $service = $this->createService();
+        $result = $service->composeHeaders('msg-1');
+
+        $this->assertFalse($result['safe_to_send']);
+        $this->assertTrue($result['rate_limited']);
+    }
+
+    // --- markAsSent tests ---
+
+    public function test_markAsSent_returns_false_when_not_found(): void
+    {
+        $this->messageHandler->method('getMessage')->willReturn(null);
+
+        $service = $this->createService();
+        $this->assertFalse($service->markAsSent('msg-1', 'smtp', 'provider-id', new \DateTimeImmutable()));
+    }
+
+    public function test_markAsSent_throws_when_already_sent(): void
+    {
+        $message = $this->createMock(Message::class);
+        $message->method('getSendStatus')->willReturn('sent');
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Message already sent');
+        $service->markAsSent('msg-1', 'smtp', 'provider-id', new \DateTimeImmutable());
+    }
+
+    // --- sendEmail tests ---
+
+    public function test_sendEmail_throws_when_mailer_not_configured(): void
+    {
+        $service = $this->createService(mailer: null);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Mailer not configured');
+        $service->sendEmail('msg-1');
+    }
+
+    public function test_sendEmail_throws_when_message_not_found(): void
+    {
+        $mailer = $this->createMock(MailerInterface::class);
+        $this->messageHandler->method('getMessage')->willReturn(null);
+
+        $service = $this->createService(mailer: $mailer);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Message not found');
+        $service->sendEmail('msg-1');
+    }
+
+    public function test_sendEmail_throws_when_direction_is_inbound(): void
+    {
+        $mailer = $this->createMock(MailerInterface::class);
+        $direction = $this->createMock(Direction::class);
+        $direction->method('getCode')->willReturn('in');
+
+        $message = $this->createMock(Message::class);
+        $message->method('getDirection')->willReturn($direction);
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService(mailer: $mailer);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Cannot send a non-outbound message');
+        $service->sendEmail('msg-1');
+    }
+}
