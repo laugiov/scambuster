@@ -32,17 +32,18 @@ const mockIocs: Ioc[] = [
   },
 ];
 
+import { mockMetaConfig as baseMockMetaConfig } from '@/__tests__/fixtures';
+
 const mockMetaConfig = {
+  ...baseMockMetaConfig,
   personas: [], scam_types: [],
   ioc_types: ['domain', 'ipv4', 'message_id', 'email'],
-  bandit: { strategy: 'epsilon-greedy', epsilon: 0.2, cold_start_threshold: 3, convergence_threshold: 0.6, min_sessions_for_convergence: 10, converged_epsilon: 0.05, reward_weights: {} },
-  llm_provider: 'openai', llm_model: 'gpt-4o-mini',
 };
 
 const iocHandler = http.get(`${BASE}/iocs`, () => HttpResponse.json(mockIocs));
 const metaHandler = http.get(`${BASE}/meta/config`, () => HttpResponse.json(mockMetaConfig));
 
-beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
+beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
