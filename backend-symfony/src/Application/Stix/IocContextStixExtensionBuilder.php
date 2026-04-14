@@ -48,7 +48,7 @@ final class IocContextStixExtensionBuilder
         }
 
         // Remove null values for clean output
-        return array_filter($ext, fn (mixed $v) => $v !== null);
+        return array_filter($ext, fn (mixed $v): bool => $v !== null);
     }
 
     /** @param array<string, mixed> $row */
@@ -82,6 +82,6 @@ final class IocContextStixExtensionBuilder
             return [];
         }
 
-        return array_values(array_filter(explode(',', trim($val, '{}')), fn (string $s) => $s !== ''));
+        return array_values(array_filter(explode(',', trim($val, '{}')), fn (string $s): bool => $s !== ''));
     }
 }

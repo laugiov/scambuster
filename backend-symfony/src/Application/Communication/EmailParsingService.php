@@ -71,7 +71,7 @@ class EmailParsingService
         try {
             $message = $parser->parse($rawSource, false);
         } catch (\Throwable $e) {
-            throw new \RuntimeException('Mail parse error: ' . $e->getMessage());
+            throw new \RuntimeException('Mail parse error: ' . $e->getMessage(), $e->getCode(), $e);
         }
 
         // Extract raw header values
@@ -151,7 +151,7 @@ class EmailParsingService
         // Detect language
         $detectedLang = 'en';
 
-        if ($this->languageDetector !== null && !empty($bodyText) && mb_strlen($bodyText) >= 50) {
+        if ($this->languageDetector instanceof \App\Application\LLM\LanguageDetector && ($bodyText !== '' && $bodyText !== '0') && mb_strlen($bodyText) >= 50) {
             $detectedLang = $this->languageDetector->detect($bodyText);
             $this->logger->info('[EmailParsingService] Language detected', ['lang' => $detectedLang, 'body_length' => mb_strlen($bodyText)]);
         }
@@ -306,11 +306,7 @@ class EmailParsingService
         $disposition = strtolower($part->getContentDisposition() ?? '');
 
         // Inline parts are display assets (embedded HTML images, etc.), not threat intel.
-        if (str_starts_with($disposition, 'inline')) {
-            return false;
-        }
-
-        return true;
+        return !str_starts_with($disposition, 'inline');
     }
 
     /**
@@ -321,27 +317,27 @@ class EmailParsingService
     {
         // Remove script and style tags with their content (security)
         $text = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $html);
-        $text = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', $text);
+        $text = preg_replace('/<style\b[^>]*>.*?<\/style>/is', '', (string) $text);
 
         // Decode HTML entities
-        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = html_entity_decode((string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
 
         // Replace common block elements with newlines
         $text = preg_replace('/<\/(div|p|br|h[1-6]|li|tr)>/i', "\n", $text);
-        $text = preg_replace('/<(br|hr)\s*\/?>/i', "\n", $text);
+        $text = preg_replace('/<(br|hr)\s*\/?>/i', "\n", (string) $text);
 
         // Replace list items with newlines and bullets
-        $text = preg_replace('/<li[^>]*>/i', "\n• ", $text);
+        $text = preg_replace('/<li[^>]*>/i', "\n• ", (string) $text);
 
         // Remove remaining HTML tags
-        $text = strip_tags($text);
+        $text = strip_tags((string) $text);
 
         // Normalize whitespace
         $text = preg_replace('/[ \t]+/', ' ', $text); // Multiple spaces -> single space
-        $text = preg_replace('/\n\s*\n+/', "\n\n", $text); // Multiple newlines -> double newline
+        $text = preg_replace('/\n\s*\n+/', "\n\n", (string) $text); // Multiple newlines -> double newline
 
         // Trim each line
-        $lines = explode("\n", $text);
+        $lines = explode("\n", (string) $text);
         $lines = array_map('trim', $lines);
         $text = implode("\n", $lines);
 

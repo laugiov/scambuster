@@ -34,19 +34,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetReplyController
+final readonly class GetReplyController
 {
     public function __construct(private ReplyHandler $handler)
     {
     }
-
     #[Route('/api/v1/communication/reply/{msgId}', name: 'get_reply', methods: ['GET'])]
     #[IsGranted('reply:generate')]
     public function __invoke(string $msgId): JsonResponse
     {
         $message = $this->handler->getMessage($msgId);
 
-        if (!$message || $message->getDeletedAt() !== null) {
+        if (!$message || $message->getDeletedAt() instanceof \DateTimeImmutable) {
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
         }
 
@@ -54,7 +53,7 @@ final class GetReplyController
         $parentGmailMsgId = null;
         $parentMessage = $message->getReplyTo();
 
-        if ($parentMessage) {
+        if ($parentMessage instanceof \App\Domain\Communication\Message) {
             $parentGmailMsgId = $parentMessage->getProviderMsgId();
         }
 

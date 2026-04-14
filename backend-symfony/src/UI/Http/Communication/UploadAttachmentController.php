@@ -57,20 +57,19 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class UploadAttachmentController
+final readonly class UploadAttachmentController
 {
     public function __construct(
-        private readonly MessageHandler $handler
+        private MessageHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/message/{msgId}/attachments', name: 'upload_message_attachment', methods: ['POST'])]
     #[IsGranted('conversation:write')]
     public function __invoke(string $msgId, Request $request): JsonResponse
     {
         $message = $this->handler->getMessage($msgId);
 
-        if (!$message) {
+        if (!$message instanceof \App\Domain\Communication\Message) {
             return new JsonResponse(['error' => 'Message not found'], Response::HTTP_NOT_FOUND);
         }
         /** @var \Symfony\Component\HttpFoundation\File\UploadedFile|null $file */

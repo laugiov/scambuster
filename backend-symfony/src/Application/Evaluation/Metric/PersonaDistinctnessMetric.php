@@ -21,7 +21,11 @@ final class PersonaDistinctnessMetric implements MetricInterface
             $persona = $entry['persona_code'] ?? 'unknown';
             $text = $entry['text'] ?? '';
 
-            if ($text === '' || ($entry['fallback_used'] ?? false)) {
+            if ($text === '') {
+                continue;
+            }
+
+            if ($entry['fallback_used'] ?? false) {
                 continue;
             }
 
@@ -56,7 +60,7 @@ final class PersonaDistinctnessMetric implements MetricInterface
             }
         }
 
-        $meanSimilarity = !empty($similarities) ? array_sum($similarities) / count($similarities) : 0.0;
+        $meanSimilarity = $similarities === [] ? 0.0 : array_sum($similarities) / count($similarities);
         $distinctness = 1.0 - $meanSimilarity;
 
         return new MetricResult(
@@ -169,7 +173,11 @@ final class PersonaDistinctnessMetric implements MetricInterface
             $persona = $entry['persona_code'] ?? 'unknown';
             $text = $entry['text'] ?? '';
 
-            if ($text === '' || ($entry['fallback_used'] ?? false)) {
+            if ($text === '') {
+                continue;
+            }
+
+            if ($entry['fallback_used'] ?? false) {
                 continue;
             }
 

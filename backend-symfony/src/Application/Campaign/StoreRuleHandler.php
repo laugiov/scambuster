@@ -10,11 +10,11 @@ use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
-final class StoreRuleHandler
+final readonly class StoreRuleHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
-        private readonly LoggerInterface $logger
+        private EntityManagerInterface $em,
+        private LoggerInterface $logger
     ) {
     }
 
@@ -37,7 +37,7 @@ final class StoreRuleHandler
         // Vérifier existence campagne
         $campaign = $this->em->find(Campaign::class, $campaignId);
 
-        if (!$campaign) {
+        if ($campaign === null) {
             throw new \RuntimeException('Campaign not found');
         }
 

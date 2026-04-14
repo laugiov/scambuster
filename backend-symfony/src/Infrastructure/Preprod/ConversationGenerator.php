@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\Preprod;
 
-use App\Application\Communication\IocHandler;
 use App\Domain\Communication\Channel;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationStatus;
@@ -28,7 +27,9 @@ class ConversationGenerator
 {
     private const MIN_MESSAGES = 2;
     private const MAX_MESSAGES = 50;  // Augmenté pour conversations réalistes longues
+    /** @phpstan-ignore-next-line Reserved for future use */
     private const MIN_TURNS = 2;      // Minimum 2 tours (1 scammer + 1 victim)
+    /** @phpstan-ignore-next-line Reserved for future use */
     private const MAX_TURNS = 15;     // Maximum 15 tours (30 messages) pour performance
 
     private ?string $authToken = null;
@@ -37,8 +38,6 @@ class ConversationGenerator
         private readonly EntityManagerInterface $em,
         private readonly LLMServiceInterface $llm,
         private readonly IocGenerator $iocGenerator,
-        /** @phpstan-ignore-next-line Property used via Doctrine service wiring */
-        private readonly IocHandler $iocHandler,
         private readonly LoggerInterface $logger,
         private readonly HttpClientInterface $httpClient
     ) {
@@ -84,7 +83,7 @@ class ConversationGenerator
         // Récupérer ou créer un MailAccount factice pour preprod
         $mailAccount = $this->getOrCreatePreprodMailAccount();
 
-        $tsFirst = new \DateTimeImmutable(sprintf('-%d days -%d hours', rand(1, 90), rand(0, 23)));
+        $tsFirst = new \DateTimeImmutable(sprintf('-%d days -%d hours', random_int(1, 90), random_int(0, 23)));
 
         // Créer la conversation avec tous les paramètres requis
         $conversation = new Conversation(
@@ -93,7 +92,7 @@ class ConversationGenerator
             scamType: $scamType,
             account: $mailAccount,
             status: ConversationStatus::OPEN,
-            scoreRisk: rand(50, 100),
+            scoreRisk: random_int(50, 100),
             tsFirst: $tsFirst,
             tsLast: $tsFirst,
             stixId: 'preprod-' . uniqid(),
@@ -131,9 +130,11 @@ class ConversationGenerator
         $currentTime = $tsFirst;
         $lastMessageTime = $tsFirst;
         $turnsCount = 0;
-        $messages = []; // Store messages for later IOC extraction
+        $messages = [];
+        // Store messages for later IOC extraction
+        $counter = count($conversationMessages); // Store messages for later IOC extraction
 
-        for ($i = 0; $i < count($conversationMessages); $i++) {
+        for ($i = 0; $i < $counter; $i++) {
             // Support des 2 formats: array avec role/content OU string simple
             /** @var string|array{role: string, content: string} $msgItem */
             $msgItem = $conversationMessages[$i];
@@ -174,7 +175,7 @@ class ConversationGenerator
             }
 
             // Incrémenter le temps entre messages (1h à 48h)
-            $hoursGap = rand(1, 48);
+            $hoursGap = random_int(1, 48);
             $lastMessageTime = $currentTime;
             $currentTime = $currentTime->modify(sprintf('+%d hours', $hoursGap));
         }
@@ -204,7 +205,7 @@ class ConversationGenerator
         // Extract IOCs from all messages using production-style extraction (hybrid regex+LLM)
         // ATTENTION: Mode 'hybrid' utilise le LLM pour chaque message, ceci peut être lent !
         $convId = $conversation->getConvId();
-        $convIdStr = (string) $convId;
+        $convIdStr = $convId;
 
         $this->logger->error('[IOC-DEBUG] ========== STARTING IOC EXTRACTION ==========', [
             'scam_type' => $scamType->getCode(),
@@ -225,7 +226,7 @@ class ConversationGenerator
             $msgId = $message->getMsgId();
             $bodyText = $message->getBodyText();
 
-            $msgIdStr = (string) $msgId;
+            $msgIdStr = $msgId;
 
             $this->logger->info('[IOC-DEBUG] Processing message', [
                 'message_index' => $messageIndex,
@@ -350,7 +351,7 @@ PROMPT;
 
         $messages = json_decode($cleaned, true);
 
-        if (!is_array($messages) || empty($messages)) {
+        if (!is_array($messages) || $messages === []) {
             $this->logger->error('Failed to parse LLM response', [
                 'response' => $response,
                 'cleaned' => $cleaned,
@@ -371,351 +372,6 @@ PROMPT;
         $messages = array_slice($messages, 0, $messageCount);
 
         return $messages;
-    }
-
-    /**
-     * Génère une conversation de manière ITÉRATIVE et RÉALISTE
-     * Le scammer décide à chaque tour s'il continue ou abandonne
-     *
-     * @param array<string, mixed> $context
-     * @param array<string, mixed> $iocs
-     *
-     * @return array<int, array{role: string, content: string}> Messages alternés avec role et content
-     */
-    private function generateConversationIterative(// @phpstan-ignore method.unused
-        ScamType $scamType,
-        Persona $persona,
-        array $context,
-        array $iocs
-    ): array {
-        $messages = [];
-        $shouldContinue = true;
-        $turnCount = 0;
-
-        $this->logger->info('[ITERATIVE] Starting iterative conversation generation', [
-            'scam_type' => $scamType->getCode(),
-            'persona' => $persona->getPersonaCode(),
-        ]);
-
-        while ($shouldContinue && $turnCount < self::MAX_TURNS) {
-            $this->logger->info('[ITERATIVE] Turn start', ['turn' => $turnCount]);
-
-            // 1. SCAMMER envoie un message
-            $this->logger->info('[ITERATIVE] Generating scammer message...');
-            $scammerMessage = $this->generateScammerMessage(
-                scamType: $scamType,
-                persona: $persona,
-                context: $context,
-                iocs: $iocs,
-                conversationHistory: $messages,
-                turnNumber: $turnCount
-            );
-
-            $messages[] = ['role' => 'scammer', 'content' => $scammerMessage];
-            $this->logger->info('[ITERATIVE] Scammer message added, generating victim response...');
-
-            // 2. VICTIM (Scambuster persona) répond
-            $victimMessage = $this->generateVictimMessage(
-                persona: $persona,
-                context: $context,
-                conversationHistory: $messages,
-                turnNumber: $turnCount
-            );
-
-            $messages[] = ['role' => 'victim', 'content' => $victimMessage];
-            $this->logger->info('[ITERATIVE] Victim message added', ['turn' => $turnCount, 'total_messages' => count($messages)]);
-
-            $turnCount++;
-
-            // 3. Le SCAMMER décide: continuer ou abandonner ?
-            // OPTIMISATION: Ne faire la décision que tous les 5 tours (au lieu de chaque tour)
-            // Ça divise par ~2.5 le nombre d'appels LLM
-            if ($turnCount % 5 === 0 || $turnCount >= 15) {
-                $this->logger->info('[ITERATIVE] Checking if scammer continues...', ['turn' => $turnCount]);
-                $shouldContinue = $this->scammerDecidesToContinue(
-                    scamType: $scamType,
-                    context: $context,
-                    conversationHistory: $messages,
-                    turnNumber: $turnCount
-                );
-
-                $this->logger->info('[ITERATIVE] Scammer decision received', ['should_continue' => $shouldContinue, 'turn' => $turnCount]);
-
-                if (!$shouldContinue) {
-                    $this->logger->info('Scammer decided to abandon conversation', [
-                        'scam_type' => $scamType->getCode(),
-                        'turn_count' => $turnCount,
-                        'message_count' => count($messages),
-                    ]);
-                }
-            } else {
-                $this->logger->info('[ITERATIVE] Skipping decision check (continuing by default)', ['turn' => $turnCount]);
-            }
-        }
-
-        $this->logger->info('[ITERATIVE] Conversation loop ended', ['final_turn_count' => $turnCount, 'total_messages' => count($messages), 'reason' => $shouldContinue ? 'max_turns_reached' : 'scammer_abandoned']);
-
-        // Minimum 2 tours (4 messages)
-        if ($turnCount < self::MIN_TURNS) {
-            $this->logger->warning('Conversation too short, forcing minimum turns', [
-                'actual_turns' => $turnCount,
-                'min_turns' => self::MIN_TURNS,
-            ]);
-        }
-
-        return $messages;
-    }
-
-    /**
-     * Génère un message du SCAMMER
-     *
-     * @param array<string, mixed>                             $context
-     * @param array<string, mixed>                             $iocs
-     * @param array<int, array{role: string, content: string}> $conversationHistory
-     */
-    private function generateScammerMessage(
-        ScamType $scamType,
-        Persona $persona,
-        array $context,
-        array $iocs,
-        array $conversationHistory,
-        int $turnNumber
-    ): string {
-        $this->logger->info('[SCAMMER] Formatting history...');
-        $historyStr = $this->formatConversationHistoryForPrompt($conversationHistory);
-        $this->logger->info('[SCAMMER] History formatted, encoding IOCs...');
-        $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        $this->logger->info('[SCAMMER] IOCs encoded, building prompt...');
-
-        /** @var string $ctxScenario */
-        $ctxScenario = $context['scenario'] ?? '';
-        /** @var string $ctxHook */
-        $ctxHook = $context['hook'] ?? '';
-        /** @var string $ctxPersonality */
-        $ctxPersonality = $context['scammer_personality'] ?? '';
-        /** @var string $ctxUrgency */
-        $ctxUrgency = $context['urgency_level'] ?? '';
-        /** @var string $ctxTriggers */
-        $ctxTriggers = $context['emotional_triggers'] ?? '';
-
-        $prompt = <<<PROMPT
-You are an experienced SCAMMER specializing in: {$scamType->getLabel()}.
-
-# CONTEXT
-Scenario: {$ctxScenario}
-Psychological hook: {$ctxHook}
-Scammer personality: {$ctxPersonality}
-Urgency level: {$ctxUrgency}
-Current turn: {$turnNumber}
-
-# CONVERSATION HISTORY
-$historyStr
-
-# IOCs TO INTEGRATE NATURALLY
-$iocsStr
-
-# YOUR OBJECTIVE
-You want to obtain: money, sensitive information, or access to the victim's accounts.
-
-# INSTRUCTIONS
-1. Generate ONLY the next scammer message (30-200 words)
-2. Follow your personality and scenario
-3. Integrate IOCs naturally (not all at once!)
-4. Adapt your tactics based on the victim's responses
-5. Use emotional levers: {$ctxTriggers}
-6. 100% natural, fluent, realistic English language
-7. NO metadata, ONLY the message content
-
-GENERATE YOUR MESSAGE NOW:
-PROMPT;
-
-        $this->logger->info('[SCAMMER] Calling LLM...', ['prompt_length' => strlen($prompt)]);
-        $response = $this->llm->complete($prompt, [
-            'temperature' => 0.8,
-            'max_tokens' => 400,
-        ]);
-        $this->logger->info('[SCAMMER] LLM response received', ['response_length' => strlen($response)]);
-
-        return trim($response);
-    }
-
-    /**
-     * Génère un message de la VICTIM (Scambuster persona)
-     *
-     * @param array<string, mixed>                             $context
-     * @param array<int, array{role: string, content: string}> $conversationHistory
-     */
-    private function generateVictimMessage(
-        Persona $persona,
-        array $context,
-        array $conversationHistory,
-        int $turnNumber
-    ): string {
-        $historyStr = $this->formatConversationHistoryForPrompt($conversationHistory);
-
-        $prompt = <<<PROMPT
-You are a VICTIM of an ongoing scam. You are playing the role of: {$persona->getPersonaLabel()}.
-
-# PERSONA
-Tone: {$persona->getPersonaTone()}
-System Prompt:
-{$persona->getSystemPrompt()}
-
-# CONVERSATION HISTORY
-$historyStr
-
-# YOUR ROLE
-You are a SCAMBAITER - your goal is to prolong the conversation as long as possible to waste the scammer's time.
-
-# INSTRUCTIONS
-1. Carefully read the scammer's last message
-2. Respond CONSISTENTLY with your personality
-3. Show interest but also ask questions
-4. Be slightly naive/vulnerable but not overly so
-5. PROLONG the conversation (NEVER reveal that you are a scambaiter)
-6. Message between 20-150 words
-7. Natural English language, NO metadata
-
-GENERATE YOUR RESPONSE NOW:
-PROMPT;
-
-        $response = $this->llm->complete($prompt, [
-            'temperature' => 0.7,
-            'max_tokens' => 300,
-        ]);
-
-        return trim($response);
-    }
-
-    /**
-     * Le SCAMMER décide s'il continue la conversation
-     * Combine analyse LLM + probabilité aléatoire réaliste
-     *
-     * @param array<string, mixed>                             $context
-     * @param array<int, array{role: string, content: string}> $conversationHistory
-     */
-    private function scammerDecidesToContinue(
-        ScamType $scamType,
-        array $context,
-        array $conversationHistory,
-        int $turnNumber
-    ): bool {
-        // Limite de sécurité
-        if ($turnNumber >= self::MAX_TURNS) {
-            $this->logger->debug('Scammer stops: MAX_TURNS reached', ['turn' => $turnNumber]);
-
-            return false;
-        }
-
-        // Toujours continuer les 3 premiers tours (démarrage)
-        if ($turnNumber < 3) {
-            return true;
-        }
-
-        // PROBABILITÉ D'ABANDON CROISSANTE avec le nombre de tours
-        // Distribution réaliste basée sur la recherche:
-        // - Tours 3-5: 20% abandon (conversations très courtes)
-        // - Tours 6-10: 15% abandon (conversations courtes)
-        // - Tours 11-15: 10% abandon (conversations moyennes)
-        $abandonProbability = match (true) {
-            $turnNumber <= 5 => 0.20,   // 20% abandon (conversations très courtes)
-            $turnNumber <= 10 => 0.15,  // 15% abandon (conversations courtes)
-            default => 0.10,            // 10% abandon (conversations moyennes/longues)
-        };
-
-        // Tirage aléatoire
-        $randomValue = mt_rand(1, 100) / 100;
-
-        if ($randomValue < $abandonProbability) {
-            $this->logger->debug('Scammer stops: random abandon', [
-                'turn' => $turnNumber,
-                'probability' => $abandonProbability,
-                'random' => $randomValue,
-            ]);
-
-            return false;
-        }
-
-        // Si pas d'abandon aléatoire, analyser les messages de la victime (plus léger)
-        $recentVictimMessages = $this->getRecentVictimMessages($conversationHistory, 2);
-
-        if (empty($recentVictimMessages)) {
-            return false;
-        }
-
-        // Prompt SIMPLIFIÉ pour analyse rapide
-        $prompt = <<<PROMPT
-You are a scammer. Recent victim messages:
-$recentVictimMessages
-
-Has the victim EXPLICITLY revealed that they know this is a scam?
-(keywords: "scam", "fraud", "police", "report", "fake")
-
-Answer: YES or NO
-PROMPT;
-
-        $response = $this->llm->complete($prompt, [
-            'temperature' => 0.2,  // Très peu de variabilité
-            'max_tokens' => 5,
-        ]);
-
-        $scamDetected = str_contains(strtoupper(trim($response)), 'YES');
-
-        $this->logger->debug('Scammer decision', [
-            'turn' => $turnNumber,
-            'scam_detected' => $scamDetected,
-            'continue' => !$scamDetected,
-        ]);
-
-        // Abandonner seulement si la victime a révélé le scam
-        return !$scamDetected;
-    }
-
-    /**
-     * Récupère les N derniers messages de la victime
-     *
-     * @param array<int, array{role: string, content: string}> $conversationHistory
-     */
-    private function getRecentVictimMessages(array $conversationHistory, int $count): string
-    {
-        $victimMessages = array_filter($conversationHistory, fn ($msg) => $msg['role'] === 'victim');
-        $recent = array_slice($victimMessages, -$count);
-
-        if (empty($recent)) {
-            return '(No victim messages yet)';
-        }
-
-        return implode("\n---\n", array_map(fn ($msg) => $msg['content'], $recent));
-    }
-
-    /**
-     * Formate l'historique de conversation pour le prompt LLM
-     * OPTIMISATION: Ne garde que les N derniers messages pour éviter de dépasser les rate limits OpenAI
-     *
-     * @param array<int, array{role: string, content: string}> $conversationHistory
-     */
-    private function formatConversationHistoryForPrompt(array $conversationHistory, int $maxMessages = 8): string
-    {
-        if (empty($conversationHistory)) {
-            return '(Start of conversation)';
-        }
-
-        // Keep only the N most recent messages to limit prompt size
-        $recentHistory = array_slice($conversationHistory, -$maxMessages);
-
-        $formatted = [];
-        $startIndex = max(0, count($conversationHistory) - $maxMessages);
-
-        foreach ($recentHistory as $idx => $msg) {
-            $role = strtoupper($msg['role']);
-            $formatted[] = sprintf("[Message %d - %s]\n%s", $startIndex + $idx + 1, $role, $msg['content']);
-        }
-
-        $prefix = count($conversationHistory) > $maxMessages
-            ? sprintf("(... %d previous messages omitted ...)\n\n", count($conversationHistory) - $maxMessages)
-            : '';
-
-        return $prefix . implode("\n\n---\n\n", $formatted);
     }
 
     /**
@@ -743,324 +399,6 @@ PROMPT;
     }
 
     /**
-     * Génère TOUTE la conversation en un seul appel LLM (beaucoup plus rapide!)
-     *
-     * @param array<string, mixed> $context
-     * @param array<string, mixed> $iocs
-     *
-     * @return array<string> Tableau de messages alternés (scammer, victim, scammer, ...)
-     */
-    private function generateFullConversation(// @phpstan-ignore method.unused
-        ScamType $scamType,
-        Persona $persona,
-        array $context,
-        array $iocs,
-        int $messageCount
-    ): array {
-        $prompt = $this->buildFullConversationPrompt(
-            scamType: $scamType,
-            persona: $persona,
-            context: $context,
-            iocs: $iocs,
-            messageCount: $messageCount
-        );
-
-        $response = $this->llm->complete($prompt, [
-            'temperature' => 0.8,
-            'max_tokens' => 2000, // Plus de tokens pour toute la conversation
-        ]);
-
-        // Parser la réponse pour extraire les messages (séparés par "---MESSAGE---")
-        $messages = array_map('trim', explode('---MESSAGE---', trim($response)));
-        $messages = array_filter($messages, fn ($m) => !empty($m));
-
-        // Nettoyer les en-têtes parasites "Message X (SCAMMER)" ou "Message X (VICTIM)"
-        $messages = array_map(function ($message) {
-            // Supprimer les lignes comme "Message 1 (SCAMMER)" au début
-            return preg_replace('/^Message\s+\d+\s*\([A-Z]+\)\s*\n?/i', '', trim($message));
-        }, $messages);
-
-        // S'assurer qu'on a le bon nombre de messages
-        if (count($messages) < $messageCount) {
-            // Compléter avec des messages génériques si manquants
-            while (count($messages) < $messageCount) {
-                $isScammer = (count($messages) % 2 === 0);
-                $messages[] = $isScammer
-                    ? 'Thank you for your response. Could you provide more details?'
-                    : 'Yes, of course. What exactly would you like to know?';
-            }
-        }
-
-        return array_slice($messages, 0, $messageCount);
-    }
-
-    /**
-     * Génère le contenu d'un message via LLM (DEPRECATED - utiliser generateFullConversation)
-     *
-     * @param array<string, mixed> $context
-     * @param array<string, mixed> $iocs
-     */
-    private function generateMessageContent(// @phpstan-ignore method.unused
-        ScamType $scamType,
-        Persona $persona,
-        array $context,
-        array $iocs,
-        int $messageNumber,
-        bool $isScammerMessage,
-        string $conversationHistory
-    ): string {
-        $prompt = $this->buildMessagePrompt(
-            scamType: $scamType,
-            persona: $persona,
-            context: $context,
-            iocs: $iocs,
-            messageNumber: $messageNumber,
-            isScammerMessage: $isScammerMessage,
-            conversationHistory: $conversationHistory
-        );
-
-        $response = $this->llm->complete($prompt, [
-            'temperature' => 0.8, // Plus de variabilité
-            'max_tokens' => 500,
-        ]);
-
-        return trim($response);
-    }
-
-    /**
-     * Construit le prompt pour générer TOUTE la conversation en un seul appel
-     *
-     * @param array<string, mixed> $context
-     * @param array<string, mixed> $iocs
-     */
-    private function buildFullConversationPrompt(
-        ScamType $scamType,
-        Persona $persona,
-        array $context,
-        array $iocs,
-        int $messageCount
-    ): string {
-        $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        $progression = isset($context['progression']) ? json_encode($context['progression'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) : 'N/A';
-        /** @var string $ctxScenario */
-        $ctxScenario = $context['scenario'] ?? '';
-        /** @var string $ctxHook */
-        $ctxHook = $context['hook'] ?? '';
-        /** @var string $ctxChannel */
-        $ctxChannel = $context['channel'] ?? '';
-        /** @var string $ctxPersonality */
-        $ctxPersonality = $context['scammer_personality'] ?? '';
-        /** @var string $ctxTriggers */
-        $ctxTriggers = $context['emotional_triggers'] ?? '';
-        /** @var string $ctxUrgency */
-        $ctxUrgency = $context['urgency_level'] ?? '';
-
-        return <<<PROMPT
-Generate a COMPLETE and ULTRA-REALISTIC scam conversation in ENGLISH.
-
-# CONTEXT
-Scam type: {$scamType->getCode()} - {$scamType->getLabel()}
-Scenario: {$ctxScenario}
-Psychological hook: {$ctxHook}
-Victim persona: {$persona->getPersonaLabel()}
-Persona tone: {$persona->getPersonaTone()}
-Channel: {$ctxChannel}
-Number of messages: {$messageCount}
-
-# PERSONALITIES
-**SCAMMER**: {$ctxPersonality}
-- Emotional levers: {$ctxTriggers}
-- Urgency level: {$ctxUrgency}
-
-**VICTIM (Persona)**:
-{$persona->getSystemPrompt()}
-
-# NARRATIVE PROGRESSION
-$progression
-
-# IOCs TO INTEGRATE NATURALLY
-$iocsStr
-
-# CRITICAL INSTRUCTIONS
-1. Generate EXACTLY {$messageCount} alternating messages: SCAMMER, VICTIM, SCAMMER, VICTIM, etc.
-2. Follow the narrative progression of the template
-3. Integrate IOCs naturally (not all at once!)
-4. SCAMMER always starts (message 1)
-5. 100% natural, fluent, realistic ENGLISH language
-6. Vary the length of messages (30-200 words)
-7. NO metadata, ONLY raw message content
-8. Separate each message with "---MESSAGE---" on its own line
-
-# OUTPUT FORMAT
-Message 1 (SCAMMER)
----MESSAGE---
-Message 2 (VICTIM)
----MESSAGE---
-Message 3 (SCAMMER)
-... etc.
-
-GENERATE THE CONVERSATION NOW:
-PROMPT;
-    }
-
-    /**
-     * Construit le prompt LLM pour générer un message ULTRA-RÉALISTE (DEPRECATED)
-     *
-     * @param array<string, mixed> $context
-     * @param array<string, mixed> $iocs
-     */
-    private function buildMessagePrompt(
-        ScamType $scamType,
-        Persona $persona,
-        array $context,
-        array $iocs,
-        int $messageNumber,
-        bool $isScammerMessage,
-        string $conversationHistory
-    ): string {
-        $role = $isScammerMessage ? 'SCAMMER' : 'VICTIM';
-        $iocsStr = json_encode($iocs, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
-        /** @var string $ctxScenario */
-        $ctxScenario = $context['scenario'] ?? '';
-        /** @var string $ctxHook */
-        $ctxHook = $context['hook'] ?? '';
-        /** @var string $ctxChannel */
-        $ctxChannel = $context['channel'] ?? '';
-        /** @var string $ctxPersonality */
-        $ctxPersonality = $context['scammer_personality'] ?? '';
-        /** @var string $ctxTriggers */
-        $ctxTriggers = $context['emotional_triggers'] ?? '';
-        /** @var string $ctxUrgency */
-        $ctxUrgency = $context['urgency_level'] ?? '';
-
-        // Déterminer l'étape de progression narrative
-        $progressionStep = $this->getProgressionStep($context, $messageNumber, $isScammerMessage);
-
-        $scammerInstructions = <<<SCAMMER
-# YOUR ROLE: SCAMMER
-Personality: {$ctxPersonality}
-
-## Current narrative step:
-$progressionStep
-
-## Psychological tactics to use:
-- Emotional levers: {$ctxTriggers}
-- Urgency level: {$ctxUrgency}
-
-## IOCs to integrate naturally:
-$iocsStr
-
-## How to play this message:
-1. Follow EXACTLY the narrative progression step
-2. Integrate IOCs naturally (not all at once!)
-3. Use the defined psychological tactics
-4. Stay consistent with your scammer personality
-5. Create urgency according to the specified level
-6. Fluent language, professional if needed, casual if appropriate
-7. Grammar mistakes ONLY if consistent with character (e.g. foreign scammer)
-
-SCAMMER;
-
-        $victimInstructions = <<<VICTIM
-# YOUR ROLE: VICTIM
-Persona: {$persona->getPersonaLabel()}
-Tone: {$persona->getPersonaTone()}
-Persona system prompt:
-{$persona->getSystemPrompt()}
-
-## How to react to this message:
-1. Carefully read the scammer's last message
-2. React CONSISTENTLY with your personality
-3. Show expected emotions (worry, doubt, curiosity, etc.)
-4. Do NOT be overly naive - ask legitimate questions
-5. But remain vulnerable to the scammer's psychological tactics
-6. NEVER reveal that you are a system/test/decoy
-7. Natural English language, short or long sentences depending on your persona
-
-VICTIM;
-
-        $instructions = $isScammerMessage ? $scammerInstructions : $victimInstructions;
-
-        return <<<PROMPT
-Generate an ULTRA-REALISTIC message for an ongoing scam conversation.
-
-# FULL CONTEXT
-Scam type: {$scamType->getCode()} - {$scamType->getLabel()}
-Scenario: {$ctxScenario}
-Psychological hook: {$ctxHook}
-Communication channel: {$ctxChannel}
-Message number: {$messageNumber}
-
-# CONVERSATION HISTORY
-$conversationHistory
-
----
-
-$instructions
-
-# CRITICAL CONSTRAINTS
-- Message between 30 and 250 words (varies by context)
-- 100% natural, fluent, realistic ENGLISH language
-- NO system signatures, metadata, or AI mentions
-- ONLY raw message content
-- No overly polite formulas if inconsistent with character
-- Use emojis ONLY if consistent with channel/character
-- If email: may include subject/body, if SMS: short and direct
-
-GENERATE THE MESSAGE NOW (raw content only):
-PROMPT;
-    }
-
-    /**
-     * Détermine l'étape de progression narrative selon le numéro de message
-     *
-     * @param array<string, mixed> $context
-     */
-    private function getProgressionStep(array $context, int $messageNumber, bool $isScammer): string
-    {
-        if (!isset($context['progression'])) {
-            return 'Continue the conversation naturally';
-        }
-
-        /** @var array<string, string> $progression */
-        $progression = $context['progression'];
-        $stepIndex = (int) floor(($messageNumber - 1) / 2);
-
-        if ($isScammer) {
-            $stepKey = 'scammer_' . ceil($messageNumber / 2);
-        } else {
-            $stepKey = 'victim_' . ceil($messageNumber / 2);
-        }
-
-        return $progression[$stepKey] ?? 'Continue the conversation coherently';
-    }
-
-    /**
-     * Construit l'historique de la conversation à partir du tableau local
-     *
-     * @param array<int, array<string, mixed>> $messages
-     */
-    private function buildConversationHistory(array $messages): string // @phpstan-ignore method.unused
-    {
-        if (empty($messages)) {
-            return '(Start of conversation)';
-        }
-
-        $history = [];
-
-        foreach ($messages as $idx => $msg) {
-            /** @var \App\Domain\Communication\Direction $direction */
-            $direction = $msg['direction'];
-            $role = $direction->getCode() === 'in' ? 'SCAMMER' : 'VICTIM';
-            /** @var string $content */
-            $content = $msg['content'] ?? '';
-            $history[] = sprintf("[Message %d - %s]\n%s\n", $idx + 1, $role, $content);
-        }
-
-        return implode("\n---\n", $history);
-    }
-
-    /**
      * Génère un sujet d'email réaliste
      *
      * @param array<string, mixed> $context
@@ -1082,9 +420,9 @@ PROMPT;
     {
         return [
             'company' => $this->randomChoice(['Microsoft', 'Apple', 'Amazon', 'PayPal', 'Netflix', 'Google']),
-            'amount' => sprintf('%.2f', rand(100, 10000) / 10),
+            'amount' => sprintf('%.2f', random_int(100, 10000) / 10),
             'currency' => $this->randomChoice(['EUR', 'USD', 'GBP']),
-            'deadline_days' => rand(1, 7),
+            'deadline_days' => random_int(1, 7),
             'reference' => strtoupper(substr(md5(uniqid()), 0, 8)),
         ];
     }
@@ -1101,54 +439,6 @@ PROMPT;
         }
 
         return $template;
-    }
-
-    /**
-     * Retourne les templates de contexte par type de scam
-     *
-     * @return array<int, array<string, mixed>>
-     */
-    private function getContextTemplates(ScamType $scamType): array // @phpstan-ignore method.unused
-    {
-        // Simplified templates - real implementation would have 100+ templates
-        $templates = [
-            'PHISH_CREDENTIALS' => [
-                [
-                    'scenario' => 'Microsoft Office 365 phishing - account suspended',
-                    'hook' => 'Your account will be deactivated in 24h unless you verify your information',
-                    'urgency_level' => 'high',
-                ],
-                [
-                    'scenario' => 'Banking phishing - suspicious transaction',
-                    'hook' => 'Unusual activity detected on your account',
-                    'urgency_level' => 'critical',
-                ],
-            ],
-            'ROMANCE' => [
-                [
-                    'scenario' => 'Romance scam - person in distress abroad',
-                    'hook' => 'Stranded abroad, need urgent help',
-                    'urgency_level' => 'medium',
-                ],
-            ],
-            'TECH_SUPPORT' => [
-                [
-                    'scenario' => 'Fake Microsoft support - infected computer',
-                    'hook' => 'Your PC is infected with a dangerous virus',
-                    'urgency_level' => 'critical',
-                ],
-            ],
-        ];
-
-        $code = $scamType->getCode();
-
-        return $templates[$code] ?? [
-            [
-                'scenario' => 'Generic scam',
-                'hook' => 'Action required',
-                'urgency_level' => 'medium',
-            ],
-        ];
     }
 
     /**
@@ -1251,7 +541,7 @@ PROMPT;
         // Essayer de récupérer un compte existant
         $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
 
-        if ($account) {
+        if ($account !== null) {
             return $account;
         }
 

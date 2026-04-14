@@ -36,8 +36,8 @@ final class IocValidator
         // Infrastructure
         'url' => '#^(https?://|www\.)[^\s<>"{}|\\^\[\]`]+$#i',
         'domain' => '/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i',
-        'ipv4' => '/^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/',
-        'ipv6' => '/^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))$/',
+        'ipv4' => '/^(?:(?:25[0-5]|2[0-4]\d|[01]?\d\d?)\.){3}(?:25[0-5]|2[0-4]\d|[01]?\d\d?)$/',
+        'ipv6' => '/^(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}\d){0,1}\d)\.){3,3}(25[0-5]|(2[0-4]|1{0,1}\d){0,1}\d)|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}\d){0,1}\d)\.){3,3}(25[0-5]|(2[0-4]|1{0,1}\d){0,1}\d))$/',
         'ip' => null,  // Special case: validate as ipv4 or ipv6
         'whois_email' => '/^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$/',
         'registrar' => '/.+/',
@@ -50,7 +50,7 @@ final class IocValidator
         'file_hash' => null,  // Special case: validate as md5, sha1, or sha256
 
         // Finance
-        'iban' => '/^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/',
+        'iban' => '/^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/',
         'bic' => '/^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/',
         'wallet_btc' => '/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,62}$/',
         'wallet_eth' => '/^0x[a-fA-F0-9]{40}$/i',
@@ -58,8 +58,8 @@ final class IocValidator
 
         // Contact channels
         'phone' => '/^[\d\s\+\(\)\-\.]{7,20}$/',
-        'telegram_username' => '/^@[a-zA-Z][a-zA-Z0-9_]{4,31}$/',
-        'discord_username' => '/^.{2,32}#[0-9]{4}$|^[a-z0-9._]{2,32}$/',  // Old format (Name#1234) or new format (username)
+        'telegram_username' => '/^@[a-zA-Z]\w{4,31}$/',
+        'discord_username' => '/^.{2,32}#\d{4}$|^[a-z0-9._]{2,32}$/',  // Old format (Name#1234) or new format (username)
         'skype_id' => '/^[a-zA-Z][a-zA-Z0-9\.,\-_]{5,31}$/',
 
         // Files
@@ -93,12 +93,24 @@ final class IocValidator
 
         // Special case: ip (validate as ipv4 or ipv6)
         if ($type === 'ip') {
-            return $this->validate('ipv4', $value) || $this->validate('ipv6', $value);
+            if ($this->validate('ipv4', $value)) {
+                return true;
+            }
+
+            return $this->validate('ipv6', $value);
         }
 
         // Special case: file_hash (validate as md5, sha1, or sha256)
         if ($type === 'file_hash') {
-            return $this->validate('md5', $value) || $this->validate('sha1', $value) || $this->validate('sha256', $value);
+            if ($this->validate('md5', $value)) {
+                return true;
+            }
+
+            if ($this->validate('sha1', $value)) {
+                return true;
+            }
+
+            return $this->validate('sha256', $value);
         }
 
         // Special case: credit_card (validate Luhn checksum)
@@ -125,13 +137,13 @@ final class IocValidator
         $value = preg_replace('/[\s\-]/', '', $value);
 
         // Check format
-        if (!preg_match('/^\d{13,19}$/', $value)) {
+        if (!preg_match('/^\d{13,19}$/', (string) $value)) {
             return false;
         }
 
         // Luhn algorithm
         $sum = 0;
-        $length = strlen($value);
+        $length = strlen((string) $value);
 
         for ($i = 0; $i < $length; $i++) {
             $digit = (int) $value[$length - 1 - $i];

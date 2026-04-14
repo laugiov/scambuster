@@ -9,10 +9,10 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Analyzes epsilon-greedy persona selection convergence per scam type.
  */
-final class BanditAnalyzer
+final readonly class BanditAnalyzer
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 
@@ -191,7 +191,7 @@ final class BanditAnalyzer
         }
 
         $allRewards = array_merge(...array_values($personaRewards));
-        $actualTotal = !empty($allRewards) ? array_sum($allRewards) : 0.0;
+        $actualTotal = $allRewards === [] ? 0.0 : array_sum($allRewards);
         $oracleTotal = $bestMean * $totalSessions;
 
         return max(0.0, $oracleTotal - $actualTotal);
@@ -204,7 +204,7 @@ final class BanditAnalyzer
     {
         $allRewards = array_merge(...array_values($personaRewards));
 
-        if (empty($allRewards)) {
+        if ($allRewards === []) {
             return 0.0;
         }
 

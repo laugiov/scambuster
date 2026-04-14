@@ -12,12 +12,12 @@ use Doctrine\ORM\EntityManagerInterface;
  * Returns status for each service: ok, error, or degraded.
  * Used by the /api/health endpoint.
  */
-final class HealthCheckHandler
+final readonly class HealthCheckHandler
 {
     private float $startTime;
 
     public function __construct(
-        private readonly EntityManagerInterface $em
+        private EntityManagerInterface $em
     ) {
         $this->startTime = $_SERVER['REQUEST_TIME_FLOAT'] ?? microtime(true);
     }
@@ -79,6 +79,7 @@ final class HealthCheckHandler
 
         try {
             $start = microtime(true);
+            /** @var string $redisUrl */
             $parsed = parse_url($redisUrl);
             $host = $parsed['host'] ?? 'redis';
             $port = $parsed['port'] ?? 6379;

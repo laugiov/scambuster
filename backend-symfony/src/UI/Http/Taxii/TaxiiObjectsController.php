@@ -13,13 +13,12 @@ use Symfony\Component\Routing\Annotation\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 #[IsGranted('ioc:read')]
-final class TaxiiObjectsController
+final readonly class TaxiiObjectsController
 {
     public function __construct(
-        private readonly TaxiiService $taxiiService,
+        private TaxiiService $taxiiService,
     ) {
     }
-
     #[OA\Get(
         path: '/api/v1/taxii2/api/collections/{collectionId}/objects/',
         summary: 'TAXII 2.1 Collection Objects',

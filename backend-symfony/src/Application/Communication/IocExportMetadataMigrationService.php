@@ -10,10 +10,10 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Fetches all ObservedIoc entities and flushes after enrichment.
  */
-final class IocExportMetadataMigrationService
+final readonly class IocExportMetadataMigrationService
 {
     public function __construct(
-        private readonly EntityManagerInterface $em,
+        private EntityManagerInterface $em,
     ) {
     }
 

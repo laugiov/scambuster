@@ -56,7 +56,7 @@ final class IocConfidenceCalculator
      */
     public static function computeDecayFactor(string $iocType, \DateTimeImmutable $lastSeen, ?\DateTimeImmutable $now = null): float
     {
-        $now = $now ?? new \DateTimeImmutable();
+        $now ??= new \DateTimeImmutable();
         $ageDays = max(0, (int) $now->diff($lastSeen)->days);
 
         if ($ageDays === 0) {

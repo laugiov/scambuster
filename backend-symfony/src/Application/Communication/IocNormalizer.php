@@ -101,12 +101,10 @@ final class IocNormalizer
         $url = trim($url);
 
         // Defang: http -> hxxp, https -> hxxps
-        $url = preg_replace_callback('/^https?/', function ($matches) {
-            return str_replace('http', 'hxxp', $matches[0]);
-        }, $url);
+        $url = preg_replace_callback('/^https?/', fn ($matches): string => str_replace('http', 'hxxp', $matches[0]), $url);
 
         // Defang dots in domain part
-        if (preg_match('#^(hxxps?://)(www\.)?([^/]+)(.*)$#i', $url, $matches)) {
+        if (preg_match('#^(hxxps?://)(www\.)?([^/]+)(.*)$#i', (string) $url, $matches)) {
             $protocol = $matches[1];
             $www = $matches[2];
             $domain = $matches[3];
@@ -119,7 +117,7 @@ final class IocNormalizer
         }
 
         // Remove trailing slash
-        $url = rtrim($url, '/');
+        $url = rtrim((string) $url, '/');
 
         // Lowercase (defanged URLs should be lowercase for comparison)
         return strtolower($url);
@@ -165,7 +163,7 @@ final class IocNormalizer
      */
     private function normalizeIban(string $iban): string
     {
-        return strtoupper(preg_replace('/\s+/', '', $iban));
+        return strtoupper((string) preg_replace('/\s+/', '', $iban));
     }
 
     /**
@@ -206,9 +204,7 @@ final class IocNormalizer
     public function defang(string $value): string
     {
         // Replace http/https
-        $value = preg_replace_callback('/https?/i', function ($matches) {
-            return str_replace('http', 'hxxp', strtolower($matches[0]));
-        }, $value);
+        $value = preg_replace_callback('/https?/i', fn ($matches): string => str_replace('http', 'hxxp', strtolower((string) $matches[0])), $value);
 
         // Replace dots
         $value = str_replace('.', '[.]', $value);
@@ -225,9 +221,7 @@ final class IocNormalizer
     public function refang(string $value): string
     {
         // Replace hxxp/hxxps
-        $value = preg_replace_callback('/hxxps?/i', function ($matches) {
-            return str_replace('hxxp', 'http', strtolower($matches[0]));
-        }, $value);
+        $value = preg_replace_callback('/hxxps?/i', fn ($matches): string => str_replace('hxxp', 'http', strtolower((string) $matches[0])), $value);
 
         // Replace [.]
         $value = str_replace('[.]', '.', $value);

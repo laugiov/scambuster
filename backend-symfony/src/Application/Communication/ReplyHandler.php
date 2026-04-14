@@ -83,7 +83,7 @@ class ReplyHandler
         // - mode 'warning': log a warning and proceed (used during the
         //   one-week telemetry validation window before flipping to enforce)
         // - cost handler unset: skip entirely (legacy DI compatibility)
-        if ($this->costHandler !== null && $this->costHandler->isLimitExceeded()) {
+        if ($this->costHandler instanceof \App\Application\Monitoring\LlmCostHandler && $this->costHandler->isLimitExceeded()) {
             if ($this->budgetEnforcementMode === 'enforce') {
                 throw new LlmBudgetExceededException(
                     $this->costHandler->getCurrentMonthUsdSpent(),
@@ -117,7 +117,7 @@ class ReplyHandler
 
         $parentMessage = $this->messageHandler->getMessage($lastMsgId);
 
-        if (!$parentMessage) {
+        if (!$parentMessage instanceof \App\Domain\Communication\Message) {
             return null;
         }
 
@@ -159,6 +159,7 @@ class ReplyHandler
 
         // Simple text and HTML versions (no conversation history needed - Gmail handles threading)
         $replyText = $newReplyContent;
+        /** @var string $newReplyContent */
         $replyHtml = '<div>' . nl2br(htmlspecialchars($newReplyContent, ENT_QUOTES, 'UTF-8')) . '</div>';
 
         // Determine recipient
@@ -221,7 +222,7 @@ class ReplyHandler
             $conversation,
             $channelEmail,
             $directionOut,
-            (string) $context['detected_language'],
+            $context['detected_language'],
             $subject,
             $replyText,
             $replyHtml,
@@ -250,7 +251,7 @@ class ReplyHandler
                 'model' => $llmResult['model'] ?? 'unknown',
                 'cost' => $llmResult['cost_estimate'] ?? 0,
                 'attempts' => $llmResult['attempts'] ?? 1,
-                'detected_language' => (string) $context['detected_language'],
+                'detected_language' => $context['detected_language'],
                 'fallback_used' => $llmResult['fallback_used'] ?? false,
             ],
         );

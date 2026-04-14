@@ -15,10 +15,10 @@ use Doctrine\ORM\EntityManagerInterface;
  * - Bandit convergence state
  * - System readiness for autonomous operation
  */
-final class AutonomyMonitoringHandler
+final readonly class AutonomyMonitoringHandler
 {
     public function __construct(
-        private readonly EntityManagerInterface $em
+        private EntityManagerInterface $em
     ) {
     }
 

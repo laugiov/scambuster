@@ -16,11 +16,11 @@ use Symfony\Component\Routing\Attribute\Route;
  * Returns metrics in Prometheus text exposition format,
  * scrapable by any Prometheus instance.
  */
-final class MetricsController
+final readonly class MetricsController
 {
     public function __construct(
-        private readonly AutonomyMonitoringHandler $autonomyHandler,
-        private readonly HealthCheckHandler $healthHandler
+        private AutonomyMonitoringHandler $autonomyHandler,
+        private HealthCheckHandler $healthHandler
     ) {
     }
 

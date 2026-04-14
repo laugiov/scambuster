@@ -22,13 +22,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     responses: [new OA\Response(response: 200, description: 'Pipeline timeline data')],
     security: [['Bearer' => []]],
 )]
-final class PipelineTimelineController
+final readonly class PipelineTimelineController
 {
     public function __construct(
-        private readonly AnalyticsHandler $handler,
+        private AnalyticsHandler $handler,
     ) {
     }
-
     #[Route('/api/v1/monitoring/analytics/pipeline-timeline', name: 'api_analytics_pipeline_timeline', methods: ['GET'])]
     #[IsGranted('monitoring:read')]
     public function __invoke(Request $request): JsonResponse

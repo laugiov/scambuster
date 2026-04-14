@@ -21,7 +21,7 @@ use Psr\Log\LoggerInterface;
  *
  * @see IocConfidenceCalculator::computeSeverity()
  */
-final class IocClusteringService
+final readonly class IocClusteringService
 {
     /** @var array<string> Cached list of HIGH-severity IOC types (intrinsic, not enrichment-upgraded) */
     private array $anchorTypes;
@@ -41,12 +41,12 @@ final class IocClusteringService
     ];
 
     public function __construct(
-        private readonly Connection $conn,
-        private readonly LoggerInterface $logger,
+        private Connection $conn,
+        private LoggerInterface $logger,
     ) {
         // Determine anchor types from IocConfidenceCalculator (single source of truth)
         // Only types that are HIGH WITHOUT enrichment (computeSeverity with vt=0, urlscan=0)
-        $this->anchorTypes = self::resolveAnchorTypes();
+        $this->anchorTypes = $this->resolveAnchorTypes();
     }
 
     /**
@@ -65,7 +65,7 @@ final class IocClusteringService
      */
     public function findSharedConversations(string $convId): array
     {
-        if (empty($this->anchorTypes)) {
+        if ($this->anchorTypes === []) {
             $this->logger->debug('[IocClustering] No anchor types configured, skipping lookup');
 
             return [];
@@ -109,7 +109,7 @@ final class IocClusteringService
      *
      * @return array<string>
      */
-    private static function resolveAnchorTypes(): array
+    private function resolveAnchorTypes(): array
     {
         // All known IOC types to test
         $candidates = [
@@ -166,7 +166,7 @@ final class IocClusteringService
         // Step 1: Find shared conversations via anchor IOCs
         $shared = $this->findSharedConversations($convId);
 
-        if (empty($shared)) {
+        if ($shared === []) {
             // No shared anchor IOCs → singleton, nothing to do
             return;
         }
@@ -189,7 +189,7 @@ final class IocClusteringService
         )));
 
         // Step 4: Decision
-        if (empty($existingClusterIds)) {
+        if ($existingClusterIds === []) {
             // Case A: No existing clusters → create new cluster with all involved conversations
             $allConvIds = array_merge([$convId], $sharedConvIds);
             $this->createCluster($allConvIds, $convId);
@@ -236,14 +236,14 @@ final class IocClusteringService
         // Get anchor IOCs for the trigger conversation
         $anchorIocs = $this->getAnchorIocsForConversation($triggerConvId);
 
-        if (empty($anchorIocs)) {
+        if ($anchorIocs === []) {
             return;
         }
 
         // Generate deterministic STIX ID
         $generator = new \App\Domain\Clustering\Service\ClusterStixIdGenerator();
         $normalizedValues = array_map(
-            fn (array $ioc) => \App\Domain\Clustering\ValueObject\NormalizedIocValue::normalize($ioc['type'], $ioc['value']),
+            fn (array $ioc): string => \App\Domain\Clustering\ValueObject\NormalizedIocValue::normalize($ioc['type'], $ioc['value']),
             $anchorIocs
         );
         $stixId = $generator->generate($normalizedValues);
@@ -360,7 +360,7 @@ final class IocClusteringService
 
         /** @var string $survivorId */
         $survivorId = $rows[0]['cluster_id'];
-        $absorbedIds = array_filter($clusterIds, fn ($id) => $id !== $survivorId);
+        $absorbedIds = array_filter($clusterIds, fn ($id): bool => $id !== $survivorId);
 
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
 
@@ -479,7 +479,7 @@ final class IocClusteringService
      */
     private function getAnchorIocsForConversation(string $convId): array
     {
-        if (empty($this->anchorTypes)) {
+        if ($this->anchorTypes === []) {
             return [];
         }
 
@@ -495,7 +495,7 @@ final class IocClusteringService
             array_merge([$convId], $this->anchorTypes)
         );
 
-        return array_values(array_filter($results, fn (array $ioc) => !$this->isExcludedAnchor($ioc['type'], $ioc['value'])));
+        return array_values(array_filter($results, fn (array $ioc): bool => !$this->isExcludedAnchor($ioc['type'], $ioc['value'])));
     }
 
     /**
@@ -507,7 +507,7 @@ final class IocClusteringService
      */
     private function getClusterMapForConversations(array $convIds): array
     {
-        if (empty($convIds)) {
+        if ($convIds === []) {
             return [];
         }
 
@@ -554,7 +554,7 @@ final class IocClusteringService
      */
     private function getClusterMetadata(array $convIds): array
     {
-        if (empty($convIds)) {
+        if ($convIds === []) {
             return ['sophistication' => 'none', 'scam_types' => [], 'first_seen' => '', 'last_seen' => ''];
         }
 

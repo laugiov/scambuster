@@ -69,7 +69,7 @@ class PreprodGenerateConversationsCommand extends Command
         $scamTypes = $this->em->getRepository(ScamType::class)->findBy(['active' => true]);
         $channels = $this->em->getRepository(Channel::class)->findAll();
 
-        if (empty($personas) || empty($scamTypes) || empty($channels)) {
+        if ($personas === [] || $scamTypes === [] || $channels === []) {
             $io->error('Données de référence manquantes. Assurez-vous que personas, scam_types et channels sont chargés.');
 
             return Command::FAILURE;
@@ -263,7 +263,7 @@ class PreprodGenerateConversationsCommand extends Command
         shuffle($combinations);
 
         // Collect channel IDs
-        $channelIds = array_map(fn (Channel $c) => $c->getChannelId(), $channels);
+        $channelIds = array_map(fn (Channel $c): int => $c->getChannelId(), $channels);
 
         // Distribuer les conversations
         $combinationIndex = 0;
@@ -275,7 +275,7 @@ class PreprodGenerateConversationsCommand extends Command
                 'persona_id' => $combination['persona_id'],
                 'scam_type_id' => $combination['scam_type_id'],
                 'channel_id' => $channelIds[array_rand($channelIds)],
-                'message_count' => rand(self::MIN_MESSAGES, self::MAX_MESSAGES),
+                'message_count' => random_int(self::MIN_MESSAGES, self::MAX_MESSAGES),
             ];
 
             $combinationIndex++;

@@ -86,7 +86,7 @@ class IocUpsertService
     {
         $message = $this->resolveMessage($data);
 
-        if (!$message) {
+        if (!$message instanceof \App\Domain\Communication\Message) {
             throw new \RuntimeException(sprintf(
                 'Message not found for external_message_id=%s or msg_id=%s',
                 $data['message_id'] ?? 'null',
@@ -120,7 +120,7 @@ class IocUpsertService
 
         $existingIoc = $this->findExistingIoc($message->getMsgId(), $type, $valueNorm);
 
-        if ($existingIoc) {
+        if ($existingIoc instanceof \App\Domain\Communication\ObservedIoc) {
             $this->updateIocContext($existingIoc, $data);
             $this->em->flush();
 
@@ -289,7 +289,7 @@ class IocUpsertService
             try {
                 $this->upsertEnrichedIoc($payload);
                 ++$count;
-            } catch (\Exception $e) {
+            } catch (\Exception) {
                 continue;
             }
         }
@@ -309,7 +309,7 @@ class IocUpsertService
         if (!empty($data['message_id'])) {
             $message = $repo->findOneBy(['externalMessageId' => $data['message_id']]);
 
-            if ($message) {
+            if ($message !== null) {
                 return $message;
             }
         }

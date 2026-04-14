@@ -47,7 +47,7 @@ class CorpusGenerator
     ): array {
         $conversations = $this->loadConversations($filters, $count);
 
-        if (empty($conversations)) {
+        if ($conversations === []) {
             return ['entries' => [], 'summary' => $this->buildSummary([], $dryRun)];
         }
 
@@ -70,7 +70,7 @@ class CorpusGenerator
                 $entries[] = $this->buildDryRunEntry($conv);
                 ++$processed;
 
-                if ($onProgress !== null) {
+                if ($onProgress instanceof \Closure) {
                     $onProgress($processed, $count);
                 }
 
@@ -87,7 +87,7 @@ class CorpusGenerator
                 }
 
                 // Call ReplyOrchestrator directly — no message persistence
-                if ($this->replyOrchestrator === null) {
+                if (!$this->replyOrchestrator instanceof \App\Application\LLM\ReplyOrchestrator) {
                     $this->logger->warning('ReplyOrchestrator not available, skipping {conv_id}', ['conv_id' => $convId]);
 
                     continue;
@@ -100,7 +100,7 @@ class CorpusGenerator
                 $entries[] = $this->buildOrchestratorEntry($conv, $context, $llmResult);
                 ++$processed;
 
-                if ($onProgress !== null) {
+                if ($onProgress instanceof \Closure) {
                     $onProgress($processed, $count);
                 }
 

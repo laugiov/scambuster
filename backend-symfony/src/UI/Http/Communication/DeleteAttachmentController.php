@@ -34,12 +34,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class DeleteAttachmentController
+final readonly class DeleteAttachmentController
 {
     public function __construct(private AttachmentHandler $handler)
     {
     }
-
     #[Route('/api/v1/communication/attachment/{attachmentId}', name: 'delete_attachment', methods: ['DELETE'])]
     #[IsGranted('conversation:write')]
     public function __invoke(string $attachmentId): JsonResponse

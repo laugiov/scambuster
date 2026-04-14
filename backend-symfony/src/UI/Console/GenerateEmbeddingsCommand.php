@@ -89,7 +89,7 @@ final class GenerateEmbeddingsCommand extends Command
 
             $embeddings = $this->embeddingService->generateBatch($texts);
 
-            if (empty($embeddings)) {
+            if ($embeddings === []) {
                 $errors += count($batch);
                 $progressBar->advance(count($batch));
 

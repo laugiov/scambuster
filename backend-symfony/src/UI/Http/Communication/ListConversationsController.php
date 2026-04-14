@@ -37,20 +37,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class ListConversationsController
+final readonly class ListConversationsController
 {
     public function __construct(
-        private readonly ConversationHandler $handler
+        private ConversationHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/conversation', name: 'list_conversations', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(Request $request): JsonResponse
     {
         $page = max(1, (int)$request->query->get('page', '1'));
         $limit = max(1, (int)$request->query->get('limit', '20'));
-        $offset = ($page - 1) * $limit;
         /** @var string|null $status */
         $status = $request->query->get('status');
         /** @var string|null $from */
@@ -58,10 +56,10 @@ final class ListConversationsController
         /** @var string|null $to */
         $to = $request->query->get('to');
         $convs = $this->handler->getFilteredConversations($page, $limit, $status, $from, $to);
-        $convIds = array_values(array_map(static fn ($c) => $c->getConvId(), $convs));
+        $convIds = array_values(array_map(static fn ($c): string => $c->getConvId(), $convs));
         $messageCounts = $this->handler->getMessageCountsForConversations($convIds);
         $iocCounts = $this->handler->getIocCountsForConversations($convIds);
-        $result = array_map(function ($conv) use ($messageCounts, $iocCounts) {
+        $result = array_map(function ($conv) use ($messageCounts, $iocCounts): array {
             $persona = $conv->getPersona();
             $scamType = $conv->getScamType();
             $dto = new ConversationListItemDto(

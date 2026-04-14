@@ -7,22 +7,22 @@ namespace App\Application\Communication;
 /**
  * Result of scam classification
  */
-final class ClassificationResult
+final readonly class ClassificationResult
 {
     /**
      * @param array{label_en?: string, label_fr?: string, persona_code?: string, persona_label?: string, persona_tone?: string, system_prompt?: string}|null $personaData           New type labels and optional persona data
      * @param string[]|null                                                                                                                                  $suggestedPersonaCodes List of suggested persona codes for new scam types
      */
     public function __construct(
-        public readonly string $scamTypeCode,
-        public readonly float $confidence,
-        public readonly bool $isNewType,
-        public readonly bool $isNewPersona,
-        public readonly ?string $personaCode,
-        public readonly string $reasoning,
-        public readonly ?array $personaData = null,
-        public readonly ?array $suggestedPersonaCodes = null,
-        public readonly string $detectedLanguage = 'en',
+        public string $scamTypeCode,
+        public float $confidence,
+        public bool $isNewType,
+        public bool $isNewPersona,
+        public ?string $personaCode,
+        public string $reasoning,
+        public ?array $personaData = null,
+        public ?array $suggestedPersonaCodes = null,
+        public string $detectedLanguage = 'en',
     ) {
     }
 

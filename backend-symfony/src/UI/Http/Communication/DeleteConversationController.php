@@ -34,13 +34,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class DeleteConversationController
+final readonly class DeleteConversationController
 {
     public function __construct(
-        private readonly ConversationHandler $handler
+        private ConversationHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/conversation/{convId}', name: 'delete_conversation', methods: ['DELETE'])]
     #[IsGranted('conversation:write')]
     public function __invoke(string $convId): JsonResponse

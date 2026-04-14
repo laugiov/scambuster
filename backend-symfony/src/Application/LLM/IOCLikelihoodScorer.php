@@ -132,12 +132,6 @@ final class IOCLikelihoodScorer
         foreach (self::CHANNEL_KEYWORDS as $channel => $keywords) {
             foreach ($keywords as $keyword) {
                 if (str_contains($textLower, $keyword)) {
-                    // Bonus if it matches the target channel
-                    if ($channel === $canalCible) {
-                        return true;
-                    }
-
-                    // Still good if it targets any specific channel
                     return true;
                 }
             }
@@ -177,7 +171,7 @@ final class IOCLikelihoodScorer
         // Extract keywords from attacker message (words >4 chars, excluding common words)
         $commonWords = ['pour', 'votre', 'vous', 'avec', 'dans', 'cette', 'plus', 'tout', 'tous', 'faire', 'être', 'avoir'];
         $attackerWords = preg_split('/\s+/', $attackerTextLower) ?: [];
-        $significantWords = array_filter($attackerWords, fn ($w) => strlen($w) > 4 && !in_array($w, $commonWords, true));
+        $significantWords = array_filter($attackerWords, fn ($w): bool => strlen((string) $w) > 4 && !in_array($w, $commonWords, true));
 
         // Check if reply references at least one significant word
         foreach ($significantWords as $word) {
@@ -246,11 +240,9 @@ final class IOCLikelihoodScorer
                 $previousTextLower = mb_strtolower($msg['body_text']);
 
                 // Extract question patterns
-                if (preg_match('/quel(?:le|s)?\s+(\w+)/i', $previousTextLower, $prevMatches) &&
-                    preg_match('/quel(?:le|s)?\s+(\w+)/i', $textLower, $currMatches)) {
-                    if ($prevMatches[1] === $currMatches[1]) {
-                        return true; // Same question pattern
-                    }
+                if (preg_match('/quel(?:le|s)?\s+(\w+)/i', $previousTextLower, $prevMatches) && preg_match('/quel(?:le|s)?\s+(\w+)/i', $textLower, $currMatches) && $prevMatches[1] === $currMatches[1]) {
+                    return true;
+                    // Same question pattern
                 }
             }
         }

@@ -17,15 +17,15 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  * to determine the semantic role of IOCs, scammer urgency, and other
  * contextual signals. Fail-safe: returns null on any failure.
  */
-final class ContextualEnricher
+final readonly class ContextualEnricher
 {
     private const PROMPT_TEMPLATE_PATH = __DIR__ . '/../../../local/prompts/contextual_enrichment.txt';
 
     public function __construct(
-        private readonly LLMClientInterface $llmClient,
-        private readonly MessageAnonymizer $anonymizer,
-        private readonly EventDispatcherInterface $dispatcher,
-        private readonly LoggerInterface $logger,
+        private LLMClientInterface $llmClient,
+        private MessageAnonymizer $anonymizer,
+        private EventDispatcherInterface $dispatcher,
+        private LoggerInterface $logger,
     ) {
     }
 

@@ -225,7 +225,7 @@ final class ConversationAnalyzer
         // Format conversation history
         $conversationHistory = $this->formatConversationHistory($preparedMessages);
 
-        $prompt = <<<PROMPT
+        return <<<PROMPT
 Tu es un analyste expert en conversations de honeypot anti-scam.
 
 CONTEXTE :
@@ -490,8 +490,6 @@ IMPORTANT :
 IMPORTANT : En cas de doute, détecte la langue du DERNIER message de l'attaquant et utilise cette langue pour tes instructions.
 
 PROMPT;
-
-        return $prompt;
     }
 
     /**
@@ -501,7 +499,7 @@ PROMPT;
      */
     private function formatIocsSummary(array $iocs): string
     {
-        if (empty($iocs)) {
+        if ($iocs === []) {
             return 'Aucun IOC extrait pour le moment';
         }
 
@@ -532,8 +530,8 @@ PROMPT;
 
         foreach ($messages as $index => $msg) {
             $direction = $msg['direction'] === 'in' ? 'SCAMMER' : ($msg['direction'] === 'out' ? 'VICTIME' : 'RÉSUMÉ');
-            $timestamp = !empty($msg['ts_msg']) ? ' (' . $msg['ts_msg'] . ')' : '';
-            $subject = !empty($msg['subject']) ? "\nSujet: {$msg['subject']}" : '';
+            $timestamp = empty($msg['ts_msg']) ? '' : ' (' . $msg['ts_msg'] . ')';
+            $subject = empty($msg['subject']) ? '' : "\nSujet: {$msg['subject']}";
 
             $formatted[] = sprintf(
                 "Message #%d - %s%s:%s\n%s",
@@ -649,11 +647,11 @@ PROMPT;
         $json = preg_replace(
             '/"([^"]+)"\s*×\s*(\d+)\s*\]/U',
             '"$1 × $2"]',
-            $json
+            (string) $json
         );
 
         // Remove any trailing commas before closing brackets/braces
-        $json = preg_replace('/,\s*([}\]])/', '$1', $json);
+        $json = preg_replace('/,\s*([}\]])/', '$1', (string) $json);
 
         return $json;
     }
@@ -725,11 +723,10 @@ PROMPT;
         $recentMessages = array_slice($allMessages, -3); // Last 3 messages
 
         foreach ($recentMessages as $msg) {
-            if ($msg['direction'] === 'in') { // Message from scammer
-                // Look for IBAN pattern (FR76, DE89, GB82, etc.)
-                if (preg_match('/\b[A-Z]{2}\d{2}[\s\d]{10,30}\b/i', $msg['body_text'])) {
-                    return 'IBAN_CAPTURED';
-                }
+            // Message from scammer
+            // Look for IBAN pattern (FR76, DE89, GB82, etc.)
+            if ($msg['direction'] === 'in' && preg_match('/\b[A-Z]{2}\d{2}[\s\d]{10,30}\b/i', $msg['body_text'])) {
+                return 'IBAN_CAPTURED';
             }
         }
 

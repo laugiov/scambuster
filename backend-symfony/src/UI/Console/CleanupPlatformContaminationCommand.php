@@ -104,9 +104,9 @@ final class CleanupPlatformContaminationCommand extends Command
 
         /** @var list<string> $overrides */
         $overrides = $input->getOption('honeypot-address');
-        $honeypotAddresses = !empty($overrides)
-            ? array_values(array_unique(array_map(fn ($a) => strtolower(trim($a)), $overrides)))
-            : $this->defaultHoneypotAddresses;
+        $honeypotAddresses = empty($overrides)
+            ? $this->defaultHoneypotAddresses
+            : array_values(array_unique(array_map(fn ($a) => strtolower(trim($a)), $overrides)));
 
         $io->title('Spec 061 — Platform contamination cleanup');
 
@@ -116,7 +116,7 @@ final class CleanupPlatformContaminationCommand extends Command
 
         $io->section('Phase 1 — Honeypot addresses');
 
-        if (empty($honeypotAddresses)) {
+        if ($honeypotAddresses === []) {
             $io->writeln('  (none configured — phase 7 will be a no-op)');
         } else {
             foreach ($honeypotAddresses as $a) {
@@ -261,7 +261,7 @@ final class CleanupPlatformContaminationCommand extends Command
         $honeypotIndicators = 0;
         $honeypotObservations = 0;
 
-        if (!empty($honeypotAddresses)) {
+        if ($honeypotAddresses !== []) {
             $honeypotIndicators = $this->countQuery(
                 "SELECT COUNT(*) FROM indicator
                  WHERE type = 'email' AND LOWER(value_norm) IN (?)",
@@ -319,7 +319,7 @@ final class CleanupPlatformContaminationCommand extends Command
         }
 
         // Phase 7 candidates
-        if (!empty($honeypotAddresses)) {
+        if ($honeypotAddresses !== []) {
             $rows = $this->conn->fetchAllAssociative(
                 "SELECT indicator_id, type, value_norm
                  FROM indicator
@@ -360,7 +360,7 @@ final class CleanupPlatformContaminationCommand extends Command
      */
     private function deleteHoneypotIndicators(array $honeypotAddresses): int
     {
-        if (empty($honeypotAddresses)) {
+        if ($honeypotAddresses === []) {
             return 0;
         }
 

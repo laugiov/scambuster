@@ -15,13 +15,12 @@ use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/v1/campaign/cluster/assign', name: 'api_campaign_cluster_assign', methods: ['POST'])]
 #[IsGranted('campaign:read')]
-final class ClusterAssignController
+final readonly class ClusterAssignController
 {
     public function __construct(
-        private readonly ClusterAssignHandler $handler
+        private ClusterAssignHandler $handler
     ) {
     }
-
     #[OA\Post(
         path: '/api/v1/campaign/cluster/assign',
         summary: 'Assigner un message à une campagne via clustering',

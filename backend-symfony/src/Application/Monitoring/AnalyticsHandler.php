@@ -6,10 +6,10 @@ namespace App\Application\Monitoring;
 
 use Doctrine\DBAL\Connection;
 
-final class AnalyticsHandler
+final readonly class AnalyticsHandler
 {
     public function __construct(
-        private readonly Connection $connection,
+        private Connection $connection,
     ) {
     }
 
@@ -119,7 +119,7 @@ final class AnalyticsHandler
 
         $rows = $this->connection->fetchAllAssociative($sql);
 
-        $data = array_map(static fn (array $row) => [
+        $data = array_map(static fn (array $row): array => [
             'label' => self::rowStr($row, 'label'),
             'count' => self::rowInt($row, 'count'),
         ], $rows);
@@ -145,7 +145,7 @@ final class AnalyticsHandler
 
         $rows = $this->connection->fetchAllAssociative($sql);
 
-        $data = array_map(static fn (array $row) => [
+        $data = array_map(static fn (array $row): array => [
             'label' => self::rowStr($row, 'label'),
             'count' => self::rowInt($row, 'count'),
         ], $rows);
@@ -183,7 +183,7 @@ final class AnalyticsHandler
         $costByDate = [];
 
         foreach ($rows as $row) {
-            $costByDate[self::rowStr($row, 'date')] = round(self::rowFloat($row, 'cost_usd'), 6);
+            $costByDate[self::rowStr($row, 'date')] = round($this->rowFloat($row, 'cost_usd'), 6);
         }
 
         for ($d = $startDate; $d <= $endDate; $d = $d->modify('+1 day')) {
@@ -294,7 +294,7 @@ final class AnalyticsHandler
 
         $rows = $this->connection->fetchAllAssociative($sql);
 
-        $events = array_map(static fn (array $row) => [
+        $events = array_map(static fn (array $row): array => [
             'event_type' => self::rowStr($row, 'event_type'),
             'ref_id' => self::rowStr($row, 'ref_id'),
             'ts' => self::rowStr($row, 'ts'),
@@ -419,7 +419,7 @@ final class AnalyticsHandler
     /**
      * @param array<string, mixed> $row
      */
-    private static function rowFloat(array $row, string $key): float
+    private function rowFloat(array $row, string $key): float
     {
         return \is_numeric($row[$key]) ? (float) $row[$key] : 0.0;
     }

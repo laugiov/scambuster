@@ -53,7 +53,7 @@ final class GenerateActorProfilesCommand extends Command
             ORDER BY msg_count DESC
         ", ['minMsgs' => $minConvs * 2]); // at least 2 messages per conversation
 
-        if (empty($campaigns)) {
+        if ($campaigns === []) {
             $io->success('No campaigns need actor profiling.');
 
             return Command::SUCCESS;

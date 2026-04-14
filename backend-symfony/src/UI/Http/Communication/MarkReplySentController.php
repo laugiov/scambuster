@@ -56,12 +56,11 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class MarkReplySentController
+final readonly class MarkReplySentController
 {
     public function __construct(private ReplyHandler $handler)
     {
     }
-
     #[Route('/api/v1/communication/reply/{msgId}/sent', name: 'mark_reply_sent', methods: ['POST'])]
     #[IsGranted('reply:generate')]
     public function __invoke(string $msgId, Request $request): JsonResponse

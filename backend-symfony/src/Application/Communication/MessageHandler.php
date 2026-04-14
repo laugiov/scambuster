@@ -14,7 +14,7 @@ use Doctrine\ORM\EntityManagerInterface;
 
 class MessageHandler
 {
-    public function __construct(private EntityManagerInterface $em)
+    public function __construct(private readonly EntityManagerInterface $em)
     {
     }
 
@@ -66,12 +66,12 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return false;
         }
-        $vector = $this->em->getRepository('App\\Domain\\Communication\\MessageVector')->findOneBy(['vectorId' => $msgId]);
+        $vector = $this->em->getRepository(\App\Domain\Communication\MessageVector::class)->findOneBy(['vectorId' => $msgId]);
 
-        if ($vector) {
+        if ($vector !== null) {
             $this->em->remove($vector);
         }
         $this->em->remove($message);
@@ -85,7 +85,7 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return null;
         }
 
@@ -119,7 +119,7 @@ class MessageHandler
         if (array_key_exists('direction', $data)) {
             $dir = $this->em->getRepository(Direction::class)->findOneBy(['code' => $data['direction']]);
 
-            if (!$dir) {
+            if ($dir === null) {
                 throw new \RuntimeException('Invalid direction');
             }
             $message->setDirection($dir);
@@ -140,7 +140,7 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return [];
         }
 
@@ -152,7 +152,7 @@ class MessageHandler
     {
         $message = $this->em->getRepository(Message::class)->find($msgId);
 
-        if (!$message) {
+        if ($message === null) {
             return [];
         }
 

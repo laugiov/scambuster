@@ -37,19 +37,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class GetMessageAttachmentsController
+final readonly class GetMessageAttachmentsController
 {
     public function __construct(
-        private readonly MessageHandler $handler
+        private MessageHandler $handler
     ) {
     }
-
     #[Route('/api/v1/communication/message/{msgId}/attachments', name: 'get_message_attachments', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $msgId): JsonResponse
     {
         $attachments = $this->handler->getMessageAttachments($msgId);
-        $result = array_map(fn ($att) => [
+        $result = array_map(fn ($att): array => [
             'attachment_id' => $att->getAttachmentId(),
             'filename' => $att->getFilename(),
             'mime_type' => $att->getMimeType(),

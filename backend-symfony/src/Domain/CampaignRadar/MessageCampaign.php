@@ -14,14 +14,6 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\Index(columns: ['detected_at'], name: 'idx_message_campaign_detected')]
 class MessageCampaign
 {
-    #[ORM\Id]
-    #[ORM\Column(name: 'msg_id', type: 'uuid')]
-    private Uuid $msgId;
-
-    #[ORM\Id]
-    #[ORM\Column(name: 'campaign_id', type: 'uuid')]
-    private Uuid $campaignId;
-
     #[ORM\Column(type: Types::DECIMAL, precision: 5, scale: 4)]
     private string $confidence;
 
@@ -48,8 +40,12 @@ class MessageCampaign
     private ?bool $isTruePositive = null;
 
     public function __construct(
-        Uuid $msgId,
-        Uuid $campaignId,
+        #[ORM\Id]
+        #[ORM\Column(name: 'msg_id', type: 'uuid')]
+        private Uuid $msgId,
+        #[ORM\Id]
+        #[ORM\Column(name: 'campaign_id', type: 'uuid')]
+        private Uuid $campaignId,
         float $confidence,
         string $detectedBy
     ) {
@@ -60,9 +56,6 @@ class MessageCampaign
         if (trim($detectedBy) === '') {
             throw new \DomainException('detectedBy cannot be empty');
         }
-
-        $this->msgId = $msgId;
-        $this->campaignId = $campaignId;
         $this->confidence = number_format($confidence, 4, '.', '');
         $this->detectedAt = new \DateTimeImmutable();
         $this->detectedBy = $detectedBy;

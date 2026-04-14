@@ -39,19 +39,18 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     ],
     security: [ [ 'Bearer' => [] ] ]
 )]
-final class DownloadAttachmentController
+final readonly class DownloadAttachmentController
 {
     public function __construct(private AttachmentHandler $handler)
     {
     }
-
     #[Route('/api/v1/communication/attachment/{attachmentId}/download', name: 'download_attachment', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $attachmentId): JsonResponse
     {
         $attachment = $this->handler->getAttachment($attachmentId);
 
-        if (!$attachment || $attachment->getDeletedAt() !== null) {
+        if (!$attachment || $attachment->getDeletedAt() instanceof \DateTimeImmutable) {
             return new JsonResponse(['error' => 'Attachment not found'], Response::HTTP_NOT_FOUND);
         }
 
