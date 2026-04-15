@@ -33,3 +33,5 @@
 
 # Temporary file copied by `make demo-load`, deleted after use
 scambuster-dataset-sample.json
+
+# Spec 073 ground truth verification reports (generated in var/, already gitignored)
