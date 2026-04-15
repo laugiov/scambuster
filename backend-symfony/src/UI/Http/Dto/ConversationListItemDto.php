@@ -6,6 +6,7 @@ namespace App\UI\Http\Dto;
 
 final class ConversationListItemDto
 {
+    /** @param array<int, array{code: string, confidence: float}>|null $secondary_scam_types */
     public function __construct(
         public string $conv_id,
         public string $status,
@@ -19,11 +20,12 @@ final class ConversationListItemDto
         public int $message_count = 0,
         public ?float $reward = null,
         public int $ioc_count = 0,
+        public ?array $secondary_scam_types = null,
     ) {
     }
 
     /**
-     * @return array<string, string|int|float|null>
+     * @return array<string, string|int|float|array<int, array{code: string, confidence: float}>|null>
      */
     public function toArray(): array
     {
@@ -40,6 +42,7 @@ final class ConversationListItemDto
             'message_count' => $this->message_count,
             'reward' => $this->reward,
             'ioc_count' => $this->ioc_count,
+            'secondary_scam_types' => $this->secondary_scam_types,
         ];
     }
 }

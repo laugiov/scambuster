@@ -127,10 +127,13 @@ class ContextualEnrichmentResultTest extends TestCase
 
     public function testEnrichmentConfidenceClamped(): void
     {
+        // With full richness (long msg + 4 IOCs + urgency) the cap reaches 1.0
         $data = [
             'stimulus_type' => 'PASSIVE',
             'scammer_urgency_score' => 0.5,
             'enrichment_confidence' => 2.5,
+            'stimulus_message' => str_repeat('X', 250) . ' deadline urgent',
+            'ioc_types' => ['url', 'email', 'iban', 'phone'],
             'ioc_roles' => [],
         ];
 

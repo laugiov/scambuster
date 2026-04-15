@@ -23,6 +23,7 @@ final readonly class ContextualEnrichmentResult
         'VERIFICATION_CODE_URL',
         'INFRASTRUCTURE_DOMAIN',
         'MONEY_MULE_ACCOUNT',
+        'TRACKING_REFERENCE',
         'UNKNOWN',
     ];
 
@@ -94,15 +95,45 @@ final readonly class ContextualEnrichmentResult
             : 0.0;
         $enrichmentConfidence = max(0.0, min(1.0, $enrichmentConfidence));
 
-        // Cap confidence based on available context window:
-        // 1 message (no stimulus/previous) → max 0.60
-        // 2 messages → max 0.80
-        // 3 messages → no cap
-        $maxConfidence = match (true) {
-            $availableMessages <= 1 => 0.60,
-            $availableMessages === 2 => 0.80,
-            default => 1.0,
+        // Cap confidence based on available context window + richness bonuses.
+        // Base cap by message count (lowered from 0.60/0.80/1.0):
+        $baseCap = match (true) {
+            $availableMessages <= 1 => 0.50,
+            $availableMessages === 2 => 0.70,
+            default => 0.90,
         };
+
+        // Richness bonuses (up to +0.30)
+        $richness = 0.0;
+
+        // Message length bonus
+        $stimulusMessage = \is_string($data['stimulus_message'] ?? null) ? $data['stimulus_message'] : '';
+        $messageLength = mb_strlen($stimulusMessage);
+
+        if ($messageLength > 200) {
+            $richness += 0.10;
+        }
+
+        // IOC count bonus (from the ioc_types field)
+        /** @var list<string> $iocTypesFromData */
+        $iocTypesFromData = \is_array($data['ioc_types'] ?? null) ? $data['ioc_types'] : [];
+        $iocCount = \count($iocTypesFromData);
+
+        if ($iocCount > 3) {
+            $richness += 0.10;
+        }
+
+        // Urgency pattern bonus (deadline/threat detected)
+        $hasUrgencyPattern = (bool) preg_match(
+            '/\b(deadline|expires?|urgent|immediate|hours?|legal action|suspend|closure)\b/i',
+            $stimulusMessage,
+        );
+
+        if ($hasUrgencyPattern) {
+            $richness += 0.10;
+        }
+
+        $maxConfidence = min($baseCap + $richness, 1.0);
         $enrichmentConfidence = min($enrichmentConfidence, $maxConfidence);
 
         // Map ioc_roles from LLM format [{"type": "url", "role": "..."}] to associative

@@ -6,7 +6,10 @@ namespace App\UI\Http\Dto;
 
 final class ConversationDetailResponseDto
 {
-    /** @param array<int, array<string, mixed>> $channels */
+    /**
+     * @param array<int, array<string, mixed>>                        $channels
+     * @param array<int, array{code: string, confidence: float}>|null $secondary_scam_types
+     */
     public function __construct(
         public string $conv_id,
         public string $status,
@@ -14,7 +17,8 @@ final class ConversationDetailResponseDto
         public string $ts_first,
         public string $ts_last,
         public string $stix_id,
-        public array $channels
+        public array $channels,
+        public ?array $secondary_scam_types = null,
     ) {
     }
 
@@ -29,6 +33,7 @@ final class ConversationDetailResponseDto
             'ts_last' => $this->ts_last,
             'stix_id' => $this->stix_id,
             'channels' => $this->channels,
+            'secondary_scam_types' => $this->secondary_scam_types,
         ];
     }
 }
