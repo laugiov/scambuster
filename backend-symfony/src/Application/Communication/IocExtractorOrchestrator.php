@@ -218,6 +218,7 @@ class IocExtractorOrchestrator
             'discord_username' => '/\b.{2,32}#\d{4}\b/',
             'cve' => '/\bCVE-\d{4}-\d{4,}\b/i',
             'mitre_attack_id' => '/\bT\d{4}(?:\.\d{3})?\b/',
+            'tracking_number' => '/\b(?:DHL|UPS|FedEx|USPS|TNT|EMS|Royal Mail|Colissimo)[-\s]?\d{6,15}[-\s]?[A-Z]{0,2}\b/i',
         ];
 
         if ($types !== []) {

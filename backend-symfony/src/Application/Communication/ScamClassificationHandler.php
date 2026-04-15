@@ -75,12 +75,16 @@ class ScamClassificationHandler
         // Update conversation scam_type
         $this->updateConversationScamType($convId, $result->scamTypeCode);
 
+        // Store secondary scam types if present
+        $this->updateConversationSecondaryTypes($convId, $result->secondaryTypes);
+
         $this->logger->info('Conversation classified successfully', [
             'conv_id' => $convId,
             'scam_type' => $result->scamTypeCode,
             'confidence' => $result->confidence,
             'is_new_type' => $result->isNewType,
             'is_new_persona' => $result->isNewPersona,
+            'secondary_types_count' => $result->secondaryTypes !== null ? count($result->secondaryTypes) : 0,
         ]);
 
         return $result;
@@ -275,6 +279,23 @@ class ScamClassificationHandler
     }
 
     /**
+     * Update conversation secondary scam types
+     *
+     * @param array<int, array{code: string, confidence: float}>|null $secondaryTypes
+     */
+    private function updateConversationSecondaryTypes(string $convId, ?array $secondaryTypes): void
+    {
+        $conversation = $this->em->getRepository(Conversation::class)->find($convId);
+
+        if (!$conversation instanceof Conversation) {
+            return;
+        }
+
+        $conversation->setSecondaryScamTypes($secondaryTypes);
+        $this->em->flush();
+    }
+
+    /**
      * Get conversation messages for classification
      *
      * @return array<int, array<string, mixed>>
@@ -460,6 +481,9 @@ class ScamClassificationHandler
 
         // Update conversation scam_type
         $this->updateConversationScamType($convId, $result->scamTypeCode);
+
+        // Store secondary scam types if present
+        $this->updateConversationSecondaryTypes($convId, $result->secondaryTypes);
 
         // Get updated conversation and persona
         $this->em->refresh($conversation);
