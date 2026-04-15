@@ -75,6 +75,7 @@ final readonly class ListConversationsController
                 $messageCounts[$conv->getConvId()] ?? 0,
                 $conv->getRewardValue(),
                 $iocCounts[$conv->getConvId()] ?? 0,
+                $conv->getSecondaryScamTypes(),
             );
 
             return $dto->toArray();
