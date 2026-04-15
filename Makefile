@@ -388,6 +388,7 @@ testOne: ##@test Run a single integration/unit test (q=filter)
         fixtures-e2e fixtures-dev \
         endToEndTest endToEndTestOne testOne \
         audit-quality audit-deep \
+        fix-semantic-roles fix-risk-scores compute-sophistication \
         respawn-all
 
 
@@ -442,6 +443,18 @@ audit-deep:      ##@audit Run complete audit suite (screening + LLM quality)
 	$(MAKE) verify-clusters
 	$(MAKE) verify-classification
 	$(MAKE) audit-quality
+
+# ======================================================================
+#  BATCH FIX / RECOMPUTE (Spec 075)
+# ======================================================================
+fix-semantic-roles: ##@fix Fix mislabeled semantic roles on IOC contexts (use DRY_RUN=1 for preview)
+	$(CONSOLE_DEV) app:fix:semantic-roles $(if $(DRY_RUN),--dry-run,)
+
+fix-risk-scores: ##@fix Recalculate risk scores for all conversations (use DRY_RUN=1, SCAM_TYPE=CHARITY)
+	$(CONSOLE_DEV) app:fix:risk-scores $(if $(DRY_RUN),--dry-run,) $(if $(SCAM_TYPE),--scam-type=$(SCAM_TYPE),)
+
+compute-sophistication: ##@fix Compute cluster sophistication levels (use DRY_RUN=1 for preview)
+	$(CONSOLE_DEV) app:compute:cluster-sophistication $(if $(DRY_RUN),--dry-run,)
 
 # ======================================================================
 #  RESET ALL

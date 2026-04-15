@@ -304,14 +304,15 @@ final class ContextualEnricherMutationTest extends TestCase
         $this->assertLessThanOrEqual(0.80, $result->enrichmentConfidence);
     }
 
-    public function test_result_confidence_not_capped_with_3_messages(): void
+    public function test_result_confidence_capped_at_090_with_3_messages_no_richness(): void
     {
         $result = ContextualEnrichmentResult::fromLlmResponse(
             ['enrichment_confidence' => 0.95],
             ['url'],
             3,
         );
-        $this->assertSame(0.95, $result->enrichmentConfidence);
+        // Base cap 0.90 with no richness bonuses (no stimulus_message, no ioc_types > 3)
+        $this->assertSame(0.90, $result->enrichmentConfidence);
     }
 
     public function test_result_missing_ioc_types_get_unknown_role(): void

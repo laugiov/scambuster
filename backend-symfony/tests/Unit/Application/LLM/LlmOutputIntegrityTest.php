@@ -226,7 +226,7 @@ final class LlmOutputIntegrityTest extends TestCase
     //  ContextualEnrichmentResult: confidence capping by message count
     // ================================================================== //
 
-    public function testConfidenceCappedAt060With1Message(): void
+    public function testConfidenceCappedAt050With1MessageNoRichness(): void
     {
         $data = [
             'stimulus_type' => 'PASSIVE',
@@ -237,14 +237,14 @@ final class LlmOutputIntegrityTest extends TestCase
 
         $result = ContextualEnrichmentResult::fromLlmResponse($data, [], 1);
         $this->assertEqualsWithDelta(
-            0.60,
+            0.50,
             $result->enrichmentConfidence,
             0.001,
-            '1 message window: confidence should be capped at 0.60',
+            '1 message window, no richness: confidence should be capped at 0.50',
         );
     }
 
-    public function testConfidenceCappedAt080With2Messages(): void
+    public function testConfidenceCappedAt070With2MessagesNoRichness(): void
     {
         $data = [
             'stimulus_type' => 'PASSIVE',
@@ -255,14 +255,14 @@ final class LlmOutputIntegrityTest extends TestCase
 
         $result = ContextualEnrichmentResult::fromLlmResponse($data, [], 2);
         $this->assertEqualsWithDelta(
-            0.80,
+            0.70,
             $result->enrichmentConfidence,
             0.001,
-            '2 message window: confidence should be capped at 0.80',
+            '2 message window, no richness: confidence should be capped at 0.70',
         );
     }
 
-    public function testConfidenceNotCappedWith3Messages(): void
+    public function testConfidenceCappedAt090With3MessagesNoRichness(): void
     {
         $data = [
             'stimulus_type' => 'PASSIVE',
@@ -273,10 +273,10 @@ final class LlmOutputIntegrityTest extends TestCase
 
         $result = ContextualEnrichmentResult::fromLlmResponse($data, [], 3);
         $this->assertEqualsWithDelta(
-            0.95,
+            0.90,
             $result->enrichmentConfidence,
             0.001,
-            '3 message window: confidence should NOT be capped',
+            '3 message window, no richness: confidence should be capped at 0.90',
         );
     }
 
@@ -289,7 +289,7 @@ final class LlmOutputIntegrityTest extends TestCase
             'ioc_roles' => [],
         ];
 
-        // 1 message cap is 0.60, but confidence=0.40 < 0.60 → no capping
+        // 1 message cap is 0.50, but confidence=0.40 < 0.50 → no capping
         $result = ContextualEnrichmentResult::fromLlmResponse($data, [], 1);
         $this->assertEqualsWithDelta(
             0.40,
@@ -301,10 +301,13 @@ final class LlmOutputIntegrityTest extends TestCase
 
     public function testConfidenceClampedToOneFromAbove(): void
     {
+        // With full richness (3 messages + long text + 4 IOCs + urgency) cap = min(0.90+0.30, 1.0) = 1.0
         $data = [
             'stimulus_type' => 'PASSIVE',
             'scammer_urgency_score' => 0.5,
             'enrichment_confidence' => 2.0,
+            'stimulus_message' => str_repeat('A', 250) . ' deadline urgent',
+            'ioc_types' => ['url', 'email', 'iban', 'phone'],
             'ioc_roles' => [],
         ];
 
