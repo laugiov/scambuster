@@ -133,8 +133,9 @@ PROMPT;
         $row = $this->connection->fetchAssociative(
             "SELECT m.msg_id, LEFT(m.body_text, 500) AS body_text
              FROM message m
-             WHERE m.conv_id = :convId AND m.direction = 'in'
-             ORDER BY m.ts_received ASC
+             JOIN lkp_direction d ON d.dir_id = m.direction
+             WHERE m.conv_id = :convId AND d.code = 'in'
+             ORDER BY m.ts_msg ASC
              LIMIT 1",
             ['convId' => $convId],
         );
