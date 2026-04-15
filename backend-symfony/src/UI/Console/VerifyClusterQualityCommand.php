@@ -226,7 +226,7 @@ final class VerifyClusterQualityCommand extends Command
     }
 
     /**
-     * @param list<array{cluster: string, name: string, conversations: int, anchors: int, high_value: int, high_value_pct: int, generic: int, generic_pct: float, flag: string}> $summaryRows
+     * @param list<array{cluster: string, name: string, conversations: int, anchors: int, high_value: int, high_value_pct: int, generic: int, generic_pct: float, flag: string}>                                    $summaryRows
      * @param list<array{cluster_id: string, short_id: string, name: string, conversations: int, anchors: list<array{indicator_id: string, type: string, value: string, classification: string, conv_count: int}>}> $flaggedDetails
      */
     private function writeReport(array $summaryRows, array $flaggedDetails, int $minConversations): void

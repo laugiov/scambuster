@@ -387,6 +387,7 @@ testOne: ##@test Run a single integration/unit test (q=filter)
         migration-e2e create-database-e2e reset-db-e2e schema-create-e2e \
         fixtures-e2e fixtures-dev \
         endToEndTest endToEndTestOne testOne \
+        audit-quality audit-deep \
         respawn-all
 
 
@@ -432,6 +433,15 @@ verify-clusters:      ##@audit Verify cluster anchor quality
 
 verify-classification: ##@audit Generate classification spot-check report
 	$(CONSOLE_DEV) app:verify:classification
+
+audit-quality:   ##@audit Run LLM quality audit on sampled conversations
+	$(DC) exec $(PHP_CONTAINER_DEV) php bin/console app:audit:conversation-quality
+
+audit-deep:      ##@audit Run complete audit suite (screening + LLM quality)
+	$(MAKE) verify-iocs
+	$(MAKE) verify-clusters
+	$(MAKE) verify-classification
+	$(MAKE) audit-quality
 
 # ======================================================================
 #  RESET ALL
