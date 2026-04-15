@@ -74,6 +74,9 @@ final class IocValidator
         // Financial accounts
         'bank_account' => '/.+/',  // Too variable across countries
         'credit_card' => '/^\d{13,19}$/',  // Luhn validation done separately
+
+        // Logistics
+        'tracking_number' => '/^(?:DHL|UPS|FedEx|USPS|TNT|EMS|Royal Mail|Colissimo)[-\s]?\d{6,15}[-\s]?[A-Z]{0,2}$/i',
     ];
 
     /**

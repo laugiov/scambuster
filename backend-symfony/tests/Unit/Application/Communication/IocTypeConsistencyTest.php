@@ -45,7 +45,7 @@ class IocTypeConsistencyTest extends TestCase
 
     public function testAllIocTypesCount(): void
     {
-        $this->assertCount(34, $this->allIocTypes, 'ALL_IOC_TYPES must contain exactly 34 types');
+        $this->assertCount(35, $this->allIocTypes, 'ALL_IOC_TYPES must contain exactly 35 types');
     }
 
     public function testAllIocTypesHaveNoDuplicates(): void
