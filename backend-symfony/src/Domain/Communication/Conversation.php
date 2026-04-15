@@ -23,6 +23,10 @@ class Conversation
     #[ORM\Column(name: 'tlp', type: 'string', length: 16)]
     private string $tlp = 'TLP_AMBER';
 
+    /** @var array<int, array{code: string, confidence: float}>|null */
+    #[ORM\Column(name: 'secondary_scam_types', type: 'json', nullable: true)]
+    private ?array $secondaryScamTypes = null;
+
     // Scambaiting adaptive metrics
     #[ORM\Column(name: 'engagement_duration_sec', type: 'integer', options: ['default' => 0])]
     private int $engagementDurationSec = 0;
@@ -328,5 +332,26 @@ class Conversation
     public function resetRewardValue(): void
     {
         $this->rewardValue = null;
+    }
+
+    /**
+     * Get secondary scam type classifications.
+     * Each element: ['code' => 'ROMANCE', 'confidence' => 0.6]
+     *
+     * @return array<int, array{code: string, confidence: float}>|null
+     */
+    public function getSecondaryScamTypes(): ?array
+    {
+        return $this->secondaryScamTypes;
+    }
+
+    /**
+     * Set secondary scam type classifications.
+     *
+     * @param array<int, array{code: string, confidence: float}>|null $types
+     */
+    public function setSecondaryScamTypes(?array $types): void
+    {
+        $this->secondaryScamTypes = $types;
     }
 }

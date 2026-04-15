@@ -49,6 +49,9 @@ final readonly class IocExtractor
 
         // Security identifiers
         'cve', 'malware_family', 'mitre_attack_id',
+
+        // Logistics
+        'tracking_number',
     ];
 
     public function __construct(

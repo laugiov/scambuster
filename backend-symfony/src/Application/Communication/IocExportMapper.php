@@ -73,6 +73,9 @@ final class IocExportMapper
         'cve' => ['category' => 'External analysis', 'type' => 'vulnerability', 'to_ids' => false],
         'malware_family' => ['category' => 'Payload delivery', 'type' => 'malware-type', 'to_ids' => false],
         'mitre_attack_id' => ['category' => 'External analysis', 'type' => 'other', 'to_ids' => false],
+
+        // Logistics
+        'tracking_number' => ['category' => 'External analysis', 'type' => 'other', 'to_ids' => false],
     ];
 
     /**
@@ -131,6 +134,9 @@ final class IocExportMapper
         'cve' => 'vulnerability',
         'malware_family' => 'malware',
         'mitre_attack_id' => 'attack-pattern',
+
+        // Logistics
+        'tracking_number' => 'x-scambuster-tracking-number',
     ];
 
     /**
