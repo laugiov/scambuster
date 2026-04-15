@@ -223,11 +223,20 @@ Analyze the message window and determine:
    - UNKNOWN: cannot determine from available context
    NOTE: If stimulus message is "(not available)", the scammer likely sent this unprompted. Use PASSIVE or infer from message tone.
 
-2. **scammer_urgency_score**: Float [0.0, 1.0]. Calibrate carefully:
-   - 0.0-0.2: casual, no time pressure
-   - 0.3-0.5: moderate ("please respond soon")
-   - 0.6-0.8: strong ("urgent", "immediate action required", deadlines)
-   - 0.9-1.0: extreme ("account will be closed in 24h", threats)
+2. **scammer_urgency_score**: Float [0.0, 1.0]. Use the FULL range:
+   - 0.00-0.10: casual chitchat, no ask at all
+   - 0.10-0.20: gentle suggestion, no deadline
+   - 0.20-0.35: polite request with soft timeline ("when you get a chance")
+   - 0.35-0.50: clear request with reason ("please respond this week")
+   - 0.50-0.60: firm ask with deadline ("by Friday")
+   - 0.60-0.70: strong push with consequences implied ("to avoid delays")
+   - 0.70-0.80: explicit threats of negative consequences ("account restricted")
+   - 0.80-0.90: hard deadline with explicit threat ("24 hours or account closure")
+   - 0.90-0.95: extreme pressure ("immediate action required, funds at risk")
+   - 0.95-1.00: direct threats or ultimatums ("pay now or face legal action")
+
+   IMPORTANT: Do NOT default to 0.75. Spread your scores across the full range.
+   Each message is different — differentiate carefully.
 
 3. **language_switch_detected**: Did the scammer switch language within THIS message? Boolean
 
@@ -255,7 +264,10 @@ Analyze the message window and determine:
 - wallet_btc, wallet_eth, wallet_xmr → always PAYMENT_DESTINATION
 - url → analyze the URL path: /login, /verify, /restore → PHISHING_CREDENTIAL_URL; /download, .exe, .pdf.exe → MALWARE_DOWNLOAD_URL; /pay, /checkout → PAYMENT_REDIRECT_URL
 - domain → INFRASTRUCTURE_DOMAIN (the domain itself hosts the scam infrastructure)
-- sha256, md5, sha1 → MALWARE_DOWNLOAD_URL (file hash = malware indicator)
+- sha256, md5, sha1 (Hash):
+     - If the hash appears INLINE in the message body as a reference to a downloadable file → MALWARE_DOWNLOAD_URL
+     - If the hash appears in the email footer, signature block, or as a message integrity marker → IDENTITY_DOCUMENT
+     - Default: IDENTITY_DOCUMENT (most hashes in email are signatures, not malware refs)
 - telegram_username, discord_username → CONTACT_CHANNEL
 
 ## Few-Shot Examples

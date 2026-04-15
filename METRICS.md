@@ -323,3 +323,30 @@ This document catalogs all 31 metrics displayed in the platform, their exact for
 - **Data source**: `persona_performance_stats.reward_avg` (PostgreSQL)
 - **Provenance**: :blue_circle: Heuristic (upstream: reward itself is heuristic)
 - **Limitations**: Small sample sizes (< 10 sessions) produce unreliable averages. No confidence intervals displayed.
+
+---
+
+## Known Limitations
+
+### Cross-conversation IOC deduplication
+When the same IOC value appears in multiple conversations (e.g., same scammer
+sending to multiple honeypot addresses), the indicator is stored once in the
+`indicator` table. The `observed_ioc` record links each observation to its
+specific message. However, if deduplication triggers before the observation
+is recorded, some messages may not have an `observed_ioc` link despite
+containing the IOC value. This is a known design trade-off for storage
+efficiency.
+
+### Enrichment confidence ceiling
+The contextual enrichment uses a 3-message window (previous message, stimulus,
+and revelation message). When only 1 message is available (first contact),
+the analysis confidence is capped at 0.60. This means 36% of enrichment
+records have confidence between 0.55-0.60 -- this is expected behavior,
+not a defect.
+
+### Urgency score distribution
+The LLM enrichment tends to assign urgency scores in clusters around 0.75
+(28% of records) and 0.55 (16%). This is a known limitation of LLM-based
+scoring -- the model gravitates toward safe middle values. The prompt
+calibration has been refined (spec 074) to encourage fuller range usage
+for future enrichments.

@@ -24,6 +24,27 @@ use Symfony\Component\RateLimiter\RateLimiterFactory;
  */
 class IngestPostProcessor
 {
+    /**
+     * Domains of known legitimate senders (platform notifications, etc.).
+     * Messages from these domains still get ingested but skip classification
+     * and get risk forced to 0 to avoid polluting scam metrics.
+     *
+     * @var list<string>
+     */
+    private const KNOWN_LEGITIMATE_DOMAINS = [
+        'instagram.com', 'facebook.com', 'facebookmail.com', 'google.com',
+        'linkedin.com', 'twitter.com', 'x.com', 'github.com', 'apple.com',
+        'microsoft.com', 'amazon.com', 'paypal.com', 'netflix.com',
+        'spotify.com', 'dropbox.com',
+    ];
+
+    /**
+     * Financial IOC types that warrant a higher risk bonus.
+     *
+     * @var list<string>
+     */
+    private const FINANCIAL_IOC_TYPES = ['iban', 'bic', 'wallet_btc', 'wallet_eth', 'wallet_xmr', 'credit_card'];
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
@@ -53,6 +74,22 @@ class IngestPostProcessor
         $this->extractHeaderIocs($message, $msgId);
         $this->computeIocContext($msgId);
         $this->enrichIocContext($message, $msgId);
+
+        // F1: Skip classification and force risk=0 for known legitimate senders
+        $fromHeader = $message->getHeaders()['from'] ?? null;
+
+        if (\is_string($fromHeader) && $this->isLegitimateSender($fromHeader)) {
+            $this->logger->warning('[IngestPostProcessor] Legitimate sender detected, skipping classification', [
+                'msg_id' => $msgId,
+                'conv_id' => $conversation->getConvId(),
+                'from' => $fromHeader,
+            ]);
+            $conversation->updateRiskScore(0);
+            $this->em->flush();
+
+            return;
+        }
+
         $this->autoClassifyScamType($message, $conversation, $detectedLang);
         $this->updateRiskScore($conversation, $message);
         $this->analyzePromptInjection($message, $conversation, $msgId);
@@ -454,7 +491,45 @@ class IngestPostProcessor
     }
 
     /**
+     * Check whether the sender belongs to a known legitimate domain.
+     *
+     * Matches exact domain or subdomain (e.g. mail.instagram.com matches instagram.com).
+     * Does NOT match lookalikes (e.g. evil-instagram.com does NOT match instagram.com).
+     */
+    private function isLegitimateSender(string $fromHeader): bool
+    {
+        // Extract email from header (handles "Name <email>" format)
+        $email = $fromHeader;
+
+        if (preg_match('/<([^>]+)>/', $fromHeader, $m)) {
+            $email = $m[1];
+        }
+
+        $atPos = strrpos($email, '@');
+
+        if ($atPos === false) {
+            return false;
+        }
+
+        $domain = strtolower(trim(substr($email, $atPos + 1)));
+
+        if ($domain === '') {
+            return false;
+        }
+
+        foreach (self::KNOWN_LEGITIMATE_DOMAINS as $legit) {
+            if ($domain === $legit || str_ends_with($domain, '.' . $legit)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Compute initial risk score from scam type and extracted IOC types.
+     *
+     * F2: Increased bonuses for financial IOCs, phone, and IOC diversity.
      */
     private function computeInitialRisk(Conversation $conversation, Message $message): int
     {
@@ -481,22 +556,37 @@ class IngestPostProcessor
             $iocTypes[$type] = true;
         }
 
-        // Bonus for high-value IOC types
-        if (isset($iocTypes['iban']) || isset($iocTypes['wallet_btc']) || isset($iocTypes['wallet_eth'])) {
-            $score += 20;
+        // F2: Financial IOC bonus (+30 for first, +10 per additional type)
+        $financialTypesPresent = array_filter(
+            self::FINANCIAL_IOC_TYPES,
+            fn (string $ft): bool => isset($iocTypes[$ft]),
+        );
+        $financialCount = \count($financialTypesPresent);
+
+        if ($financialCount > 0) {
+            $score += 30; // first financial IOC type
+            $score += ($financialCount - 1) * 10; // +10 per additional type
         }
 
+        // F2: Phone bonus increased from +10 to +15
         if (isset($iocTypes['phone'])) {
-            $score += 10;
+            $score += 15;
         }
 
+        // URL bonus: +5 per URL (unchanged, capped at 15)
         if (isset($iocTypes['url'])) {
             $urlCount = \count(array_filter($iocs, fn ($i): bool => ($i->getContext()['type'] ?? '') === 'url'));
             $score += min($urlCount * 5, 15);
         }
 
-        // Bonus for IOC diversity
-        $score += min(\count($iocTypes) * 3, 15);
+        // F2: IOC diversity bonus: +10 if >= 4 types, otherwise +3 per type (capped at 15)
+        $typeCount = \count($iocTypes);
+
+        if ($typeCount >= 4) {
+            $score += 10;
+        }
+
+        $score += min($typeCount * 3, 15);
 
         return min($score, 100);
     }
