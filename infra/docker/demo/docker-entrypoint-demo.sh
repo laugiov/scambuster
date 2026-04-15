@@ -117,6 +117,12 @@ if [ "$CONV_COUNT" = "0" ] || [ "${DEMO_FORCE_RESEED:-false}" = "true" ]; then
   echo "[demo] Running clustering backfill..."
   php bin/console app:clustering:backfill --no-interaction 2>&1 | tail -3
 
+  echo "[demo] Applying data quality fixes..."
+  php bin/console app:fix:risk-scores -q 2>/dev/null || true
+  php bin/console app:fix:semantic-roles -q 2>/dev/null || true
+  php bin/console app:compute:cluster-sophistication -q 2>/dev/null || true
+  echo "[demo] Data quality fixes applied."
+
   echo "[demo] Database seeded."
 else
   # Still shift dates on restart to keep demo "fresh"
