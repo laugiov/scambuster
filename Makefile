@@ -308,6 +308,9 @@ quickstart: ##@docker Full first-time setup: build, start, DB, fixtures, JWT, n8
 	@echo "Step 4/6: Loading demo dataset (150 conversations, all screens)..."
 	$(MAKE) demo-load
 	@echo ""
+	@echo "Step 4b/6: Applying data quality fixes (risk scores, semantic roles, cluster sophistication)..."
+	$(MAKE) fix-existing-data
+	@echo ""
 	@echo "Step 5/6: Generating JWT keys and restarting backend..."
 	@chmod -f 777 backend-symfony/config/jwt/*.pem 2>/dev/null || true
 	@$(DC) exec backend-dev sh -c ' \
@@ -455,6 +458,17 @@ fix-risk-scores: ##@fix Recalculate risk scores for all conversations (use DRY_R
 
 compute-sophistication: ##@fix Compute cluster sophistication levels (use DRY_RUN=1 for preview)
 	$(CONSOLE_DEV) app:compute:cluster-sophistication $(if $(DRY_RUN),--dry-run,)
+
+fix-existing-data: ##@fix Apply all data quality corrections after fixture/demo load
+	@echo "  → Running migrations..."
+	$(CONSOLE_DEV) doctrine:migrations:migrate --no-interaction -q 2>/dev/null || true
+	@echo "  → Recalculating risk scores..."
+	$(CONSOLE_DEV) app:fix:risk-scores -q 2>/dev/null || true
+	@echo "  → Fixing semantic roles..."
+	$(CONSOLE_DEV) app:fix:semantic-roles -q 2>/dev/null || true
+	@echo "  → Computing cluster sophistication..."
+	$(CONSOLE_DEV) app:compute:cluster-sophistication -q 2>/dev/null || true
+	@echo "  ✓ Data quality fixes applied."
 
 # ======================================================================
 #  RESET ALL
