@@ -477,7 +477,7 @@
   "impact": {
     "title": "Impact & Intelligence",
     "wasted_time": "Criminal Time Wasted",
-    "novel_iocs": "Exclusive IOCs",
+    "novel_iocs": "Novel IOCs",
     "cost_per_ioc": "Cost per IOC",
     "campaigns_exposed": "Campaigns Exposed",
     "weekly_wasted": "Hours Wasted per Week",
@@ -486,7 +486,7 @@
     "comparison": "vs ~$10,000/yr for commercial CTI feeds",
     "empty_state": "No data available. Set up honeypots to start collecting intelligence.",
     "promoted": "promoted",
-    "exclusive": "exclusive to ScamBuster",
+    "exclusive": "novel indicators not yet in threat intel feeds",
     "across_conversations": "across {{count}} conversations",
     "actor_dedup": "Actor Deduplication",
     "actor_dedup_subtitle": "−{{pct}}% threat actors in TAXII feed"
