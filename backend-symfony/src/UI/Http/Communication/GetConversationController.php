@@ -62,7 +62,8 @@ final readonly class GetConversationController
             $conv->getTsFirst()->format(DATE_ATOM),
             $conv->getTsLast()->format(DATE_ATOM),
             $conv->getStixId(),
-            $channels
+            $channels,
+            $conv->getSecondaryScamTypes(),
         );
 
         return new JsonResponse($dto->toArray(), Response::HTTP_OK);

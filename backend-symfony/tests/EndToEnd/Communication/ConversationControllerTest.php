@@ -189,6 +189,82 @@ class ConversationControllerTest extends WebTestCase
         $this->assertSame($convId, $data['conv_id']);
     }
 
+    public function testGetConversationDetailsIncludesSecondaryScamTypes(): void
+    {
+        $client = static::createClient();
+        $jwt = $this->getValidJwt($client);
+        $em = $client->getContainer()->get('doctrine')->getManager();
+        $channel = $em->getRepository(\App\Domain\Communication\Channel::class)->findOneBy([]);
+        $scamType = $em->getRepository(\App\Domain\Communication\ScamType::class)->findOneBy([]);
+        $account = $em->getRepository(\App\Domain\Communication\MailAccount::class)->findOneBy([]);
+        $this->assertNotNull($channel);
+        $this->assertNotNull($scamType);
+        $this->assertNotNull($account);
+        $payload = [
+            'primary_channel_id' => $channel->getChannelId(),
+            'scam_type_id' => $scamType->getScamTypeId(),
+            'account_id' => $account->getAccountId(),
+            'status' => 'open',
+            'score_risk' => 42,
+            'ts_first' => (new \DateTimeImmutable('-1 hour'))->format(DATE_ATOM),
+            'ts_last' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            'stix_id' => 'stix-secondary-types-' . uniqid(),
+        ];
+        $client->request(
+            'POST',
+            '/api/v1/communication/conversation',
+            [],
+            [],
+            [
+                'CONTENT_TYPE' => 'application/json',
+                'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
+            ],
+            json_encode($payload)
+        );
+        $this->assertResponseStatusCodeSame(201);
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $convId = $data['conv_id'];
+
+        // GET should include secondary_scam_types field (null for new conversation)
+        $client->request(
+            'GET',
+            '/api/v1/communication/conversation/' . $convId,
+            [],
+            [],
+            ['HTTP_AUTHORIZATION' => 'Bearer ' . $jwt]
+        );
+        $this->assertResponseIsSuccessful();
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('secondary_scam_types', $data);
+        $this->assertNull($data['secondary_scam_types']);
+
+        // Set secondary types directly on the entity and verify they appear
+        $conv = $em->getRepository(\App\Domain\Communication\Conversation::class)->find($convId);
+        $this->assertNotNull($conv);
+        $conv->setSecondaryScamTypes([
+            ['code' => 'ROMANCE', 'confidence' => 0.6],
+            ['code' => 'INVOICE_FRAUD', 'confidence' => 0.4],
+        ]);
+        $em->flush();
+
+        $client->request(
+            'GET',
+            '/api/v1/communication/conversation/' . $convId,
+            [],
+            [],
+            ['HTTP_AUTHORIZATION' => 'Bearer ' . $jwt]
+        );
+        $this->assertResponseIsSuccessful();
+        $data = json_decode($client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('secondary_scam_types', $data);
+        $this->assertNotNull($data['secondary_scam_types']);
+        $this->assertCount(2, $data['secondary_scam_types']);
+        $this->assertSame('ROMANCE', $data['secondary_scam_types'][0]['code']);
+        $this->assertSame(0.6, $data['secondary_scam_types'][0]['confidence']);
+        $this->assertSame('INVOICE_FRAUD', $data['secondary_scam_types'][1]['code']);
+        $this->assertSame(0.4, $data['secondary_scam_types'][1]['confidence']);
+    }
+
     public function testDeleteConversation(): void
     {
         $client = static::createClient();
