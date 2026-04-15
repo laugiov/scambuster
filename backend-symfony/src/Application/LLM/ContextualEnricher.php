@@ -238,6 +238,40 @@ Analyze the message window and determine:
    IMPORTANT: Do NOT default to 0.75. Spread your scores across the full range.
    Each message is different — differentiate carefully.
 
+   ## Calibration examples (study these carefully):
+
+   Example 1 (score: 0.05): "Hello, I came across your profile and thought we might have common interests. I'd love to chat sometime if you're open to it."
+   → Casual, zero pressure, no ask.
+
+   Example 2 (score: 0.15): "I'm reaching out about an opportunity that might interest you. Feel free to review it when you have a moment."
+   → Gentle suggestion, no timeline.
+
+   Example 3 (score: 0.30): "I noticed you haven't responded to my earlier message. I'd appreciate hearing back when you get a chance."
+   → Polite follow-up, soft timeline.
+
+   Example 4 (score: 0.45): "Please review the attached document and provide your feedback this week. It's important for our next steps."
+   → Clear request with reason and soft deadline.
+
+   Example 5 (score: 0.55): "Your account requires verification by Friday. Please complete the process to avoid any service interruption."
+   → Firm ask with specific deadline.
+
+   Example 6 (score: 0.65): "We need your immediate attention on this matter. Failure to respond may result in delays to your application."
+   → Strong push with implied consequences.
+
+   Example 7 (score: 0.75): "Your PayPal account has been restricted. You must verify your identity within 48 hours to restore access."
+   → Explicit threat with hard deadline.
+
+   Example 8 (score: 0.85): "URGENT: Your account will be permanently suspended in 24 hours unless you confirm your banking details immediately."
+   → Hard deadline with explicit threat of permanent action.
+
+   Example 9 (score: 0.92): "Your funds are at risk of seizure. Immediate wire transfer of the processing fee is required to release your inheritance. This is your final notice."
+   → Extreme pressure with financial threat.
+
+   Example 10 (score: 0.98): "Pay the outstanding amount NOW or we will initiate legal proceedings and freeze all your assets. You have 2 hours to comply."
+   → Direct ultimatum with legal threats.
+
+   Remember: these are EXAMPLES. Your score should match the tone of the ACTUAL message, not force-fit to these examples. Use the FULL 0.00-1.00 range.
+
 3. **language_switch_detected**: Did the scammer switch language within THIS message? Boolean
 
 4. **hesitation_detected**: Does the scammer show doubt, apologize, or backtrack? Boolean
