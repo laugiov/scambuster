@@ -251,7 +251,7 @@ final class VerifyIocSourcePresenceCommand extends Command
 
     /**
      * @param array<string, list<array<string, string>>> $classified
-     * @param array<string, int>                          $counts
+     * @param array<string, int>                         $counts
      */
     private function writeReport(array $classified, array $counts, int $total, float $absentPct, bool $pass): void
     {
