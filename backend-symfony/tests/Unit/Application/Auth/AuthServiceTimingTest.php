@@ -51,17 +51,18 @@ class AuthServiceTimingTest extends TestCase
     }
 
     /**
-     * When the user is not found, the hasher must still be called once
-     * (constant-time dummy hash) before throwing AuthenticationException.
+     * When the user is not found, a constant-time password_verify() runs
+     * against a dummy bcrypt hash before throwing AuthenticationException.
+     * The Symfony hasher is NOT called (password_verify is used directly).
      */
-    public function test_unknown_user_still_invokes_password_hasher(): void
+    public function test_unknown_user_throws_authentication_exception(): void
     {
         $this->userRepo->method('findOneBy')->willReturn(null);
 
-        // The hasher MUST be called exactly once even for an unknown user
-        $this->hasher->expects($this->once())
-            ->method('isPasswordValid')
-            ->willReturn(false);
+        // The Symfony hasher should NOT be called for unknown users
+        // (password_verify is used directly for timing normalization)
+        $this->hasher->expects($this->never())
+            ->method('isPasswordValid');
 
         $this->expectException(AuthenticationException::class);
         $this->expectExceptionMessage('Invalid credentials.');

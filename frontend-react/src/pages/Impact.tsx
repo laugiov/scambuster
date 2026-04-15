@@ -124,7 +124,7 @@ export function Impact() {
             </>
           }
         />
-        <div title="IOCs with 0 VirusTotal/URLScan detections at time of extraction">
+        <div title="IOCs with zero malicious detections in VirusTotal — novel or early-stage indicators not yet indexed by threat intelligence feeds.">
         <StatCard
           label={t('impact.novel_iocs')}
           value={`${ioc_value.novel_pct}%`}
