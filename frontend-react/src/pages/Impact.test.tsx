@@ -79,7 +79,7 @@ describe('Impact page', () => {
 
     await screen.findByText(/Impact & Intelligence/i);
     expect(screen.getByText(/Criminal Time Wasted/i)).toBeInTheDocument();
-    expect(screen.getByText(/Exclusive IOCs/i)).toBeInTheDocument();
+    expect(screen.getByText(/Novel IOCs/i)).toBeInTheDocument();
   });
 
   it('renders Actor Deduplication card (spec 065 / v2.14.0)', async () => {

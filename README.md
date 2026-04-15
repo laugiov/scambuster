@@ -237,6 +237,7 @@ See [Roadmap](docs/06_roadmap.md) and [Changelog](CHANGELOG.md).
 | [API Reference](docs/12_api_quick_reference.md) | All endpoints |
 | [TAXII Server](docs/16_taxii_server.md) | Automated CTI feed guide |
 | [SIEM Integration](docs/15_siem_integration.md) | Enterprise SIEM connector |
+| [Data Validation](docs/18_data_validation.md) | Audit commands for IOC, cluster, and classification quality |
 
 ---
 

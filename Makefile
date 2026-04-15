@@ -422,6 +422,18 @@ evaluate-bandit: ##@evaluate Analyze bandit convergence
 evaluate-all: evaluate-corpus evaluate-quality evaluate-bandit ##@evaluate Run full evaluation pipeline (corpus + quality + bandit)
 
 # ======================================================================
+#  AUDIT / GROUND TRUTH VERIFICATION (Spec 073)
+# ======================================================================
+verify-iocs:          ##@audit Verify IOC source presence
+	$(CONSOLE_DEV) app:verify:ioc-source-presence
+
+verify-clusters:      ##@audit Verify cluster anchor quality
+	$(CONSOLE_DEV) app:verify:cluster-quality
+
+verify-classification: ##@audit Generate classification spot-check report
+	$(CONSOLE_DEV) app:verify:classification
+
+# ======================================================================
 #  RESET ALL
 # ======================================================================
 respawn-all: ##@docker Reset all DBs and load fixtures
