@@ -136,8 +136,10 @@ final class VerifyIocSourcePresenceCommand extends Command
                 continue;
             }
 
-            // Body search (case-insensitive)
+            // Body search (case-insensitive, newlines collapsed)
             $bodyLower = mb_strtolower($bodyText . ' ' . $bodyHtml, 'UTF-8');
+            // Collapse newlines + surrounding spaces to single space (IOC values may span lines)
+            $bodyLower = (string) preg_replace('/\s+/', ' ', $bodyLower);
             $valueLower = mb_strtolower($value, 'UTF-8');
             $valueNormLower = mb_strtolower($valueNorm, 'UTF-8');
 
@@ -224,15 +226,11 @@ final class VerifyIocSourcePresenceCommand extends Command
                 return true;
             }
 
-            // IBAN with spaces (every 4 chars): FR7630006000011234567890189 → FR76 3000 6000 ...
+            // Strip all whitespace from both candidate and body for phone/IBAN matching
             $stripped = preg_replace('/\s+/', '', $candidate);
+            $bodyNoSpaces = preg_replace('/\s+/', '', $bodyLower);
 
-            if ($stripped !== null && $stripped !== $candidate && str_contains($bodyLower, $stripped)) {
-                return true;
-            }
-
-            // Also try the value with spaces removed in case body has compact form
-            if ($stripped !== null && $stripped !== '' && str_contains($bodyLower, $stripped)) {
+            if ($stripped !== null && $stripped !== '' && $bodyNoSpaces !== null && str_contains($bodyNoSpaces, $stripped)) {
                 return true;
             }
 
