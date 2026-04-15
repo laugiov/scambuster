@@ -12,6 +12,7 @@ final readonly class ClassificationResult
     /**
      * @param array{label_en?: string, label_fr?: string, persona_code?: string, persona_label?: string, persona_tone?: string, system_prompt?: string}|null $personaData           New type labels and optional persona data
      * @param string[]|null                                                                                                                                  $suggestedPersonaCodes List of suggested persona codes for new scam types
+     * @param array<int, array{code: string, confidence: float}>|null                                                                                        $secondaryTypes        Secondary scam type classifications with confidence scores
      */
     public function __construct(
         public string $scamTypeCode,
@@ -23,6 +24,7 @@ final readonly class ClassificationResult
         public ?array $personaData = null,
         public ?array $suggestedPersonaCodes = null,
         public string $detectedLanguage = 'en',
+        public ?array $secondaryTypes = null,
     ) {
     }
 

@@ -108,6 +108,28 @@ class ScamClassifier
             $reasoning = isset($data['reasoning']) && is_string($data['reasoning']) ? $data['reasoning'] : 'No reasoning provided';
             $detectedLanguage = isset($data['detected_language']) && is_string($data['detected_language']) ? $data['detected_language'] : 'en';
 
+            // Parse secondary_types from LLM response
+            /** @var array<int, array{code: string, confidence: float}>|null $secondaryTypes */
+            $secondaryTypes = null;
+
+            if (isset($data['secondary_types']) && is_array($data['secondary_types']) && $data['secondary_types'] !== []) {
+                $secondaryTypes = [];
+
+                foreach ($data['secondary_types'] as $entry) {
+                    if (is_array($entry) && isset($entry['code']) && is_string($entry['code'])
+                        && isset($entry['confidence']) && is_numeric($entry['confidence'])) {
+                        $secondaryTypes[] = [
+                            'code' => $entry['code'],
+                            'confidence' => (float) $entry['confidence'],
+                        ];
+                    }
+                }
+
+                if ($secondaryTypes === []) {
+                    $secondaryTypes = null;
+                }
+            }
+
             return new ClassificationResult(
                 scamTypeCode: $scamTypeCode,
                 confidence: $confidence,
@@ -118,6 +140,7 @@ class ScamClassifier
                 personaData: $newTypeData,
                 suggestedPersonaCodes: $suggestedPersonaCodes,
                 detectedLanguage: $detectedLanguage,
+                secondaryTypes: $secondaryTypes,
             );
 
         } catch (\Exception $e) {
@@ -177,7 +200,11 @@ Répondez au format JSON strict suivant :
   "label_fr": "Label en français",
   "reasoning": "Explication courte de votre décision",
   "suggested_persona_codes": ["persona_code_1", "persona_code_2", "persona_code_3"],
-  "detected_language": "en"
+  "detected_language": "en",
+  "secondary_types": [
+    {"code": "ROMANCE", "confidence": 0.6},
+    {"code": "INVOICE_FRAUD", "confidence": 0.4}
+  ]
 }
 
 Règle pour detected_language: ISO 639-1 code (en, fr, es, de, pt, it, nl, etc.) de la langue PRINCIPALE du contenu du message scam. Basez-vous sur le texte du message, PAS sur les headers.
@@ -189,6 +216,7 @@ Règles :
 4. confidence entre 0 et 1 (minimum 0.75 pour être accepté)
 5. reasoning max 200 caractères
 6. suggested_persona_codes: array de 3-5 codes de personas existants (pour nouveau type uniquement)
+7. If the scam exhibits characteristics of multiple categories, list them in secondary_types with decreasing confidence. The primary scam_type_code remains the strongest match. If only one type applies, set secondary_types to null or omit it.
 
 IMPORTANT: Ne créez PAS de nouveaux personas. Utilisez UNIQUEMENT les personas de la liste disponible ci-dessus.
 
@@ -203,7 +231,24 @@ Type connu (phishing):
   "label_fr": "Hameçonnage",
   "reasoning": "Email frauduleux demandant des identifiants bancaires",
   "suggested_persona_codes": null,
-  "detected_language": "fr"
+  "detected_language": "fr",
+  "secondary_types": null
+}
+
+Hybrid scam (romance + invoice):
+{
+  "scam_type_code": "ROMANCE",
+  "confidence": 0.85,
+  "is_new_type": false,
+  "label_en": "Romance Scam",
+  "label_fr": "Arnaque sentimentale",
+  "reasoning": "Romance scam with invoice fraud elements",
+  "suggested_persona_codes": null,
+  "detected_language": "en",
+  "secondary_types": [
+    {"code": "INVOICE_FRAUD", "confidence": 0.6},
+    {"code": "ADVANCE_FEE_419", "confidence": 0.3}
+  ]
 }
 
 Nouveau type (fake_delivery):
@@ -215,7 +260,8 @@ Nouveau type (fake_delivery):
   "label_fr": "Fausse livraison",
   "reasoning": "Faux message de livraison demandant paiement frais douane",
   "suggested_persona_codes": ["buyer_eager", "seller_trusting", "student_busy", "elderly_person", "generic_user"],
-  "detected_language": "fr"
+  "detected_language": "fr",
+  "secondary_types": null
 }
 PROMPT;
 
