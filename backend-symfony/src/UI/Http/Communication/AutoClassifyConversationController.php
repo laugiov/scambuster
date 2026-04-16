@@ -45,6 +45,19 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
                     new OA\Property(property: 'classified_at', type: 'string', format: 'date-time'),
                     new OA\Property(property: 'is_new_scam_type', type: 'boolean', description: 'True if a new scam type was created'),
                     new OA\Property(property: 'is_new_persona', type: 'boolean', description: 'True if a new persona was created'),
+                    new OA\Property(
+                        property: 'secondary_types',
+                        type: 'array',
+                        description: 'Secondary scam type classifications (multi-label)',
+                        items: new OA\Items(
+                            type: 'object',
+                            properties: [
+                                new OA\Property(property: 'code', type: 'string'),
+                                new OA\Property(property: 'confidence', type: 'number'),
+                            ]
+                        ),
+                        nullable: true
+                    ),
                 ]
             )
         ),
@@ -97,6 +110,7 @@ final readonly class AutoClassifyConversationController
                 'classified_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
                 'is_new_scam_type' => $result['is_new_scam_type'],
                 'is_new_persona' => $result['is_new_persona'],
+                'secondary_types' => $result['secondary_types'] ?? null,
             ], Response::HTTP_OK);
         } catch (\RuntimeException $e) {
             if (str_contains($e->getMessage(), 'not found')) {

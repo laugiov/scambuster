@@ -408,7 +408,7 @@ class ScamClassificationHandler
      *
      * @throws \RuntimeException if conversation not found or classification fails
      *
-     * @return array{scam_type_code: string, scam_type_label: string, persona_code: string|null, persona_label: string|null, confidence: float, is_new_scam_type: bool, is_new_persona: bool}
+     * @return array{scam_type_code: string, scam_type_label: string, persona_code: string|null, persona_label: string|null, confidence: float, is_new_scam_type: bool, is_new_persona: bool, secondary_types: array<int, array{code: string, confidence: float}>|null}
      */
     public function autoClassifyConversation(string $convId, bool $force = false, float $confidenceThreshold = 0.75): array
     {
@@ -439,6 +439,7 @@ class ScamClassificationHandler
                 'confidence' => 1.0, // Already classified, consider it certain
                 'is_new_scam_type' => false,
                 'is_new_persona' => false,
+                'secondary_types' => $conversation->getSecondaryScamTypes(),
             ];
         }
 
@@ -521,6 +522,7 @@ class ScamClassificationHandler
             'confidence' => $result->confidence,
             'is_new_scam_type' => $isNewScamType,
             'is_new_persona' => $isNewPersona,
+            'secondary_types' => $result->secondaryTypes,
         ];
     }
 }

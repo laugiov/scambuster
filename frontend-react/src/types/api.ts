@@ -76,6 +76,7 @@ export interface Conversation {
   channels?: string[];
   created_at?: string;
   updated_at?: string;
+  secondary_scam_types?: { code: string; confidence: number }[] | null;
 }
 
 // Messages
