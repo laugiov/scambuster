@@ -227,7 +227,23 @@ class JsonValidatorTest extends TestCase
         $result = $this->validator->validateStructure($data);
 
         $this->assertFalse($result['valid']);
-        $this->assertContains('scam_type_code must be snake_case (3-30 chars)', $result['errors']);
+        $this->assertContains('scam_type_code must be alphanumeric_underscore (3-30 chars)', $result['errors']);
+    }
+
+    public function testValidateStructureAcceptsUppercaseScamTypeCode(): void
+    {
+        $data = [
+            'scam_type_code' => 'ADVANCE_FEE_419',
+            'confidence' => 0.92,
+            'is_new_type' => false,
+            'label_en' => 'Advance Fee Fraud',
+            'label_fr' => 'Fraude aux frais anticipés',
+        ];
+
+        $result = $this->validator->validateStructure($data);
+
+        $this->assertTrue($result['valid']);
+        $this->assertEmpty($result['errors']);
     }
 
     public function testValidateStructureScamTypeCodeTooShort(): void

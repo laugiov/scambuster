@@ -174,9 +174,16 @@ export function Conversations() {
                 </td>
                 <td className="px-5 py-3">
                   {conv.scam_type ? (
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${scamTypeColor(conv.scam_type)}`}>
-                      {scamTypeLabel(conv.scam_type)}
-                    </span>
+                    <div className="flex flex-wrap items-center gap-1">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${scamTypeColor(conv.scam_type)}`}>
+                        {scamTypeLabel(conv.scam_type)}
+                      </span>
+                      {conv.secondary_scam_types?.map((st) => (
+                        <span key={st.code} className={`inline-flex items-center px-1.5 py-0.5 rounded text-[0.65rem] font-medium opacity-60 ${scamTypeColor(st.code)}`} title={`${Math.round(st.confidence * 100)}%`}>
+                          {scamTypeLabel(st.code)}
+                        </span>
+                      ))}
+                    </div>
                   ) : '--'}
                 </td>
                 <td className="px-5 py-3 text-on-surface-variant max-w-[200px]">
