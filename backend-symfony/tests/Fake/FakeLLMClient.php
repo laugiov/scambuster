@@ -42,6 +42,32 @@ RULE scam.test_campaign {\n  WHERE subject.simhash≈"account verification" ±15
 DSL;
         }
 
+        // Check if this is a classification prompt
+        if (str_contains($content, 'conversation à analyser') || ($options['purpose'] ?? '') === 'classification') {
+            return json_encode([
+                'scam_type_code' => 'ADVANCE_FEE_419',
+                'confidence' => 0.92,
+                'is_new_type' => false,
+                'label_en' => 'Advance Fee Fraud (419)',
+                'label_fr' => 'Fraude aux frais anticipés (419)',
+                'reasoning' => 'Classic advance fee scam pattern detected',
+                'suggested_persona_codes' => null,
+                'detected_language' => 'en',
+                'secondary_types' => null,
+            ]);
+        }
+
+        // Check if this is a quality audit prompt
+        if (($options['purpose'] ?? '') === 'quality_audit') {
+            return json_encode([
+                'classification' => ['verdict' => 'AGREE', 'reasoning' => 'Correct classification'],
+                'ioc_completeness' => ['verdict' => 'COMPLETE', 'reasoning' => 'All IOCs extracted'],
+                'urgency' => ['verdict' => 'AGREE', 'assigned_score' => 0.7, 'reasoning' => 'Score appropriate'],
+                'semantic_roles' => ['verdict' => 'AGREE', 'reasoning' => 'Roles correctly assigned'],
+                'risk_score' => ['verdict' => 'AGREE', 'assigned' => 65, 'reasoning' => 'Risk score reasonable'],
+            ]);
+        }
+
         // Check if this is a validator prompt (contains validation keywords)
         if (str_contains($content, 'Évalue') || str_contains($content, 'valider') || str_contains($content, 'Texte à valider')) {
             return json_encode([

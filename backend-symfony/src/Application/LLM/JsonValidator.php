@@ -119,9 +119,9 @@ class JsonValidator
             }
         }
 
-        // Validate codes format (snake_case with digits allowed)
-        if (isset($data['scam_type_code']) && is_string($data['scam_type_code']) && !preg_match('/^[a-z0-9_]{3,30}$/', $data['scam_type_code'])) {
-            $errors[] = 'scam_type_code must be snake_case (3-30 chars)';
+        // Validate codes format (snake_case or UPPER_SNAKE_CASE with digits allowed)
+        if (isset($data['scam_type_code']) && is_string($data['scam_type_code']) && !preg_match('/^[a-zA-Z0-9_]{3,30}$/', $data['scam_type_code'])) {
+            $errors[] = 'scam_type_code must be alphanumeric_underscore (3-30 chars)';
         }
 
         return [
