@@ -146,7 +146,7 @@ export function ConversationDetail() {
 }
 
 function SessionMetadata({ conv, messageCount, iocCount, config }: {
-  conv: { conv_id: string; score_risk: number; ts_first?: string; ts_last?: string; created_at?: string; persona?: string | null; scam_type?: string | null };
+  conv: { conv_id: string; score_risk: number; ts_first?: string; ts_last?: string; created_at?: string; persona?: string | null; scam_type?: string | null; secondary_scam_types?: { code: string; confidence: number }[] | null };
   messageCount: number;
   iocCount: number;
   config?: import('@/types/api').MetaConfig;
@@ -168,9 +168,16 @@ function SessionMetadata({ conv, messageCount, iocCount, config }: {
         {conv.scam_type && (
           <div className="flex flex-col">
             <span className="text-[0.625rem] text-accent-muted uppercase font-bold tracking-tight">{t('conversations.scamType')}</span>
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium w-fit mt-0.5 ${scamTypeColor(conv.scam_type)}`}>
-              {scamTypeLabel(conv.scam_type)}
-            </span>
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${scamTypeColor(conv.scam_type)}`}>
+                {scamTypeLabel(conv.scam_type)}
+              </span>
+              {conv.secondary_scam_types?.map((st) => (
+                <span key={st.code} className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium opacity-70 ${scamTypeColor(st.code)}`} title={`${Math.round(st.confidence * 100)}% confidence`}>
+                  {scamTypeLabel(st.code)}
+                </span>
+              ))}
+            </div>
           </div>
         )}
         {conv.persona && (
