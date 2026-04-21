@@ -293,12 +293,21 @@ final readonly class IocClusteringService
         }
 
         // Store anchor IOCs (hashed values for GDPR)
+        // first_observed / last_observed are computed from observed_ioc.ts_observed
+        // restricted to messages linked to this cluster's conversations (not the backfill time).
         foreach ($anchorIocs as $ioc) {
             $normalized = \App\Domain\Clustering\ValueObject\NormalizedIocValue::normalize($ioc['type'], $ioc['value']);
             $this->conn->executeStatement(
                 'INSERT INTO threat_actor_cluster_ioc
                  (cluster_id, indicator_id, ioc_type, value_norm_hash, conv_count, first_observed, last_observed)
-                 VALUES (:clusterId, :indicatorId, :type, :hash, :convCount, :now, :now)
+                 SELECT
+                     :clusterId, :indicatorId, :type, :hash, :convCount,
+                     COALESCE(MIN(oi.ts_observed), :now::timestamptz),
+                     COALESCE(MAX(oi.ts_observed), :now::timestamptz)
+                 FROM observed_ioc oi
+                 JOIN message m ON m.msg_id = oi.msg_id
+                 WHERE oi.indicator_id = :indicatorId
+                   AND m.conv_id = ANY(:convIds)
                  ON CONFLICT DO NOTHING',
                 [
                     'clusterId' => $clusterId,
@@ -306,6 +315,7 @@ final readonly class IocClusteringService
                     'type' => $ioc['type'],
                     'hash' => \App\Domain\Clustering\ValueObject\NormalizedIocValue::hash($normalized),
                     'convCount' => $count,
+                    'convIds' => '{' . implode(',', $convIds) . '}',
                     'now' => $now,
                 ]
             );
@@ -371,13 +381,26 @@ final readonly class IocClusteringService
                 ['survivorId' => $survivorId, 'absorbedId' => $absorbedId]
             );
 
-            // Move anchor IOCs to survivor
+            // Move anchor IOCs to survivor.
+            // If the anchor already exists in the survivor, consolidate the timestamps
+            // (MIN of first_observed, MAX of last_observed) and sum conv_count.
+            // Otherwise, INSERT as-is.
             $this->conn->executeStatement(
-                'INSERT INTO threat_actor_cluster_ioc (cluster_id, indicator_id, ioc_type, value_norm_hash, conv_count, first_observed, last_observed)
+                'INSERT INTO threat_actor_cluster_ioc
+                     (cluster_id, indicator_id, ioc_type, value_norm_hash, conv_count, first_observed, last_observed)
                  SELECT :survivorId, indicator_id, ioc_type, value_norm_hash, conv_count, first_observed, last_observed
                  FROM threat_actor_cluster_ioc WHERE cluster_id = :absorbedId
-                 ON CONFLICT DO NOTHING',
+                 ON CONFLICT (cluster_id, indicator_id) DO UPDATE SET
+                     first_observed = LEAST(threat_actor_cluster_ioc.first_observed, EXCLUDED.first_observed),
+                     last_observed = GREATEST(threat_actor_cluster_ioc.last_observed, EXCLUDED.last_observed),
+                     conv_count = threat_actor_cluster_ioc.conv_count + EXCLUDED.conv_count',
                 ['survivorId' => $survivorId, 'absorbedId' => $absorbedId]
+            );
+
+            // Remove the absorbed cluster's IOC rows to avoid orphan references.
+            $this->conn->executeStatement(
+                'DELETE FROM threat_actor_cluster_ioc WHERE cluster_id = :absorbedId',
+                ['absorbedId' => $absorbedId]
             );
 
             // Mark absorbed cluster

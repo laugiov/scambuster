@@ -98,6 +98,49 @@ class ClusterApiTest extends WebTestCase
         $this->assertGreaterThan(0, \count($data['anchor_iocs']));
     }
 
+    public function testClusterDetailAnchorIocDatesReflectRealObservations(): void
+    {
+        // Cluster A has 5 observations of the IBAN on days -5 to -1 (see ClusteringFixtures).
+        // first_observed should be day -5, last_observed should be day -1.
+        // Bug: previously both were set to cluster creation time.
+        $clusterId = $this->conn->fetchOne(
+            "SELECT cluster_id FROM threat_actor_cluster WHERE status = 'active' ORDER BY conversation_count DESC LIMIT 1"
+        );
+
+        $this->client->request('GET', "/api/v1/clusters/{$clusterId}", [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('anchor_iocs', $data);
+        $this->assertNotEmpty($data['anchor_iocs']);
+
+        $ibanAnchor = null;
+
+        foreach ($data['anchor_iocs'] as $anchor) {
+            if (($anchor['ioc_type'] ?? null) === 'iban') {
+                $ibanAnchor = $anchor;
+                break;
+            }
+        }
+
+        $this->assertNotNull($ibanAnchor, 'Cluster A must expose an iban anchor');
+
+        $firstObserved = new \DateTimeImmutable((string) $ibanAnchor['first_observed']);
+        $lastObserved = new \DateTimeImmutable((string) $ibanAnchor['last_observed']);
+
+        // The fixture spans 4 days (day -5 to day -1), so last - first ≈ 4 days
+        $diffHours = ($lastObserved->getTimestamp() - $firstObserved->getTimestamp()) / 3600;
+        $this->assertGreaterThan(48, $diffHours, 'first_observed and last_observed must differ by more than 48 hours (fixture spans 4 days)');
+
+        // first_observed must predate the cluster creation (created today)
+        $createdAt = $this->conn->fetchOne('SELECT created_at FROM threat_actor_cluster WHERE cluster_id = ?', [$clusterId]);
+        $createdAtDt = new \DateTimeImmutable((string) $createdAt);
+        $this->assertLessThan($createdAtDt->getTimestamp(), $firstObserved->getTimestamp(), 'first_observed must be before cluster creation time');
+    }
+
     public function testClusterDetailNotFound(): void
     {
         $this->client->request('GET', '/api/v1/clusters/00000000-0000-0000-0000-000000000000', [], [], [
