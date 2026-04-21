@@ -108,12 +108,15 @@ final class ClusteringFixtures
         };
 
         // Cluster A: shared IBAN in various formats
+        // Observations spread across 5 days to validate first_observed/last_observed computation
         $ibanIndicatorId = self::createIndicator($conn, 'eeeeeeee-0001-4000-8000-000000000001', 'iban', 'GB82WEST12345698765432', 'GB82WEST12345698765432', $now);
         $clusterAObsIds = [];
+        $dayOffsets = ['a1' => 5, 'a2' => 4, 'a3' => 3, 'a4' => 2, 'a5' => 1];
 
         foreach (['a1', 'a2', 'a3', 'a4', 'a5'] as $key) {
             $obsId = $nextObs();
-            self::createObservedIoc($conn, $obsId, $msgIds[$key], $ibanIndicatorId, 'iban', 'GB82WEST12345698765432', $now);
+            $tsObserved = (new \DateTimeImmutable("-{$dayOffsets[$key]} days"))->format('Y-m-d H:i:s');
+            self::createObservedIoc($conn, $obsId, $msgIds[$key], $ibanIndicatorId, 'iban', 'GB82WEST12345698765432', $now, $tsObserved);
             $clusterAObsIds[] = $obsId;
         }
 
@@ -357,19 +360,19 @@ final class ClusteringFixtures
         return $indicatorId;
     }
 
-    private static function createObservedIoc(Connection $conn, string $obsId, string $msgId, string $indicatorId, string $type, string $value, string $now): void
+    private static function createObservedIoc(Connection $conn, string $obsId, string $msgId, string $indicatorId, string $type, string $value, string $now, ?string $tsObserved = null): void
     {
         // Insert via DBAL (ObservedIoc entity expects a Message object, but we're in raw SQL context)
         $conn->executeStatement(
             "INSERT INTO observed_ioc (obs_id, msg_id, indicator_id, context_observation, ts_observed)
-             VALUES (:obsId, :msgId, :indicatorId, :context, :now)
+             VALUES (:obsId, :msgId, :indicatorId, :context, :ts)
              ON CONFLICT (obs_id) DO NOTHING",
             [
                 'obsId' => $obsId,
                 'msgId' => $msgId,
                 'indicatorId' => $indicatorId,
                 'context' => json_encode(['type' => $type, 'value' => $value, 'value_norm' => $value, 'score' => ['vt' => 0, 'urlscan' => 0, 'agg' => 0]]),
-                'now' => $now,
+                'ts' => $tsObserved ?? $now,
             ]
         );
     }
