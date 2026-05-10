@@ -39,6 +39,7 @@ final class MailAccountListCommand extends Command
         }
 
         $tableRows = [];
+
         foreach ($rows as $row) {
             $tableRows[] = [
                 $row['account_id'],
