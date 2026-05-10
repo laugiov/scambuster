@@ -20,10 +20,21 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer
 
 COPY backend-symfony/composer.* ./
-# Include dev dependencies (needed for fixtures)
+# Include dev dependencies (needed for fixtures).
+# We pass --no-scripts because composer.json's auto-scripts call cache:clear,
+# which would fail at this point (source code + .env not yet present).
 RUN composer install --no-interaction --no-scripts --no-progress
 
 COPY backend-symfony/ ./
+
+# Composer 2.7+ changed --no-scripts semantics: it now ALSO suppresses plugin
+# event listeners. Without this extra dump-autoload (run WITHOUT --no-scripts),
+# the symfony/runtime plugin never receives 'post-autoload-dump' and the file
+# vendor/autoload_runtime.php — required by bin/console — is never generated.
+# Pre-2.7, --no-scripts only skipped composer.json scripts and plugin events
+# fired anyway, which is why the original Dockerfile worked for months before
+# the latest Composer release.
+RUN composer dump-autoload --no-interaction --optimize
 
 # --- Runtime stage ---
 FROM php:8.3.27-cli
