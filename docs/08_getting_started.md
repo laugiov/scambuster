@@ -297,6 +297,30 @@ This means single-mailbox installs continue to work unchanged, while multi-mailb
 
 > **Important**: rotating `APP_SECRET` invalidates all encrypted SMTP DSNs. See [Key Management](14_key_management.md) for the impact and recovery procedure.
 
+### Reliable IMAP polling for the n8n intake workflows
+
+n8n's `IMAP Email Trigger` node defaults to a long-lived **IMAP IDLE** connection (push notifications from the server). Some IMAP providers enforce strict IDLE timeouts and close the connection after only a few minutes, which can leave the trigger stuck in a `drop → reactivate` loop and silently drop incoming emails.
+
+To make the intake workflows reliable across providers, configure the IMAP trigger node as follows:
+
+1. Open each `WF-INTAKE-EMAIL-*` workflow in n8n
+2. Toggle the workflow **Inactive**
+3. Open the `IMAP Email Trigger` node
+4. In **Parameters → Options → Add option**, add:
+   - **Force Reconnect Every Minutes** → `2`
+   - **Fetch Only New Emails** → `false` (uncheck)
+5. Keep the existing settings: `Action: Mark as Read`, `Custom Email Rules: ["UNSEEN"]`
+6. Save and toggle the workflow **Active** again
+
+**Why this matters**:
+
+- `Force Reconnect Every Minutes = 2` instructs n8n to recycle the connection cleanly every 2 minutes, before any provider-side timeout has a chance to fire. The error path (`Connected closed unexpectedly` → reactivation) is never triggered.
+- `Fetch Only New Emails = false` disables n8n's internal UID tracking and forces a real `SEARCH UNSEEN` against the server at every reconnect. Combined with `Mark as Read`, the IMAP server itself becomes the source of truth for "already processed" — no internal state to desynchronize, no duplicates.
+
+This stateless-polling pattern is portable across all standards-compliant IMAP providers and works whether your provider keeps IDLE connections open for hours or closes them within minutes. Worst-case ingestion delay is about 2 minutes.
+
+> **Note**: in n8n logs, you should see the `Connected closed unexpectedly` / `Will try to reactivate` messages disappear after applying these settings. Reconnections happen silently in the background.
+
 ---
 
 ## 7. Explore the API
