@@ -14,17 +14,56 @@ export LOCK_DSN="${LOCK_DSN:-semaphore}"
 env | grep -E '^(DATABASE_URL|REDIS_URL|APP_|JWT_|LLM_|MAILER_|SCAMBUSTER_|VAULT_|LOGIN_|LOCK_|PROMPT_|STIX_|SCORE_|CAMPAIGN_|REPLY_|CONVERSATION_|SIEM_|INGEST_|N8N_|PORT)' > /app/.env
 echo "[demo] .env written with $(wc -l < /app/.env) variables."
 
+# ─── 0b. Boot-time sanity checks (surface the real problem early) ───
+echo "[demo] Sanity checks:"
+# DATABASE_URL presence (without leaking the password).
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "[demo]   DATABASE_URL: MISSING — Doctrine cannot connect."
+else
+  db_host=$(printf '%s' "$DATABASE_URL" | sed -E 's#^[a-z+]+://[^@]*@([^:/]+).*#\1#')
+  echo "[demo]   DATABASE_URL host: ${db_host}"
+fi
+# APP_SECRET length (spec 050 SmtpDsnEncryptor requires >= 12 chars).
+if [ -z "${APP_SECRET:-}" ]; then
+  echo "[demo]   APP_SECRET: MISSING — Symfony will fail to boot."
+else
+  app_secret_len=${#APP_SECRET}
+  if [ "$app_secret_len" -lt 12 ]; then
+    echo "[demo]   APP_SECRET: too short (${app_secret_len} chars, min 12) — SmtpDsnEncryptor will throw at boot."
+  else
+    echo "[demo]   APP_SECRET length: ${app_secret_len}"
+  fi
+fi
+# PHP sodium extension (spec 050 encryption depends on it).
+if php -m 2>/dev/null | grep -qi '^sodium$'; then
+  echo "[demo]   PHP sodium ext: ok"
+else
+  echo "[demo]   PHP sodium ext: MISSING — SmtpDsnEncryptor will throw at boot."
+fi
+
 # ─── 1. Wait for PostgreSQL ───
-echo "[demo] Waiting for database..."
+# We use `php bin/console doctrine:query:sql "SELECT 1"` because it covers two
+# things at once: TCP reachability AND the Symfony kernel booting cleanly. If
+# either fails we want to surface the real error — silencing stderr here was
+# the original sin that made every failure look like "Database not reachable".
+echo "[demo] Waiting for database (60s budget)..."
 retries=0
-until php bin/console doctrine:query:sql "SELECT 1" > /dev/null 2>&1; do
+last_err_log=$(mktemp)
+until php bin/console doctrine:query:sql "SELECT 1" > /dev/null 2> "$last_err_log"; do
   retries=$((retries + 1))
   if [ $retries -ge 30 ]; then
-    echo "[demo] ERROR: Database not reachable after 60s"
+    echo "[demo] ERROR: bin/console failed for 60s. Last stderr below:"
+    echo "[demo] ─────────────────────────────────────────────────────"
+    sed 's/^/[demo]   /' < "$last_err_log"
+    echo "[demo] ─────────────────────────────────────────────────────"
+    echo "[demo] Note: this may NOT be a database connectivity issue —"
+    echo "[demo] any Symfony kernel boot failure surfaces here. Check"
+    echo "[demo] sanity-check output above before assuming the DB is down."
     exit 1
   fi
   sleep 2
 done
+rm -f "$last_err_log"
 echo "[demo] Database ready."
 
 # ─── 2. Run migrations ───
