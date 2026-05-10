@@ -7,3 +7,21 @@
 # requires full Symfony 7.2 → 7.3 migration (planned, separate spec).
 # Project is currently pinned to Symfony 7.2.* in composer.json.
 CVE-2025-64500
+
+# ─── OS-level CVEs from the Debian base of php:8.3.27-cli ────────────────────
+# These are reported by Trivy when scanning our image but are NOT exploitable
+# in our runtime profile. They will clear automatically when we rebase onto a
+# newer php:8.x base image (tracked separately).
+
+# Linux kernel CVEs — containers share the HOST kernel, so kernel CVEs in the
+# container image are red herrings: patching them requires updating the host
+# (Railway/CI runner), not our application image. The kernel package is only
+# present in the base image as a metadata leftover and is never executed.
+CVE-2026-43469
+CVE-2026-43472
+CVE-2026-43473
+
+# ncurses-base / ncurses-bin buffer overflow — ncurses is only invoked by
+# interactive shells / TUIs, none of which our PHP-FPM/CLI workload triggers.
+# No reachable code path from our application or its direct dependencies.
+CVE-2025-69720
