@@ -9,4 +9,11 @@ use App\Domain\Communication\MailAccount;
 interface MailAccountRepositoryInterface
 {
     public function findById(string $id): ?MailAccount;
+
+    /**
+     * @return list<MailAccount>
+     */
+    public function findAll(): array;
+
+    public function save(MailAccount $account): void;
 }

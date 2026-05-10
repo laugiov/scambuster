@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.15.0] - 2026-05-09
+
+### Added — Spec 050: Multi-Account SMTP Routing
+
+- `mail_account` table extended with 3 nullable columns: `email_address`, `smtp_dsn_encrypted`, `label`
+- New `SmtpDsnEncryptor` service: authenticated encryption (sodium XSalsa20-Poly1305) of per-account SMTP DSNs at rest, using a key derived from `APP_SECRET`
+- New `SmtpTransportResolver` service: routes outbound replies to the correct SMTP transport based on the conversation's mail account, with request-scoped caching
+- New `SmtpDsn` and `EmailAddress` immutable Value Objects (Domain layer)
+- New `TransportFactory` (Infrastructure layer) wrapping Symfony Mailer's `Transport::fromDsn()`
+- 4 new CLI commands:
+  - `app:mail-account:add` — register a mailbox with optional encrypted SMTP DSN
+  - `app:mail-account:list` — list mailboxes (NEVER reveals SMTP credentials)
+  - `app:mail-account:disable` — soft-disable (sets `is_active = false`)
+  - `app:mail-account:rotate-smtp` — replace SMTP DSN with fresh encryption
+- `ReplyCompositionService::sendEmail()` now resolves the right mailer per account
+- Comprehensive test coverage: 11 unit tests for VOs, 12 for encryptor, 6 for resolver, 11 for manager, 13 integration tests for CLI commands, 9 integration tests for end-to-end routing
+
+### Changed
+
+- `MailAccountRepositoryInterface` extended with `findAll()` and `save()` methods
+- `services.yaml` binds `$appSecret` to `APP_SECRET` env var
+
+### Backward compatibility
+
+- Single-mailbox installs (`MAILER_DSN` only) work unchanged
+- Existing `mail_account` rows with NULL `smtp_dsn_encrypted` use the global `MAILER_DSN` fallback
+- All new columns are nullable; no data migration required
+
+### Security
+
+- Encrypted DSNs use authenticated encryption (tampering throws RuntimeException)
+- Decryption failure NEVER falls back silently to global SMTP (prevents leak)
+- DSN never logged, never returned by API, never displayed by `list` command
+- Rotation impact documented in `docs/14_key_management.md`
+
+---
+
 ## [2.14.0] - 2026-04-10
 
 ### Added

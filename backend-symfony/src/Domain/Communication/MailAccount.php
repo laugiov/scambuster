@@ -25,7 +25,10 @@ class MailAccount
         private \DateTimeImmutable $createdAt = new \DateTimeImmutable(), #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
         private \DateTimeImmutable $updatedAt = new \DateTimeImmutable(), #[ORM\Column(name: 'port', type: 'integer', nullable: true)]
         private ?int $port = null, #[ORM\Column(name: 'secure', type: 'boolean', nullable: true)]
-        private ?bool $secure = null)
+        private ?bool $secure = null, #[ORM\Column(name: 'email_address', type: 'string', length: 255, nullable: true)]
+        private ?string $emailAddress = null, #[ORM\Column(name: 'smtp_dsn_encrypted', type: 'text', nullable: true)]
+        private ?string $smtpDsnEncrypted = null, #[ORM\Column(name: 'label', type: 'string', length: 64, nullable: true)]
+        private ?string $label = null)
     {
     }
 
@@ -83,5 +86,47 @@ class MailAccount
     public function getSecure(): ?bool
     {
         return $this->secure;
+    }
+
+    public function getEmailAddress(): ?string
+    {
+        return $this->emailAddress;
+    }
+
+    public function setEmailAddress(?string $emailAddress): void
+    {
+        $this->emailAddress = $emailAddress;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    public function getSmtpDsnEncrypted(): ?string
+    {
+        return $this->smtpDsnEncrypted;
+    }
+
+    public function setSmtpDsnEncrypted(?string $smtpDsnEncrypted): void
+    {
+        $this->smtpDsnEncrypted = $smtpDsnEncrypted;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    public function getLabel(): ?string
+    {
+        return $this->label;
+    }
+
+    public function setLabel(?string $label): void
+    {
+        $this->label = $label;
+        $this->updatedAt = new \DateTimeImmutable();
+    }
+
+    /**
+     * Returns true if this account has a per-account encrypted SMTP DSN configured.
+     * Returns false if the account should use the global MAILER_DSN fallback.
+     */
+    public function hasCustomSmtp(): bool
+    {
+        return $this->smtpDsnEncrypted !== null && $this->smtpDsnEncrypted !== '';
     }
 }

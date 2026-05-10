@@ -6,6 +6,7 @@ namespace App\UI\Http\Communication;
 
 use App\Application\Communication\ReplyHandler;
 use OpenApi\Attributes as OA;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
@@ -37,9 +38,12 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 )]
 final readonly class SendEmailController
 {
-    public function __construct(private ReplyHandler $handler)
-    {
+    public function __construct(
+        private ReplyHandler $handler,
+        private LoggerInterface $logger,
+    ) {
     }
+
     #[Route('/api/v1/communication/reply/{msgId}/send-email', name: 'send_reply_email', methods: ['POST'])]
     #[IsGranted('reply:generate')]
     public function __invoke(string $msgId): JsonResponse
@@ -48,7 +52,7 @@ final readonly class SendEmailController
             $result = $this->handler->sendEmail($msgId);
 
             return new JsonResponse($result, Response::HTTP_OK);
-        } catch (\RuntimeException $e) {
+        } catch (\Throwable $e) {
             $message = $e->getMessage();
 
             if (str_contains($message, 'not found')) {
@@ -59,7 +63,21 @@ final readonly class SendEmailController
                 return new JsonResponse(['error' => 'Message is not sendable'], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
 
-            return new JsonResponse(['error' => 'SMTP send failed'], Response::HTTP_INTERNAL_SERVER_ERROR);
+            // Log the full exception (root cause + stack) so SMTP transport errors
+            // (auth failure, connection refused, TLS, etc.) are diagnosable.
+            $this->logger->error('[SendEmailController] SMTP send failed', [
+                'msg_id' => $msgId,
+                'exception_class' => $e::class,
+                'exception_message' => $message,
+                'previous_class' => $e->getPrevious()?->__toString() === null ? null : $e->getPrevious()::class,
+                'previous_message' => $e->getPrevious()?->getMessage(),
+                'trace_short' => array_slice(explode("\n", $e->getTraceAsString()), 0, 5),
+            ]);
+
+            return new JsonResponse([
+                'error' => 'SMTP send failed',
+                'detail' => $message,
+            ], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }
