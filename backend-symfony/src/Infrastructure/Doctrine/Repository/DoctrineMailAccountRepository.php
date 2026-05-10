@@ -19,4 +19,21 @@ final readonly class DoctrineMailAccountRepository implements MailAccountReposit
     {
         return $this->em->getRepository(MailAccount::class)->find($id);
     }
+
+    /**
+     * @return list<MailAccount>
+     */
+    public function findAll(): array
+    {
+        /** @var list<MailAccount> $accounts */
+        $accounts = $this->em->getRepository(MailAccount::class)->findBy([], ['createdAt' => 'ASC']);
+
+        return $accounts;
+    }
+
+    public function save(MailAccount $account): void
+    {
+        $this->em->persist($account);
+        $this->em->flush();
+    }
 }

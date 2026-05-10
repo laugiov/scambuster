@@ -245,7 +245,61 @@ HONEYPOT_IMAP_PASSWORD=your-app-password
 
 ---
 
-## 6. Explore the API
+## 6. Multi-Mailbox Setup (optional)
+
+ScamBuster supports operating multiple honeypot mailboxes simultaneously. Each mailbox can have its own SMTP credentials so outbound replies are properly DKIM/SPF-aligned with the `From:` domain.
+
+### Single-mailbox install (default — no setup needed)
+
+The default single-mailbox setup uses the global `MAILER_DSN` environment variable. No additional configuration is required.
+
+### Adding additional mailboxes
+
+For each additional mailbox, register it via the CLI:
+
+```bash
+docker compose exec backend-dev bin/console app:mail-account:add \
+    --owner-id=<existing-owner-uuid> \
+    --email=<reply-from-address> \
+    --smtp-dsn='smtps://<user>:<password>@<smtp-host>:465' \
+    --label="Optional internal name"
+```
+
+The command outputs the new `account_id` (UUID). Use it in the corresponding n8n workflow:
+
+1. **Clone** `WF-INTAKE-EMAIL-V2` and rename it (one workflow per mailbox)
+2. In the **IMAP Email Trigger** node, point to the credential of the new mailbox
+3. In the **Prepare Payload** node, replace the `accountId` constant with the new UUID
+
+The SMTP DSN is encrypted at rest using a key derived from `APP_SECRET`. It is never logged, never displayed by `app:mail-account:list`, and never returned by any API.
+
+### Managing existing mailboxes
+
+```bash
+# List all mailboxes (does NOT reveal SMTP credentials)
+docker compose exec backend-dev bin/console app:mail-account:list
+
+# Rotate the SMTP DSN
+docker compose exec backend-dev bin/console app:mail-account:rotate-smtp <account-id> \
+    --smtp-dsn='smtps://<new-user>:<new-pass>@<smtp-host>:465'
+
+# Soft-disable (sets is_active = false; can be re-enabled by SQL)
+docker compose exec backend-dev bin/console app:mail-account:disable <account-id>
+```
+
+### How routing works
+
+When ScamBuster sends a reply:
+- If the conversation's account has a custom encrypted SMTP DSN → use that transport
+- Otherwise → fall back to the global `MAILER_DSN`
+
+This means single-mailbox installs continue to work unchanged, while multi-mailbox installs get per-account SMTP isolation automatically.
+
+> **Important**: rotating `APP_SECRET` invalidates all encrypted SMTP DSNs. See [Key Management](14_key_management.md) for the impact and recovery procedure.
+
+---
+
+## 7. Explore the API
 
 Once the stack is running, the API is available at `http://localhost:8081`.
 
@@ -280,7 +334,7 @@ make debug-router
 
 ---
 
-## 7. Common Workflows
+## 8. Common Workflows
 
 ### Full Reset (Nuclear Option)
 
@@ -357,7 +411,7 @@ make composer q="show --outdated"
 
 ---
 
-## 8. Project Structure Overview
+## 9. Project Structure Overview
 
 ```
 scambuster/
@@ -383,7 +437,7 @@ scambuster/
 
 ---
 
-## 9. Docker Services Reference
+## 10. Docker Services Reference
 
 | Container | Image | Env | Purpose |
 |-----------|-------|-----|---------|

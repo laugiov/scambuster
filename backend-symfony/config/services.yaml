@@ -14,6 +14,7 @@ services:
             $projectDir: '%kernel.project_dir%'
             $monthlyLimitUsd: '%llm.max_cost_usd_month%'
             $honeypotEmailAddresses: '%app.honeypot_email_addresses%'
+            $appSecret: '%env(APP_SECRET)%'
 
     App\:
         resource: '../src/'
