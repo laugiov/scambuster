@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\Audit\AuditLogger;
+use App\Application\Communication\Smtp\SmtpTransportResolver;
 use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
@@ -29,6 +30,7 @@ class ReplyCompositionService
         private readonly LoggerInterface $logger,
         private readonly ?AuditLogger $auditLogger = null,
         private readonly ?MailerInterface $mailer = null,
+        private readonly ?SmtpTransportResolver $transportResolver = null,
     ) {
     }
 
@@ -263,6 +265,16 @@ class ReplyCompositionService
             throw new \RuntimeException('Cannot send a non-outbound message');
         }
 
+        // Resolve the right mailer based on the conversation's mail account.
+        // Falls back to the default mailer (global MAILER_DSN) if no resolver
+        // is injected or the account has no per-account SMTP configured.
+        $mailer = $this->mailer;
+
+        if ($this->transportResolver !== null) {
+            $account = $message->getConversation()->getAccount();
+            $mailer = $this->transportResolver->resolveForAccount($account);
+        }
+
         // Get compose/threading data
         $compose = $this->composeHeaders($msgId);
 
@@ -331,8 +343,8 @@ class ReplyCompositionService
             $email->text($bodyText);
         }
 
-        // Send
-        $this->mailer->send($email);
+        // Send via resolved mailer (per-account or default fallback)
+        $mailer->send($email);
 
         $this->logger->info('[ReplyCompositionService] Email sent via SMTP', [
             'msg_id' => $msgId,
