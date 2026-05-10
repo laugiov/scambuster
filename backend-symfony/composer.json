@@ -52,7 +52,8 @@
         "audit": {
             "ignored": {
                 "PKSA-z3gr-8qht-p93v": "PHPUnit PHPT deserialization — dev-only, not exploitable in production (Symfony 7.2.x pinned, upgrade planned)",
-                "PKSA-365x-2zjk-pt47": "Symfony http-foundation PATH_INFO bypass — requires Symfony 7.3+, full migration planned separately"
+                "PKSA-365x-2zjk-pt47": "Symfony http-foundation PATH_INFO bypass — requires Symfony 7.3+, full migration planned separately",
+                "PKSA-b35n-565h-rs4q": "Symfony http-foundation CVE-2025-64500 — fix only in Symfony 7.3.7+, requires Symfony 7.3 migration (planned)"
             }
         }
     },
