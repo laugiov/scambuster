@@ -16,25 +16,30 @@ RUN apt-get update \
     && docker-php-ext-install pdo pdo_pgsql zip \
     && rm -rf /var/lib/apt/lists/*
 
+# Pin Composer to 2.6.6 — the last release before --no-scripts also began
+# suppressing plugin event listeners. With newer Composer, the symfony/runtime
+# plugin no longer generates vendor/autoload_runtime.php during install (and
+# cannot be coerced into doing so by a follow-up dump-autoload either),
+# breaking bin/console at runtime. Tracked: revisit when we drop --no-scripts.
 RUN curl -sS https://getcomposer.org/installer | php -- \
-        --install-dir=/usr/local/bin --filename=composer
+        --install-dir=/usr/local/bin --filename=composer --version=2.6.6
 
 COPY backend-symfony/composer.* ./
 # Include dev dependencies (needed for fixtures).
-# We pass --no-scripts because composer.json's auto-scripts call cache:clear,
-# which would fail at this point (source code + .env not yet present).
+# Cache-bust 2026-05-10: the previous cached install layer was built against
+# Composer >= 2.7, which silently produces a vendor/ without autoload_runtime.php.
 RUN composer install --no-interaction --no-scripts --no-progress
 
 COPY backend-symfony/ ./
 
-# Composer 2.7+ changed --no-scripts semantics: it now ALSO suppresses plugin
-# event listeners. Without this extra dump-autoload (run WITHOUT --no-scripts),
-# the symfony/runtime plugin never receives 'post-autoload-dump' and the file
-# vendor/autoload_runtime.php — required by bin/console — is never generated.
-# Pre-2.7, --no-scripts only skipped composer.json scripts and plugin events
-# fired anyway, which is why the original Dockerfile worked for months before
-# the latest Composer release.
-RUN composer dump-autoload --no-interaction --optimize
+# Belt-and-braces: verify autoload_runtime.php exists so the build fails fast
+# here rather than at container start time. The Composer pin above is what
+# actually generates the file; this check guards against silent regressions.
+RUN test -f /app/vendor/autoload_runtime.php \
+    || (echo "FATAL: vendor/autoload_runtime.php missing after composer install" \
+        && ls -la /app/vendor/ | head -30 \
+        && composer --version \
+        && exit 1)
 
 # --- Runtime stage ---
 FROM php:8.3.27-cli
