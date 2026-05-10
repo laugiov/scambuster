@@ -41,29 +41,65 @@ else
   echo "[demo]   PHP sodium ext: MISSING — SmtpDsnEncryptor will throw at boot."
 fi
 
-# ─── 1. Wait for PostgreSQL ───
-# We use `php bin/console doctrine:query:sql "SELECT 1"` because it covers two
-# things at once: TCP reachability AND the Symfony kernel booting cleanly. If
-# either fails we want to surface the real error — silencing stderr here was
-# the original sin that made every failure look like "Database not reachable".
-echo "[demo] Waiting for database (60s budget)..."
+# ─── 1. Wait for PostgreSQL — TWO PHASES ───
+# Phase A: pure TCP reachability via pg_isready / fsockopen — no Symfony.
+# Phase B: ONE Symfony kernel boot probe with full output captured.
+#
+# Splitting these matters: previously we ran `php bin/console doctrine:query:sql`
+# in a loop, which (a) cold-compiles the DI container on every iteration, easily
+# overrunning the 60s budget on small plans, and (b) made any kernel boot
+# failure indistinguishable from a database outage.
+echo "[demo]   APP_ENV: ${APP_ENV:-(unset)}"
+
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "[demo] FATAL: DATABASE_URL is unset, cannot connect."
+  exit 1
+fi
+pg_host=$(printf '%s' "$DATABASE_URL" | sed -E 's#^[a-z+]+://[^@]*@([^:/]+).*#\1#')
+pg_port=$(printf '%s' "$DATABASE_URL" | sed -nE 's#^[a-z+]+://[^@]*@[^:]+:([0-9]+).*#\1#p')
+pg_port=${pg_port:-5432}
+
+echo "[demo] Phase A: waiting for TCP reachability of ${pg_host}:${pg_port} (60s budget)..."
 retries=0
-last_err_log=$(mktemp)
-until php bin/console doctrine:query:sql "SELECT 1" > /dev/null 2> "$last_err_log"; do
+until php -r "exit(@fsockopen('$pg_host', $pg_port, \$e, \$es, 3) === false ? 1 : 0);" 2>/dev/null; do
   retries=$((retries + 1))
   if [ $retries -ge 30 ]; then
-    echo "[demo] ERROR: bin/console failed for 60s. Last stderr below:"
-    echo "[demo] ─────────────────────────────────────────────────────"
-    sed 's/^/[demo]   /' < "$last_err_log"
-    echo "[demo] ─────────────────────────────────────────────────────"
-    echo "[demo] Note: this may NOT be a database connectivity issue —"
-    echo "[demo] any Symfony kernel boot failure surfaces here. Check"
-    echo "[demo] sanity-check output above before assuming the DB is down."
+    echo "[demo] FATAL: TCP connect to ${pg_host}:${pg_port} failed for 60s."
+    echo "[demo]   Postgres is genuinely unreachable from this container."
+    echo "[demo]   Likely causes:"
+    echo "[demo]     - DATABASE_URL points to the wrong host (e.g. public proxy"
+    echo "[demo]       'interchange.proxy.rlwy.net' instead of internal"
+    echo "[demo]       'postgres.railway.internal')"
+    echo "[demo]     - Postgres service is down or restarting"
+    echo "[demo]     - Network policy blocks egress on this port"
     exit 1
   fi
   sleep 2
 done
-rm -f "$last_err_log"
+echo "[demo] Phase A: TCP open."
+
+echo "[demo] Phase B: probing Symfony kernel boot (single attempt, full output)..."
+boot_log=$(mktemp)
+if ! php bin/console doctrine:query:sql "SELECT 1" > "$boot_log" 2>&1; then
+  echo "[demo] FATAL: kernel boot OR DB query failed. Combined stdout+stderr:"
+  echo "[demo] ─────────────────────────────────────────────────────"
+  if [ -s "$boot_log" ]; then
+    sed 's/^/[demo]   /' < "$boot_log"
+  else
+    echo "[demo]   <no output — process killed before flushing>"
+    echo "[demo]   Diagnostic info:"
+    echo "[demo]     PHP version : $(php -v 2>&1 | head -1)"
+    echo "[demo]     PHP memory_limit: $(php -r 'echo ini_get("memory_limit");' 2>/dev/null)"
+    echo "[demo]     bin/console : $(test -f /app/bin/console && echo present || echo MISSING)"
+    echo "[demo]     vendor/auto : $(test -f /app/vendor/autoload.php && echo present || echo MISSING)"
+    echo "[demo]   Most likely: the container compile was OOM-killed."
+    echo "[demo]   Try: increase Railway memory limit OR pre-warm cache during build."
+  fi
+  echo "[demo] ─────────────────────────────────────────────────────"
+  exit 1
+fi
+rm -f "$boot_log"
+echo "[demo] Phase B: kernel + DB query OK."
 echo "[demo] Database ready."
 
 # ─── 2. Run migrations ───
