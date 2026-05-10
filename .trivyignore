@@ -1,0 +1,9 @@
+# Trivy vulnerability ignore list — kept in sync with composer.json audit.ignored
+#
+# Each entry: CVE-XXXX-XXXXX with justification comment above.
+# Trivy reads this file from the working directory by default.
+
+# Symfony http-foundation CVE-2025-64500 — fix only available in Symfony 7.3.7+,
+# requires full Symfony 7.2 → 7.3 migration (planned, separate spec).
+# Project is currently pinned to Symfony 7.2.* in composer.json.
+CVE-2025-64500
