@@ -269,6 +269,13 @@ jobs:
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
+          # ignore-unfixed: don't fail CI on CVEs that have no patch available
+          # in any package upstream yet. Most of these are kernel/ncurses CVEs
+          # in the Debian base of php:8.x-cli that are red herrings inside a
+          # container (containers share the host kernel) and that we cannot
+          # fix without rebuilding the base image. We still want to be alerted
+          # for fixable CVEs in our PHP/Composer dependency tree.
+          ignore-unfixed: true
           trivyignores: '.trivyignore'
 
       - name: Generate SBOM (CycloneDX)
