@@ -172,6 +172,15 @@ jobs:
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
+    # The workflow's top-level permissions are 'contents: read'. The Gitleaks
+    # action additionally needs to list a PR's commits via
+    # GET /repos/{owner}/{repo}/pulls/{n}/commits, which requires
+    # 'pull-requests: read'. Without it, the API returns 403 with
+    # 'x-accepted-github-permissions: pull_requests=read' and the job dies.
+    # Granted at the job level so other jobs keep the tighter default.
+    permissions:
+      contents: read
+      pull-requests: read
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
