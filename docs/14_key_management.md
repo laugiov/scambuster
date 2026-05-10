@@ -47,6 +47,33 @@ If the private key is suspected compromised:
 
 IMAP credentials are stored in environment variables (or Docker secrets for production deployments). JWT keys are stored on filesystem. Future improvement: integrate with a secrets manager for centralized key management.
 
+## Per-Account SMTP DSN Encryption (Spec 050)
+
+When multiple honeypot mailboxes are configured (each with its own SMTP relay), each mailbox's SMTP DSN is encrypted at rest in the `mail_account.smtp_dsn_encrypted` column.
+
+**Algorithm**: XSalsa20-Poly1305 via `sodium_crypto_secretbox` (authenticated encryption with random nonce per encryption).
+
+**Key derivation**: SHA-256 of `APP_SECRET` truncated to 32 bytes via `sodium_crypto_generichash`.
+
+**Storage format**: `base64(nonce || ciphertext || mac)`.
+
+### Impact of `APP_SECRET` rotation
+
+Changing `APP_SECRET` invalidates ALL existing per-account SMTP DSNs. The encrypted ciphertexts become unreadable, and reply sending will fail with `RuntimeException: Failed to decrypt SMTP DSN`.
+
+**Recovery procedure** (if `APP_SECRET` must be rotated):
+
+1. Note the old `APP_SECRET` and the new one.
+2. For each account with a custom SMTP DSN:
+   - Use the CLI to re-add the account with the same plaintext DSN: `bin/console app:mail-account:rotate-smtp <account-id> --smtp-dsn=...`
+3. Verify with `bin/console app:mail-account:list` that all accounts still report `has_custom_smtp: yes`.
+
+A future spec will provide a non-disruptive key rotation procedure (re-encrypt all rows in a single command).
+
+### Single-mailbox installs
+
+The default single-mailbox setup uses the global `MAILER_DSN` env var (no encryption). This setup is unaffected by `APP_SECRET` rotation.
+
 ## Configuration
 
 ```yaml

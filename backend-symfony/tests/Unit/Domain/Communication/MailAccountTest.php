@@ -59,4 +59,77 @@ class MailAccountTest extends TestCase
         $this->assertInstanceOf(\DateTimeImmutable::class, $mailAccount->getCreatedAt());
         $this->assertInstanceOf(\DateTimeImmutable::class, $mailAccount->getUpdatedAt());
     }
-} 
+
+    private function makeAccount(): MailAccount
+    {
+        return new MailAccount(
+            '11111111-1111-1111-1111-111111111111',
+            '22222222-2222-2222-2222-222222222222',
+            'IMAP',
+            'imap.example.com',
+            'login-hash',
+            [],
+        );
+    }
+
+    public function test_new_account_has_no_custom_smtp(): void
+    {
+        $account = $this->makeAccount();
+        $this->assertFalse($account->hasCustomSmtp());
+        $this->assertNull($account->getSmtpDsnEncrypted());
+    }
+
+    public function test_new_account_has_no_email_address(): void
+    {
+        $this->assertNull($this->makeAccount()->getEmailAddress());
+    }
+
+    public function test_new_account_has_no_label(): void
+    {
+        $this->assertNull($this->makeAccount()->getLabel());
+    }
+
+    public function test_set_email_address(): void
+    {
+        $account = $this->makeAccount();
+        $account->setEmailAddress('user@example.com');
+        $this->assertSame('user@example.com', $account->getEmailAddress());
+    }
+
+    public function test_clear_email_address(): void
+    {
+        $account = $this->makeAccount();
+        $account->setEmailAddress('user@example.com');
+        $account->setEmailAddress(null);
+        $this->assertNull($account->getEmailAddress());
+    }
+
+    public function test_set_label(): void
+    {
+        $account = $this->makeAccount();
+        $account->setLabel('Production mailbox');
+        $this->assertSame('Production mailbox', $account->getLabel());
+    }
+
+    public function test_has_custom_smtp_true_when_dsn_set(): void
+    {
+        $account = $this->makeAccount();
+        $account->setSmtpDsnEncrypted('base64ciphertext');
+        $this->assertTrue($account->hasCustomSmtp());
+    }
+
+    public function test_has_custom_smtp_false_when_dsn_null(): void
+    {
+        $account = $this->makeAccount();
+        $account->setSmtpDsnEncrypted('something');
+        $account->setSmtpDsnEncrypted(null);
+        $this->assertFalse($account->hasCustomSmtp());
+    }
+
+    public function test_has_custom_smtp_false_when_empty_string(): void
+    {
+        $account = $this->makeAccount();
+        $account->setSmtpDsnEncrypted('');
+        $this->assertFalse($account->hasCustomSmtp());
+    }
+}
