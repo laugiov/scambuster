@@ -35,9 +35,9 @@ final readonly class MailAccountManager
      * @param string|null $label    Operator-friendly internal name
      * @param string      $endpoint IMAP host (currently the legacy field, also used as fingerprint)
      *
-     * @return string the new account_id (UUID)
-     *
      * @throws \InvalidArgumentException on invalid email or DSN
+     *
+     * @return string the new account_id (UUID)
      */
     public function addAccount(
         string $ownerId,
@@ -49,6 +49,7 @@ final readonly class MailAccountManager
         $emailVo = new EmailAddress($email);
 
         $encryptedDsn = null;
+
         if ($smtpDsn !== null && $smtpDsn !== '') {
             // Validate DSN format before encrypting
             new SmtpDsn($smtpDsn);
