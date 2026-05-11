@@ -25,7 +25,14 @@ final readonly class PromptBuilder
         private ReciprocityManager $reciprocityManager,
         private PersonaManager $personaManager,
         private LoggerInterface $logger,
-        private ?ConversationAnalyzer $conversationAnalyzer = null
+        private ?ConversationAnalyzer $conversationAnalyzer = null,
+        // Spec 080 §2 — validator context block + identity-coherence check
+        // gated by REPLY_VALIDATOR_CONTEXT_ENABLED (bound via DI).
+        private bool $validatorContextEnabled = true,
+        // Spec 080 §3 — request the structured `correction` field in the
+        // validator's system prompt. Gated by
+        // REPLY_VALIDATOR_STRUCTURED_CORRECTION.
+        private bool $validatorStructuredCorrection = true,
     ) {
     }
 
@@ -153,15 +160,26 @@ final readonly class PromptBuilder
     }
 
     /**
-     * Build prompts for validating a generated reply
+     * Build prompts for validating a generated reply.
+     *
+     * @param array<string, mixed>|null $context Spec 080 §2 — optional
+     *                                           conversational context. When
+     *                                           non-null AND
+     *                                           $validatorContextEnabled is
+     *                                           true, an additional context
+     *                                           block + identity-coherence
+     *                                           check are appended to the
+     *                                           user prompt.
      *
      * @return array{system: string, user: string}
      */
-    public function buildValidatorPrompts(string $generatedText, string $personaCode): array
+    public function buildValidatorPrompts(string $generatedText, string $personaCode, ?array $context = null): array
     {
         $persona = $this->loadPersona($personaCode);
 
-        $systemPrompt = <<<'PROMPT'
+        // Spec 080 §3 — system prompt may include the correction-field
+        // request (gated by $validatorStructuredCorrection).
+        $baseSystemPrompt = <<<'PROMPT'
 You are a quality auditor for a scam-engagement honeypot. Score each reply on 3 dimensions (1-5) plus a security gate (pass/fail).
 
 ## Security gate (pass/fail)
@@ -180,8 +198,13 @@ Use the FULL range. Most acceptable replies should score 4. Only score 3 if ther
   1=dead end/shuts down conversation  2=passive  3=maintains engagement  4=asks good questions  5=masterful elicitation
 
 Respond ONLY with JSON (no markdown, no preamble):
-{"naturalness":<1-5>,"naturalness_reasoning":"<1 sentence>","persona_fit":<1-5>,"persona_fit_reasoning":"<1 sentence>","ti_value":<1-5>,"ti_value_reasoning":"<1 sentence>","security_pass":true/false,"security_reasoning":"<1 sentence>","feedback":"<1-2 sentences>","fix_suggestion":"<or null>"}
 PROMPT;
+
+        $jsonSchema = $this->validatorStructuredCorrection
+            ? '{"naturalness":<1-5>,"naturalness_reasoning":"<1 sentence>","persona_fit":<1-5>,"persona_fit_reasoning":"<1 sentence>","ti_value":<1-5>,"ti_value_reasoning":"<1 sentence>","security_pass":true/false,"security_reasoning":"<1 sentence>","feedback":"<1-2 sentences>","fix_suggestion":"<or null>","correction":{"problem_span":"<verbatim substring of the text>","replacement":"<replacement text, empty string allowed>","rationale":"<1 sentence>"} or null}'
+            : '{"naturalness":<1-5>,"naturalness_reasoning":"<1 sentence>","persona_fit":<1-5>,"persona_fit_reasoning":"<1 sentence>","ti_value":<1-5>,"ti_value_reasoning":"<1 sentence>","security_pass":true/false,"security_reasoning":"<1 sentence>","feedback":"<1-2 sentences>","fix_suggestion":"<or null>"}';
+
+        $systemPrompt = $baseSystemPrompt . "\n" . $jsonSchema;
 
         /** @var string $personaLabel */
         $personaLabel = $persona['persona_label'];
@@ -200,10 +223,53 @@ Expected tone: {$personaTone}
 Score each dimension 1-5 using the full range (most good replies deserve 4, not 3). Check security gate. Respond in JSON only.
 PROMPT;
 
+        // Spec 080 §2 — append context block + identity-coherence check
+        // when context is provided and the flag is on.
+        if ($context !== null && $this->validatorContextEnabled) {
+            $userPrompt .= "\n\n" . $this->buildValidatorContextBlock($context);
+        }
+
         return [
             'system' => $systemPrompt,
             'user' => $userPrompt,
         ];
+    }
+
+    /**
+     * Spec 080 §2 — render the conversational context + identity-coherence
+     * directives appended to the validator's user prompt.
+     *
+     * @param array<string, mixed> $context
+     */
+    private function buildValidatorContextBlock(array $context): string
+    {
+        $inboundText = \is_string($context['inbound_text'] ?? null) ? (string) $context['inbound_text'] : '(unknown)';
+        $inboundFrom = \is_string($context['inbound_from'] ?? null) ? (string) $context['inbound_from'] : '(unknown)';
+        /** @var array<int, mixed> $previousOutbound */
+        $previousOutbound = \is_array($context['previous_outbound_messages'] ?? null) ? $context['previous_outbound_messages'] : [];
+
+        $previousSummary = $previousOutbound === []
+            ? '(this is the first reply)'
+            : sprintf('%d prior sentinel reply(ies) in this conversation', \count($previousOutbound));
+
+        return <<<PROMPT
+## Conversational context (for coherence check)
+The text above is a REPLY to the scammer. Below is what they wrote:
+"""
+{$inboundText}
+"""
+Scammer's from-header: {$inboundFrom}
+
+Previous sentinel replies in this conversation (for consistency check):
+{$previousSummary}
+
+## Identity coherence check (new failure conditions)
+Fail the security gate if ANY of these are true:
+- The reply ends with a signature line containing a name that appears in the scammer's `from:` header or the scammer's message body.
+- The reply contains a literal placeholder like [Your Name], [Company], [Your Title].
+- The reply ends with a signature block containing ANY person's name (the sentinel must not sign with a name — this is the operational policy).
+- The reply contradicts an identity claimed in a previous sentinel reply in this conversation.
+PROMPT;
     }
 
     /**
