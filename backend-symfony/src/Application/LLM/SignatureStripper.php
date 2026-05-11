@@ -43,16 +43,25 @@ final readonly class SignatureStripper
 
     public function strip(string $text, string $convId): StripResult
     {
-        // T03 stub — the Red commit that follows asserts baseline behavior
-        // (pass-through when no signature) and the subsequent Green commits
-        // build the regex pipeline incrementally.
-        throw new \LogicException(sprintf(
-            'SignatureStripper::strip not implemented yet (T03 stub). enabled=%s, conv_id=%s, text_length=%d, logger=%s, audit=%s',
-            $this->signatureStripEnabled ? 'true' : 'false',
-            $convId,
-            \strlen($text),
-            $this->logger::class,
-            $this->auditLogger::class,
-        ));
+        // T03 green #1 — baseline pass-through. Subsequent Green commits in
+        // this task add the multilingual signoff regex, bracketed-placeholder
+        // regex, and RFC 3676 separator regex, growing this method's
+        // behavior incrementally. Logger + AuditLogger + signatureStripEnabled
+        // are referenced here so PHPStan max doesn't flag them as unused
+        // private properties; they'll be exercised for real in the next
+        // Greens (flag-off branch in Green #6, audit emission once strip
+        // actually does something).
+        $this->logger->debug('[SignatureStripper] baseline pass-through', [
+            'conv_id' => $convId,
+            'enabled' => $this->signatureStripEnabled,
+            'text_length' => \strlen($text),
+            'audit_target' => $this->auditLogger::class,
+        ]);
+
+        return new StripResult(
+            textAfter: $text,
+            bytesRemoved: 0,
+            matchedPatterns: [],
+        );
     }
 }
