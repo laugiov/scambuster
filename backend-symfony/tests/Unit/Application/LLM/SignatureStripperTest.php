@@ -111,4 +111,80 @@ final class SignatureStripperTest extends TestCase
             'matchedPatterns must record at least one regex identifier when a strip occurred',
         );
     }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function multilingualSignoffsProvider(): iterable
+    {
+        // 22 cases across 6 non-English languages, matching the spec 080 §1
+        // multilingual signoff list. Each case follows the same shape as the
+        // English provider: localized body + blank line + signoff + name →
+        // localized body + single trailing newline.
+
+        // --- French (5) ---
+        $bodyFr = 'Bonjour, merci de me transmettre votre IBAN pour finaliser.';
+        $expFr = $bodyFr . "\n";
+        yield 'FR: Cordialement'         => [$bodyFr . "\n\nCordialement,\nMartin",          $expFr];
+        yield 'FR: Bien cordialement'    => [$bodyFr . "\n\nBien cordialement,\nSophie",     $expFr];
+        yield 'FR: Salutations'          => [$bodyFr . "\n\nSalutations,\nPaul",             $expFr];
+        yield 'FR: Bonne journée'        => [$bodyFr . "\n\nBonne journée,\nClaire",         $expFr];
+        yield 'FR: Bien à vous'          => [$bodyFr . "\n\nBien à vous,\nThomas",           $expFr];
+
+        // --- Spanish (4) ---
+        $bodyEs = 'Hola, por favor envíame el IBAN para continuar.';
+        $expEs = $bodyEs . "\n";
+        yield 'ES: Saludos'              => [$bodyEs . "\n\nSaludos,\nPedro",                $expEs];
+        yield 'ES: Cordialmente'         => [$bodyEs . "\n\nCordialmente,\nMaria",           $expEs];
+        yield 'ES: Atentamente'          => [$bodyEs . "\n\nAtentamente,\nCarlos",           $expEs];
+        yield 'ES: Un saludo'            => [$bodyEs . "\n\nUn saludo,\nLucia",              $expEs];
+
+        // --- German (4) ---
+        $bodyDe = 'Hallo, bitte senden Sie mir Ihre IBAN, um fortzufahren.';
+        $expDe = $bodyDe . "\n";
+        yield 'DE: Mit freundlichen Grüßen' => [$bodyDe . "\n\nMit freundlichen Grüßen,\nHans", $expDe];
+        yield 'DE: Beste Grüße'             => [$bodyDe . "\n\nBeste Grüße,\nAnna",            $expDe];
+        yield 'DE: Viele Grüße'             => [$bodyDe . "\n\nViele Grüße,\nKlaus",           $expDe];
+        yield 'DE: Freundliche Grüße'       => [$bodyDe . "\n\nFreundliche Grüße,\nIngrid",    $expDe];
+
+        // --- Italian (3) ---
+        $bodyIt = 'Salve, per favore inviami l\'IBAN per procedere.';
+        $expIt = $bodyIt . "\n";
+        yield 'IT: Cordiali saluti'      => [$bodyIt . "\n\nCordiali saluti,\nMario",        $expIt];
+        yield 'IT: Distinti saluti'      => [$bodyIt . "\n\nDistinti saluti,\nGiulia",       $expIt];
+        yield 'IT: Saluti'               => [$bodyIt . "\n\nSaluti,\nLuigi",                 $expIt];
+
+        // --- Portuguese (3) ---
+        $bodyPt = 'Olá, por favor envie-me o IBAN para prosseguir.';
+        $expPt = $bodyPt . "\n";
+        yield 'PT: Cumprimentos'                          => [$bodyPt . "\n\nCumprimentos,\nJoao",                          $expPt];
+        yield 'PT: Atenciosamente'                        => [$bodyPt . "\n\nAtenciosamente,\nAna",                         $expPt];
+        yield 'PT: Com os melhores cumprimentos'          => [$bodyPt . "\n\nCom os melhores cumprimentos,\nMiguel",        $expPt];
+
+        // --- Dutch (3) ---
+        $bodyNl = 'Hallo, stuur mij alstublieft uw IBAN om door te gaan.';
+        $expNl = $bodyNl . "\n";
+        yield 'NL: Met vriendelijke groet' => [$bodyNl . "\n\nMet vriendelijke groet,\nJan",   $expNl];
+        yield 'NL: Vriendelijke groet'     => [$bodyNl . "\n\nVriendelijke groet,\nMarieke",   $expNl];
+        yield 'NL: Groeten'                => [$bodyNl . "\n\nGroeten,\nPiet",                 $expNl];
+    }
+
+    /**
+     * @dataProvider multilingualSignoffsProvider
+     */
+    public function test_strips_multilingual_signoff_block(string $input, string $expectedTextAfter): void
+    {
+        $result = $this->newStripper()->strip($input, 'conv-1');
+
+        self::assertSame($expectedTextAfter, $result->textAfter);
+        self::assertSame(
+            \strlen($input) - \strlen($expectedTextAfter),
+            $result->bytesRemoved,
+            'bytesRemoved must equal the byte-length difference (UTF-8 aware via strlen on byte string)',
+        );
+        self::assertNotEmpty(
+            $result->matchedPatterns,
+            'matchedPatterns must record at least one regex identifier when a strip occurred',
+        );
+    }
 }
