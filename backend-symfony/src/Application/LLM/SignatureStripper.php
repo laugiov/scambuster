@@ -35,13 +35,22 @@ use Psr\Log\LoggerInterface;
 final readonly class SignatureStripper
 {
     /**
-     * English signoff words / phrases. Ordered LONGEST-FIRST so the regex
-     * alternation prefers the most specific match (e.g. "Best regards"
-     * over "Best" when both are candidates).
+     * Multilingual signoff words / phrases (EN + FR + ES + DE + IT + PT + NL).
+     * Ordered LONGEST-FIRST so the regex alternation prefers the most
+     * specific match (e.g. "Best regards" over "Best" when both candidate,
+     * "Com os melhores cumprimentos" over "Cumprimentos").
      *
      * @var list<string>
      */
-    private const ENGLISH_SIGNOFFS = [
+    private const SIGNOFFS = [
+        // --- Portuguese (longest first) ---
+        'Com os melhores cumprimentos',
+        // --- German (umlauts via /u flag) ---
+        'Mit freundlichen Grüßen',
+        'Freundliche Grüße',
+        'Beste Grüße',
+        'Viele Grüße',
+        // --- English (18) ---
         'Yours faithfully',
         'Yours sincerely',
         'Yours truly',
@@ -60,6 +69,28 @@ final readonly class SignatureStripper
         'Cheers',
         'Thanks',
         'Best',
+        // --- French ---
+        'Bien cordialement',
+        'Cordialement',
+        'Bonne journée',
+        'Bien à vous',
+        'Salutations',
+        // --- Spanish ---
+        'Cordialmente',
+        'Atentamente',
+        'Un saludo',
+        'Saludos',
+        // --- Italian ---
+        'Cordiali saluti',
+        'Distinti saluti',
+        'Saluti',
+        // --- Portuguese (shorter) ---
+        'Atenciosamente',
+        'Cumprimentos',
+        // --- Dutch ---
+        'Met vriendelijke groet',
+        'Vriendelijke groet',
+        'Groeten',
     ];
 
     public function __construct(
@@ -74,24 +105,23 @@ final readonly class SignatureStripper
         $matched = [];
         $stripped = $text;
 
-        // Pattern 1 — English signoff block: a standalone line whose first
-        // token is one of the documented signoff words, followed by an
-        // optional punctuation (comma/exclamation/period), end of line, and
-        // everything that follows (the signature block).
+        // Pattern 1 — multilingual signoff block: a standalone line whose
+        // first token is one of the documented signoff phrases (EN/FR/ES/
+        // DE/IT/PT/NL), followed by optional punctuation, end of line, and
+        // everything that follows (the signature block — name, title, etc.).
         //
         // Flags:
         //   s — DOTALL, so `.*` consumes newlines (the signature block)
-        //   u — UTF-8 awareness (no-op for pure ASCII English, mandatory
-        //       once we add multilingual variants in Green #2b)
+        //   u — UTF-8 awareness (mandatory for German umlauts, French é, etc.)
         //   i — case-insensitive (LLM casing can vary)
-        $alternation = implode('|', self::ENGLISH_SIGNOFFS);
-        $patternEn = '/\n+(?:' . $alternation . ')[,!.]?\s*\n.*$/sui';
+        $alternation = implode('|', self::SIGNOFFS);
+        $patternSignoff = '/\n+(?:' . $alternation . ')[,!.]?\s*\n.*$/sui';
 
-        $afterEn = preg_replace($patternEn, "\n", $stripped);
+        $afterSignoff = preg_replace($patternSignoff, "\n", $stripped);
 
-        if (\is_string($afterEn) && $afterEn !== $stripped) {
-            $matched[] = 'signoff_en';
-            $stripped = $afterEn;
+        if (\is_string($afterSignoff) && $afterSignoff !== $stripped) {
+            $matched[] = 'signoff_multilingual';
+            $stripped = $afterSignoff;
         }
 
         $bytesRemoved = \strlen($text) - \strlen($stripped);
