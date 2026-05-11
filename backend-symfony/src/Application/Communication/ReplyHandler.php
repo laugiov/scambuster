@@ -105,6 +105,26 @@ class ReplyHandler
             throw new \RuntimeException('Cannot generate reply for closed conversation');
         }
 
+        // Spec 081 — Verrou A: alternation invariant.
+        // Refuse to persist a new outbound when the conversation's latest non-deleted
+        // message is already outbound. This is a domain invariant (not a policy), so
+        // it is enforced unconditionally — force=true does NOT bypass it.
+        // Returns a normal success response carrying the EXISTING outbound's data so
+        // downstream callers (n8n) continue without crashing.
+        $existingOutbound = $this->findLatestOutboundIfBlocking($convId);
+
+        if ($existingOutbound instanceof \App\Domain\Communication\Message) {
+            $this->logger->info('[ReplyHandler] Duplicate outbound suppressed', [
+                'conv_id' => $convId,
+                'existing_outbound_msg_id' => $existingOutbound->getMsgId(),
+                'attempted_parent_msg_id' => $lastMsgId,
+                'reason' => 'duplicate_outbound_suppressed',
+                'force' => $force,
+            ]);
+
+            return $this->buildDuplicateSkippedResponse($existingOutbound, $convId);
+        }
+
         // Check cadence
         if (!$force && !$this->cadenceService->checkCadence($convId)) {
             throw new \RuntimeException('Cadence limit not met');
@@ -315,5 +335,62 @@ class ReplyHandler
     public function sendEmail(string $msgId): array
     {
         return $this->compositionService->sendEmail($msgId);
+    }
+
+    /**
+     * Spec 081 — Find the latest non-deleted message of the conversation and return it
+     * if (and only if) it is outbound. Used by Verrou A to enforce the alternation
+     * invariant before any LLM call. Returns null when generation may proceed.
+     */
+    private function findLatestOutboundIfBlocking(string $convId): ?Message
+    {
+        /** @var Message|null $latest */
+        $latest = $this->em->createQueryBuilder()
+            ->select('m')
+            ->from(Message::class, 'm')
+            ->where('m.conversation = :convId')
+            ->andWhere('m.deletedAt IS NULL')
+            ->setParameter('convId', $convId)
+            ->orderBy('m.tsMsg', 'DESC')
+            ->addOrderBy('m.msgId', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        if (!$latest instanceof Message) {
+            return null;
+        }
+
+        return $latest->getDirection()->getCode() === 'out' ? $latest : null;
+    }
+
+    /**
+     * Spec 081 — Build a response payload that mirrors the shape of a successful
+     * generation but carries the existing outbound's data and a duplicate_skipped flag.
+     * Callers (n8n, frontend) keep working without branching on a special HTTP code.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildDuplicateSkippedResponse(Message $existing, string $convId): array
+    {
+        $headers = $existing->getHeaders();
+        $to = $headers['to'] ?? '';
+        $bodyHtml = $existing->getBodyHtml() ?? '';
+
+        return [
+            'msg_id' => $existing->getMsgId(),
+            'conv_id' => $convId,
+            'to' => \is_string($to) ? $to : '',
+            'subject' => $existing->getSubject() ?? '',
+            'draft' => [
+                'text' => $existing->getBodyText(),
+                'html' => $bodyHtml,
+            ],
+            'meta' => [
+                'duplicate_skipped' => true,
+                'reason' => 'duplicate_outbound_suppressed',
+                'generated_at' => $existing->getTsMsg()->format(DATE_ATOM),
+            ],
+        ];
     }
 }
