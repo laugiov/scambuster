@@ -231,4 +231,41 @@ final class SignatureStripperTest extends TestCase
         );
         self::assertNotEmpty($result->matchedPatterns);
     }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function rfc3676SeparatorProvider(): iterable
+    {
+        // RFC 3676 §4.3: a line containing only "-- " (two dashes + space)
+        // marks the start of a signature. Strip the marker line and
+        // everything that follows.
+        //
+        // We also accept "--" without trailing space and "---" (3 dashes,
+        // commonly seen) because LLMs and email clients are inconsistent
+        // about the exact form.
+
+        $body = 'Please send your IBAN to proceed.';
+        $expected = $body . "\n";
+
+        yield 'RFC 3676 standard "-- "'  => [$body . "\n-- \nJohn Smith\nTitle\n+1-555",   $expected];
+        yield 'Two dashes no trailing space' => [$body . "\n--\nJohn Smith",                $expected];
+        yield 'Three dashes'              => [$body . "\n---\nFooter line\n+1-555",         $expected];
+        yield 'Separator + multi-line sig' => [$body . "\n-- \nJohn\nDirector\ncompany.com", $expected];
+    }
+
+    /**
+     * @dataProvider rfc3676SeparatorProvider
+     */
+    public function test_strips_rfc3676_separator(string $input, string $expectedTextAfter): void
+    {
+        $result = $this->newStripper()->strip($input, 'conv-1');
+
+        self::assertSame($expectedTextAfter, $result->textAfter);
+        self::assertSame(
+            \strlen($input) - \strlen($expectedTextAfter),
+            $result->bytesRemoved,
+        );
+        self::assertNotEmpty($result->matchedPatterns);
+    }
 }
