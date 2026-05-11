@@ -124,6 +124,22 @@ final readonly class SignatureStripper
             $stripped = $afterSignoff;
         }
 
+        // Pattern 2 — standalone bracketed placeholders: a trailing block of
+        // one or more lines, each of the shape `[Word ...]` (LLM template
+        // leak markers like `[Your Name]`, `[Company Name]`, `[Date]`).
+        //
+        // Match anchored at end-of-string so we only strip when the block
+        // is at the very end of the text (the signature position). A mid-body
+        // bracketed word is intentionally left alone.
+        $patternBracketed = '/\n+\[[A-Za-z][A-Za-z ]+\]\s*(?:\n\s*\[[A-Za-z][A-Za-z ]+\]\s*)*$/u';
+
+        $afterBracketed = preg_replace($patternBracketed, "\n", $stripped);
+
+        if (\is_string($afterBracketed) && $afterBracketed !== $stripped) {
+            $matched[] = 'bracketed_placeholder';
+            $stripped = $afterBracketed;
+        }
+
         $bytesRemoved = \strlen($text) - \strlen($stripped);
 
         if ($bytesRemoved > 0) {
