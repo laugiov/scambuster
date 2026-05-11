@@ -102,6 +102,19 @@ final readonly class SignatureStripper
 
     public function strip(string $text, string $convId): StripResult
     {
+        // Spec 080 §1 — feature flag short-circuit. When disabled, the
+        // stripper is wired into the pipeline but operates as a no-op.
+        // Enables emergency rollback via env var without code redeploy.
+        if (!$this->signatureStripEnabled) {
+            $this->logger->debug('[SignatureStripper] disabled, passing through', [
+                'conv_id' => $convId,
+                'text_length' => \strlen($text),
+                'audit_target' => $this->auditLogger::class,
+            ]);
+
+            return new StripResult(textAfter: $text, bytesRemoved: 0, matchedPatterns: []);
+        }
+
         $matched = [];
         $stripped = $text;
 
