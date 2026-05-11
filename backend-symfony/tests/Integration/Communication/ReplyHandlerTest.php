@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Communication;
 
-use App\Application\Communication\ReplyHandler;
 use App\Application\Communication\ConversationHandler;
 use App\Application\Communication\MessageHandler;
+use App\Application\Communication\ReplyHandler;
 use App\Domain\Communication\Channel;
-use App\Domain\Communication\ScamType;
-use App\Domain\Communication\MailAccount;
 use App\Domain\Communication\ConversationStatus;
 use App\Domain\Communication\Direction;
+use App\Domain\Communication\MailAccount;
 use App\Domain\Communication\Message;
+use App\Domain\Communication\ScamType;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 class ReplyHandlerTest extends KernelTestCase
@@ -284,6 +284,46 @@ class ReplyHandlerTest extends KernelTestCase
         $this->replyHandler->markAsSent($replyMsgId, 'gmail', 'another-id', $tsSent);
     }
 
+    /**
+     * Append a fresh inbound to the conversation with a future ts_msg so the alternation
+     * invariant is satisfied (latest message = inbound) but the cadence between outbounds
+     * is still in violation. Returns the new inbound's msg_id.
+     */
+    private function appendInbound(string $convId, int $minutesInFuture = 5): string
+    {
+        $channel = $this->em->getRepository(Channel::class)->findOneBy(['code' => 'email']);
+        $directionIn = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'in']);
+        $conv = $this->em->getRepository(\App\Domain\Communication\Conversation::class)->find($convId);
+
+        $msgId = uuid_create(UUID_TYPE_RANDOM);
+        $ts = new \DateTimeImmutable('+' . $minutesInFuture . ' minutes');
+        $msg = new Message(
+            $msgId,
+            $conv,
+            $channel,
+            $directionIn,
+            'fr',
+            'Re: scammer follow-up',
+            'Did you receive my mail?',
+            '<p>Follow-up</p>',
+            [
+                'from' => 'scammer@evil.test',
+                'to' => 'victim@example.test',
+                'message_id' => '<follow-' . bin2hex(random_bytes(8)) . '@evil.test>',
+            ],
+            bin2hex(random_bytes(32)),
+            null,
+            null,
+            $ts,
+            $ts,
+            null
+        );
+        $this->em->persist($msg);
+        $this->em->flush();
+
+        return $msgId;
+    }
+
     public function testCheckCadenceRespectMinimumTime(): void
     {
         $data = $this->createTestConversationWithMessage();
@@ -292,11 +332,15 @@ class ReplyHandlerTest extends KernelTestCase
         $result1 = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
         $this->replyHandler->markAsSent($result1['msg_id'], 'gmail', 'id1', new \DateTimeImmutable());
 
-        // Try to generate another reply immediately (should fail without force)
+        // Append a new inbound so the alternation invariant is satisfied (Spec 081):
+        // latest message is now inbound, but the cadence between outbounds is still
+        // under 6h so the cadence guard must fire.
+        $newInboundId = $this->appendInbound($data['conv_id']);
+
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Cadence limit not met');
 
-        $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
+        $this->replyHandler->generateReply($data['conv_id'], $newInboundId, false, 'test');
     }
 
     public function testForceBypassesCadenceCheck(): void
@@ -307,11 +351,16 @@ class ReplyHandlerTest extends KernelTestCase
         $result1 = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
         $this->replyHandler->markAsSent($result1['msg_id'], 'gmail', 'id1', new \DateTimeImmutable());
 
-        // Generate second reply with force=true (should succeed)
-        $result2 = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], true, 'test');
+        // Append a new inbound so the alternation invariant is satisfied (Spec 081):
+        // force=true must then legitimately bypass the cadence policy and create a 2nd
+        // outbound (this is the contract for force after a fresh inbound has arrived).
+        $newInboundId = $this->appendInbound($data['conv_id']);
+
+        $result2 = $this->replyHandler->generateReply($data['conv_id'], $newInboundId, true, 'test');
 
         $this->assertNotNull($result2);
         $this->assertNotSame($result1['msg_id'], $result2['msg_id']);
+        $this->assertFalse((bool) ($result2['meta']['duplicate_skipped'] ?? false));
     }
 
     public function testComposeHeadersChecksSafelist(): void
