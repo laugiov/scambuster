@@ -5,7 +5,9 @@
       "parameters": {
         "downloadAttachments": true,
         "options": {
-          "customEmailConfig": "[\"UNSEEN\"]"
+          "customEmailConfig": "[\"UNSEEN\"]",
+          "forceReconnect": 2,
+          "trackLastMessageId": false
         }
       },
       "id": "a40abcac-34bb-49f6-a3d5-d3cb9314842d",
@@ -194,7 +196,9 @@
           "mappingMode": "defineBelow",
           "value": {}
         },
-        "options": {}
+        "options": {
+          "waitForSubWorkflow": false
+        }
       },
       "id": "f9de34a7-c5f3-460d-b9b9-9414c2873fcf",
       "name": "Trigger Reply Generation",
@@ -203,7 +207,8 @@
       "position": [
         1920,
         288
-      ]
+      ],
+      "alwaysOutputData": true
     },
     {
       "parameters": {},
@@ -249,7 +254,17 @@
           "value": "PLACEHOLDER_EXTRACT_IOC",
           "mode": "id"
         },
-        "options": {}
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
       },
       "id": "1d36de7c-7dbc-445d-8a33-cda78a914701",
       "name": "WF-EXTRACT-AND-ENRICH-IOC",
