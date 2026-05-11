@@ -26,6 +26,11 @@ final readonly class ValidationResult
         /** @var array<string> */
         public array $reasons = [],
         public ?string $fixSuggestion = null,
+        // Spec 080 §3 — structured correction (problem_span / replacement /
+        // rationale) emitted by the validator when it can pinpoint a diff.
+        // Null when the validator didn't emit it, or when fromLLMResponse
+        // was called without a $generatedText argument (legacy callers).
+        public ?StructuredCorrection $correction = null,
     ) {
     }
 
@@ -50,9 +55,16 @@ final readonly class ValidationResult
      *   "fix_suggestion": "..." (optional)
      * }
      *
-     * @param array<string, mixed> $data Decoded JSON from LLM
+     * @param array<string, mixed> $data          Decoded JSON from LLM
+     * @param string|null          $generatedText Original LLM output that was
+     *                                            validated. When provided, an
+     *                                            optional `correction` object
+     *                                            in $data is parsed into a
+     *                                            StructuredCorrection. When
+     *                                            null (legacy 1-arg callers),
+     *                                            correction is forced to null.
      */
-    public static function fromLLMResponse(array $data): self
+    public static function fromLLMResponse(array $data, ?string $generatedText = null): self
     {
         $naturalness = self::clampScore($data['naturalness'] ?? 1);
         $personaFit = self::clampScore($data['persona_fit'] ?? 1);
@@ -81,6 +93,11 @@ final readonly class ValidationResult
         $avgScore = ($naturalness + $personaFit + $tiValue) / 3;
         $approved = $securityPass && $naturalness >= 2 && $avgScore >= 2.5;
 
+        // Spec 080 §3 — parse optional structured correction.
+        /** @var array<string, mixed>|null $correctionData */
+        $correctionData = \is_array($data['correction'] ?? null) ? $data['correction'] : null;
+        $correction = StructuredCorrection::fromLLMResponse($correctionData, $generatedText);
+
         return new self(
             approved: $approved,
             naturalness: $naturalness,
@@ -90,13 +107,14 @@ final readonly class ValidationResult
             feedback: $feedback,
             reasons: $reasons,
             fixSuggestion: $fixSuggestion,
+            correction: $correction,
         );
     }
 
     /**
      * Convert to legacy array format for backward compatibility.
      *
-     * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null}
+     * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null, correction: array{problem_span: string, replacement: string, rationale: string}|null}
      */
     public function toLegacyArray(): array
     {
@@ -104,6 +122,7 @@ final readonly class ValidationResult
             'approved' => $this->approved,
             'reasons' => $this->reasons,
             'fix_suggestion' => $this->fixSuggestion,
+            'correction' => $this->correction?->toArray(),
         ];
     }
 
