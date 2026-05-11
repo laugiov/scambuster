@@ -34,6 +34,7 @@ final readonly class ReplyOrchestrator
         ?OperationalLeakageDetector $leakDetector = null,
         ?\App\Application\Audit\AuditLogger $auditLogger = null,
         string $model = 'gpt-4o',
+        ?SignatureStripper $signatureStripper = null,
     ) {
         $this->coordinator = new RetryCoordinator(
             $llmClient,
@@ -48,6 +49,7 @@ final readonly class ReplyOrchestrator
             $leakDetector,
             $auditLogger,
             $model,
+            $signatureStripper,
         );
     }
 
