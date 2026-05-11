@@ -140,6 +140,22 @@ final readonly class SignatureStripper
             $stripped = $afterBracketed;
         }
 
+        // Pattern 3 — RFC 3676 §4.3 signature separator: a line containing
+        // only "--" or "--" + space (the canonical form) marks the start of
+        // the signature. We also accept "---" (3+ dashes) for LLM output
+        // variability. Strip the separator line and everything after.
+        //
+        // `[ ]*` (not `\s*`) before the newline so we don't eat the newline
+        // itself — we want \n to act as the line terminator.
+        $patternRfc3676 = '/\n+-{2,}[ ]*\n.*$/s';
+
+        $afterRfc3676 = preg_replace($patternRfc3676, "\n", $stripped);
+
+        if (\is_string($afterRfc3676) && $afterRfc3676 !== $stripped) {
+            $matched[] = 'rfc3676_separator';
+            $stripped = $afterRfc3676;
+        }
+
         $bytesRemoved = \strlen($text) - \strlen($stripped);
 
         if ($bytesRemoved > 0) {
