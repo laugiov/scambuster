@@ -265,6 +265,26 @@ class ReplyCompositionService
             throw new \RuntimeException('Cannot send a non-outbound message');
         }
 
+        // Spec 081 — Verrou B: send-side idempotency.
+        // If the message is already marked sent, return the cached delivery metadata
+        // without invoking SMTP. Protects against duplicate SMTP delivery caused by
+        // retried workflows, replayed runs, or manual UI re-triggers.
+        if ($message->getSendStatus() === 'sent') {
+            $providerMsgId = $message->getProviderMsgId() ?? '';
+            $tsSent = $message->getTsSent();
+            $this->logger->info('[ReplyCompositionService] Send already completed, returning idempotent response', [
+                'msg_id' => $msgId,
+                'provider_msg_id' => $providerMsgId,
+                'reason' => 'send_already_completed',
+            ]);
+
+            return [
+                'success' => true,
+                'message_id' => $providerMsgId,
+                'ts_sent' => $tsSent instanceof \DateTimeImmutable ? $tsSent->format(\DateTimeInterface::ATOM) : '',
+            ];
+        }
+
         // Resolve the right mailer based on the conversation's mail account.
         // Falls back to the default mailer (global MAILER_DSN) if no resolver
         // is injected or the account has no per-account SMTP configured.
