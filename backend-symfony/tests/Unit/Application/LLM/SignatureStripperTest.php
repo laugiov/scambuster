@@ -268,4 +268,47 @@ final class SignatureStripperTest extends TestCase
         );
         self::assertNotEmpty($result->matchedPatterns);
     }
+
+    /**
+     * @return iterable<string, array{0: string}>
+     */
+    public static function adversarialInlineProvider(): iterable
+    {
+        // Multilingual adversarial cases: a signoff word appears INLINE
+        // in the body (mid-sentence or as part of a phrase) and must NOT
+        // trigger the strip. The anchoring (\n+ before, \s*\n after) in
+        // the signoff regex already protects against these — this provider
+        // locks in that behavior as a regression test.
+
+        yield 'EN: Best regards inline after comma'   => ['Please reply, Best regards are appreciated.'];
+        yield 'EN: thank you inline'                  => ['I want to thank you for your patience.'];
+        yield 'EN: Sincere as adjective'              => ['Sincere question: what is your address?'];
+        yield 'EN: best wishes inline'                => ['My best wishes for our deal.'];
+
+        yield 'FR: meilleurs sentiments inline'       => ['Mes meilleurs sentiments pour cette transaction.'];
+        yield 'FR: vous remercier inline'             => ['Je vous remercie de votre patience.'];
+
+        yield 'ES: Saludos cordiales inline'          => ['Saludos cordiales en este negocio.'];
+        yield 'ES: Atentamente as adverb'             => ['Atentamente esperaba su respuesta.'];
+
+        yield 'DE: Mit freundlichen Grüßen inline'    => ['Mit freundlichen Grüßen im Brief schreiben.'];
+
+        yield 'IT: Cordiali saluti inline'            => ['Cordiali saluti in italiano sono comuni.'];
+
+        yield 'Multi-line body with inline signoff'   => [
+            "Hello, please reply soon.\nPlease reply, Best regards are appreciated.",
+        ];
+    }
+
+    /**
+     * @dataProvider adversarialInlineProvider
+     */
+    public function test_does_NOT_strip_inline_signoff_words(string $input): void
+    {
+        $result = $this->newStripper()->strip($input, 'conv-1');
+
+        self::assertSame($input, $result->textAfter, 'Inline signoff words must not trigger strip');
+        self::assertSame(0, $result->bytesRemoved);
+        self::assertSame([], $result->matchedPatterns);
+    }
 }
