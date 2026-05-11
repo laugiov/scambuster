@@ -311,4 +311,24 @@ final class SignatureStripperTest extends TestCase
         self::assertSame(0, $result->bytesRemoved);
         self::assertSame([], $result->matchedPatterns);
     }
+
+    /**
+     * Spec 080 §1 — feature flag `REPLY_SIGNATURE_STRIP_ENABLED` short-circuit.
+     * When the flag is false, the stripper must be a no-op (return input
+     * unchanged) regardless of input content, so rollback via env-var toggle
+     * is possible without redeploy.
+     */
+    public function test_returns_input_unchanged_when_flag_disabled(): void
+    {
+        $stripper = $this->newStripper(enabled: false);
+
+        // An input that WOULD be stripped by the enabled stripper:
+        $input = "Hello, please send the IBAN.\n\nBest regards,\nJohn Smith";
+
+        $result = $stripper->strip($input, 'conv-1');
+
+        self::assertSame($input, $result->textAfter, 'Disabled stripper must return input unchanged');
+        self::assertSame(0, $result->bytesRemoved);
+        self::assertSame([], $result->matchedPatterns);
+    }
 }
