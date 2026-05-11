@@ -15,6 +15,11 @@ services:
             $monthlyLimitUsd: '%llm.max_cost_usd_month%'
             $honeypotEmailAddresses: '%app.honeypot_email_addresses%'
             $appSecret: '%env(APP_SECRET)%'
+            # Spec 080 — reply-pipeline feature flags (see config/packages/llm.yaml)
+            $signatureStripEnabled:         '%reply.signature_strip.enabled%'
+            $validatorContextEnabled:       '%reply.validator.context.enabled%'
+            $validatorStructuredCorrection: '%reply.validator.structured_correction%'
+            $generatorPatchMode:            '%reply.generator.patch_mode%'
 
     App\:
         resource: '../src/'
