@@ -199,8 +199,13 @@ final readonly class RetryCoordinator
             // --- Stage 4: ReplyValidator (semantic LLM) ---
             $valStartTime = microtime(true);
 
+            // Spec 080 §2 — build the conversational context the validator
+            // needs to perform identity-coherence checks. Extracted from the
+            // existing LLM context (no new upstream coupling).
+            $validatorContext = $this->buildValidatorContext($context);
+
             try {
-                $validatorResult = $this->replyValidator->validate($generatedText, $personaCode);
+                $validatorResult = $this->replyValidator->validate($generatedText, $personaCode, $validatorContext);
             } catch (\Throwable $e) {
                 $this->logger->warning("[RetryCoordinator] Validator error attempt {$attempt}", [
                     'error' => $e->getMessage(),
@@ -300,6 +305,74 @@ final readonly class RetryCoordinator
     private function getFallbackProvider(): FallbackProvider
     {
         return $this->fallbackProvider ?? new FallbackProvider();
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     *
+     * @return array<string, mixed>
+     */
+    /**
+     * Spec 080 §2 — build the validator context dict from the existing LLM
+     * context, extracting:
+     *   - inbound_text: last inbound message body
+     *   - inbound_from: from-header of that inbound
+     *   - previous_outbound_messages: last 3 outbound messages
+     *   - language: detected_language
+     *
+     * The keys 'direction' in $context['last_messages'] are strings 'in'/'out'
+     * (see ConversationHistoryService line 253), NOT the DB-level integers 1/2.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @return array<string, mixed>
+     */
+    private function buildValidatorContext(array $context): array
+    {
+        /** @var array<int, array<string, mixed>> $lastMessages */
+        $lastMessages = \is_array($context['last_messages'] ?? null) ? $context['last_messages'] : [];
+
+        $inboundText = '';
+        $inboundFrom = '';
+        $previousOutbound = [];
+
+        foreach ($lastMessages as $msg) {
+            $directionRaw = $msg['direction'] ?? null;
+            $direction = \is_string($directionRaw) ? $directionRaw : '';
+
+            if ($direction === 'in' && $inboundText === '') {
+                // Capture the FIRST inbound encountered (typically newest).
+                $bodyRaw = $msg['body_text'] ?? $msg['body'] ?? null;
+
+                if (\is_string($bodyRaw)) {
+                    $inboundText = $bodyRaw;
+                }
+
+                $headersRaw = $msg['headers'] ?? null;
+
+                if (\is_array($headersRaw)) {
+                    $fromRaw = $headersRaw['from'] ?? null;
+
+                    if (\is_string($fromRaw)) {
+                        $inboundFrom = $fromRaw;
+                    }
+                }
+            } elseif ($direction === 'out' && \count($previousOutbound) < 3) {
+                $bodyRaw = $msg['body_text'] ?? $msg['body'] ?? null;
+                $previousOutbound[] = [
+                    'body' => \is_string($bodyRaw) ? $bodyRaw : '',
+                ];
+            }
+        }
+
+        $languageRaw = $context['detected_language'] ?? null;
+
+        return [
+            'inbound_text' => $inboundText,
+            'inbound_from' => $inboundFrom,
+            'previous_outbound_messages' => $previousOutbound,
+            'language' => \is_string($languageRaw) ? $languageRaw : 'en',
+        ];
     }
 
     /**
