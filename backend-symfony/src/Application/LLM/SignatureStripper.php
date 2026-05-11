@@ -34,6 +34,34 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class SignatureStripper
 {
+    /**
+     * English signoff words / phrases. Ordered LONGEST-FIRST so the regex
+     * alternation prefers the most specific match (e.g. "Best regards"
+     * over "Best" when both are candidates).
+     *
+     * @var list<string>
+     */
+    private const ENGLISH_SIGNOFFS = [
+        'Yours faithfully',
+        'Yours sincerely',
+        'Yours truly',
+        'Best regards',
+        'Best wishes',
+        'Kind regards',
+        'Warm regards',
+        'Warm wishes',
+        'Many thanks',
+        'All the best',
+        'Thank you',
+        'Sincerely',
+        'Cordially',
+        'Regards',
+        'Warmly',
+        'Cheers',
+        'Thanks',
+        'Best',
+    ];
+
     public function __construct(
         private bool $signatureStripEnabled,
         private LoggerInterface $logger,
@@ -43,25 +71,45 @@ final readonly class SignatureStripper
 
     public function strip(string $text, string $convId): StripResult
     {
-        // T03 green #1 — baseline pass-through. Subsequent Green commits in
-        // this task add the multilingual signoff regex, bracketed-placeholder
-        // regex, and RFC 3676 separator regex, growing this method's
-        // behavior incrementally. Logger + AuditLogger + signatureStripEnabled
-        // are referenced here so PHPStan max doesn't flag them as unused
-        // private properties; they'll be exercised for real in the next
-        // Greens (flag-off branch in Green #6, audit emission once strip
-        // actually does something).
-        $this->logger->debug('[SignatureStripper] baseline pass-through', [
-            'conv_id' => $convId,
-            'enabled' => $this->signatureStripEnabled,
-            'text_length' => \strlen($text),
-            'audit_target' => $this->auditLogger::class,
-        ]);
+        $matched = [];
+        $stripped = $text;
+
+        // Pattern 1 — English signoff block: a standalone line whose first
+        // token is one of the documented signoff words, followed by an
+        // optional punctuation (comma/exclamation/period), end of line, and
+        // everything that follows (the signature block).
+        //
+        // Flags:
+        //   s — DOTALL, so `.*` consumes newlines (the signature block)
+        //   u — UTF-8 awareness (no-op for pure ASCII English, mandatory
+        //       once we add multilingual variants in Green #2b)
+        //   i — case-insensitive (LLM casing can vary)
+        $alternation = implode('|', self::ENGLISH_SIGNOFFS);
+        $patternEn = '/\n+(?:' . $alternation . ')[,!.]?\s*\n.*$/sui';
+
+        $afterEn = preg_replace($patternEn, "\n", $stripped);
+
+        if (\is_string($afterEn) && $afterEn !== $stripped) {
+            $matched[] = 'signoff_en';
+            $stripped = $afterEn;
+        }
+
+        $bytesRemoved = \strlen($text) - \strlen($stripped);
+
+        if ($bytesRemoved > 0) {
+            $this->logger->info('[SignatureStripper] strip', [
+                'conv_id' => $convId,
+                'enabled' => $this->signatureStripEnabled,
+                'bytes_removed' => $bytesRemoved,
+                'patterns' => $matched,
+                'audit_target' => $this->auditLogger::class,
+            ]);
+        }
 
         return new StripResult(
-            textAfter: $text,
-            bytesRemoved: 0,
-            matchedPatterns: [],
+            textAfter: $stripped,
+            bytesRemoved: $bytesRemoved,
+            matchedPatterns: $matched,
         );
     }
 }
