@@ -189,6 +189,15 @@ services:
     App\Application\LLM\ContextualEnrichmentRequest: ~
     App\Application\LLM\ContextualEnrichmentResult: ~
 
+    # Spec 080 — SignatureStripper: deterministic regex-only signature
+    # stripper. The bool flag is wired explicitly here because the
+    # services.yaml _defaults.bind is not in scope for services defined
+    # in this packages/ file.
+    App\Application\LLM\SignatureStripper:
+        arguments:
+            $signatureStripEnabled: '%reply.signature_strip.enabled%'
+            $logger: '@monolog.logger.llm'
+
     # Application - Prompt Injection Detection (forensic analysis of inbound messages)
     App\Application\Communication\PromptInjectionPatternMatcher:
         arguments:
