@@ -47,6 +47,11 @@ final readonly class RetryCoordinator
         private ?OperationalLeakageDetector $leakDetector = null,
         private ?\App\Application\Audit\AuditLogger $auditLogger = null,
         private string $model = 'gpt-4o',
+        // Spec 080 §1 — deterministic signature stripper applied immediately
+        // after each generateText() call, before PolicyGuard. Optional for
+        // backward compat with legacy callers / unit tests; auto-wired in
+        // production by Symfony's DI.
+        private ?SignatureStripper $signatureStripper = null,
     ) {
     }
 
@@ -86,6 +91,24 @@ final readonly class RetryCoordinator
             $enrichedContext = $this->enrichContextWithDialogue($context, $dialogue);
             $genStartTime = microtime(true);
             $generatedText = $this->generateText($enrichedContext, $personaCode);
+
+            // Spec 080 §1 — strip trailing signature blocks BEFORE downstream
+            // validators see the text. The stripped text is what gets
+            // validated, persisted, and sent — preventing DB/SMTP divergence.
+            if ($this->signatureStripper !== null) {
+                $stripResult = $this->signatureStripper->strip($generatedText, $convId);
+
+                if ($stripResult->bytesRemoved > 0) {
+                    $this->logger->info('[RetryCoordinator] signature stripped before validators', [
+                        'conv_id' => $convId,
+                        'attempt' => $attempt,
+                        'bytes_removed' => $stripResult->bytesRemoved,
+                        'patterns' => $stripResult->matchedPatterns,
+                    ]);
+                }
+                $generatedText = $stripResult->textAfter;
+            }
+
             $genDuration = microtime(true) - $genStartTime;
 
             if ($attempt === 1) {
