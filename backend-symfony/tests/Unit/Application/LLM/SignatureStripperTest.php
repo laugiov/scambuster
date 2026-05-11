@@ -187,4 +187,48 @@ final class SignatureStripperTest extends TestCase
             'matchedPatterns must record at least one regex identifier when a strip occurred',
         );
     }
+
+    /**
+     * @return iterable<string, array{0: string, 1: string}>
+     */
+    public static function bracketedPlaceholdersProvider(): iterable
+    {
+        // Standalone-line bracketed placeholders that the LLM may leave when
+        // it falls back on a template pattern. Each test asserts the
+        // placeholder line (and any subsequent placeholder lines forming the
+        // signature block) is stripped.
+
+        $body = 'Thank you, please send the IBAN to proceed.';
+        $expected = $body . "\n";
+
+        yield '[Your Name] alone'        => [$body . "\n\n[Your Name]",                    $expected];
+        yield '[Company Name] alone'     => [$body . "\n\n[Company Name]",                 $expected];
+        yield '[Your Title]'             => [$body . "\n\n[Your Title]",                   $expected];
+        yield '[Date]'                   => [$body . "\n\n[Date]",                         $expected];
+        yield 'Stacked placeholders'     => [$body . "\n\n[Your Name]\n[Title]\n[Phone]",  $expected];
+
+        // Composite case: closing line + bracketed placeholder beneath. The
+        // existing signoff regex catches the closing line and everything
+        // after (including the bracket), so this is double-covered. We assert
+        // the outcome regardless of which regex fires.
+        yield 'Closing line + [Your Name]' => [
+            $body . "\n\nBest regards,\n[Your Name]",
+            $expected,
+        ];
+    }
+
+    /**
+     * @dataProvider bracketedPlaceholdersProvider
+     */
+    public function test_strips_bracketed_placeholders(string $input, string $expectedTextAfter): void
+    {
+        $result = $this->newStripper()->strip($input, 'conv-1');
+
+        self::assertSame($expectedTextAfter, $result->textAfter);
+        self::assertSame(
+            \strlen($input) - \strlen($expectedTextAfter),
+            $result->bytesRemoved,
+        );
+        self::assertNotEmpty($result->matchedPatterns);
+    }
 }
