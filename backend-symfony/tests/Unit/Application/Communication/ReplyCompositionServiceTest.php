@@ -12,10 +12,7 @@ use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationStatus;
 use App\Domain\Communication\Direction;
 use App\Domain\Communication\Message;
-use Doctrine\ORM\AbstractQuery;
 use Doctrine\ORM\EntityManagerInterface;
-use Doctrine\ORM\EntityRepository;
-use Doctrine\ORM\QueryBuilder;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
@@ -265,5 +262,87 @@ class ReplyCompositionServiceTest extends TestCase
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Cannot send a non-outbound message');
         $service->sendEmail('msg-1');
+    }
+
+    // ------------------------------------------------------------------ //
+    //  Spec 081 — Verrou B: send-side idempotency
+    // ------------------------------------------------------------------ //
+
+    public function test_sendEmail_returns_idempotent_success_when_already_sent(): void
+    {
+        $mailer = $this->createMock(MailerInterface::class);
+        // Strict expectation: mailer MUST NOT be invoked when message is already sent.
+        $mailer->expects($this->never())->method('send');
+
+        $direction = $this->createMock(Direction::class);
+        $direction->method('getCode')->willReturn('out');
+
+        $tsSent = new \DateTimeImmutable('2026-05-11T16:38:47+00:00');
+        $message = $this->createMock(Message::class);
+        $message->method('getDirection')->willReturn($direction);
+        $message->method('getSendStatus')->willReturn('sent');
+        $message->method('getProviderMsgId')->willReturn('db6c9b0fd42f1fb65e3fc5bd5cf2a8bc@scambuster.local');
+        $message->method('getTsSent')->willReturn($tsSent);
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService(mailer: $mailer);
+        $result = $service->sendEmail('msg-already-sent');
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('db6c9b0fd42f1fb65e3fc5bd5cf2a8bc@scambuster.local', $result['message_id']);
+        $this->assertSame($tsSent->format(\DateTimeInterface::ATOM), $result['ts_sent']);
+    }
+
+    public function test_sendEmail_idempotent_path_tolerates_missing_provider_metadata(): void
+    {
+        // Defense-in-depth: legacy outbounds may have send_status=sent but null provider_msg_id.
+        $mailer = $this->createMock(MailerInterface::class);
+        $mailer->expects($this->never())->method('send');
+
+        $direction = $this->createMock(Direction::class);
+        $direction->method('getCode')->willReturn('out');
+
+        $message = $this->createMock(Message::class);
+        $message->method('getDirection')->willReturn($direction);
+        $message->method('getSendStatus')->willReturn('sent');
+        $message->method('getProviderMsgId')->willReturn(null);
+        $message->method('getTsSent')->willReturn(null);
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService(mailer: $mailer);
+        $result = $service->sendEmail('msg-legacy-sent');
+
+        // Idempotent path must not crash on missing metadata.
+        $this->assertTrue($result['success']);
+        $this->assertArrayHasKey('message_id', $result);
+        $this->assertArrayHasKey('ts_sent', $result);
+    }
+
+    public function test_sendEmail_does_not_skip_when_send_status_is_draft(): void
+    {
+        // Sanity: a draft message must NOT be diverted into the idempotent path.
+        // We can't assert SMTP send fully here (composeHeaders has DB needs); we check
+        // the early-return short-circuit does not fire by ensuring the service progresses
+        // past the status check and fails on a later, well-known precondition.
+        $mailer = $this->createMock(MailerInterface::class);
+
+        $direction = $this->createMock(Direction::class);
+        $direction->method('getCode')->willReturn('out');
+
+        $message = $this->createMock(Message::class);
+        $message->method('getDirection')->willReturn($direction);
+        $message->method('getSendStatus')->willReturn('draft');
+        // No replyTo → composeHeaders throws "not a reply" downstream → proves we did NOT short-circuit
+        $message->method('getReplyTo')->willReturn(null);
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService(mailer: $mailer);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Message is not a reply');
+        $service->sendEmail('msg-draft');
     }
 }
