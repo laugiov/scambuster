@@ -37,6 +37,12 @@ final readonly class PromptBuilder
         // to the generator's user prompt. Gated by
         // REPLY_GENERATOR_NO_SIGNATURE_INSTRUCTION.
         private bool $generatorNoSignatureInstruction = true,
+        // Spec 080 §4 — patch-mode retry: when the validator returned a
+        // structured correction, render it as an explicit "Apply this
+        // exact correction" block and replace the closing instruction
+        // with a surgical-fix directive. Gated by
+        // REPLY_GENERATOR_PATCH_MODE.
+        private bool $generatorPatchMode = true,
     ) {
     }
 
@@ -154,7 +160,18 @@ final readonly class PromptBuilder
             $userPrompt .= "End your reply WITHOUT any signature, signoff, sender name, or closing phrase such as 'Best regards' or 'Cordialement'. Stop after the last sentence of the body content. The persona never signs replies.\n";
         }
 
-        $userPrompt .= 'Write your reply now.';
+        // Spec 080 §4 — patch-mode: when the validator returned a structured
+        // correction and the flag is on, replace the closing instruction with
+        // a surgical-fix directive that tells the LLM to preserve everything
+        // except the problem_span.
+        /** @var array<string, string>|null $retryCorrection */
+        $retryCorrection = (\is_array($context['retry_correction'] ?? null) && $this->generatorPatchMode) ? $context['retry_correction'] : null;
+
+        if ($retryCorrection !== null) {
+            $userPrompt .= $this->formatPatchModeBlock($retryCorrection);
+        } else {
+            $userPrompt .= 'Write your reply now.';
+        }
 
         $this->logger->debug('[PromptBuilder] Prompt built for LLM generator', [
             'conv_id' => $context['conv_id'] ?? 'unknown',
@@ -243,6 +260,29 @@ PROMPT;
             'system' => $systemPrompt,
             'user' => $userPrompt,
         ];
+    }
+
+    /**
+     * Spec 080 §4 — render the patch-mode block for a generator retry when
+     * the previous attempt produced a structured correction.
+     *
+     * @param array<string, string> $correction
+     */
+    private function formatPatchModeBlock(array $correction): string
+    {
+        $problem = $correction['problem_span'] ?? '';
+        $replacement = $correction['replacement'] ?? '';
+        $rationale = $correction['rationale'] ?? '';
+
+        return <<<PROMPT
+
+### Apply this exact correction
+Problem to fix: {$problem}
+Replace with: {$replacement}
+Rationale: {$rationale}
+
+Apply this specific correction to the previous attempt. Preserve all other sentences word-for-word. Do NOT rewrite or paraphrase. Replace the problem_span with the replacement text. Output the full corrected reply.
+PROMPT;
     }
 
     /**
