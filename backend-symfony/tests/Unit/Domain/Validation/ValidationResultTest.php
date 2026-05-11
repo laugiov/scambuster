@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Domain\Validation;
 
+use App\Domain\Validation\StructuredCorrection;
 use App\Domain\Validation\ValidationResult;
 use PHPUnit\Framework\TestCase;
 
@@ -225,5 +226,133 @@ class ValidationResultTest extends TestCase
         $result = ValidationResult::fromLLMResponse($data);
 
         $this->assertSame('Use more casual language', $result->fixSuggestion);
+    }
+
+    // ─── Spec 080 §3 — structured correction parsing ───────────────────
+
+    public function test_fromLLMResponse_parses_correction_when_present_and_valid(): void
+    {
+        $generatedText = "Hello.\n\nBest regards,\n[Your Name]";
+        $data = [
+            'naturalness' => 2,
+            'persona_fit' => 3,
+            'ti_value' => 3,
+            'security_pass' => false,
+            'feedback' => 'Placeholder name leak.',
+            'correction' => [
+                'problem_span' => "Best regards,\n[Your Name]",
+                'replacement' => '',
+                'rationale' => 'Sentinel must not sign with a placeholder.',
+            ],
+        ];
+
+        $result = ValidationResult::fromLLMResponse($data, $generatedText);
+
+        $this->assertNotNull($result->correction);
+        $this->assertSame("Best regards,\n[Your Name]", $result->correction->problemSpan);
+        $this->assertSame('', $result->correction->replacement);
+        $this->assertSame('Sentinel must not sign with a placeholder.', $result->correction->rationale);
+    }
+
+    public function test_fromLLMResponse_sets_correction_null_when_field_absent(): void
+    {
+        $data = [
+            'naturalness' => 4,
+            'persona_fit' => 4,
+            'ti_value' => 4,
+            'security_pass' => true,
+            'feedback' => 'OK',
+        ];
+
+        $result = ValidationResult::fromLLMResponse($data, 'some text');
+
+        $this->assertNull($result->correction);
+    }
+
+    public function test_fromLLMResponse_sets_correction_null_when_generatedText_not_provided(): void
+    {
+        // Legacy 1-arg callers: even if correction is in data, we can't
+        // validate its problem_span without the original text, so we return
+        // null — fail closed.
+        $data = [
+            'naturalness' => 2,
+            'persona_fit' => 3,
+            'ti_value' => 3,
+            'security_pass' => false,
+            'feedback' => 'foo',
+            'correction' => [
+                'problem_span' => 'irrelevant',
+                'replacement' => '',
+                'rationale' => 'r',
+            ],
+        ];
+
+        $result = ValidationResult::fromLLMResponse($data);
+
+        $this->assertNull($result->correction);
+    }
+
+    public function test_fromLLMResponse_sets_correction_null_when_problem_span_not_in_text(): void
+    {
+        // The validator hallucinated a problem_span that isn't a substring
+        // of the generated text — discard, fail closed.
+        $data = [
+            'naturalness' => 2,
+            'persona_fit' => 3,
+            'ti_value' => 3,
+            'security_pass' => false,
+            'feedback' => 'bar',
+            'correction' => [
+                'problem_span' => 'This phrase does not exist anywhere in the input',
+                'replacement' => '',
+                'rationale' => 'r',
+            ],
+        ];
+
+        $result = ValidationResult::fromLLMResponse(
+            $data,
+            'Some completely different generated text.',
+        );
+
+        $this->assertNull($result->correction);
+    }
+
+    public function test_toLegacyArray_exposes_correction_when_set(): void
+    {
+        $correction = new StructuredCorrection('a', 'b', 'c');
+        $result = new ValidationResult(
+            approved: false,
+            naturalness: 2,
+            personaFit: 2,
+            tiValue: 3,
+            securityPass: false,
+            feedback: 'fail',
+            correction: $correction,
+        );
+
+        $legacy = $result->toLegacyArray();
+
+        $this->assertSame([
+            'problem_span' => 'a',
+            'replacement' => 'b',
+            'rationale' => 'c',
+        ], $legacy['correction']);
+    }
+
+    public function test_toLegacyArray_exposes_null_correction(): void
+    {
+        $result = new ValidationResult(
+            approved: true,
+            naturalness: 4,
+            personaFit: 4,
+            tiValue: 4,
+            securityPass: true,
+            feedback: 'OK',
+        );
+
+        $legacy = $result->toLegacyArray();
+
+        $this->assertArrayHasKey('correction', $legacy);
+        $this->assertNull($legacy['correction']);
     }
 }

@@ -47,6 +47,11 @@ final readonly class RetryCoordinator
         private ?OperationalLeakageDetector $leakDetector = null,
         private ?\App\Application\Audit\AuditLogger $auditLogger = null,
         private string $model = 'gpt-4o',
+        // Spec 080 §1 — deterministic signature stripper applied immediately
+        // after each generateText() call, before PolicyGuard. Optional for
+        // backward compat with legacy callers / unit tests; auto-wired in
+        // production by Symfony's DI.
+        private ?SignatureStripper $signatureStripper = null,
     ) {
     }
 
@@ -86,6 +91,24 @@ final readonly class RetryCoordinator
             $enrichedContext = $this->enrichContextWithDialogue($context, $dialogue);
             $genStartTime = microtime(true);
             $generatedText = $this->generateText($enrichedContext, $personaCode);
+
+            // Spec 080 §1 — strip trailing signature blocks BEFORE downstream
+            // validators see the text. The stripped text is what gets
+            // validated, persisted, and sent — preventing DB/SMTP divergence.
+            if ($this->signatureStripper !== null) {
+                $stripResult = $this->signatureStripper->strip($generatedText, $convId);
+
+                if ($stripResult->bytesRemoved > 0) {
+                    $this->logger->info('[RetryCoordinator] signature stripped before validators', [
+                        'conv_id' => $convId,
+                        'attempt' => $attempt,
+                        'bytes_removed' => $stripResult->bytesRemoved,
+                        'patterns' => $stripResult->matchedPatterns,
+                    ]);
+                }
+                $generatedText = $stripResult->textAfter;
+            }
+
             $genDuration = microtime(true) - $genStartTime;
 
             if ($attempt === 1) {
@@ -94,6 +117,13 @@ final readonly class RetryCoordinator
                     'word_count' => str_word_count($generatedText),
                 ], $this->costEstimator?->estimate('openai', $this->getModelName(), 500, $this->costEstimator->approximateTokens($generatedText))));
             }
+
+            // Spec 080 §4 — Levenshtein guardrail: when the previous attempt
+            // produced a structured correction (patch-mode), warn if the new
+            // attempt diverges too far from the previous text. The LLM should
+            // have applied a surgical fix; large diffs mean it ignored the
+            // instruction. Does NOT block — monitoring only.
+            $this->levenshteinGuardrail($dialogue, $generatedText, $convId, $attempt);
 
             $dialogue[] = ['role' => 'generator', 'attempt' => $attempt, 'text' => $generatedText];
 
@@ -176,8 +206,13 @@ final readonly class RetryCoordinator
             // --- Stage 4: ReplyValidator (semantic LLM) ---
             $valStartTime = microtime(true);
 
+            // Spec 080 §2 — build the conversational context the validator
+            // needs to perform identity-coherence checks. Extracted from the
+            // existing LLM context (no new upstream coupling).
+            $validatorContext = $this->buildValidatorContext($context);
+
             try {
-                $validatorResult = $this->replyValidator->validate($generatedText, $personaCode);
+                $validatorResult = $this->replyValidator->validate($generatedText, $personaCode, $validatorContext);
             } catch (\Throwable $e) {
                 $this->logger->warning("[RetryCoordinator] Validator error attempt {$attempt}", [
                     'error' => $e->getMessage(),
@@ -198,12 +233,16 @@ final readonly class RetryCoordinator
                 'attempt' => $attempt,
             ], $this->costEstimator?->estimate('openai', 'gpt-4o-mini', 300, 50)));
 
+            // Spec 080 §3 — preserve the structured correction (problem_span /
+            // replacement / rationale) in the dialogue entry so the next
+            // generator attempt can render the patch-mode block (§4).
             $dialogue[] = [
                 'role' => 'validator',
                 'attempt' => $attempt,
                 'approved' => $validatorResult['approved'],
                 'reasons' => $validatorResult['reasons'],
                 'fix_suggestion' => $validatorResult['fix_suggestion'] ?? null,
+                'correction' => $validatorResult['correction'] ?? null,
             ];
 
             if ($validatorResult['approved']) {
@@ -280,6 +319,143 @@ final readonly class RetryCoordinator
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    /**
+     * Spec 080 §4 — Levenshtein guardrail. When the most recent validator
+     * entry in the dialogue carries a structured correction (= patch-mode
+     * was requested), warn if the new generator attempt's text diverges
+     * from the previous attempt by more than 50% (normalized Levenshtein
+     * distance). The LLM should have applied a surgical fix; large diffs
+     * mean it ignored the patch-mode instruction.
+     *
+     * Does NOT block the loop — purely monitoring/forensic log.
+     *
+     * @param array<int, array<string, mixed>> $dialogue
+     */
+    private function levenshteinGuardrail(array $dialogue, string $currentText, string $convId, int $attempt): void
+    {
+        // Find most recent generator + validator entries.
+        $previousGenerator = null;
+        $previousValidator = null;
+
+        for ($i = \count($dialogue) - 1; $i >= 0; $i--) {
+            $entry = $dialogue[$i];
+            $role = $entry['role'] ?? '';
+
+            if ($previousValidator === null && $role === 'validator') {
+                $previousValidator = $entry;
+            } elseif ($previousGenerator === null && $role === 'generator') {
+                $previousGenerator = $entry;
+            }
+
+            if ($previousValidator !== null && $previousGenerator !== null) {
+                break;
+            }
+        }
+
+        if ($previousValidator === null || $previousGenerator === null) {
+            return;
+        }
+        $correction = $previousValidator['correction'] ?? null;
+
+        if (!\is_array($correction)) {
+            return; // No patch-mode was issued; no guardrail to enforce.
+        }
+        $previousText = \is_string($previousGenerator['text'] ?? null) ? (string) $previousGenerator['text'] : '';
+
+        if ($previousText === '' || $currentText === '') {
+            return;
+        }
+
+        // levenshtein() in PHP is byte-based with a 255-char limit per
+        // argument. For longer texts we approximate via similar_text()
+        // (returns a percentage). Both yield a fitness measure in 0..1.
+        $maxLen = max(\strlen($previousText), \strlen($currentText));
+
+        if ($maxLen > 255) {
+            similar_text($previousText, $currentText, $percent);
+            $ratio = 1.0 - ($percent / 100.0);
+        } else {
+            $distance = levenshtein($previousText, $currentText);
+            $ratio = $distance / $maxLen;
+        }
+
+        if ($ratio > 0.5) {
+            $this->logger->warning('[RetryCoordinator] patch-mode ignored', [
+                'conv_id' => $convId,
+                'attempt' => $attempt,
+                'diff_ratio' => round($ratio, 2),
+                'previous_attempt_len' => \strlen($previousText),
+                'current_attempt_len' => \strlen($currentText),
+            ]);
+        }
+    }
+
+    /**
+     * Spec 080 §2 — build the validator context dict from the existing LLM
+     * context, extracting:
+     *   - inbound_text: last inbound message body
+     *   - inbound_from: from-header of that inbound
+     *   - previous_outbound_messages: last 3 outbound messages
+     *   - language: detected_language
+     *
+     * The keys 'direction' in $context['last_messages'] are strings 'in'/'out'
+     * (see ConversationHistoryService line 253), NOT the DB-level integers 1/2.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @return array<string, mixed>
+     */
+    private function buildValidatorContext(array $context): array
+    {
+        /** @var array<int, array<string, mixed>> $lastMessages */
+        $lastMessages = \is_array($context['last_messages'] ?? null) ? $context['last_messages'] : [];
+
+        $inboundText = '';
+        $inboundFrom = '';
+        $previousOutbound = [];
+
+        foreach ($lastMessages as $msg) {
+            $directionRaw = $msg['direction'] ?? null;
+            $direction = \is_string($directionRaw) ? $directionRaw : '';
+
+            if ($direction === 'in' && $inboundText === '') {
+                // Capture the FIRST inbound encountered (typically newest).
+                $bodyRaw = $msg['body_text'] ?? $msg['body'] ?? null;
+
+                if (\is_string($bodyRaw)) {
+                    $inboundText = $bodyRaw;
+                }
+
+                $headersRaw = $msg['headers'] ?? null;
+
+                if (\is_array($headersRaw)) {
+                    $fromRaw = $headersRaw['from'] ?? null;
+
+                    if (\is_string($fromRaw)) {
+                        $inboundFrom = $fromRaw;
+                    }
+                }
+            } elseif ($direction === 'out' && \count($previousOutbound) < 3) {
+                $bodyRaw = $msg['body_text'] ?? $msg['body'] ?? null;
+                $previousOutbound[] = [
+                    'body' => \is_string($bodyRaw) ? $bodyRaw : '',
+                ];
+            }
+        }
+
+        $languageRaw = $context['detected_language'] ?? null;
+
+        return [
+            'inbound_text' => $inboundText,
+            'inbound_from' => $inboundFrom,
+            'previous_outbound_messages' => $previousOutbound,
+            'language' => \is_string($languageRaw) ? $languageRaw : 'en',
+        ];
+    }
+
+    /**
      * @param array<string, mixed>             $context
      * @param array<int, array<string, mixed>> $dialogue
      *
@@ -326,6 +502,25 @@ final readonly class RetryCoordinator
 
         $enrichedContext = $context;
         $enrichedContext['generation_dialogue'] = $dialogueHistory;
+
+        // Spec 080 §4 — find the most recent validator entry with a
+        // structured correction and surface it as retry_correction so the
+        // PromptBuilder can render the patch-mode block (T08).
+        for ($i = \count($dialogue) - 1; $i >= 0; $i--) {
+            $entry = $dialogue[$i];
+
+            if (($entry['role'] ?? '') !== 'validator') {
+                continue;
+            }
+            $correction = $entry['correction'] ?? null;
+
+            if (!\is_array($correction)) {
+                continue;
+            }
+            $enrichedContext['retry_correction'] = $correction;
+
+            break;
+        }
 
         return $enrichedContext;
     }

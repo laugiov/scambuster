@@ -25,10 +25,11 @@ parameters:
     # Spec 080 — reply-pipeline feature flags (validator coherence + signature strip).
     # Each flag toggles one of the four coordinated changes independently so that
     # rollback can be granular without redeploy.
-    reply.signature_strip.enabled:         '%env(bool:REPLY_SIGNATURE_STRIP_ENABLED)%'
-    reply.validator.context.enabled:       '%env(bool:REPLY_VALIDATOR_CONTEXT_ENABLED)%'
-    reply.validator.structured_correction: '%env(bool:REPLY_VALIDATOR_STRUCTURED_CORRECTION)%'
-    reply.generator.patch_mode:            '%env(bool:REPLY_GENERATOR_PATCH_MODE)%'
+    reply.signature_strip.enabled:            '%env(bool:REPLY_SIGNATURE_STRIP_ENABLED)%'
+    reply.validator.context.enabled:          '%env(bool:REPLY_VALIDATOR_CONTEXT_ENABLED)%'
+    reply.validator.structured_correction:    '%env(bool:REPLY_VALIDATOR_STRUCTURED_CORRECTION)%'
+    reply.generator.patch_mode:               '%env(bool:REPLY_GENERATOR_PATCH_MODE)%'
+    reply.generator.no_signature_instruction: '%env(bool:REPLY_GENERATOR_NO_SIGNATURE_INSTRUCTION)%'
 
 services:
     _defaults:
@@ -187,6 +188,15 @@ services:
 
     App\Application\LLM\ContextualEnrichmentRequest: ~
     App\Application\LLM\ContextualEnrichmentResult: ~
+
+    # Spec 080 — SignatureStripper: deterministic regex-only signature
+    # stripper. The bool flag is wired explicitly here because the
+    # services.yaml _defaults.bind is not in scope for services defined
+    # in this packages/ file.
+    App\Application\LLM\SignatureStripper:
+        arguments:
+            $signatureStripEnabled: '%reply.signature_strip.enabled%'
+            $logger: '@monolog.logger.llm'
 
     # Application - Prompt Injection Detection (forensic analysis of inbound messages)
     App\Application\Communication\PromptInjectionPatternMatcher:
