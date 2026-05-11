@@ -63,6 +63,7 @@ final class CefFormatter implements SiemEventFormatterInterface
             'KILL_SWITCH_TOGGLED' => 'Emergency Kill Switch',
             'BUDGET_THRESHOLD_REACHED' => 'LLM Budget Threshold Reached',
             'LLM_LEAK_BLOCKED' => 'LLM Operational Leak Blocked',
+            'LLM_SIGNATURE_STRIPPED' => 'LLM Reply Signature Stripped',
             'AUTH_BRUTE_FORCE_DETECTED' => 'Authentication Brute Force Detected',
             'EXPORT_MISP' => 'MISP Export',
             'EXPORT_STIX' => 'STIX Export',

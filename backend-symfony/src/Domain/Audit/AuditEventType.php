@@ -35,6 +35,10 @@ enum AuditEventType: string
     // PolicyGuard regex deny-list catches an attempted operational
     // information leak in a generated reply.
     case LLM_LEAK_BLOCKED = 'LLM_LEAK_BLOCKED';
+    // Spec 080 — emitted by SignatureStripper when a trailing signature
+    // block was removed from a generated reply. Informational (severity
+    // defaults to Low via SiemSeverityMap), not a threat indicator.
+    case LLM_SIGNATURE_STRIPPED = 'LLM_SIGNATURE_STRIPPED';
     // Spec 065e — emitted when the per-email login rate limiter
     // (login_email) blocks a brute-force attempt.
     case AUTH_BRUTE_FORCE_DETECTED = 'AUTH_BRUTE_FORCE_DETECTED';
