@@ -118,6 +118,13 @@ final readonly class RetryCoordinator
                 ], $this->costEstimator?->estimate('openai', $this->getModelName(), 500, $this->costEstimator->approximateTokens($generatedText))));
             }
 
+            // Spec 080 §4 — Levenshtein guardrail: when the previous attempt
+            // produced a structured correction (patch-mode), warn if the new
+            // attempt diverges too far from the previous text. The LLM should
+            // have applied a surgical fix; large diffs mean it ignored the
+            // instruction. Does NOT block — monitoring only.
+            $this->levenshteinGuardrail($dialogue, $generatedText, $convId, $attempt);
+
             $dialogue[] = ['role' => 'generator', 'attempt' => $attempt, 'text' => $generatedText];
 
             // --- Stage 2: PolicyGuard ---
@@ -226,12 +233,16 @@ final readonly class RetryCoordinator
                 'attempt' => $attempt,
             ], $this->costEstimator?->estimate('openai', 'gpt-4o-mini', 300, 50)));
 
+            // Spec 080 §3 — preserve the structured correction (problem_span /
+            // replacement / rationale) in the dialogue entry so the next
+            // generator attempt can render the patch-mode block (§4).
             $dialogue[] = [
                 'role' => 'validator',
                 'attempt' => $attempt,
                 'approved' => $validatorResult['approved'],
                 'reasons' => $validatorResult['reasons'],
                 'fix_suggestion' => $validatorResult['fix_suggestion'] ?? null,
+                'correction' => $validatorResult['correction'] ?? null,
             ];
 
             if ($validatorResult['approved']) {
@@ -308,10 +319,79 @@ final readonly class RetryCoordinator
     }
 
     /**
-     * @param array<string, mixed> $context
-     *
      * @return array<string, mixed>
      */
+    /**
+     * Spec 080 §4 — Levenshtein guardrail. When the most recent validator
+     * entry in the dialogue carries a structured correction (= patch-mode
+     * was requested), warn if the new generator attempt's text diverges
+     * from the previous attempt by more than 50% (normalized Levenshtein
+     * distance). The LLM should have applied a surgical fix; large diffs
+     * mean it ignored the patch-mode instruction.
+     *
+     * Does NOT block the loop — purely monitoring/forensic log.
+     *
+     * @param array<int, array<string, mixed>> $dialogue
+     */
+    private function levenshteinGuardrail(array $dialogue, string $currentText, string $convId, int $attempt): void
+    {
+        // Find most recent generator + validator entries.
+        $previousGenerator = null;
+        $previousValidator = null;
+
+        for ($i = \count($dialogue) - 1; $i >= 0; $i--) {
+            $entry = $dialogue[$i];
+            $role = $entry['role'] ?? '';
+
+            if ($previousValidator === null && $role === 'validator') {
+                $previousValidator = $entry;
+            } elseif ($previousGenerator === null && $role === 'generator') {
+                $previousGenerator = $entry;
+            }
+
+            if ($previousValidator !== null && $previousGenerator !== null) {
+                break;
+            }
+        }
+
+        if ($previousValidator === null || $previousGenerator === null) {
+            return;
+        }
+        $correction = $previousValidator['correction'] ?? null;
+
+        if (!\is_array($correction)) {
+            return; // No patch-mode was issued; no guardrail to enforce.
+        }
+        $previousText = \is_string($previousGenerator['text'] ?? null) ? (string) $previousGenerator['text'] : '';
+
+        if ($previousText === '' || $currentText === '') {
+            return;
+        }
+
+        // levenshtein() in PHP is byte-based with a 255-char limit per
+        // argument. For longer texts we approximate via similar_text()
+        // (returns a percentage). Both yield a fitness measure in 0..1.
+        $maxLen = max(\strlen($previousText), \strlen($currentText));
+
+        if ($maxLen > 255) {
+            similar_text($previousText, $currentText, $percent);
+            $ratio = 1.0 - ($percent / 100.0);
+        } else {
+            $distance = levenshtein($previousText, $currentText);
+            $ratio = $distance / $maxLen;
+        }
+
+        if ($ratio > 0.5) {
+            $this->logger->warning('[RetryCoordinator] patch-mode ignored', [
+                'conv_id' => $convId,
+                'attempt' => $attempt,
+                'diff_ratio' => round($ratio, 2),
+                'previous_attempt_len' => \strlen($previousText),
+                'current_attempt_len' => \strlen($currentText),
+            ]);
+        }
+    }
+
     /**
      * Spec 080 §2 — build the validator context dict from the existing LLM
      * context, extracting:
@@ -422,6 +502,25 @@ final readonly class RetryCoordinator
 
         $enrichedContext = $context;
         $enrichedContext['generation_dialogue'] = $dialogueHistory;
+
+        // Spec 080 §4 — find the most recent validator entry with a
+        // structured correction and surface it as retry_correction so the
+        // PromptBuilder can render the patch-mode block (T08).
+        for ($i = \count($dialogue) - 1; $i >= 0; $i--) {
+            $entry = $dialogue[$i];
+
+            if (($entry['role'] ?? '') !== 'validator') {
+                continue;
+            }
+            $correction = $entry['correction'] ?? null;
+
+            if (!\is_array($correction)) {
+                continue;
+            }
+            $enrichedContext['retry_correction'] = $correction;
+
+            break;
+        }
 
         return $enrichedContext;
     }
