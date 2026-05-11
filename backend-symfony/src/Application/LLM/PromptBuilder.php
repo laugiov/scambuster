@@ -33,6 +33,10 @@ final readonly class PromptBuilder
         // validator's system prompt. Gated by
         // REPLY_VALIDATOR_STRUCTURED_CORRECTION.
         private bool $validatorStructuredCorrection = true,
+        // Spec 080 §0 — append the preventive "do not sign" instruction
+        // to the generator's user prompt. Gated by
+        // REPLY_GENERATOR_NO_SIGNATURE_INSTRUCTION.
+        private bool $generatorNoSignatureInstruction = true,
     ) {
     }
 
@@ -144,6 +148,12 @@ final readonly class PromptBuilder
         $langName = $langNames[$detectedLanguage] ?? 'English';
         $userPrompt .= "⚠️ LANGUAGE OVERRIDE: The correspondent writes in {$langName}. You MUST reply in {$langName}. Not French. Not any other language. {$langName} only. This overrides your persona's nationality.\n";
         $userPrompt .= "Never use placeholders like [Your Name] or [Company] — write concrete text only.\n";
+
+        // Spec 080 §0 — preventive instruction against signing.
+        if ($this->generatorNoSignatureInstruction) {
+            $userPrompt .= "End your reply WITHOUT any signature, signoff, sender name, or closing phrase such as 'Best regards' or 'Cordialement'. Stop after the last sentence of the body content. The persona never signs replies.\n";
+        }
+
         $userPrompt .= 'Write your reply now.';
 
         $this->logger->debug('[PromptBuilder] Prompt built for LLM generator', [
