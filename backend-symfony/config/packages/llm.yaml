@@ -22,6 +22,14 @@ parameters:
     reply.max_words: '%env(int:REPLY_MAX_WORDS)%'
     reply.max_links: '%env(int:REPLY_MAX_LINKS)%'
 
+    # Spec 080 — reply-pipeline feature flags (validator coherence + signature strip).
+    # Each flag toggles one of the four coordinated changes independently so that
+    # rollback can be granular without redeploy.
+    reply.signature_strip.enabled:         '%env(bool:REPLY_SIGNATURE_STRIP_ENABLED)%'
+    reply.validator.context.enabled:       '%env(bool:REPLY_VALIDATOR_CONTEXT_ENABLED)%'
+    reply.validator.structured_correction: '%env(bool:REPLY_VALIDATOR_STRUCTURED_CORRECTION)%'
+    reply.generator.patch_mode:            '%env(bool:REPLY_GENERATOR_PATCH_MODE)%'
+
 services:
     _defaults:
         autowire: true
