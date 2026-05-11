@@ -230,4 +230,51 @@ JSON;
         $this->assertFalse($result['approved']);
         $this->assertNull($result['fix_suggestion']);
     }
+
+    // ─── Spec 080 §2 — T06 context-aware signature backward-compat ─────
+
+    public function test_validate_signature_remains_backward_compatible_with_2_args(): void
+    {
+        $text = str_repeat('Valid text. ', 20);
+        $this->llmClient->method('chat')->willReturn('{"approved": true, "reasons": []}');
+
+        // 2-arg call (legacy) — must still work without exception.
+        $result = $this->validator->validate($text, 'bank_customer');
+
+        $this->assertTrue($result['approved']);
+    }
+
+    public function test_validate_accepts_context_when_flag_enabled(): void
+    {
+        $text = str_repeat('Valid text. ', 20);
+        $this->llmClient->method('chat')->willReturn('{"approved": true, "reasons": []}');
+
+        $context = ['inbound_text' => 'scammer text', 'language' => 'en'];
+
+        // The logger mock from setUp() is a stub (no expectations). We assert
+        // that the call WITH context completes without exception, returning
+        // the same legacy shape as without context.
+        $result = $this->validator->validate($text, 'bank_customer', $context);
+
+        $this->assertTrue($result['approved']);
+    }
+
+    public function test_validate_ignores_context_when_flag_disabled(): void
+    {
+        $text = str_repeat('Valid text. ', 20);
+        $this->llmClient->method('chat')->willReturn('{"approved": true, "reasons": []}');
+
+        $disabledValidator = new ReplyValidator(
+            $this->llmClient,
+            $this->promptBuilder,
+            $this->logger,
+            validatorContextEnabled: false,
+        );
+
+        $context = ['inbound_text' => 'scammer text', 'language' => 'en'];
+        $result = $disabledValidator->validate($text, 'bank_customer', $context);
+
+        // The flag-disabled validator must still return a well-formed result.
+        $this->assertTrue($result['approved']);
+    }
 }
