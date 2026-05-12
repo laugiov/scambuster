@@ -182,6 +182,41 @@ final class OpenAIServiceTest extends TestCase
         $service->complete('Test');
     }
 
+    public function testCompleteIncludesConversationScopedSafetyIdentifier(): void
+    {
+        $responseBody = json_encode([
+            'choices' => [
+                ['message' => ['content' => 'ok']],
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $mockResponse = new MockResponse($responseBody);
+        $service = $this->createService($mockResponse);
+
+        $convId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+        $service->complete('Test', ['conversation_id' => $convId]);
+
+        $requestBody = json_decode($mockResponse->getRequestOptions()['body'], true);
+        $this->assertSame('tenant_conv_' . hash('sha256', $convId), $requestBody['user']);
+    }
+
+    public function testCompleteFallsBackToDefaultPurpose(): void
+    {
+        $responseBody = json_encode([
+            'choices' => [
+                ['message' => ['content' => 'ok']],
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $mockResponse = new MockResponse($responseBody);
+        $service = $this->createService($mockResponse);
+
+        $service->complete('Test');
+
+        $requestBody = json_decode($mockResponse->getRequestOptions()['body'], true);
+        $this->assertSame('tenant_preprod_generator', $requestBody['user']);
+    }
+
     private function createService(MockResponse $mockResponse): OpenAIService
     {
         return new OpenAIService(

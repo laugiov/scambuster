@@ -122,6 +122,7 @@ final readonly class RuleCompiler
                     'temperature' => 0.2, // Very low temperature for strict syntax
                     'max_tokens' => 1000,
                     'timeout' => self::TIMEOUT_SEC,
+                    'purpose' => 'rule_compilation',
                 ]);
 
                 // 3. Extract DSL from response (may contain markdown)

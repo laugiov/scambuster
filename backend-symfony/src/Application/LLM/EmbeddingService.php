@@ -74,6 +74,7 @@ final readonly class EmbeddingService
                     'input' => $truncated,
                     'model' => self::MODEL,
                     'dimensions' => self::DIMENSIONS,
+                    'user' => 'tenant_embeddings',
                 ],
             ]);
 
