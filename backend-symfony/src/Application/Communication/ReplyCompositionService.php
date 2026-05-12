@@ -78,12 +78,17 @@ class ReplyCompositionService
         $from = $message->getHeaders()['from'] ?? null;
 
         // Fix: if "from" is not a valid email (e.g., IMAP hostname stored during ingestion),
-        // resolve it from the parent inbound message's "to" (= the honeypot address)
+        // resolve it from the parent inbound message's "to" (= the honeypot address),
+        // then from the MailAccount's own emailAddress (spec 050) as a last resort.
         $fromStr = \is_string($from) ? $from : '';
 
         if ($fromStr === '' || !str_contains($fromStr, '@')) {
             $parentHeaders = $parent->getHeaders();
-            $from = $parentHeaders['to'] ?? $parentHeaders['delivered-to'] ?? $from;
+            $accountEmail = $message->getConversation()->getAccount()->getEmailAddress();
+            $from = $parentHeaders['to']
+                ?? $parentHeaders['delivered-to']
+                ?? $accountEmail
+                ?? $from;
         }
 
         if (!$to || !$from) {
