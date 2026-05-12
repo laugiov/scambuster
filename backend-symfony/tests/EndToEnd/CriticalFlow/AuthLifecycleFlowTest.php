@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\EndToEnd\CriticalFlow;
 
-use App\Domain\User\User;
-use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 /**
@@ -22,20 +21,28 @@ final class AuthLifecycleFlowTest extends WebTestCase
      * causing every subsequent /api/v1/auth/login to return
      * `requires_2fa: true` (no access_token) and breaking 5 unrelated tests.
      * E2E env has no DAMA transaction wrapper to roll this back automatically.
+     *
+     * Uses raw SQL on purpose: going through Doctrine ORM would HYDRATE the
+     * user entity, which decrypts the totp_secret BYTEA column. If the
+     * decryption raises (e.g., a stale CI run wrote a value whose ciphertext
+     * does not match the current TOTP_ENCRYPTION_KEY), tearDown crashes and
+     * the cleanup never happens — the exact failure mode that took down 5
+     * CriticalFlow tests in CI on 2026-05-12.
      */
     protected function tearDown(): void
     {
-        $container = static::getContainer();
+        try {
+            $container = static::getContainer();
+            $conn = $container->get('doctrine.dbal.default_connection');
 
-        if ($container->has(EntityManagerInterface::class)) {
-            /** @var EntityManagerInterface $em */
-            $em = $container->get(EntityManagerInterface::class);
-            $user = $em->getRepository(User::class)->findOneBy(['email' => 'user@example.com']);
-
-            if ($user instanceof User && $user->isTotpEnabled()) {
-                $user->setTotpSecret(null);
-                $em->flush();
+            if ($conn instanceof Connection) {
+                $conn->executeStatement(
+                    'UPDATE app_users SET totp_secret = NULL WHERE email = :email',
+                    ['email' => 'user@example.com'],
+                );
             }
+        } catch (\Throwable) {
+            // Best-effort cleanup: never let tearDown abort the test run.
         }
 
         parent::tearDown();
