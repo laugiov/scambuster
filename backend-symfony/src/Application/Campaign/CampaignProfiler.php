@@ -144,6 +144,7 @@ final readonly class CampaignProfiler
                     'temperature' => 0.3, // Low temperature for structured output
                     'max_tokens' => 800,
                     'timeout' => self::TIMEOUT_SEC,
+                    'purpose' => 'campaign_profiling',
                 ]);
 
                 // 3. Extract YAML from response (may contain markdown)

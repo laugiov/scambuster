@@ -42,6 +42,7 @@ final readonly class OpenAIClient implements LLMClientInterface
                 'messages' => $messages,
                 'temperature' => $options['temperature'] ?? self::DEFAULT_TEMPERATURE,
                 'max_tokens' => $options['max_tokens'] ?? self::DEFAULT_MAX_TOKENS,
+                'user' => $this->buildSafetyIdentifier($options),
             ];
 
             $response = $this->httpClient->request('POST', $this->apiUrl . self::API_ENDPOINT, [
@@ -104,5 +105,35 @@ final readonly class OpenAIClient implements LLMClientInterface
 
             throw new \RuntimeException("OpenAI API call failed: {$e->getMessage()}", $e->getCode(), previous: $e);
         }
+    }
+
+    /**
+     * Build the OpenAI safety identifier (`user` payload field).
+     *
+     * Per OpenAI Usage Policies, every API call must include an opaque end-user
+     * identifier so safety incidents are scoped to a single tenant rather than
+     * the whole account. We derive it from $options:
+     *   - `conversation_id` present → `tenant_conv_<sha256(conv_id)>`
+     *   - else `purpose` present    → `tenant_<purpose>` (sanitised)
+     *   - else                      → `tenant_unknown`
+     *
+     * The prefix is intentionally generic (no product name) since OpenAI
+     * abuse-triage staff can read this value.
+     *
+     * @param array<string, mixed> $options
+     */
+    private function buildSafetyIdentifier(array $options): string
+    {
+        $convId = $options['conversation_id'] ?? null;
+
+        if (is_string($convId) && $convId !== '') {
+            return 'tenant_conv_' . hash('sha256', $convId);
+        }
+
+        $purposeRaw = $options['purpose'] ?? null;
+        $purpose = is_string($purposeRaw) && $purposeRaw !== '' ? $purposeRaw : 'unknown';
+        $sanitised = preg_replace('/[^a-z0-9_]/i', '_', $purpose) ?? 'unknown';
+
+        return 'tenant_' . $sanitised;
     }
 }

@@ -89,6 +89,7 @@ PROMPT_WRAP;
                 'model' => $this->model,
                 'temperature' => $this->temperature,
                 'max_tokens' => 1000,
+                'purpose' => 'prompt_injection_analysis',
             ]
         );
 
