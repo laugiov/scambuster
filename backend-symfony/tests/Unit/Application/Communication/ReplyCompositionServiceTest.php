@@ -169,6 +169,48 @@ class ReplyCompositionServiceTest extends TestCase
         $this->assertSame('honeypot@scambuster.local', $result['from']);
     }
 
+    public function test_composeHeaders_falls_back_to_account_email_when_parent_to_missing(): void
+    {
+        // Regression: 2026-05-12 SMTP send failures (RFC 2822) — when the
+        // outbound message has a corrupted `from` (IMAP hostname) AND the
+        // parent inbound has no `to`/`delivered-to` header (mass-mailing,
+        // alias delivery), the fallback must reach the MailAccount's own
+        // emailAddress before crashing the Symfony Mailer.
+        $parent = $this->createMock(Message::class);
+        $parent->method('getHeaders')->willReturn([
+            'message_id' => 'parent@example.com',
+            // No 'to' or 'delivered-to' — this is the failure mode in prod.
+        ]);
+
+        $account = $this->createMock(\App\Domain\Communication\MailAccount::class);
+        $account->method('getEmailAddress')->willReturn('honeypot@example.com');
+
+        $conversation = $this->createMock(Conversation::class);
+        $conversation->method('getConvId')->willReturn('conv-1');
+        $conversation->method('getStatus')->willReturn(ConversationStatus::OPEN);
+        $conversation->method('getAccount')->willReturn($account);
+
+        $message = $this->createMock(Message::class);
+        $message->method('getReplyTo')->willReturn($parent);
+        $message->method('getHeaders')->willReturn([
+            'to' => 'scammer@example.com',
+            'from' => 'imap.gmail.com',
+        ]);
+        $message->method('getConversation')->willReturn($conversation);
+        $message->method('getSubject')->willReturn('Re: Test');
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+        $this->cadenceService->method('checkSafelist')->willReturn(true);
+        $this->cadenceService->method('isKillSwitchActive')->willReturn(false);
+        $this->cadenceService->method('checkCadence')->willReturn(true);
+
+        $service = $this->createService();
+        $result = $service->composeHeaders('msg-1');
+
+        $this->assertNotNull($result);
+        $this->assertSame('honeypot@example.com', $result['from']);
+    }
+
     public function test_composeHeaders_rate_limited_when_cadence_fails(): void
     {
         $parent = $this->createMock(Message::class);
