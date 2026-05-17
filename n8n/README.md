@@ -38,6 +38,34 @@ WF-INTAKE-EMAIL-V2
   └── calls → WF-EXTRACT-AND-ENRICH-IOC (by name)
 ```
 
+### Risk-Gated Reply Generation (Decision Gate)
+
+`WF-INTAKE-EMAIL-V2` includes a `Decision Gate` node (n8n If v2) placed
+between `Get Risk Assessment` and `Prepare Reply Data`. It reads the
+backend's reply recommendation and routes accordingly:
+
+```
+Get Risk Assessment  →  Decision Gate
+   GET /message/{msg_id}/risk          ├── true  → Prepare Reply Data → Trigger Reply Generation
+   returns { should_reply: bool }      └── false → Skip Reply → Continue Loop
+```
+
+The condition is **already configured in the shipped JSON** as:
+
+```
+value1   =  {{ $('Get Risk Assessment').item.json.should_reply }}
+operator =  is equal to
+value2   =  true   (boolean)
+```
+
+Backend `RiskScorer::shouldReply` returns `false` for: no IOCs detected
+(DMARC reports, GitHub system notifications, postmaster/abuse mail),
+low aggregate risk score (< 40), or medium risk without exploitable
+IOCs (no IBAN / phone / URL). When duplicating the workflow per honeypot
+account (e.g., `WF-INTAKE-EMAIL-aldridgecounsel`), verify that the
+Decision Gate config survives the copy — if a UI clone resets the
+condition to `true == true`, every email will trigger a reply.
+
 Workflows reference each other **by name** (not by ID). This means they work on any n8n instance after import — no manual ID patching required.
 
 ---
