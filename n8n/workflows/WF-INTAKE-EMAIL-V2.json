@@ -156,7 +156,7 @@
         "conditions": {
           "boolean": [
             {
-              "value1": true,
+              "value1": "={{ $('Get Risk Assessment').item.json.should_reply }}",
               "value2": true
             }
           ]
