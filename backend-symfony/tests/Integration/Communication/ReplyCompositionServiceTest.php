@@ -241,12 +241,13 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $this->assertFalse($result);
     }
 
-    public function testMarkAsSentThrowsWhenAlreadySent(): void
+    public function testMarkAsSentThrowsConflictWhenProviderIdDiffers(): void
     {
+        // Spec 082 §US2.2 — same row, different provider_msg_id on the 2nd
+        // call: we refuse rather than silently overwrite the recorded id.
         $msgs = $this->createThreadedMessages();
         $outboundId = $msgs['outbound']->getMsgId();
 
-        // First call succeeds
         $this->service->markAsSent(
             $outboundId,
             'smtp',
@@ -254,9 +255,7 @@ class ReplyCompositionServiceTest extends KernelTestCase
             new \DateTimeImmutable(),
         );
 
-        // Second call should throw (idempotency check)
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('already sent');
+        $this->expectException(\App\Application\Communication\Exception\MarkAsSentConflictException::class);
 
         $this->service->markAsSent(
             $outboundId,
@@ -264,6 +263,34 @@ class ReplyCompositionServiceTest extends KernelTestCase
             '<sent-2@test.com>',
             new \DateTimeImmutable(),
         );
+    }
+
+    public function testMarkAsSentIsIdempotentWhenProviderIdMatches(): void
+    {
+        // Spec 082 §US2.1 — second call with the same provider_msg_id is a
+        // silent no-op (returns true, leaves ts_sent untouched). Without
+        // this, every stale n8n /sent retry surfaces as a 400 on the
+        // operator dashboard.
+        $msgs = $this->createThreadedMessages();
+        $outboundId = $msgs['outbound']->getMsgId();
+        $providerId = '<idempotent-id@test.com>';
+        $firstTs = new \DateTimeImmutable('-1 minute');
+
+        $this->service->markAsSent($outboundId, 'smtp', $providerId, $firstTs);
+
+        $this->em->clear();
+        $reloaded = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($outboundId);
+        $firstStoredTs = $reloaded->getTsSent();
+
+        // Second call with same provider_msg_id and DIFFERENT ts must NOT
+        // overwrite the original ts_sent.
+        $result = $this->service->markAsSent($outboundId, 'smtp', $providerId, new \DateTimeImmutable('+5 minutes'));
+
+        $this->assertTrue($result);
+        $this->em->clear();
+        $reloaded2 = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($outboundId);
+        $this->assertEquals($firstStoredTs, $reloaded2->getTsSent(), 'ts_sent must be frozen by first write');
+        $this->assertSame($providerId, $reloaded2->getProviderMsgId());
     }
 
     public function testMarkAsSentStoresProviderMsgId(): void
