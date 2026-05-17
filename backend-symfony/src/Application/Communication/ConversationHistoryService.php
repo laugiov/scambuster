@@ -227,6 +227,7 @@ PROMPT;
             'max_tokens' => 200,
             'temperature' => 0.3,
             'model' => 'gpt-4o-mini',
+            'purpose' => 'history_summary',
         ];
 
         return $this->llmClient->chat($messages, $options);

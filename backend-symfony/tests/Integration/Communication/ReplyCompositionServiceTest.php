@@ -241,12 +241,13 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $this->assertFalse($result);
     }
 
-    public function testMarkAsSentThrowsWhenAlreadySent(): void
+    public function testMarkAsSentThrowsConflictWhenProviderIdDiffers(): void
     {
+        // Spec 082 §US2.2 — same row, different provider_msg_id on the 2nd
+        // call: we refuse rather than silently overwrite the recorded id.
         $msgs = $this->createThreadedMessages();
         $outboundId = $msgs['outbound']->getMsgId();
 
-        // First call succeeds
         $this->service->markAsSent(
             $outboundId,
             'smtp',
@@ -254,9 +255,7 @@ class ReplyCompositionServiceTest extends KernelTestCase
             new \DateTimeImmutable(),
         );
 
-        // Second call should throw (idempotency check)
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('already sent');
+        $this->expectException(\App\Application\Communication\Exception\MarkAsSentConflictException::class);
 
         $this->service->markAsSent(
             $outboundId,
@@ -264,6 +263,34 @@ class ReplyCompositionServiceTest extends KernelTestCase
             '<sent-2@test.com>',
             new \DateTimeImmutable(),
         );
+    }
+
+    public function testMarkAsSentIsIdempotentWhenProviderIdMatches(): void
+    {
+        // Spec 082 §US2.1 — second call with the same provider_msg_id is a
+        // silent no-op (returns true, leaves ts_sent untouched). Without
+        // this, every stale n8n /sent retry surfaces as a 400 on the
+        // operator dashboard.
+        $msgs = $this->createThreadedMessages();
+        $outboundId = $msgs['outbound']->getMsgId();
+        $providerId = '<idempotent-id@test.com>';
+        $firstTs = new \DateTimeImmutable('-1 minute');
+
+        $this->service->markAsSent($outboundId, 'smtp', $providerId, $firstTs);
+
+        $this->em->clear();
+        $reloaded = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($outboundId);
+        $firstStoredTs = $reloaded->getTsSent();
+
+        // Second call with same provider_msg_id and DIFFERENT ts must NOT
+        // overwrite the original ts_sent.
+        $result = $this->service->markAsSent($outboundId, 'smtp', $providerId, new \DateTimeImmutable('+5 minutes'));
+
+        $this->assertTrue($result);
+        $this->em->clear();
+        $reloaded2 = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($outboundId);
+        $this->assertEquals($firstStoredTs, $reloaded2->getTsSent(), 'ts_sent must be frozen by first write');
+        $this->assertSame($providerId, $reloaded2->getProviderMsgId());
     }
 
     public function testMarkAsSentStoresProviderMsgId(): void
@@ -302,6 +329,116 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $this->assertSame('thread-123', $headers['thread_id']);
         // Message-ID should be stored without chevrons
         $this->assertSame('real-msg-id@smtp.test', $headers['message-id']);
+    }
+
+    // ================================================================== //
+    //  Spec 082 T05 — sendEmail atomic send_status='sent' write
+    // ================================================================== //
+
+    /**
+     * Make the outbound + its parent ready for an actual sendEmail call:
+     *  - rewrite outbound `to` to an address in SCAMBUSTER_SAFE_DOMAINS,
+     *  - strip the chevrons from the parent's message-id so Symfony's
+     *    IdentificationHeader (RFC 5322 §3.6.4) accepts it when sendEmail
+     *    builds the In-Reply-To header.
+     */
+    private function makeOutboundSendable(Message $outbound): void
+    {
+        $headers = $outbound->getHeaders();
+        $headers['to'] = 'scammer@example.com';
+        $outbound->setHeaders($headers);
+
+        $parent = $outbound->getReplyTo();
+        if ($parent instanceof Message) {
+            $parentHeaders = $parent->getHeaders();
+            foreach (['message-id', 'message_id'] as $key) {
+                if (isset($parentHeaders[$key]) && is_string($parentHeaders[$key])) {
+                    $parentHeaders[$key] = trim($parentHeaders[$key], '<>');
+                }
+            }
+            $parent->setHeaders($parentHeaders);
+        }
+
+        $this->em->flush();
+    }
+
+    public function testSendEmailPersistsSentStatusAtomically(): void
+    {
+        // Spec 082 §US1 — when SMTP returns success, the message row must
+        // be updated to send_status='sent' with provider_msg_id and
+        // ts_sent IN THE SAME OPERATION. No window between SMTP delivery
+        // and DB write during which a duplicate /send-email could trigger
+        // a second SMTP delivery to the scammer.
+        $msgs = $this->createThreadedMessages();
+        $this->makeOutboundSendable($msgs['outbound']);
+        $outboundId = $msgs['outbound']->getMsgId();
+
+        $result = $this->service->sendEmail($outboundId);
+
+        $this->assertTrue($result['success']);
+        $this->assertNotEmpty($result['message_id']);
+        $this->assertNotEmpty($result['ts_sent']);
+
+        $this->em->clear();
+        $reloaded = $this->em->getRepository(Message::class)->find($outboundId);
+        $this->assertSame('sent', $reloaded->getSendStatus(), 'send_status must be sent immediately after SMTP success');
+        $this->assertSame($result['message_id'], $reloaded->getProviderMsgId(), 'provider_msg_id must equal the message_id returned to caller');
+        $this->assertNotNull($reloaded->getTsSent());
+    }
+
+    public function testSendEmailSecondCallShortCircuitsAndReturnsSameResponse(): void
+    {
+        // Spec 082 §US1 acceptance scenario 2 — after a successful send,
+        // a second call for the same msgId must NOT invoke SMTP again
+        // and must return the same message_id + ts_sent as the first.
+        $msgs = $this->createThreadedMessages();
+        $this->makeOutboundSendable($msgs['outbound']);
+        $outboundId = $msgs['outbound']->getMsgId();
+
+        $first = $this->service->sendEmail($outboundId);
+        $second = $this->service->sendEmail($outboundId);
+
+        $this->assertSame($first['message_id'], $second['message_id'], 'second call must return cached message_id');
+        $this->assertSame($first['ts_sent'], $second['ts_sent'], 'second call must return cached ts_sent (no overwrite)');
+    }
+
+    public function testSendEmailDoesNotPersistOnSmtpFailure(): void
+    {
+        // Spec 082 §US1 acceptance scenario implied: SMTP failure must
+        // leave the message in 'draft' so the next retry can attempt
+        // delivery. A partial write (status=sent on a row whose email
+        // was never delivered) would be worse than the bug we are fixing.
+        $msgs = $this->createThreadedMessages();
+        $this->makeOutboundSendable($msgs['outbound']);
+        $outboundId = $msgs['outbound']->getMsgId();
+        $originalStatus = $msgs['outbound']->getSendStatus();
+
+        $failingMailer = $this->createMock(\Symfony\Component\Mailer\MailerInterface::class);
+        $failingMailer->method('send')
+            ->willThrowException(new \Symfony\Component\Mailer\Exception\TransportException('SMTP timeout simulated'));
+
+        $serviceWithFailingMailer = new ReplyCompositionService(
+            em: $this->em,
+            messageHandler: $this->messageHandler,
+            cadenceService: static::getContainer()->get(\App\Application\Communication\ReplyCadenceService::class),
+            logger: new \Psr\Log\NullLogger(),
+            auditLogger: null,
+            mailer: $failingMailer,
+            transportResolver: null,
+        );
+
+        try {
+            $serviceWithFailingMailer->sendEmail($outboundId);
+            $this->fail('Expected SMTP failure to propagate');
+        } catch (\Throwable) {
+            // Expected.
+        }
+
+        $this->em->clear();
+        $reloaded = $this->em->getRepository(Message::class)->find($outboundId);
+        $this->assertSame($originalStatus, $reloaded->getSendStatus(), 'send_status must NOT change when SMTP throws');
+        $this->assertNull($reloaded->getProviderMsgId(), 'provider_msg_id must NOT be written when SMTP throws');
+        $this->assertNull($reloaded->getTsSent(), 'ts_sent must NOT be written when SMTP throws');
     }
 
     // ================================================================== //

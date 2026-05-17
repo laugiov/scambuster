@@ -195,15 +195,66 @@ class ReplyControllersTest extends TestCase
         $this->assertSame(404, $response->getStatusCode());
     }
 
-    public function test_mark_sent_returns_400_on_already_sent(): void
+    public function test_mark_sent_returns_204_on_idempotent_no_op(): void
     {
-        $this->handler->method('markAsSent')
-            ->willThrowException(new \RuntimeException('Message already sent'));
+        // Spec 082 §US2.1 — handler returns true on the idempotent path
+        // (same provider_msg_id already recorded). Controller must surface
+        // it as 204, identical to the first-write success.
+        $this->handler->method('markAsSent')->willReturn(true);
 
         $controller = new MarkReplySentController($this->handler);
         $request = Request::create('/sent', 'POST', [], [], [], [], json_encode([
-            'provider' => 'gmail',
-            'provider_msg_id' => 'gmail-id',
+            'provider' => 'smtp',
+            'provider_msg_id' => 'already-stored-id',
+            'ts_sent' => '2026-01-01T00:00:00+00:00',
+        ]));
+
+        $response = $controller->__invoke('msg-1', $request);
+        $this->assertSame(204, $response->getStatusCode());
+    }
+
+    public function test_mark_sent_returns_400_on_typed_conflict(): void
+    {
+        // Spec 082 §US2.2 — handler throws MarkAsSentConflictException when
+        // the duplicate /sent asserts a different provider_msg_id than what
+        // is already stored. Controller returns 400 with an explanatory
+        // body naming BOTH ids so the operator can investigate.
+        $this->handler->method('markAsSent')
+            ->willThrowException(new \App\Application\Communication\Exception\MarkAsSentConflictException(
+                msgId: 'msg-1',
+                expectedProviderMsgId: 'stored-X',
+                actualProviderMsgId: 'requested-Y',
+            ));
+
+        $controller = new MarkReplySentController($this->handler);
+        $request = Request::create('/sent', 'POST', [], [], [], [], json_encode([
+            'provider' => 'smtp',
+            'provider_msg_id' => 'requested-Y',
+            'ts_sent' => '2026-01-01T00:00:00+00:00',
+        ]));
+
+        $response = $controller->__invoke('msg-1', $request);
+        $this->assertSame(400, $response->getStatusCode());
+
+        $body = json_decode($response->getContent(), true);
+        $this->assertArrayHasKey('error', $body);
+        $this->assertArrayHasKey('detail', $body);
+        $this->assertStringContainsString('stored-X', $body['detail']);
+        $this->assertStringContainsString('requested-Y', $body['detail']);
+    }
+
+    public function test_mark_sent_returns_400_on_unexpected_runtime_exception(): void
+    {
+        // Regression guard: the generic-RuntimeException catch must stay
+        // so that any future unexpected error surfaces as a 400 (not a
+        // 500), preserving today's behaviour for non-conflict errors.
+        $this->handler->method('markAsSent')
+            ->willThrowException(new \RuntimeException('some unrelated error'));
+
+        $controller = new MarkReplySentController($this->handler);
+        $request = Request::create('/sent', 'POST', [], [], [], [], json_encode([
+            'provider' => 'smtp',
+            'provider_msg_id' => 'id',
             'ts_sent' => '2026-01-01T00:00:00+00:00',
         ]));
 

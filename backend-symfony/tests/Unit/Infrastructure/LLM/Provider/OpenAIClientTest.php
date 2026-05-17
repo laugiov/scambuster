@@ -231,6 +231,91 @@ class OpenAIClientTest extends TestCase
         $this->assertTrue($dispatched, 'LlmCallCompletedEvent should have been dispatched');
     }
 
+    public function testChatIncludesConversationScopedSafetyIdentifier(): void
+    {
+        $responseBody = json_encode([
+            'choices' => [
+                ['message' => ['content' => 'ok']],
+            ],
+            'usage' => ['prompt_tokens' => 5, 'completion_tokens' => 2],
+        ], JSON_THROW_ON_ERROR);
+
+        $mockResponse = new MockResponse($responseBody);
+        $client = $this->createClient($mockResponse);
+
+        $convId = 'b1f2c3d4-5678-90ab-cdef-1234567890ab';
+        $client->chat(
+            [['role' => 'user', 'content' => 'Hi']],
+            ['conversation_id' => $convId, 'purpose' => 'reply_generation'],
+        );
+
+        $requestData = json_decode($mockResponse->getRequestOptions()['body'], true);
+
+        $expected = 'tenant_conv_' . hash('sha256', $convId);
+        $this->assertSame($expected, $requestData['user']);
+        $this->assertSame(64 + \strlen('tenant_conv_'), \strlen((string) $requestData['user']));
+    }
+
+    public function testChatFallsBackToPurposeWhenNoConversationId(): void
+    {
+        $responseBody = json_encode([
+            'choices' => [
+                ['message' => ['content' => 'ok']],
+            ],
+            'usage' => ['prompt_tokens' => 5, 'completion_tokens' => 2],
+        ], JSON_THROW_ON_ERROR);
+
+        $mockResponse = new MockResponse($responseBody);
+        $client = $this->createClient($mockResponse);
+
+        $client->chat(
+            [['role' => 'user', 'content' => 'Hi']],
+            ['purpose' => 'classification'],
+        );
+
+        $requestData = json_decode($mockResponse->getRequestOptions()['body'], true);
+        $this->assertSame('tenant_classification', $requestData['user']);
+    }
+
+    public function testChatFallsBackToUnknownWhenNoIdentifierProvided(): void
+    {
+        $responseBody = json_encode([
+            'choices' => [
+                ['message' => ['content' => 'ok']],
+            ],
+            'usage' => ['prompt_tokens' => 5, 'completion_tokens' => 2],
+        ], JSON_THROW_ON_ERROR);
+
+        $mockResponse = new MockResponse($responseBody);
+        $client = $this->createClient($mockResponse);
+
+        $client->chat([['role' => 'user', 'content' => 'Hi']]);
+
+        $requestData = json_decode($mockResponse->getRequestOptions()['body'], true);
+        $this->assertSame('tenant_unknown', $requestData['user']);
+    }
+
+    public function testChatSanitisesPurposeSpecialCharacters(): void
+    {
+        $responseBody = json_encode([
+            'choices' => [
+                ['message' => ['content' => 'ok']],
+            ],
+            'usage' => ['prompt_tokens' => 5, 'completion_tokens' => 2],
+        ], JSON_THROW_ON_ERROR);
+
+        $mockResponse = new MockResponse($responseBody);
+        $client = $this->createClient($mockResponse);
+
+        $client->chat(
+            [['role' => 'user', 'content' => 'Hi']],
+            ['purpose' => 'campaign/profile.v2'],
+        );
+
+        $requestData = json_decode($mockResponse->getRequestOptions()['body'], true);
+        $this->assertSame('tenant_campaign_profile_v2', $requestData['user']);
+    }
+
     private function createClient(MockResponse $mockResponse): OpenAIClient
     {
         return new OpenAIClient(

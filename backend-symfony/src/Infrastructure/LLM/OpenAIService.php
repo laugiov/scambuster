@@ -42,6 +42,7 @@ class OpenAIService implements LLMServiceInterface
                     ],
                     'temperature' => $temperature,
                     'max_tokens' => $maxTokens,
+                    'user' => $this->buildSafetyIdentifier($options),
                 ],
             ]);
 
@@ -60,5 +61,29 @@ class OpenAIService implements LLMServiceInterface
 
             throw new \RuntimeException('Failed to generate LLM completion: ' . $e->getMessage(), 0, $e);
         }
+    }
+
+    /**
+     * Build the OpenAI safety identifier (`user` payload field).
+     *
+     * Mirrors {@see \App\Infrastructure\LLM\Provider\OpenAIClient::buildSafetyIdentifier}.
+     * Default purpose is `preprod_generator` since this legacy service is only
+     * wired to the preprod ConversationGenerator.
+     *
+     * @param array<string, mixed> $options
+     */
+    private function buildSafetyIdentifier(array $options): string
+    {
+        $convId = $options['conversation_id'] ?? null;
+
+        if (is_string($convId) && $convId !== '') {
+            return 'tenant_conv_' . hash('sha256', $convId);
+        }
+
+        $purposeRaw = $options['purpose'] ?? null;
+        $purpose = is_string($purposeRaw) && $purposeRaw !== '' ? $purposeRaw : 'preprod_generator';
+        $sanitised = preg_replace('/[^a-z0-9_]/i', '_', $purpose) ?? 'preprod_generator';
+
+        return 'tenant_' . $sanitised;
     }
 }

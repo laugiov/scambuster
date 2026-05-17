@@ -385,7 +385,10 @@ class ReplyControllerTest extends WebTestCase
 
         $this->assertResponseStatusCodeSame(204);
 
-        // Try to mark as sent again (should fail - idempotency)
+        // Spec 082 §US2.1 — a 2nd /sent with the SAME provider_msg_id is a
+        // silent no-op (204), not a 400. This is the deliberate behaviour
+        // change of spec 082: stale n8n executions retrying /sent must not
+        // surface as red errors on the operator dashboard.
         $client->request(
             'POST',
             "/api/v1/communication/reply/$replyMsgId/sent",
@@ -398,10 +401,7 @@ class ReplyControllerTest extends WebTestCase
             json_encode($sentPayload)
         );
 
-        $this->assertResponseStatusCodeSame(400);
-        $error = json_decode($client->getResponse()->getContent(), true);
-        $this->assertArrayHasKey('error', $error);
-        $this->assertNotEmpty($error['error']);
+        $this->assertResponseStatusCodeSame(204);
     }
 
     public function testGenerateReplyForClosedConversation(): void

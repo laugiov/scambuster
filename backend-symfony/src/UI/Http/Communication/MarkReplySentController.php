@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Communication;
 
+use App\Application\Communication\Exception\MarkAsSentConflictException;
 use App\Application\Communication\ReplyHandler;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -94,7 +95,20 @@ final readonly class MarkReplySentController
             }
 
             return new JsonResponse(null, Response::HTTP_NO_CONTENT);
-        } catch (\RuntimeException $e) {
+        } catch (MarkAsSentConflictException $e) {
+            // Spec 082 §US2.2 — the duplicate /sent asserts a different
+            // provider_msg_id than what we already recorded. Refuse rather
+            // than silently overwrite; expose both ids in the body so the
+            // operator can investigate.
+            return new JsonResponse([
+                'error' => 'Failed to mark reply as sent',
+                'detail' => sprintf(
+                    'provider_msg_id conflict: existing=%s, requested=%s',
+                    $e->getExpectedProviderMsgId(),
+                    $e->getActualProviderMsgId(),
+                ),
+            ], Response::HTTP_BAD_REQUEST);
+        } catch (\RuntimeException) {
             return new JsonResponse(['error' => 'Failed to mark reply as sent'], Response::HTTP_BAD_REQUEST);
         }
     }

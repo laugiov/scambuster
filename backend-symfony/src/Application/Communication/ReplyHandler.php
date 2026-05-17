@@ -219,10 +219,18 @@ class ReplyHandler
         $msgId = uuid_create(UUID_TYPE_RANDOM);
         $now = new \DateTimeImmutable();
 
-        // Determine "from" = honeypot address (the "to" of the inbound message)
+        // Determine "from" = honeypot address (the "to" of the inbound message).
+        // Prefer the parent's To/Delivered-To headers — that is what the scammer
+        // saw. If both are missing (mass-mailing with empty To:, alias delivery,
+        // parser miss), fall back to the MailAccount's own emailAddress (spec
+        // 050). Endpoint is the IMAP/SMTP hostname and is only a last-resort
+        // fallback for legacy accounts that pre-date spec 050; it is never a
+        // valid RFC 2822 address and will be caught downstream by composeHeaders.
+        $account = $conversation->getAccount();
         $honeypotAddress = $parentMessage->getHeaders()['to']
             ?? $parentMessage->getHeaders()['delivered-to']
-            ?? $conversation->getAccount()->getEndpoint();
+            ?? $account->getEmailAddress()
+            ?? $account->getEndpoint();
 
         $headers = [
             'from' => $honeypotAddress,

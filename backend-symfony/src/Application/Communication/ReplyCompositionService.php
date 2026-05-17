@@ -78,12 +78,17 @@ class ReplyCompositionService
         $from = $message->getHeaders()['from'] ?? null;
 
         // Fix: if "from" is not a valid email (e.g., IMAP hostname stored during ingestion),
-        // resolve it from the parent inbound message's "to" (= the honeypot address)
+        // resolve it from the parent inbound message's "to" (= the honeypot address),
+        // then from the MailAccount's own emailAddress (spec 050) as a last resort.
         $fromStr = \is_string($from) ? $from : '';
 
         if ($fromStr === '' || !str_contains($fromStr, '@')) {
             $parentHeaders = $parent->getHeaders();
-            $from = $parentHeaders['to'] ?? $parentHeaders['delivered-to'] ?? $from;
+            $accountEmail = $message->getConversation()->getAccount()->getEmailAddress();
+            $from = $parentHeaders['to']
+                ?? $parentHeaders['delivered-to']
+                ?? $accountEmail
+                ?? $from;
         }
 
         if (!$to || !$from) {
@@ -134,9 +139,23 @@ class ReplyCompositionService
             return false;
         }
 
-        // Idempotency check
+        // Spec 082 §US2 — idempotency on match, typed conflict on mismatch.
+        // The natural key is provider_msg_id (the message-id we generated at
+        // SMTP send time). If a duplicate /sent call arrives with the same
+        // id, we treat it as a no-op; if it arrives with a different id,
+        // we refuse rather than silently overwriting recorded state.
         if ($message->getSendStatus() === 'sent') {
-            throw new \RuntimeException('Message already sent');
+            $storedProviderMsgId = $message->getProviderMsgId();
+
+            if ($storedProviderMsgId === $providerMsgId) {
+                return true;
+            }
+
+            throw new \App\Application\Communication\Exception\MarkAsSentConflictException(
+                msgId: $msgId,
+                expectedProviderMsgId: $storedProviderMsgId ?? '',
+                actualProviderMsgId: $providerMsgId,
+            );
         }
 
         $message->setSendStatus('sent');
@@ -371,6 +390,37 @@ class ReplyCompositionService
             'to' => $compose['to'],
             'message_id' => $generatedMessageId,
         ]);
+
+        // Spec 082 §US1 — atomic post-send state write.
+        // Persist send_status='sent' + provider_msg_id + ts_sent in the
+        // same operation that observed the SMTP success. Without this,
+        // the row stays send_status='draft' until n8n's /sent callback,
+        // opening a window where a duplicate /send-email call would
+        // bypass the Verrou-B idempotency check (which keys on 'sent')
+        // and trigger a second SMTP delivery to the scammer.
+        try {
+            $message->setSendStatus('sent');
+            $message->setProviderMsgId($generatedMessageId);
+            $message->setTsSent($tsSent);
+            $this->em->flush();
+        } catch (\Throwable $persistError) {
+            // SMTP delivered but DB write failed — log loudly so the
+            // operator sees this rare class of inconsistency. Re-throw
+            // as a 500 so the caller knows the operation is half-done;
+            // the next retry will re-send (strictly no-worse than today,
+            // where the row also stays 'draft' until /sent is called).
+            $this->logger->error('[ReplyCompositionService] SMTP succeeded but post-send DB write failed', [
+                'msg_id' => $msgId,
+                'provider_msg_id' => $generatedMessageId,
+                'error' => $persistError->getMessage(),
+            ]);
+
+            throw new \RuntimeException(
+                'SMTP delivered but failed to persist sent state — manual reconciliation required',
+                0,
+                $persistError,
+            );
+        }
 
         return [
             'success' => true,

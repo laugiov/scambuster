@@ -102,6 +102,7 @@ final readonly class IocExtractor
             $response = $this->llmClient->chat($llmMessages, [
                 'temperature' => 0.1,  // Very low temperature for precision
                 'max_tokens' => 2000,  // Enough for many IOCs
+                'purpose' => 'ioc_extraction',
             ]);
 
             $this->logger->debug('LLM IOC extraction response received', [

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\EndToEnd\CriticalFlow;
 
 use App\Domain\Communication\MailAccount;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -19,6 +20,40 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 abstract class AbstractCriticalFlowTestCase extends WebTestCase
 {
     private ?string $testAccountId = null;
+
+    /**
+     * Defensive cleanup: ensure no stale totp_secret on the shared fixture
+     * users blocks login with `requires_2fa: true`. AuthLifecycleFlowTest is
+     * supposed to clear this in its tearDown, but if its tearDown ever
+     * crashes (it has, see 2026-05-12 CI incident), every subsequent
+     * CriticalFlow test fails with 401 on /ingest/raw.
+     *
+     * Raw SQL on purpose — going through the ORM would hydrate the user
+     * and decrypt totp_secret, which is itself what crashed last time.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        try {
+            $container = static::getContainer();
+            $conn = $container->get('doctrine.dbal.default_connection');
+
+            if ($conn instanceof Connection) {
+                $conn->executeStatement(
+                    "UPDATE app_users SET totp_secret = NULL WHERE email IN ('user@example.com', 'admin@example.com') AND totp_secret IS NOT NULL",
+                );
+            }
+        } catch (\Throwable) {
+            // Best-effort: tests will fail naturally if a leak actually happened.
+        } finally {
+            // The cleanup above booted the kernel via static::getContainer().
+            // The tests then call static::createClient(), which refuses to
+            // re-boot. Shut the kernel down here so createClient gets a clean
+            // slate.
+            static::ensureKernelShutdown();
+        }
+    }
 
     protected function getJwt(KernelBrowser $client, string $email = 'user@example.com'): string
     {
