@@ -139,9 +139,23 @@ class ReplyCompositionService
             return false;
         }
 
-        // Idempotency check
+        // Spec 082 §US2 — idempotency on match, typed conflict on mismatch.
+        // The natural key is provider_msg_id (the message-id we generated at
+        // SMTP send time). If a duplicate /sent call arrives with the same
+        // id, we treat it as a no-op; if it arrives with a different id,
+        // we refuse rather than silently overwriting recorded state.
         if ($message->getSendStatus() === 'sent') {
-            throw new \RuntimeException('Message already sent');
+            $storedProviderMsgId = $message->getProviderMsgId();
+
+            if ($storedProviderMsgId === $providerMsgId) {
+                return true;
+            }
+
+            throw new \App\Application\Communication\Exception\MarkAsSentConflictException(
+                msgId: $msgId,
+                expectedProviderMsgId: $storedProviderMsgId ?? '',
+                actualProviderMsgId: $providerMsgId,
+            );
         }
 
         $message->setSendStatus('sent');

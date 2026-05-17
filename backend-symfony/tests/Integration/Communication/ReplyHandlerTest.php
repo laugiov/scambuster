@@ -264,8 +264,11 @@ class ReplyHandlerTest extends KernelTestCase
         $this->assertNotNull($replyMsg->getTsSent());
     }
 
-    public function testMarkAsSentIdempotency(): void
+    public function testMarkAsSentThrowsConflictOnDifferentProviderId(): void
     {
+        // Spec 082 §US2.2 — different provider_msg_id on the 2nd call is a
+        // conflict, not idempotency. The typed exception lets the controller
+        // distinguish this (→ 400) from the same-id no-op case (→ 204).
         $data = $this->createTestConversationWithMessage();
 
         $result = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
@@ -274,12 +277,9 @@ class ReplyHandlerTest extends KernelTestCase
         $providerMsgId = 'gmail-' . bin2hex(random_bytes(8));
         $tsSent = new \DateTimeImmutable();
 
-        // First call should succeed
         $this->replyHandler->markAsSent($replyMsgId, 'gmail', $providerMsgId, $tsSent);
 
-        // Second call should throw exception
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('already sent');
+        $this->expectException(\App\Application\Communication\Exception\MarkAsSentConflictException::class);
 
         $this->replyHandler->markAsSent($replyMsgId, 'gmail', 'another-id', $tsSent);
     }

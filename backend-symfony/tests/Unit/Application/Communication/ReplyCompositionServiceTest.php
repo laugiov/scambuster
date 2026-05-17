@@ -251,18 +251,63 @@ class ReplyCompositionServiceTest extends TestCase
         $this->assertFalse($service->markAsSent('msg-1', 'smtp', 'provider-id', new \DateTimeImmutable()));
     }
 
-    public function test_markAsSent_throws_when_already_sent(): void
+    // Spec 082 T03 — markAsSent idempotency on match, typed conflict on mismatch.
+
+    public function test_markAsSent_returns_true_on_same_provider_msg_id_no_writes(): void
     {
         $message = $this->createMock(Message::class);
         $message->method('getSendStatus')->willReturn('sent');
+        $message->method('getProviderMsgId')->willReturn('provider-id-X');
+        // Strict: no setter must be invoked on the idempotent path.
+        $message->expects($this->never())->method('setSendStatus');
+        $message->expects($this->never())->method('setProviderMsgId');
+        $message->expects($this->never())->method('setTsSent');
 
         $this->messageHandler->method('getMessage')->willReturn($message);
 
         $service = $this->createService();
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Message already sent');
-        $service->markAsSent('msg-1', 'smtp', 'provider-id', new \DateTimeImmutable());
+        $result = $service->markAsSent('msg-1', 'smtp', 'provider-id-X', new \DateTimeImmutable());
+
+        $this->assertTrue($result);
+    }
+
+    public function test_markAsSent_throws_typed_conflict_on_different_provider_msg_id(): void
+    {
+        $message = $this->createMock(Message::class);
+        $message->method('getSendStatus')->willReturn('sent');
+        $message->method('getProviderMsgId')->willReturn('stored-X');
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService();
+
+        try {
+            $service->markAsSent('msg-1', 'smtp', 'requested-Y', new \DateTimeImmutable());
+            $this->fail('Expected MarkAsSentConflictException');
+        } catch (\App\Application\Communication\Exception\MarkAsSentConflictException $e) {
+            $this->assertSame('msg-1', $e->getMsgId());
+            $this->assertSame('stored-X', $e->getExpectedProviderMsgId());
+            $this->assertSame('requested-Y', $e->getActualProviderMsgId());
+        }
+    }
+
+    public function test_markAsSent_throws_typed_conflict_when_stored_id_is_null(): void
+    {
+        // Legacy data: a row marked 'sent' with no provider_msg_id stored
+        // (pre-spec-050 messages). Any non-empty input is by definition a
+        // mismatch — fail closed with the typed exception so the caller
+        // can decide whether to ignore or remediate.
+        $message = $this->createMock(Message::class);
+        $message->method('getSendStatus')->willReturn('sent');
+        $message->method('getProviderMsgId')->willReturn(null);
+
+        $this->messageHandler->method('getMessage')->willReturn($message);
+
+        $service = $this->createService();
+
+        $this->expectException(\App\Application\Communication\Exception\MarkAsSentConflictException::class);
+        $service->markAsSent('msg-1', 'smtp', 'requested-Y', new \DateTimeImmutable());
     }
 
     // --- sendEmail tests ---
