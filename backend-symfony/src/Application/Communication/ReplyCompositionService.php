@@ -391,6 +391,37 @@ class ReplyCompositionService
             'message_id' => $generatedMessageId,
         ]);
 
+        // Spec 082 §US1 — atomic post-send state write.
+        // Persist send_status='sent' + provider_msg_id + ts_sent in the
+        // same operation that observed the SMTP success. Without this,
+        // the row stays send_status='draft' until n8n's /sent callback,
+        // opening a window where a duplicate /send-email call would
+        // bypass the Verrou-B idempotency check (which keys on 'sent')
+        // and trigger a second SMTP delivery to the scammer.
+        try {
+            $message->setSendStatus('sent');
+            $message->setProviderMsgId($generatedMessageId);
+            $message->setTsSent($tsSent);
+            $this->em->flush();
+        } catch (\Throwable $persistError) {
+            // SMTP delivered but DB write failed — log loudly so the
+            // operator sees this rare class of inconsistency. Re-throw
+            // as a 500 so the caller knows the operation is half-done;
+            // the next retry will re-send (strictly no-worse than today,
+            // where the row also stays 'draft' until /sent is called).
+            $this->logger->error('[ReplyCompositionService] SMTP succeeded but post-send DB write failed', [
+                'msg_id' => $msgId,
+                'provider_msg_id' => $generatedMessageId,
+                'error' => $persistError->getMessage(),
+            ]);
+
+            throw new \RuntimeException(
+                'SMTP delivered but failed to persist sent state — manual reconciliation required',
+                0,
+                $persistError,
+            );
+        }
+
         return [
             'success' => true,
             'message_id' => $generatedMessageId,
