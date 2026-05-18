@@ -110,6 +110,40 @@ class ThreadResolverService
                 }
             }
 
+            // Spec 085 §US2 — second lookup on headers.provider_msg_id.
+            // sendEmail stores the message-id WITH chevrons in this field
+            // (RFC 2822 full form). For 167/360 historical SMTP outbounds
+            // ingested before spec 085 T02, this is the ONLY place the
+            // identifier is reachable from the headers JSON. Without this
+            // branch, every scammer reply to those outbounds creates an
+            // orphan conversation.
+            if (!$conversation) {
+                $qbProv = $conn->createQueryBuilder();
+                $qbProv->select('m.msg_id')
+                    ->from('message', 'm')
+                    ->where("m.headers->>'provider_msg_id' = :messageId")
+                    ->orWhere("m.headers->>'provider_msg_id' = :messageIdWithChevrons")
+                    ->andWhere('m.deleted_at IS NULL')
+                    ->setParameter('messageId', $inReplyTo)
+                    ->setParameter('messageIdWithChevrons', '<' . $inReplyTo . '>')
+                    ->setMaxResults(1);
+
+                $providerHit = $qbProv->executeQuery()->fetchOne();
+
+                if ($providerHit !== false) {
+                    $providerParent = $this->em->find(Message::class, $providerHit);
+
+                    if ($providerParent !== null) {
+                        $replyToMessage = $providerParent;
+                        $conversation = $providerParent->getConversation();
+                        $this->logger->info('[ThreadResolverService] Found conversation via provider_msg_id fallback (spec 085)', [
+                            'in_reply_to' => $inReplyTo,
+                            'conv_id' => $conversation->getConvId(),
+                        ]);
+                    }
+                }
+            }
+
             // Fallback: search in in_reply_to and references fields
             if (!$conversation) {
                 $this->logger->info('[ThreadResolverService] Fallback: searching in in_reply_to/references fields', [
