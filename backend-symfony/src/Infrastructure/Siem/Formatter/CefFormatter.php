@@ -69,6 +69,7 @@ final class CefFormatter implements SiemEventFormatterInterface
             'EXPORT_STIX' => 'STIX Export',
             'PERSONA_SELECTED' => 'Persona Selected',
             'CONFIG_CHANGED' => 'Configuration Changed',
+            'INGEST_PRE_FILTER_HIT' => 'Automated Mail Pre-Filtered',
         };
     }
 

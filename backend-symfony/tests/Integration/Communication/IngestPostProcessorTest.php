@@ -346,4 +346,62 @@ class IngestPostProcessorTest extends KernelTestCase
         // Should not throw with non-English language
         $this->assertTrue(true);
     }
+
+    // ─── Spec 083 — pre-filter integration tests ───────────────────────
+
+    public function testProcessAfterIngest_preFiltersBareGithubNoreply(): void
+    {
+        // Regression test for the 17/30 GitHub bare-address miss reported
+        // in the 2026-05-17 audit. Pre-T03 the maison regex required
+        // chevrons; this test fails on legacy code.
+        $message = $this->createTestMessage(
+            bodyText: 'A personal access token (classic) was added to your account.',
+            headers: [
+                'from' => 'noreply@github.com',
+                'to' => 'honeypot@test.com',
+                'message-id' => '<gh-' . bin2hex(random_bytes(8)) . '@github.com>',
+            ],
+        );
+        $conversation = $message->getConversation();
+        // Seed a non-zero risk so we can prove the pre-filter forced it back to 0.
+        $conversation->setScoreRisk(50);
+        $this->em->flush();
+
+        $this->processor->processAfterIngest($message, $conversation, 'en');
+
+        $this->em->refresh($conversation);
+        $this->assertSame(0, $conversation->getScoreRisk(), 'Pre-filter on github.com must force score_risk=0');
+    }
+
+    public function testProcessAfterIngest_doesNotPreFilterCommercialB2B(): void
+    {
+        // Spec 083 explicit out-of-scope: B2B commercial pitches must
+        // continue through the LLM classifier (could be the first stage
+        // of an invoice / wikipedia / vanity-publishing scam).
+        $message = $this->createTestMessage(
+            bodyText: 'Hi, we offer custom website + apps. Interested?',
+            headers: [
+                'from' => 'info.rajubcc@gmail.com',
+                'to' => 'honeypot@test.com',
+                'message-id' => '<' . bin2hex(random_bytes(8)) . '@gmail.com>',
+            ],
+        );
+        $conversation = $message->getConversation();
+        // Seed a non-zero risk to detect whether the pre-filter overwrote it.
+        $conversation->setScoreRisk(42);
+        $this->em->flush();
+
+        $this->processor->processAfterIngest($message, $conversation, 'en');
+
+        $this->em->refresh($conversation);
+        // The pre-filter must NOT trigger on commercial B2B → score_risk
+        // is allowed to be anything EXCEPT zero-by-pre-filter (the
+        // classifier path may itself rewrite it, so we just assert it's
+        // not the pre-filter sentinel pattern).
+        $this->assertNotSame(
+            0,
+            $conversation->getScoreRisk(),
+            'B2B sender must not be pre-filtered (= must not be forced to 0)',
+        );
+    }
 }

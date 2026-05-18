@@ -23,6 +23,9 @@ enum AuditEventType: string
     case REPLY_SENT = 'REPLY_SENT';
     case IOC_EXTRACTED = 'IOC_EXTRACTED';
     case CONVERSATION_CLOSED = 'CONVERSATION_CLOSED';
+    // Spec 083 — automated-mail pre-filter hit (DMARC, noreply, etc.).
+    // Pipeline skipped LLM classification + reply generation.
+    case INGEST_PRE_FILTER_HIT = 'INGEST_PRE_FILTER_HIT';
 
     // Security events
     case INJECTION_DETECTED = 'INJECTION_DETECTED';

@@ -181,15 +181,42 @@ class IngestPostProcessor
         $this->computeIocContext($msgId);
         $this->enrichIocContext($message, $msgId);
 
-        // F1: Skip classification and force risk=0 for known legitimate senders
+        // Spec 083 — pre-filter automated mail (DMARC, noreply, postmaster,
+        // operator-test, known legitimate domains) BEFORE the LLM classifier
+        // and reply pipeline run. Forces score_risk=0 (the chain downstream
+        // — spec 084 /risk endpoint + n8n Decision Gate — refuses to reply
+        // when score is low). The conversation keeps scam_type=UNKNOWN by
+        // design: UNKNOWN remains the catch-all for "we didn't classify",
+        // whether the cause is pre-filter or low LLM confidence.
         $fromHeader = $message->getHeaders()['from'] ?? null;
+        $subject = $message->getSubject() ?? '';
+        $fromHeaderStr = \is_string($fromHeader) ? $fromHeader : '';
+        $preFilterMatch = $this->matchPreFilter($fromHeaderStr, $subject);
 
-        if (\is_string($fromHeader) && $this->isLegitimateSender($fromHeader)) {
-            $this->logger->warning('[IngestPostProcessor] Legitimate sender detected, skipping classification', [
+        if ($preFilterMatch !== null) {
+            $this->logger->info('[IngestPostProcessor] Pre-filter hit, skipping classification', [
                 'msg_id' => $msgId,
                 'conv_id' => $conversation->getConvId(),
-                'from' => $fromHeader,
+                'from' => $fromHeaderStr,
+                'subject' => $subject,
+                'kind' => $preFilterMatch->kind,
+                'pattern' => $preFilterMatch->pattern,
             ]);
+
+            $this->auditLogger?->log(
+                AuditEventType::INGEST_PRE_FILTER_HIT,
+                $conversation->getConvId(),
+                'pre_filter_hit',
+                'skipped',
+                'message',
+                $msgId,
+                [
+                    'from' => $fromHeaderStr,
+                    'kind' => $preFilterMatch->kind,
+                    'pattern' => $preFilterMatch->pattern,
+                ],
+            );
+
             $conversation->updateRiskScore(0);
             $this->em->flush();
 
@@ -594,42 +621,6 @@ class IngestPostProcessor
             details: ['limit_type' => $limitType],
             actorType: 'sender'
         );
-    }
-
-    /**
-     * Check whether the sender belongs to a known legitimate domain.
-     *
-     * Matches exact domain or subdomain (e.g. mail.instagram.com matches instagram.com).
-     * Does NOT match lookalikes (e.g. evil-instagram.com does NOT match instagram.com).
-     */
-    private function isLegitimateSender(string $fromHeader): bool
-    {
-        // Extract email from header (handles "Name <email>" format)
-        $email = $fromHeader;
-
-        if (preg_match('/<([^>]+)>/', $fromHeader, $m)) {
-            $email = $m[1];
-        }
-
-        $atPos = strrpos($email, '@');
-
-        if ($atPos === false) {
-            return false;
-        }
-
-        $domain = strtolower(trim(substr($email, $atPos + 1)));
-
-        if ($domain === '') {
-            return false;
-        }
-
-        foreach (self::KNOWN_LEGITIMATE_DOMAINS as $legit) {
-            if ($domain === $legit || str_ends_with($domain, '.' . $legit)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
