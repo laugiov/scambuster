@@ -1,0 +1,54 @@
+# Mirror of config/packages/test/rate_limiter.yaml for the e2e env.
+#
+# Without this file, the e2e env inherits the default rate limits from
+# config/packages/rate_limiter.yaml (50 active conversations / day, etc.)
+# which the filesystem-backed Symfony rate limiter accumulates across
+# test runs. After ~50 E2E runs in a 24h window, the daily cap triggers
+# and 6 ReplyController E2E tests fail with HTTP 400 "Rate limit
+# exceeded: max active conversations per day" — completely unrelated
+# to the feature under test.
+#
+# Mirroring the test override here makes the e2e env safe to re-run
+# arbitrarily often without the cache becoming a hidden source of
+# CI/local-preflight flakiness.
+framework:
+  rate_limiter:
+    login_ip:
+      policy: 'sliding_window'
+      limit: 100
+      interval: '1 minute'
+
+    api_global:
+      policy: 'token_bucket'
+      limit: 999999
+      rate: { interval: '1 minute', amount: 999999 }
+
+    emails_per_sender_per_day:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
+    replies_per_conversation:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
+    llm_calls_per_hour:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '1 hour'
+
+    active_conversations_per_day:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
+    ingest_per_account:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '1 hour'
+
+    login_email:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '15 minutes'
