@@ -253,9 +253,15 @@ class IocHandlerTest extends KernelTestCase
 
         $risk = $this->iocHandler->calculateMessageRisk($message->getMsgId());
 
-        $this->assertSame(40, $risk['score_agg']); // VT suspicious
-        $this->assertSame('medium', $risk['level']);
-        $this->assertTrue($risk['should_reply'], 'Should reply because IBAN is exploitable');
+        // Spec 084 — score_agg is now MAX(external, intrinsic). The intrinsic
+        // side adds at least BASE(UNKNOWN)=30 + 30 (IBAN financial bonus) + 5
+        // (URL bonus) + 6 (2 types × 3 diversity) = 71. The fixture's exact
+        // scam_type is non-deterministic (findOneBy([]) at line 48), so any
+        // baseline >= UNKNOWN brings score >= 71. External VT-suspicious = 40
+        // never wins.
+        $this->assertGreaterThanOrEqual(70, $risk['score_agg'], 'Intrinsic IBAN bonus must dominate over external VT-suspicious');
+        $this->assertSame('high', $risk['level']);
+        $this->assertTrue($risk['should_reply'], 'Should reply because IBAN is exploitable (level=high now)');
     }
 
     public function testCalculateMessageRiskWithNoIocs(): void

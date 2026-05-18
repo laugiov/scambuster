@@ -19,6 +19,7 @@ class IocEnrichmentService
         private readonly EntityManagerInterface $em,
         private readonly RiskScorer $riskScorer,
         private readonly IocExportMapper $exportMapper,
+        private readonly RiskScoreCalculator $riskScoreCalculator,
     ) {
     }
 
@@ -48,8 +49,10 @@ class IocEnrichmentService
             ];
         }
 
-        $maxScore = 0;
+        $externalMaxScore = 0;
         $reasons = [];
+        $typeSet = [];
+        $urlCount = 0;
 
         foreach ($iocs as $ioc) {
             $context = $ioc->getContext();
@@ -61,8 +64,8 @@ class IocEnrichmentService
                 $iocScore = $scoreData['agg'];
             }
 
-            if ($iocScore > $maxScore) {
-                $maxScore = $iocScore;
+            if ($iocScore > $externalMaxScore) {
+                $externalMaxScore = $iocScore;
             }
 
             if (is_array($scoreData) && isset($scoreData['explain']) && is_string($scoreData['explain'])) {
@@ -70,7 +73,25 @@ class IocEnrichmentService
                 $typeValue = (isset($context['type']) && is_string($context['type'])) ? $context['type'] : 'unknown';
                 $reasons[] = sprintf('%s: %s', $typeValue, $explainText);
             }
+
+            $typeValue = (isset($context['type']) && is_string($context['type'])) ? $context['type'] : '';
+
+            if ($typeValue !== '') {
+                $typeSet[$typeValue] = true;
+
+                if ($typeValue === 'url') {
+                    $urlCount++;
+                }
+            }
         }
+
+        // Spec 084 — combine external (VT/URLscan) with intrinsic
+        // (RiskScoreCalculator: scam-type baseline + IOC-presence bonuses).
+        // The worse of the two wins, so a mail with an IBAN that VT never
+        // saw still gets a high score from the intrinsic side.
+        $scamCode = $message->getConversation()->getScamType()->getCode();
+        $intrinsicScore = $this->riskScoreCalculator->compute($scamCode, $typeSet, $urlCount);
+        $maxScore = max($externalMaxScore, $intrinsicScore);
 
         $level = $this->riskScorer->determineLevel($maxScore);
 
