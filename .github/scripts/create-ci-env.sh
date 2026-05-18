@@ -49,6 +49,7 @@ APP_API_BASE_URL=http://localhost:8080
 N8N_ENCRYPTION_KEY=ci-test-n8n-key
 MAILER_DSN=null://null
 SCAMBUSTER_SAFE_DOMAINS=gmail.com,yahoo.com,outlook.com,example.com
+SCAMBUSTER_OPERATOR_TEST_SENDERS=
 SCAMBUSTER_API_URL=http://backend-dev:8080
 HONEYPOT_IMAP_HOST=imap.gmail.com
 HONEYPOT_IMAP_USER=test@example.com
