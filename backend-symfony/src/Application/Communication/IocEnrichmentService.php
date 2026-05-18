@@ -19,6 +19,7 @@ class IocEnrichmentService
         private readonly EntityManagerInterface $em,
         private readonly RiskScorer $riskScorer,
         private readonly IocExportMapper $exportMapper,
+        private readonly RiskScoreCalculator $riskScoreCalculator,
     ) {
     }
 
@@ -48,8 +49,10 @@ class IocEnrichmentService
             ];
         }
 
-        $maxScore = 0;
+        $externalMaxScore = 0;
         $reasons = [];
+        $typeSet = [];
+        $urlCount = 0;
 
         foreach ($iocs as $ioc) {
             $context = $ioc->getContext();
@@ -61,8 +64,8 @@ class IocEnrichmentService
                 $iocScore = $scoreData['agg'];
             }
 
-            if ($iocScore > $maxScore) {
-                $maxScore = $iocScore;
+            if ($iocScore > $externalMaxScore) {
+                $externalMaxScore = $iocScore;
             }
 
             if (is_array($scoreData) && isset($scoreData['explain']) && is_string($scoreData['explain'])) {
@@ -70,6 +73,32 @@ class IocEnrichmentService
                 $typeValue = (isset($context['type']) && is_string($context['type'])) ? $context['type'] : 'unknown';
                 $reasons[] = sprintf('%s: %s', $typeValue, $explainText);
             }
+
+            $typeValue = (isset($context['type']) && is_string($context['type'])) ? $context['type'] : '';
+
+            if ($typeValue !== '') {
+                $typeSet[$typeValue] = true;
+
+                if ($typeValue === 'url') {
+                    $urlCount++;
+                }
+            }
+        }
+
+        // Spec 084 — combine external (VT/URLscan) with intrinsic
+        // (RiskScoreCalculator: scam-type baseline + IOC-presence bonuses).
+        // The worse of the two wins, so a mail with an IBAN that VT never
+        // saw still gets a high score from the intrinsic side.
+        $scamCode = $message->getConversation()->getScamType()->getCode();
+        $intrinsicScore = $this->riskScoreCalculator->compute($scamCode, $typeSet, $urlCount);
+        $maxScore = max($externalMaxScore, $intrinsicScore);
+
+        // Spec 084 §US3 — when the intrinsic score is the dominant signal,
+        // append an explanatory line to the reasons so the operator sees
+        // WHY the bot will reply even though no external enrichment flagged
+        // anything.
+        if ($intrinsicScore > $externalMaxScore) {
+            $reasons[] = $this->buildIntrinsicReason($typeSet, $scamCode, $intrinsicScore);
         }
 
         $level = $this->riskScorer->determineLevel($maxScore);
@@ -167,5 +196,39 @@ class IocEnrichmentService
         $context = $this->exportMapper->enrichWithExportMetadata($context);
 
         $ioc->updateContext($context);
+    }
+
+    /**
+     * Build a human-readable reason line explaining why the intrinsic
+     * scorer pushed `score_agg` above the external max. Names the IOC
+     * type(s) responsible so the operator can correlate with the IOC
+     * list shown elsewhere in the conversation view.
+     *
+     * @param array<string, bool> $typeSet
+     */
+    private function buildIntrinsicReason(array $typeSet, string $scamCode, int $intrinsicScore): string
+    {
+        $financialTypes = array_intersect(['iban', 'bic', 'wallet_btc', 'wallet_eth', 'wallet_xmr', 'credit_card'], array_keys($typeSet));
+        $triggers = [];
+
+        if ($financialTypes !== []) {
+            $triggers[] = 'financial IOC (' . implode(', ', $financialTypes) . ')';
+        }
+
+        if (isset($typeSet['phone'])) {
+            $triggers[] = 'phone IOC';
+        }
+
+        if (isset($typeSet['url'])) {
+            $triggers[] = 'URL IOC';
+        }
+
+        if ($triggers === []) {
+            // No bonus IOC fired the increment — must be the scam-type
+            // baseline alone (e.g., CEO_FRAUD base 70 with no IOCs).
+            $triggers[] = 'scam-type baseline (' . $scamCode . ')';
+        }
+
+        return sprintf('intrinsic: %s — score=%d', implode(' + ', $triggers), $intrinsicScore);
     }
 }
