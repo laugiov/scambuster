@@ -199,6 +199,40 @@ final class IocEnrichmentServiceTest extends TestCase
         $this->assertFalse($result['should_reply']);
     }
 
+    // ─── US3 — reason field explains intrinsic trigger ────────────────
+
+    public function test_calculateMessageRisk_reason_mentions_intrinsic_trigger_when_it_wins(): void
+    {
+        // IBAN present, external=0, intrinsic wins. reason must contain
+        // a substring identifying the intrinsic trigger so a debugger
+        // reading the JSON payload understands WHY the bot will reply.
+        $message = $this->mockMessageWithScamType('INVOICE_FRAUD');
+        $iocs = [$this->mockIoc('iban', 0)];
+
+        $this->wireEm($message, $iocs);
+
+        $result = $this->createService()->calculateMessageRisk('msg-iban-reason');
+
+        $this->assertStringContainsString('intrinsic', $result['reason']);
+        $this->assertStringContainsString('iban', $result['reason']);
+    }
+
+    public function test_calculateMessageRisk_reason_keeps_external_format_when_external_wins(): void
+    {
+        // External VT score 75 dominates. reason must keep its existing
+        // <type>: <vt explain> format with NO 'intrinsic' marker
+        // (regression guard for downstream consumers parsing the field).
+        $message = $this->mockMessageWithScamType('UNKNOWN');
+        $iocs = [$this->mockIoc('url', 75, 'VT flagged as malicious')];
+
+        $this->wireEm($message, $iocs);
+
+        $result = $this->createService()->calculateMessageRisk('msg-external-wins');
+
+        $this->assertStringContainsString('VT flagged as malicious', $result['reason']);
+        $this->assertStringNotContainsString('intrinsic', $result['reason']);
+    }
+
     public function test_calculateMessageRisk_returns_no_iocs_when_message_has_no_iocs(): void
     {
         // Strict regression guard: the existing early-return for

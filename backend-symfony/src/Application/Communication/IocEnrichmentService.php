@@ -93,6 +93,14 @@ class IocEnrichmentService
         $intrinsicScore = $this->riskScoreCalculator->compute($scamCode, $typeSet, $urlCount);
         $maxScore = max($externalMaxScore, $intrinsicScore);
 
+        // Spec 084 §US3 — when the intrinsic score is the dominant signal,
+        // append an explanatory line to the reasons so the operator sees
+        // WHY the bot will reply even though no external enrichment flagged
+        // anything.
+        if ($intrinsicScore > $externalMaxScore) {
+            $reasons[] = $this->buildIntrinsicReason($typeSet, $scamCode, $intrinsicScore);
+        }
+
         $level = $this->riskScorer->determineLevel($maxScore);
 
         $iocTypes = array_map(function ($ioc): array {
@@ -188,5 +196,39 @@ class IocEnrichmentService
         $context = $this->exportMapper->enrichWithExportMetadata($context);
 
         $ioc->updateContext($context);
+    }
+
+    /**
+     * Build a human-readable reason line explaining why the intrinsic
+     * scorer pushed `score_agg` above the external max. Names the IOC
+     * type(s) responsible so the operator can correlate with the IOC
+     * list shown elsewhere in the conversation view.
+     *
+     * @param array<string, bool> $typeSet
+     */
+    private function buildIntrinsicReason(array $typeSet, string $scamCode, int $intrinsicScore): string
+    {
+        $financialTypes = array_intersect(['iban', 'bic', 'wallet_btc', 'wallet_eth', 'wallet_xmr', 'credit_card'], array_keys($typeSet));
+        $triggers = [];
+
+        if ($financialTypes !== []) {
+            $triggers[] = 'financial IOC (' . implode(', ', $financialTypes) . ')';
+        }
+
+        if (isset($typeSet['phone'])) {
+            $triggers[] = 'phone IOC';
+        }
+
+        if (isset($typeSet['url'])) {
+            $triggers[] = 'URL IOC';
+        }
+
+        if ($triggers === []) {
+            // No bonus IOC fired the increment — must be the scam-type
+            // baseline alone (e.g., CEO_FRAUD base 70 with no IOCs).
+            $triggers[] = 'scam-type baseline (' . $scamCode . ')';
+        }
+
+        return sprintf('intrinsic: %s — score=%d', implode(' + ', $triggers), $intrinsicScore);
     }
 }
