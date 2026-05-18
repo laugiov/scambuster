@@ -224,8 +224,11 @@ class MessageRiskControllerTest extends WebTestCase
         $this->assertResponseStatusCodeSame(200);
         $responseData = json_decode($client->getResponse()->getContent(), true);
 
-        $this->assertSame(40, $responseData['score_agg']);
-        $this->assertSame('medium', $responseData['level']);
+        // Spec 084 — score_agg now combines external + intrinsic; the IBAN
+        // bonus pushes the score >= 70 (high), no longer 40 (medium).
+        // Exact value depends on fixture's scam_type baseline (non-deterministic).
+        $this->assertGreaterThanOrEqual(70, $responseData['score_agg']);
+        $this->assertSame('high', $responseData['level']);
         $this->assertTrue($responseData['should_reply'], 'Should reply because IBAN is exploitable');
     }
 
