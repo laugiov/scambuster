@@ -21,6 +21,8 @@ services:
             $validatorStructuredCorrection:    '%reply.validator.structured_correction%'
             $generatorPatchMode:               '%reply.generator.patch_mode%'
             $generatorNoSignatureInstruction:  '%reply.generator.no_signature_instruction%'
+            # Spec 083 — operator-test sender CSV (consumed by IngestPostProcessor::matchPreFilter)
+            $operatorTestSenders:              '%env(string:default::SCAMBUSTER_OPERATOR_TEST_SENDERS)%'
 
     App\:
         resource: '../src/'
