@@ -94,8 +94,11 @@ final class ReplyHandlerRegressionTest extends KernelTestCase
     public function testGetConversationContextHandlesClosedConversations(): void
     {
         // Regression: closed conversations should return null
+        // Filter out soft-deleted rows — getConversationContext returns
+        // null for those, which is correct production behaviour but not
+        // what this test is asserting against.
         $closedConversations = $this->em->getRepository(Conversation::class)
-            ->findBy(['status' => 'closed'], null, 1);
+            ->findBy(['status' => 'closed', 'deletedAt' => null], null, 1);
 
         if (empty($closedConversations)) {
             $this->markTestSkipped('No closed conversations found');
