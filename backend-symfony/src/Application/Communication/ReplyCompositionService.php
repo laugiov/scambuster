@@ -402,6 +402,16 @@ class ReplyCompositionService
             $message->setSendStatus('sent');
             $message->setProviderMsgId($generatedMessageId);
             $message->setTsSent($tsSent);
+
+            // Spec 085 §US1 — persist the bare message-id (no chevrons)
+            // in headers so ThreadResolverService finds the parent when
+            // the scammer replies. The headers field is what
+            // ThreadResolver consults; the provider_msg_id column is
+            // covered by a separate fallback (spec 085 §US2).
+            $headers = $message->getHeaders();
+            $headers['message-id'] = trim($generatedMessageId, '<>');
+            $message->setHeaders($headers);
+
             $this->em->flush();
         } catch (\Throwable $persistError) {
             // SMTP delivered but DB write failed — log loudly so the

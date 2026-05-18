@@ -384,6 +384,18 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $this->assertSame('sent', $reloaded->getSendStatus(), 'send_status must be sent immediately after SMTP success');
         $this->assertSame($result['message_id'], $reloaded->getProviderMsgId(), 'provider_msg_id must equal the message_id returned to caller');
         $this->assertNotNull($reloaded->getTsSent());
+
+        // Spec 085 §US1 — also persist the bare message-id into headers
+        // so ThreadResolver finds the parent on inbound scammer replies.
+        // headers['message-id'] = provider_msg_id minus chevrons (RFC 2822
+        // convention for the inbound `in-reply-to` field shape).
+        $headers = $reloaded->getHeaders();
+        $this->assertArrayHasKey('message-id', $headers, 'headers[message-id] must be populated for inbound threading (spec 085 §US1)');
+        $this->assertSame(
+            trim($reloaded->getProviderMsgId(), '<>'),
+            $headers['message-id'],
+            'headers[message-id] must equal provider_msg_id without chevrons',
+        );
     }
 
     public function testSendEmailSecondCallShortCircuitsAndReturnsSameResponse(): void
