@@ -38,6 +38,18 @@ class IngestPostProcessor
         'spotify.com', 'dropbox.com',
     ];
 
+    /**
+     * Spec 083 — technical mailbox local-parts that mean "automated mail,
+     * not a human sender" regardless of domain. Matched case-insensitively
+     * against the local-part extracted by Symfony Mime's RFC-2822 parser.
+     *
+     * @var list<string>
+     */
+    private const LOCAL_PART_PATTERNS = [
+        'noreply', 'no-reply', 'postmaster', 'abuse',
+        'mailer-daemon', 'dmarcreport', 'dmarc-noreply',
+    ];
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly LoggerInterface $logger,
@@ -51,7 +63,107 @@ class IngestPostProcessor
         private readonly ?ContextualEnricher $contextualEnricher = null,
         private readonly ?IocClusteringService $iocClusteringService = null,
         private readonly ?RiskScoreCalculator $riskScoreCalculator = null,
+        private readonly string $operatorTestSenders = '',
     ) {
+    }
+
+    /**
+     * Spec 083 §US1+US2 — detect automated mail patterns BEFORE the
+     * conversation enters the LLM classification + reply pipeline.
+     *
+     * Returns a structured {@see \App\Domain\Communication\PreFilterMatch}
+     * describing which kind of pattern fired, or null if no pattern
+     * matched (commercial B2B included — explicitly left to the
+     * classifier per spec out-of-scope).
+     *
+     * The matching strategy, in order of specificity:
+     *   1. operator-test sender (env CSV) — exact match
+     *   2. local-part pattern   (noreply, postmaster, abuse, etc.)
+     *   3. known legitimate domain (github.com, microsoft.com, ...)
+     *   4. DMARC report subject pattern (Report Domain: ...)
+     */
+    public function matchPreFilter(string $fromHeader, string $subject): ?\App\Domain\Communication\PreFilterMatch
+    {
+        $email = $this->extractEmailFromHeader($fromHeader);
+
+        if ($email !== null) {
+            $emailLower = strtolower($email);
+            $atPos = strrpos($email, '@');
+
+            if ($atPos !== false) {
+                $localPart = strtolower(substr($email, 0, $atPos));
+                $domain = strtolower(substr($email, $atPos + 1));
+
+                // 1. operator-test sender (highest specificity — exact email)
+                if ($this->operatorTestSenders !== '') {
+                    $opTests = array_map(
+                        static fn (string $e): string => strtolower(trim($e)),
+                        explode(',', $this->operatorTestSenders),
+                    );
+
+                    if (in_array($emailLower, $opTests, true)) {
+                        return new \App\Domain\Communication\PreFilterMatch(
+                            kind: \App\Domain\Communication\PreFilterMatch::KIND_OPERATOR_TEST,
+                            pattern: $emailLower,
+                        );
+                    }
+                }
+
+                // 2. known legitimate domain (exact OR strict subdomain).
+                //    Dominant signal — when a sender is "GitHub" we report
+                //    "GitHub" rather than "noreply" even though both apply.
+                foreach (self::KNOWN_LEGITIMATE_DOMAINS as $legit) {
+                    if ($domain === $legit || str_ends_with($domain, '.' . $legit)) {
+                        return new \App\Domain\Communication\PreFilterMatch(
+                            kind: \App\Domain\Communication\PreFilterMatch::KIND_DOMAIN,
+                            pattern: $legit,
+                        );
+                    }
+                }
+
+                // 3. local-part pattern (fallback when domain is unknown)
+                if (in_array($localPart, self::LOCAL_PART_PATTERNS, true)) {
+                    return new \App\Domain\Communication\PreFilterMatch(
+                        kind: \App\Domain\Communication\PreFilterMatch::KIND_LOCAL_PART,
+                        pattern: $localPart,
+                    );
+                }
+            }
+        }
+
+        // 4. subject pattern (DMARC aggregate report)
+        if (preg_match('/^\s*Report\s+Domain:/i', $subject) === 1) {
+            return new \App\Domain\Communication\PreFilterMatch(
+                kind: \App\Domain\Communication\PreFilterMatch::KIND_SUBJECT,
+                pattern: 'dmarc_report',
+            );
+        }
+
+        return null;
+    }
+
+    /**
+     * Extract the first email address from an RFC 2822 From header.
+     *
+     * Replaces the legacy regex `/<([^>]+)>/` which missed several valid
+     * shapes (bare address with no chevrons, unquoted display name,
+     * address-lists). Uses Symfony Mime's Address::create which
+     * implements RFC 2822 properly.
+     */
+    private function extractEmailFromHeader(string $fromHeader): ?string
+    {
+        if (trim($fromHeader) === '') {
+            return null;
+        }
+
+        // Address-list: take the first element.
+        $first = explode(',', $fromHeader)[0];
+
+        try {
+            return \Symfony\Component\Mime\Address::create($first)->getAddress();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**
@@ -69,15 +181,42 @@ class IngestPostProcessor
         $this->computeIocContext($msgId);
         $this->enrichIocContext($message, $msgId);
 
-        // F1: Skip classification and force risk=0 for known legitimate senders
+        // Spec 083 — pre-filter automated mail (DMARC, noreply, postmaster,
+        // operator-test, known legitimate domains) BEFORE the LLM classifier
+        // and reply pipeline run. Forces score_risk=0 (the chain downstream
+        // — spec 084 /risk endpoint + n8n Decision Gate — refuses to reply
+        // when score is low). The conversation keeps scam_type=UNKNOWN by
+        // design: UNKNOWN remains the catch-all for "we didn't classify",
+        // whether the cause is pre-filter or low LLM confidence.
         $fromHeader = $message->getHeaders()['from'] ?? null;
+        $subject = $message->getSubject() ?? '';
+        $fromHeaderStr = \is_string($fromHeader) ? $fromHeader : '';
+        $preFilterMatch = $this->matchPreFilter($fromHeaderStr, $subject);
 
-        if (\is_string($fromHeader) && $this->isLegitimateSender($fromHeader)) {
-            $this->logger->warning('[IngestPostProcessor] Legitimate sender detected, skipping classification', [
+        if ($preFilterMatch !== null) {
+            $this->logger->info('[IngestPostProcessor] Pre-filter hit, skipping classification', [
                 'msg_id' => $msgId,
                 'conv_id' => $conversation->getConvId(),
-                'from' => $fromHeader,
+                'from' => $fromHeaderStr,
+                'subject' => $subject,
+                'kind' => $preFilterMatch->kind,
+                'pattern' => $preFilterMatch->pattern,
             ]);
+
+            $this->auditLogger?->log(
+                AuditEventType::INGEST_PRE_FILTER_HIT,
+                $conversation->getConvId(),
+                'pre_filter_hit',
+                'skipped',
+                'message',
+                $msgId,
+                [
+                    'from' => $fromHeaderStr,
+                    'kind' => $preFilterMatch->kind,
+                    'pattern' => $preFilterMatch->pattern,
+                ],
+            );
+
             $conversation->updateRiskScore(0);
             $this->em->flush();
 
@@ -482,42 +621,6 @@ class IngestPostProcessor
             details: ['limit_type' => $limitType],
             actorType: 'sender'
         );
-    }
-
-    /**
-     * Check whether the sender belongs to a known legitimate domain.
-     *
-     * Matches exact domain or subdomain (e.g. mail.instagram.com matches instagram.com).
-     * Does NOT match lookalikes (e.g. evil-instagram.com does NOT match instagram.com).
-     */
-    private function isLegitimateSender(string $fromHeader): bool
-    {
-        // Extract email from header (handles "Name <email>" format)
-        $email = $fromHeader;
-
-        if (preg_match('/<([^>]+)>/', $fromHeader, $m)) {
-            $email = $m[1];
-        }
-
-        $atPos = strrpos($email, '@');
-
-        if ($atPos === false) {
-            return false;
-        }
-
-        $domain = strtolower(trim(substr($email, $atPos + 1)));
-
-        if ($domain === '') {
-            return false;
-        }
-
-        foreach (self::KNOWN_LEGITIMATE_DOMAINS as $legit) {
-            if ($domain === $legit || str_ends_with($domain, '.' . $legit)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
