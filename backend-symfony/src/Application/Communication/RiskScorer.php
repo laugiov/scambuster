@@ -93,43 +93,32 @@ final class RiskScorer
     }
 
     /**
-     * Decide if bot should reply based on risk level and extracted IOCs
+     * Decide if bot should reply based on risk level.
      *
-     * Decision rules (specs/05-normaliser-decider.md §4.3):
-     * - high risk → Always reply
-     * - medium risk → Reply only if exploitable artifacts present (IBAN, auth URL, phone)
-     * - low risk → Never reply (TI storage only)
+     * Decision rules (updated 2026-05-18 — operator lowered the reply
+     * threshold to score_agg >= 40):
+     *   - high risk   (>= 70)  → reply
+     *   - medium risk (40-69)  → reply (was: only if exploitable IOC)
+     *   - low risk    (< 40)   → never reply (TI storage only)
+     *
+     * Rationale for the change: the previous "medium needs exploitable
+     * IOC (iban/phone/url)" rule dropped engaged scammers who sent a
+     * follow-up courtesy email before their first concrete artefact.
+     * Combined with the spec 083 auto-mail pre-filter (which already
+     * blocks DMARC, noreply, postmaster traffic upstream), the risk of
+     * replying on a medium without exploitable IOC is now acceptable.
+     *
+     * The $messageIocs parameter is kept for ABI compatibility but is
+     * no longer consulted; existing callers continue to work.
      *
      * @param int                        $scoreAgg    Aggregate risk score
      * @param string                     $level       Risk level (high/medium/low)
-     * @param array<array{type: string}> $messageIocs All IOCs extracted from the message
+     * @param array<array{type: string}> $messageIocs IOCs extracted from the message (unused since 2026-05-18)
      *
      * @return bool True if bot should generate a reply
      */
     public function shouldReply(int $scoreAgg, string $level, array $messageIocs): bool
     {
-        // High risk → always reply
-        if ($level === 'high') {
-            return true;
-        }
-
-        // Low risk → never reply (TI only)
-        if ($level === 'low') {
-            return false;
-        }
-
-        // Medium risk → reply only if exploitable artifacts present
-        $exploitableTypes = ['iban', 'phone', 'url']; // URLs can be auth pages
-
-        foreach ($messageIocs as $ioc) {
-            // Defensive: check even if PHPDoc guarantees 'type' exists
-            $type = $ioc['type'];
-
-            if (in_array($type, $exploitableTypes, true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return $level !== 'low';
     }
 }
