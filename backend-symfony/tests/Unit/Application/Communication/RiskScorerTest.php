@@ -208,24 +208,29 @@ final class RiskScorerTest extends TestCase
         );
     }
 
-    public function testShouldNotReplyForMediumRiskWithoutExploitableIocs(): void
+    public function testShouldReplyForMediumRiskWithoutExploitableIocs(): void
     {
+        // Operator decision 2026-05-18 — lowered the reply threshold to
+        // score_agg >= 40 (i.e., any medium-or-high level → reply,
+        // regardless of IOC types). Previously this case returned false.
         $iocs = [
             ['type' => 'email', 'value' => 'scammer@example.com'],
             ['type' => 'domain', 'value' => 'example.com']
         ];
 
-        $this->assertFalse(
+        $this->assertTrue(
             $this->scorer->shouldReply(50, 'medium', $iocs),
-            'Should not reply for medium risk without exploitable IOCs'
+            'Should reply for any medium-level message after the 2026-05-18 threshold change'
         );
     }
 
-    public function testShouldNotReplyForMediumRiskWithEmptyIocs(): void
+    public function testShouldReplyForMediumRiskWithEmptyIocs(): void
     {
-        $this->assertFalse(
+        // Operator decision 2026-05-18 — same as above, the IOC list is
+        // no longer consulted for the reply decision (only level).
+        $this->assertTrue(
             $this->scorer->shouldReply(50, 'medium', []),
-            'Should not reply for medium risk with no IOCs'
+            'Should reply for any medium-level message after the 2026-05-18 threshold change'
         );
     }
 }
