@@ -21,6 +21,8 @@ final class ConversationListItemDto
         public ?float $reward = null,
         public int $ioc_count = 0,
         public ?array $secondary_scam_types = null,
+        public ?string $account_label = null,
+        public ?string $account_email = null,
     ) {
     }
 
@@ -43,6 +45,8 @@ final class ConversationListItemDto
             'reward' => $this->reward,
             'ioc_count' => $this->ioc_count,
             'secondary_scam_types' => $this->secondary_scam_types,
+            'account_label' => $this->account_label,
+            'account_email' => $this->account_email,
         ];
     }
 }

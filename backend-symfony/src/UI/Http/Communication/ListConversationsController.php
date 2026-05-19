@@ -62,6 +62,7 @@ final readonly class ListConversationsController
         $result = array_map(function ($conv) use ($messageCounts, $iocCounts): array {
             $persona = $conv->getPersona();
             $scamType = $conv->getScamType();
+            $account = $conv->getAccount();
             $dto = new ConversationListItemDto(
                 $conv->getConvId(),
                 $conv->getStatus()->value,
@@ -76,6 +77,8 @@ final readonly class ListConversationsController
                 $conv->getRewardValue(),
                 $iocCounts[$conv->getConvId()] ?? 0,
                 $conv->getSecondaryScamTypes(),
+                $account->getLabel(),
+                $account->getEmailAddress(),
             );
 
             return $dto->toArray();
