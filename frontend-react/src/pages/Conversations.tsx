@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAllConversations, PAGE_SIZE } from '@/hooks/useConversations';
+import { useMailAccounts } from '@/hooks/useMailAccounts';
 import { Badge } from '@/components/ui/Badge';
 import { SearchBar } from '@/components/ui/SearchBar';
 import { statusToBadgeVariant } from '@/components/ui/badgeUtils';
@@ -28,9 +29,11 @@ export function Conversations() {
   const { data: conversations, isLoading, error, refetch } = useAllConversations();
   const { data: config } = useMetaConfig();
   const { data: stats } = useAutonomyStats();
+  const { data: mailAccounts } = useMailAccounts();
 
   const statusFilter = searchParams.get('status') ?? '';
   const scamTypeFilter = searchParams.get('scam_type') ?? '';
+  const accountFilter = searchParams.get('account') ?? '';
 
   const setFilter = (key: string, value: string) => {
     setSearchParams((prev) => {
@@ -73,6 +76,9 @@ export function Conversations() {
   }
   if (scamTypeFilter) {
     filtered = filtered.filter((c) => c.scam_type === scamTypeFilter);
+  }
+  if (accountFilter) {
+    filtered = filtered.filter((c) => c.account_label === accountFilter);
   }
   if (search) {
     const q = search.toLowerCase();
@@ -124,16 +130,21 @@ export function Conversations() {
       <FilterBar
         statusFilter={statusFilter}
         scamTypeFilter={scamTypeFilter}
+        mailboxFilter={accountFilter}
         onStatusChange={(v) => setFilter('status', v)}
         onScamTypeChange={(v) => setFilter('scam_type', v)}
+        onMailboxChange={(v) => setFilter('account', v)}
         statusOptions={[
           { value: 'open', label: t('common.status.open') },
           { value: 'closed', label: t('common.status.closed') },
           { value: 'abandoned', label: t('common.status.abandoned') },
         ]}
         scamTypeOptions={(config?.scam_types ?? []).map((st) => ({ value: st.code, label: scamTypeLabel(st.code) }))}
+        mailboxOptions={(mailAccounts ?? [])
+          .filter((m) => m.label !== null && m.label !== '')
+          .map((m) => ({ value: m.label as string, label: m.label as string }))}
         onClear={clearFilters}
-        hasActiveFilters={statusFilter !== '' || scamTypeFilter !== ''}
+        hasActiveFilters={statusFilter !== '' || scamTypeFilter !== '' || accountFilter !== ''}
       />
 
       {(statusFilter || scamTypeFilter || search) && (
@@ -154,6 +165,7 @@ export function Conversations() {
               <th className="text-left px-5 py-3 font-medium">{t('conversations.sourceId')}</th>
               <th className="text-left px-5 py-3 font-medium">{t('conversations.scamType')}</th>
               <th className="text-left px-5 py-3 font-medium">{t('conversations.persona')}</th>
+              <th className="text-left px-5 py-3 font-medium">{t('conversations.mailbox')}</th>
               <SortHeader label={t('conversations.risk')} sortKey="score_risk" current={sortKey} dir={sortDir} onSort={toggleSort} />
               <SortHeader label="IOCs" sortKey="ioc_count" current={sortKey} dir={sortDir} onSort={toggleSort} />
               <SortHeader label={t('conversations.messages')} sortKey="message_count" current={sortKey} dir={sortDir} onSort={toggleSort} />
@@ -193,6 +205,13 @@ export function Conversations() {
                     </span>
                   ) : '--'}
                 </td>
+                <td className="px-5 py-3 text-on-surface-variant max-w-[200px]">
+                  {conv.account_label ? (
+                    <span className="block truncate" title={conv.account_email ?? conv.account_label}>
+                      {conv.account_label}
+                    </span>
+                  ) : '--'}
+                </td>
                 <td className="px-5 py-3">
                   <RiskBar score={conv.score_risk} />
                 </td>
@@ -212,7 +231,7 @@ export function Conversations() {
             ))}
             {paged.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center text-on-surface-dim">
+                <td colSpan={9} className="px-5 py-12 text-center text-on-surface-dim">
                   {t('conversations.noConversations')}
                 </td>
               </tr>
