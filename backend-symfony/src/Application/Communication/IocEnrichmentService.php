@@ -38,6 +38,29 @@ class IocEnrichmentService
             throw new \RuntimeException('Message not found: ' . $msgId);
         }
 
+        // Spec 086 §US2 — pre-filter decision shortcut.
+        // matchPreFilter (spec 083) wrote headers['pre_filter'] at ingest
+        // if the message was deemed non-conversational. Override any
+        // IOC-based scoring (spec 084 external + intrinsic) and refuse
+        // to reply. Without this, body IOCs (URL/domain/email) push
+        // score_agg into medium and trigger reply on DMARC reports,
+        // GitHub notifications, postmaster bounces, etc.
+        $headers = $message->getHeaders();
+        $preFilter = $headers['pre_filter'] ?? null;
+
+        if (is_array($preFilter)
+            && isset($preFilter['kind'], $preFilter['pattern'])
+            && is_string($preFilter['kind'])
+            && is_string($preFilter['pattern'])
+        ) {
+            return [
+                'score_agg' => 0,
+                'level' => 'low',
+                'reason' => sprintf('pre_filtered: %s:%s', $preFilter['kind'], $preFilter['pattern']),
+                'should_reply' => false,
+            ];
+        }
+
         $iocs = $this->em->getRepository(ObservedIoc::class)->findBy(['message' => $message]);
 
         if ($iocs === []) {
