@@ -55,6 +55,7 @@ final readonly class GetConversationController
             'code' => $link->getChannel()->getCode(),
             'label' => $link->getChannel()->getLabelFr(),
         ], $links);
+        $account = $conv->getAccount();
         $dto = new ConversationDetailResponseDto(
             $conv->getConvId(),
             $conv->getStatus()->value,
@@ -64,6 +65,8 @@ final readonly class GetConversationController
             $conv->getStixId(),
             $channels,
             $conv->getSecondaryScamTypes(),
+            $account->getLabel(),
+            $account->getEmailAddress(),
         );
 
         return new JsonResponse($dto->toArray(), Response::HTTP_OK);

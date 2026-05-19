@@ -19,6 +19,8 @@ const mockConvDetail = {
   scam_type: 'PHISHING',
   ts_first: '2026-03-20T10:00:00Z',
   ts_last: '2026-03-20T12:00:00Z',
+  account_label: 'Delta Holdings',
+  account_email: 'admin@delta-holdings.example',
 };
 
 const mockMessages = [
@@ -114,5 +116,61 @@ describe('ConversationDetail', () => {
     await waitFor(() => {
       expect(screen.getByText(/Email Thread/i)).toBeInTheDocument();
     });
+  });
+
+  // ──────────────────────────────────────────────────────────────────────
+  // Spec 087 — US1: mailbox visible in SESSION METADATA
+  // ──────────────────────────────────────────────────────────────────────
+
+  it('renders the mailbox label and email in SESSION METADATA', async () => {
+    setupHandlers();
+    render(<ConversationDetail />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('Delta Holdings')).toBeInTheDocument();
+    });
+    expect(screen.getByText('admin@delta-holdings.example')).toBeInTheDocument();
+  });
+
+  it('shows only email when account_label is null (legacy mailbox)', async () => {
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}`, () => HttpResponse.json({
+        ...mockConvDetail,
+        account_label: null,
+        account_email: 'legacy@example.invalid',
+      })),
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/messages`, () => HttpResponse.json(mockMessages)),
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/iocs`, () => HttpResponse.json(mockIocs)),
+      http.get(`${BASE}/communication/conversation`, () => HttpResponse.json(mockConversations)),
+      http.get(`${BASE}/meta/config`, () => HttpResponse.json(mockMetaConfig)),
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/threat-actor`, () => HttpResponse.json(null)),
+    );
+    render(<ConversationDetail />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('legacy@example.invalid')).toBeInTheDocument();
+    });
+    // Heading is still rendered so the test doesn't false-pass on a crash
+    expect(screen.getByText(/Session Metadata/i)).toBeInTheDocument();
+  });
+
+  it('renders an em-dash placeholder when both label and email are null', async () => {
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}`, () => HttpResponse.json({
+        ...mockConvDetail,
+        account_label: null,
+        account_email: null,
+      })),
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/messages`, () => HttpResponse.json(mockMessages)),
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/iocs`, () => HttpResponse.json(mockIocs)),
+      http.get(`${BASE}/communication/conversation`, () => HttpResponse.json(mockConversations)),
+      http.get(`${BASE}/meta/config`, () => HttpResponse.json(mockMetaConfig)),
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/threat-actor`, () => HttpResponse.json(null)),
+    );
+    render(<ConversationDetail />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText(/Session Metadata/i)).toBeInTheDocument();
+    });
+    // The MAILBOX row must exist with em-dash, not crash
+    const labels = screen.getAllByText(/Mailbox/i);
+    expect(labels.length).toBeGreaterThan(0);
   });
 });

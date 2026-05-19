@@ -19,6 +19,8 @@ final class ConversationDetailResponseDto
         public string $stix_id,
         public array $channels,
         public ?array $secondary_scam_types = null,
+        public ?string $account_label = null,
+        public ?string $account_email = null,
     ) {
     }
 
@@ -34,6 +36,8 @@ final class ConversationDetailResponseDto
             'stix_id' => $this->stix_id,
             'channels' => $this->channels,
             'secondary_scam_types' => $this->secondary_scam_types,
+            'account_label' => $this->account_label,
+            'account_email' => $this->account_email,
         ];
     }
 }

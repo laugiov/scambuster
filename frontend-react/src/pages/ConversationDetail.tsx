@@ -146,7 +146,7 @@ export function ConversationDetail() {
 }
 
 function SessionMetadata({ conv, messageCount, iocCount, config }: {
-  conv: { conv_id: string; score_risk: number; ts_first?: string; ts_last?: string; created_at?: string; persona?: string | null; scam_type?: string | null; secondary_scam_types?: { code: string; confidence: number }[] | null };
+  conv: { conv_id: string; score_risk: number; ts_first?: string; ts_last?: string; created_at?: string; persona?: string | null; scam_type?: string | null; secondary_scam_types?: { code: string; confidence: number }[] | null; account_label?: string | null; account_email?: string | null };
   messageCount: number;
   iocCount: number;
   config?: import('@/types/api').MetaConfig;
@@ -165,6 +165,7 @@ function SessionMetadata({ conv, messageCount, iocCount, config }: {
     <section className="bg-surface-low rounded-lg p-5">
       <h3 className="text-xs uppercase tracking-widest text-on-surface-dim font-medium mb-4">{t('conversationDetail.sessionMetadata')}</h3>
       <div className="space-y-3">
+        <MailboxRow label={conv.account_label ?? null} email={conv.account_email ?? null} t={t} />
         {conv.scam_type && (
           <div className="flex flex-col">
             <span className="text-[0.625rem] text-accent-muted uppercase font-bold tracking-tight">{t('conversations.scamType')}</span>
@@ -202,6 +203,17 @@ function MetaRow({ label, value, highlight }: { label: string; value: string; hi
     <div className="flex flex-col">
       <span className="text-[0.625rem] text-accent-muted uppercase font-bold tracking-tight">{label}</span>
       <span className={`text-sm font-medium ${highlight ? 'text-accent' : 'text-on-surface'}`}>{value}</span>
+    </div>
+  );
+}
+
+function MailboxRow({ label, email, t }: { label: string | null; email: string | null; t: (k: string) => string }) {
+  const showLabel = label ?? '--';
+  return (
+    <div className="flex flex-col">
+      <span className="text-[0.625rem] text-accent-muted uppercase font-bold tracking-tight">{t('conversations.mailbox')}</span>
+      <span className="text-sm font-medium text-on-surface">{showLabel}</span>
+      {email && <span className="text-xs text-on-surface-dim mt-0.5">{email}</span>}
     </div>
   );
 }

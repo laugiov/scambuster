@@ -59,6 +59,13 @@ export interface AutonomyStats {
   checked_at: string;
 }
 
+// Mail accounts (honeypot mailboxes — operator-facing read-only list)
+export interface MailAccountListItem {
+  account_id: string;
+  label: string | null;
+  email: string | null;
+}
+
 // Conversations
 export interface Conversation {
   conv_id: string;
@@ -77,6 +84,8 @@ export interface Conversation {
   created_at?: string;
   updated_at?: string;
   secondary_scam_types?: { code: string; confidence: number }[] | null;
+  account_label?: string | null;
+  account_email?: string | null;
 }
 
 // Messages
