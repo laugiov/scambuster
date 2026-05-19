@@ -59,6 +59,13 @@ export interface AutonomyStats {
   checked_at: string;
 }
 
+// Mail accounts (honeypot mailboxes — operator-facing read-only list)
+export interface MailAccountListItem {
+  account_id: string;
+  label: string | null;
+  email: string | null;
+}
+
 // Conversations
 export interface Conversation {
   conv_id: string;

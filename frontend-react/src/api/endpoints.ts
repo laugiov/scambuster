@@ -30,6 +30,9 @@ export const ENDPOINTS = {
     iocs: (id: string) => `/communication/conversation/${id}/iocs`,
     exportStix: (id: string) => `/conversations/${id}/export/stix`,
   },
+  mailAccounts: {
+    list: '/communication/mail-accounts',
+  },
   iocs: {
     list: '/iocs',
     detail: (indicatorId: string) => `/iocs/${indicatorId}/detail`,
