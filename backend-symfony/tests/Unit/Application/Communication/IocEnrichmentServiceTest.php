@@ -251,4 +251,130 @@ final class IocEnrichmentServiceTest extends TestCase
         $this->assertSame('No IOCs detected', $result['reason']);
         $this->assertFalse($result['should_reply']);
     }
+
+    // ─── Spec 086 §US2 — pre-filter shortcut on /risk endpoint ─────────
+
+    /**
+     * Helper: mock a Message with the pre-filter marker AND body IOCs that
+     * would normally trigger reply (URL + multiple types) — reproduces the
+     * 2026-05-19 incident shape inside a unit test.
+     */
+    private function mockPreFilteredMessageWithBodyIocs(string $kind = 'domain', string $pattern = 'github.com'): Message
+    {
+        $scamType = $this->createMock(ScamType::class);
+        $scamType->method('getCode')->willReturn('UNKNOWN');
+
+        $conversation = $this->createMock(Conversation::class);
+        $conversation->method('getScamType')->willReturn($scamType);
+
+        $message = $this->createMock(Message::class);
+        $message->method('getConversation')->willReturn($conversation);
+        $message->method('getHeaders')->willReturn([
+            'from' => 'noreply@github.com',
+            'pre_filter' => [
+                'kind' => $kind,
+                'pattern' => $pattern,
+                'matched_at' => '2026-05-19T13:07:00+00:00',
+            ],
+        ]);
+
+        return $message;
+    }
+
+    public function test_calculateMessageRisk_shortcuts_when_pre_filter_marker_present(): void
+    {
+        // Spec 086 §US2.1 — pre-filter marker on headers must override any
+        // IOC-based scoring. Even with body IOCs that would push score_agg
+        // medium (URL + diversity), should_reply must be false.
+        $message = $this->mockPreFilteredMessageWithBodyIocs('domain', 'github.com');
+
+        // Wire EM such that getMessage succeeds; IOC fetch must NEVER be
+        // reached (the shortcut returns before the findBy call). We assert
+        // this by configuring the IOC repo to throw if called.
+        $messageRepo = $this->createMock(EntityRepository::class);
+        $messageRepo->method('find')->willReturn($message);
+
+        $iocRepo = $this->createMock(EntityRepository::class);
+        $iocRepo->expects($this->never())->method('findBy');
+
+        $this->em->method('getRepository')->willReturnCallback(function (string $class) use ($messageRepo, $iocRepo) {
+            return $class === Message::class ? $messageRepo : $iocRepo;
+        });
+
+        $result = $this->createService()->calculateMessageRisk('msg-prefiltered');
+
+        $this->assertSame(0, $result['score_agg']);
+        $this->assertSame('low', $result['level']);
+        $this->assertStringContainsString('pre_filtered: domain:github.com', $result['reason']);
+        $this->assertFalse($result['should_reply']);
+    }
+
+    public function test_calculateMessageRisk_falls_through_when_no_pre_filter_marker(): void
+    {
+        // Spec 086 §US2.2 — regression guard: messages without the marker
+        // (commercial B2B, real scams, all the unfiltered cases) must
+        // continue through the existing spec-084 scoring path.
+        $message = $this->mockMessageWithScamType('PHISHING');
+        $iocs = [$this->mockIoc('email', 0)];
+
+        // Configure findBy to be called (IOC fetch must reach it).
+        $messageRepo = $this->createMock(EntityRepository::class);
+        $messageRepo->method('find')->willReturn($message);
+
+        $iocRepo = $this->createMock(EntityRepository::class);
+        $iocRepo->expects($this->once())->method('findBy')->willReturn($iocs);
+
+        $this->em->method('getRepository')->willReturnCallback(function (string $class) use ($messageRepo, $iocRepo) {
+            return $class === Message::class ? $messageRepo : $iocRepo;
+        });
+
+        $this->createService()->calculateMessageRisk('msg-unfiltered');
+        // Assertion is the expects($this->once()) above — if shortcut wrongly
+        // fired, findBy would not be called and the test would fail.
+    }
+
+    public function test_calculateMessageRisk_treats_malformed_pre_filter_as_absent(): void
+    {
+        // Spec 086 §US2.4 — defensive: a malformed marker (empty array,
+        // wrong type, missing keys) must fall through to normal scoring,
+        // not crash and not short-circuit.
+        foreach ([
+            'empty_array' => [],
+            'string_not_array' => 'unexpected-string',
+            'missing_pattern' => ['kind' => 'domain'],
+            'missing_kind' => ['pattern' => 'github.com'],
+            'non_string_kind' => ['kind' => 42, 'pattern' => 'github.com'],
+        ] as $label => $malformedMarker) {
+            $scamType = $this->createMock(ScamType::class);
+            $scamType->method('getCode')->willReturn('UNKNOWN');
+
+            $conversation = $this->createMock(Conversation::class);
+            $conversation->method('getScamType')->willReturn($scamType);
+
+            $message = $this->createMock(Message::class);
+            $message->method('getConversation')->willReturn($conversation);
+            $message->method('getHeaders')->willReturn(['pre_filter' => $malformedMarker]);
+
+            $messageRepo = $this->createMock(EntityRepository::class);
+            $messageRepo->method('find')->willReturn($message);
+
+            $iocRepo = $this->createMock(EntityRepository::class);
+            // Must reach IOC fetch (fall-through) — if it doesn't, the malformed
+            // marker triggered the shortcut wrongly.
+            $iocRepo->expects($this->once())->method('findBy')->willReturn([]);
+
+            $em = $this->createMock(EntityManagerInterface::class);
+            $em->method('getRepository')->willReturnCallback(function (string $class) use ($messageRepo, $iocRepo) {
+                return $class === Message::class ? $messageRepo : $iocRepo;
+            });
+
+            $service = new IocEnrichmentService(
+                em: $em,
+                riskScorer: $this->riskScorer,
+                exportMapper: new IocExportMapper(),
+                riskScoreCalculator: $this->riskScoreCalculator,
+            );
+            $service->calculateMessageRisk('msg-' . $label);
+        }
+    }
 }

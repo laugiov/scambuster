@@ -1016,4 +1016,60 @@ class IocHandlerTest extends KernelTestCase
         $this->assertArrayHasKey('stix', $context);
         $this->assertStringContainsString('domain-name:value', $context['stix']['pattern']);
     }
+
+    // ─── Spec 086 §US2 — end-to-end shortcut on pre-filtered message ──
+
+    public function testRiskEndpoint_returnsShouldReplyFalseForPreFilteredMessageWithBodyIocs(): void
+    {
+        // Spec 086 end-to-end: reproduce the 2026-05-19 incident shape
+        // (DMARC report with body URLs/domains) in DB with the pre-filter
+        // marker set. The /risk endpoint must override IOC-based scoring
+        // and return should_reply=false. Without spec 086, score_agg=60
+        // medium → should_reply=true (the bug).
+        $message = $this->createTestMessage(
+            bodyText: 'DMARC aggregate report content with https://privacy.microsoft.com link.',
+            headers: [
+                'from' => 'dmarcreport@microsoft.com',
+                'to' => 'admin@gamma-partners.example',
+                'message-id' => '<spec086e2e-' . bin2hex(random_bytes(8)) . '@microsoft.com>',
+                'pre_filter' => [
+                    'kind' => 'domain',
+                    'pattern' => 'microsoft.com',
+                    'matched_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+                ],
+            ],
+        );
+
+        // Add body IOCs that WOULD normally trigger reply on a non-filtered
+        // message (URL + domain + email → medium score → reply per spec 084).
+        $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://privacy.microsoft.com/en-us/dmarc',
+                'value_norm' => 'privacy.microsoft.com/en-us/dmarc',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+        ]);
+        $this->iocHandler->upsertEnrichedIoc([
+            'msg_id' => $message->getMsgId(),
+            'ioc' => [
+                'type' => 'domain',
+                'value' => 'privacy.microsoft.com',
+                'value_norm' => 'privacy.microsoft.com',
+                'source' => 'body',
+                'first_seen' => (new \DateTimeImmutable())->format(DATE_ATOM),
+            ],
+            'enrichment' => [],
+        ]);
+
+        $risk = $this->iocHandler->calculateMessageRisk($message->getMsgId());
+
+        $this->assertSame(0, $risk['score_agg'], 'pre-filter marker must force score_agg=0 regardless of body IOCs');
+        $this->assertSame('low', $risk['level']);
+        $this->assertFalse($risk['should_reply'], 'pre-filtered message must never trigger reply');
+        $this->assertStringContainsString('pre_filtered: domain:microsoft.com', $risk['reason']);
+    }
 }
