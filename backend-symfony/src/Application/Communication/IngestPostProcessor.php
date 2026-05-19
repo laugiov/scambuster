@@ -217,6 +217,19 @@ class IngestPostProcessor
                 ],
             );
 
+            // Spec 086 §US1 — persist the pre-filter decision as a structured
+            // marker on the message itself. The /risk endpoint (spec 086 §US2)
+            // consults this marker to short-circuit IOC-based scoring; without
+            // it, body IOCs would still push score_agg medium and trigger
+            // reply (the 2026-05-19 DMARC incident).
+            $headers = $message->getHeaders();
+            $headers['pre_filter'] = [
+                'kind' => $preFilterMatch->kind,
+                'pattern' => $preFilterMatch->pattern,
+                'matched_at' => (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM),
+            ];
+            $message->setHeaders($headers);
+
             $conversation->updateRiskScore(0);
             $this->em->flush();
 

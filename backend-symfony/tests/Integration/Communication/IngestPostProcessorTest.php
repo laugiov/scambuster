@@ -404,4 +404,68 @@ class IngestPostProcessorTest extends KernelTestCase
             'B2B sender must not be pre-filtered (= must not be forced to 0)',
         );
     }
+
+    // ─── Spec 086 — pre-filter decision marker on headers ──────────────
+
+    public function testProcessAfterIngest_writesPreFilterMarkerOnHeaders(): void
+    {
+        // Spec 086 §US1 — the pre-filter must persist a structured
+        // marker in headers['pre_filter'] so the /risk endpoint can
+        // override IOC-based scoring. Without this, the bug observed
+        // on 2026-05-19 (DMARC report received a reply because IOCs
+        // pushed score_agg=60 medium → reply) cannot be fixed.
+        $message = $this->createTestMessage(
+            bodyText: 'This is a DMARC aggregate report from Microsoft Corporation.',
+            headers: [
+                'from' => 'dmarcreport@microsoft.com',
+                'to' => 'admin@calvertonpartners.com',
+                'message-id' => '<spec086-' . bin2hex(random_bytes(8)) . '@microsoft.com>',
+            ],
+        );
+        $message->setSubject('Report Domain: calvertonpartners.com Submitter: protection.outlook.com');
+        $this->em->flush();
+        $conversation = $message->getConversation();
+
+        $this->processor->processAfterIngest($message, $conversation, 'en');
+
+        $this->em->clear();
+        $reloaded = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($message->getMsgId());
+        $headers = $reloaded->getHeaders();
+
+        $this->assertArrayHasKey('pre_filter', $headers, 'headers[pre_filter] must be written by the pre-filter');
+        $marker = $headers['pre_filter'];
+        $this->assertIsArray($marker);
+        $this->assertArrayHasKey('kind', $marker);
+        $this->assertArrayHasKey('pattern', $marker);
+        $this->assertArrayHasKey('matched_at', $marker);
+        // matchPreFilter priority: operator-test → domain → local-part → subject.
+        // microsoft.com is in KNOWN_LEGITIMATE_DOMAINS so the domain branch
+        // fires first (before local_part dmarcreport).
+        $this->assertSame('domain', $marker['kind']);
+        $this->assertSame('microsoft.com', $marker['pattern']);
+        // matched_at must be a valid ISO 8601 timestamp parseable by DateTimeImmutable.
+        $this->assertNotFalse(\DateTimeImmutable::createFromFormat(\DateTimeInterface::ATOM, $marker['matched_at']));
+    }
+
+    public function testProcessAfterIngest_doesNotWritePreFilterMarkerOnCommercialB2B(): void
+    {
+        // Spec 086 regression guard: B2B commercial mails (NOT pre-filtered
+        // per spec 083 out-of-scope) must NOT get the marker. The /risk
+        // endpoint must continue to use the normal scoring path for them.
+        $message = $this->createTestMessage(
+            bodyText: 'Hi, we offer custom website + apps. Interested?',
+            headers: [
+                'from' => 'info.rajubcc@gmail.com',
+                'to' => 'honeypot@test.com',
+                'message-id' => '<spec086-b2b-' . bin2hex(random_bytes(8)) . '@gmail.com>',
+            ],
+        );
+        $conversation = $message->getConversation();
+
+        $this->processor->processAfterIngest($message, $conversation, 'en');
+
+        $this->em->clear();
+        $reloaded = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($message->getMsgId());
+        $this->assertArrayNotHasKey('pre_filter', $reloaded->getHeaders(), 'Commercial B2B must NOT carry the pre-filter marker');
+    }
 }
