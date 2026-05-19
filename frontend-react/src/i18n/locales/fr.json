@@ -108,6 +108,8 @@
     "failedLoad": "Echec du chargement des conversations",
     "filterStatus": "Statut",
     "filterScamType": "Type d'arnaque",
+    "filterMailbox": "Boite mail",
+    "mailbox": "Boite mail",
     "clearFilters": "Effacer les filtres"
   },
   "conversationDetail": {

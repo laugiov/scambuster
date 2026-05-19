@@ -108,6 +108,8 @@
     "failedLoad": "Failed to load conversations",
     "filterStatus": "Status",
     "filterScamType": "Scam Type",
+    "filterMailbox": "Mailbox",
+    "mailbox": "Mailbox",
     "clearFilters": "Clear filters"
   },
   "conversationDetail": {
