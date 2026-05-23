@@ -147,7 +147,9 @@ class ReplyCompositionService
         if ($message->getSendStatus() === 'sent') {
             $storedProviderMsgId = $message->getProviderMsgId();
 
-            if ($storedProviderMsgId === $providerMsgId) {
+            // Spec 089 — compare normalized (no chevrons) so historical rows
+            // stored with chevrons stay idempotent against bare callbacks.
+            if (trim((string) $storedProviderMsgId, '<>') === trim($providerMsgId, '<>')) {
                 return true;
             }
 
@@ -159,7 +161,7 @@ class ReplyCompositionService
         }
 
         $message->setSendStatus('sent');
-        $message->setProviderMsgId($providerMsgId);
+        $message->setProviderMsgId(trim($providerMsgId, '<>'));
         $message->setTsSent($tsSent);
 
         $conversation = $message->getConversation();
@@ -400,7 +402,11 @@ class ReplyCompositionService
         // and trigger a second SMTP delivery to the scammer.
         try {
             $message->setSendStatus('sent');
-            $message->setProviderMsgId($generatedMessageId);
+            // Spec 089 — persist provider_msg_id in bare form so the n8n
+            // /sent callback (which strips chevrons) finds it on idempotent
+            // retries. The chevron-wrapped form is still returned to the
+            // caller via $result['message_id'] for RFC visibility.
+            $message->setProviderMsgId(trim($generatedMessageId, '<>'));
             $message->setTsSent($tsSent);
 
             // Spec 085 §US1 — persist the bare message-id (no chevrons)
@@ -432,9 +438,12 @@ class ReplyCompositionService
             );
         }
 
+        // Spec 089 — return the bare form to keep the response symmetric
+        // with the idempotent branch above (line 304) and with the n8n
+        // /sent callback contract (which also posts bare).
         return [
             'success' => true,
-            'message_id' => $generatedMessageId,
+            'message_id' => trim($generatedMessageId, '<>'),
             'ts_sent' => $tsSent->format(\DateTimeInterface::ATOM),
         ];
     }

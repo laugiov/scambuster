@@ -271,6 +271,7 @@ class ReplyCompositionServiceTest extends KernelTestCase
         // silent no-op (returns true, leaves ts_sent untouched). Without
         // this, every stale n8n /sent retry surfaces as a 400 on the
         // operator dashboard.
+        // Spec 089 — providers ids are persisted in bare form (no chevrons).
         $msgs = $this->createThreadedMessages();
         $outboundId = $msgs['outbound']->getMsgId();
         $providerId = '<idempotent-id@test.com>';
@@ -290,11 +291,42 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $this->em->clear();
         $reloaded2 = $this->em->getRepository(\App\Domain\Communication\Message::class)->find($outboundId);
         $this->assertEquals($firstStoredTs, $reloaded2->getTsSent(), 'ts_sent must be frozen by first write');
-        $this->assertSame($providerId, $reloaded2->getProviderMsgId());
+        $this->assertSame(trim($providerId, '<>'), $reloaded2->getProviderMsgId());
+    }
+
+    public function testMarkAsSentIsIdempotentWhenStoredHasChevronsAndCallbackIsBare(): void
+    {
+        // Spec 089 — regression for the 400 storm in n8n.
+        // Historical rows (pre-fix) stored provider_msg_id WITH chevrons:
+        // '<id@scambuster.local>'. n8n callbacks send the bare form
+        // ('id@scambuster.local'). The equality check must normalize both
+        // sides so the historical rows are recognised as idempotent.
+        $msgs = $this->createThreadedMessages();
+        $outboundId = $msgs['outbound']->getMsgId();
+
+        // Manually persist the chevron-wrapped form to simulate a row
+        // written by the pre-089 code path.
+        $msgs['outbound']->setSendStatus('sent');
+        $msgs['outbound']->setProviderMsgId('<historical-id@scambuster.local>');
+        $msgs['outbound']->setTsSent(new \DateTimeImmutable('-10 minutes'));
+        $this->em->flush();
+        $this->em->clear();
+
+        // n8n callback arrives with the bare form.
+        $result = $this->service->markAsSent(
+            $outboundId,
+            'smtp',
+            'historical-id@scambuster.local',
+            new \DateTimeImmutable(),
+        );
+
+        $this->assertTrue($result, 'historical chevron-wrapped row must accept bare callback as idempotent');
     }
 
     public function testMarkAsSentStoresProviderMsgId(): void
     {
+        // Spec 089 — provider_msg_id is persisted in bare form (no chevrons)
+        // regardless of how the caller formatted it.
         $msgs = $this->createThreadedMessages();
         $outboundId = $msgs['outbound']->getMsgId();
         $providerMsgId = '<provider-' . bin2hex(random_bytes(8)) . '@smtp.test>';
@@ -307,7 +339,7 @@ class ReplyCompositionServiceTest extends KernelTestCase
         );
 
         $this->em->refresh($msgs['outbound']);
-        $this->assertSame($providerMsgId, $msgs['outbound']->getProviderMsgId());
+        $this->assertSame(trim($providerMsgId, '<>'), $msgs['outbound']->getProviderMsgId());
     }
 
     public function testMarkAsSentStoresSentHeaders(): void
@@ -349,8 +381,10 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $outbound->setHeaders($headers);
 
         $parent = $outbound->getReplyTo();
+
         if ($parent instanceof Message) {
             $parentHeaders = $parent->getHeaders();
+
             foreach (['message-id', 'message_id'] as $key) {
                 if (isset($parentHeaders[$key]) && is_string($parentHeaders[$key])) {
                     $parentHeaders[$key] = trim($parentHeaders[$key], '<>');
@@ -382,7 +416,11 @@ class ReplyCompositionServiceTest extends KernelTestCase
         $this->em->clear();
         $reloaded = $this->em->getRepository(Message::class)->find($outboundId);
         $this->assertSame('sent', $reloaded->getSendStatus(), 'send_status must be sent immediately after SMTP success');
-        $this->assertSame($result['message_id'], $reloaded->getProviderMsgId(), 'provider_msg_id must equal the message_id returned to caller');
+        // Spec 089 — response payload keeps the chevron-wrapped form (RFC
+        // 5322 representation that Symfony Mailer used in the SMTP header),
+        // but the persisted provider_msg_id is normalized to bare form so
+        // the n8n /sent callback (which posts the bare form) finds it.
+        $this->assertSame(trim($result['message_id'], '<>'), $reloaded->getProviderMsgId(), 'provider_msg_id must be the bare form of the message_id returned to caller');
         $this->assertNotNull($reloaded->getTsSent());
 
         // Spec 085 §US1 — also persist the bare message-id into headers
