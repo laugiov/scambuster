@@ -194,8 +194,10 @@ jobs:
         run: |
           docker compose up -d --build backend-dev
           docker compose exec --user root backend-dev composer install --no-interaction --no-progress 2>/dev/null
-          # Blocking on NEW vulnerabilities, ignoring known/accepted CVEs
-          # Ignored: PKSA-z3gr-8qht-p93v (PHPUnit dev-only), PKSA-365x-2zjk-pt47 (Symfony 7.2→7.3 pending)
+          # Blocking on NEW vulnerabilities, ignoring known/accepted CVEs.
+          # Spec 090 cleared all previously-ignored entries (Symfony 7.4 + PHPUnit 10.5.63
+          # upgrades fixed them). Keep this set in sync with scripts/preflight-check.sh
+          # and backend-symfony/composer.json audit.ignored.
           AUDIT_JSON=$(docker compose exec backend-dev composer audit --format=json 2>/dev/null || true)
           echo "$AUDIT_JSON" | python3 -c "
           import sys, json
@@ -209,18 +211,21 @@ jobs:
               print('::warning::Composer audit returned non-JSON output:')
               print(raw[:500])
               sys.exit(0)
-          ignored = {'PKSA-z3gr-8qht-p93v', 'PKSA-365x-2zjk-pt47'}
+          ignored = set()
           unignored = []
-          for pkg, advisories in data.get('advisories', {}).items():
-              for adv in advisories:
-                  if adv.get('advisoryId') not in ignored:
-                      unignored.append(f\"{pkg}: {adv.get('title', 'unknown')} ({adv.get('advisoryId')})\")
+          # composer audit serializes 'advisories' as {} when populated, [] when empty.
+          advisories_field = data.get('advisories', {})
+          if isinstance(advisories_field, dict):
+              for pkg, advisories in advisories_field.items():
+                  for adv in advisories:
+                      if adv.get('advisoryId') not in ignored:
+                          unignored.append(f\"{pkg}: {adv.get('title', 'unknown')} ({adv.get('advisoryId')})\")
           if unignored:
               print('::error::New vulnerabilities found:')
               for u in unignored: print(f'  - {u}')
               sys.exit(1)
           else:
-              print('Composer audit OK (2 known CVEs ignored)')
+              print(f'Composer audit OK ({len(ignored)} known CVEs ignored)')
           "
 
       - name: Gitleaks (secret detection)
