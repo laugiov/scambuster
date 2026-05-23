@@ -53,7 +53,9 @@ final readonly class IocGraphController
     {
         $indicatorId = $request->query->get('indicator_id');
 
-        if (!$indicatorId || !is_string($indicatorId)) {
+        // Spec 090 — Symfony 7.4 tightened Request::query->get() return type;
+        // is_string() check is now redundant per static analysis.
+        if (!$indicatorId) {
             return new JsonResponse(['error' => 'Missing required parameter: indicator_id'], Response::HTTP_BAD_REQUEST);
         }
 

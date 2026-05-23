@@ -126,23 +126,24 @@ except json.JSONDecodeError:
     print(raw[:500])
     sys.exit(0)
 # These IDs are explicitly ignored in backend-symfony/composer.json audit.ignored.
-# Keep this set in sync.
-ignored = {
-    'PKSA-z3gr-8qht-p93v',
-    'PKSA-365x-2zjk-pt47',
-    'PKSA-b35n-565h-rs4q',
-}
+# Keep this set in sync. Spec 090 cleared the previous 3 entries (Symfony 7.4
+# upgrade fixed http-foundation + PHPUnit upgrade fixed CVE-2026-24765).
+ignored = set()
 unignored = []
-for pkg, advisories in data.get('advisories', {}).items():
-    for adv in advisories:
-        if adv.get('advisoryId') not in ignored:
-            unignored.append(f\"{pkg}: {adv.get('title', 'unknown')} ({adv.get('advisoryId')})\")
+# Composer audit serializes 'advisories' as a JSON object ({pkg: [adv,...]}) when
+# there are advisories, but as an empty list [] when none — handle both shapes.
+advisories_field = data.get('advisories', {})
+if isinstance(advisories_field, dict):
+    for pkg, advisories in advisories_field.items():
+        for adv in advisories:
+            if adv.get('advisoryId') not in ignored:
+                unignored.append(f\"{pkg}: {adv.get('title', 'unknown')} ({adv.get('advisoryId')})\")
 if unignored:
     print('FAIL: new advisories detected:')
     for u in unignored:
         print(f'  - {u}')
     sys.exit(1)
-print('PASS: 0 new advisories (3 known CVEs ignored, matches composer.json).')
+print(f'PASS: 0 new advisories ({len(ignored)} known CVEs ignored, matches composer.json).')
 "
 gate_done
 

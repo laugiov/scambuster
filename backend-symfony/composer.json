@@ -7,38 +7,38 @@
         "php": ">=8.2",
         "ext-ctype": "*",
         "ext-iconv": "*",
-        "doctrine/dbal": "^3.9.4",
-        "doctrine/doctrine-bundle": "^2.14",
-        "doctrine/doctrine-migrations-bundle": "^3.4.2",
-        "doctrine/orm": "^3.3.3",
-        "guzzlehttp/guzzle": "^7.9",
-        "lexik/jwt-authentication-bundle": "^3.1",
-        "nelmio/cors-bundle": "^2.6",
-        "php-mime-mail-parser/php-mime-mail-parser": "^1.0",
-        "ramsey/uuid": "^4.7",
-        "scheb/2fa-bundle": "^7.9",
-        "scheb/2fa-totp": "*",
-        "symfony/asset": "7.2.*",
-        "symfony/console": "7.2.*",
-        "symfony/dotenv": "7.2.*",
-        "symfony/flex": "^2.5",
-        "symfony/framework-bundle": "7.2.*",
-        "symfony/lock": "7.2.*",
-        "symfony/mailer": "7.2.*",
-        "symfony/mime": "7.2.*",
-        "symfony/rate-limiter": "^7.2",
-        "symfony/runtime": "7.2.*",
-        "symfony/security-bundle": "^7.2.3",
-        "symfony/security-csrf": "7.2.*",
-        "symfony/serializer": "7.2.*",
-        "symfony/twig-bundle": "7.2.*",
-        "symfony/uid": "^6.4.13",
-        "symfony/validator": "7.2.*",
-        "symfony/yaml": "7.2.*",
-        "symfonycasts/verify-email-bundle": "^1.17.3",
-        "twig/extra-bundle": "^2.12|^3.0",
-        "twig/twig": "^2.12|^3.0",
-        "zbateson/mail-mime-parser": "^3.0"
+        "doctrine/dbal": "^3.10.5",
+        "doctrine/doctrine-bundle": "^2.18.2",
+        "doctrine/doctrine-migrations-bundle": "^3.7.0",
+        "doctrine/orm": "^3.6.6",
+        "guzzlehttp/guzzle": "^7.10.4",
+        "lexik/jwt-authentication-bundle": "^3.2",
+        "nelmio/cors-bundle": "^2.6.1",
+        "php-mime-mail-parser/php-mime-mail-parser": "^1.7.4",
+        "ramsey/uuid": "^4.9.2",
+        "scheb/2fa-bundle": "^7.13.1",
+        "scheb/2fa-totp": ">=7.13.1",
+        "symfony/asset": "^7.4.8",
+        "symfony/console": "^7.4.11",
+        "symfony/dotenv": "^7.4.11",
+        "symfony/flex": "^2.10",
+        "symfony/framework-bundle": "^7.4.11",
+        "symfony/lock": "^7.4.9",
+        "symfony/mailer": "^7.4.12",
+        "symfony/mime": "^7.4.12",
+        "symfony/rate-limiter": "^7.4.10",
+        "symfony/runtime": "^7.4.12",
+        "symfony/security-bundle": "^7.4.12",
+        "symfony/security-csrf": "^7.4.8",
+        "symfony/serializer": "^7.4.10",
+        "symfony/twig-bundle": "^7.4.8",
+        "symfony/uid": "^7.4.9",
+        "symfony/validator": "^7.4.10",
+        "symfony/yaml": "^7.4.12",
+        "symfonycasts/verify-email-bundle": "^1.18.0",
+        "twig/extra-bundle": "^3.24",
+        "twig/twig": "^3.26",
+        "zbateson/mail-mime-parser": "^3.0.5"
     },
     "config": {
         "allow-plugins": {
@@ -50,11 +50,7 @@
         "bump-after-update": true,
         "sort-packages": true,
         "audit": {
-            "ignored": {
-                "PKSA-z3gr-8qht-p93v": "PHPUnit PHPT deserialization — dev-only, not exploitable in production (Symfony 7.2.x pinned, upgrade planned)",
-                "PKSA-365x-2zjk-pt47": "Symfony http-foundation PATH_INFO bypass — requires Symfony 7.3+, full migration planned separately",
-                "PKSA-b35n-565h-rs4q": "Symfony http-foundation CVE-2025-64500 — fix only in Symfony 7.3.7+, requires Symfony 7.3 migration (planned)"
-            }
+            "ignored": {}
         }
     },
     "autoload": {
@@ -77,22 +73,22 @@
         "symfony/polyfill-php82": "*"
     },
     "require-dev": {
-        "dama/doctrine-test-bundle": "^8.3",
-        "doctrine/doctrine-fixtures-bundle": "^4.1",
-        "friendsofphp/php-cs-fixer": "^3.75",
+        "dama/doctrine-test-bundle": "^8.4.1",
+        "doctrine/doctrine-fixtures-bundle": "^4.3.1",
+        "friendsofphp/php-cs-fixer": "^3.95.2",
         "infection/infection": "^0.31.9",
-        "nelmio/api-doc-bundle": "^5.1",
-        "phpstan/phpstan": "^1.12.25",
+        "nelmio/api-doc-bundle": "^5.10.2",
+        "phpstan/phpstan": "^1.12.33",
         "phpstan/phpstan-doctrine": "^1.5.7",
-        "phpstan/phpstan-symfony": "^1.4.15",
-        "phpunit/phpunit": "^10.5.46",
-        "rector/rector": "*",
-        "symfony/browser-kit": "7.2.*",
-        "symfony/css-selector": "7.2.*",
-        "symfony/http-client": "7.2.*",
-        "symfony/maker-bundle": "^1.63",
-        "symfony/monolog-bundle": "*",
-        "symfony/phpunit-bridge": "7.2.*"
+        "phpstan/phpstan-symfony": "^1.4.16",
+        "phpunit/phpunit": "^10.5.63",
+        "rector/rector": ">=1.2.10",
+        "symfony/browser-kit": "^7.4.8",
+        "symfony/css-selector": "^7.4.9",
+        "symfony/http-client": "^7.4.9",
+        "symfony/maker-bundle": "^1.67",
+        "symfony/monolog-bundle": ">=4.0.2",
+        "symfony/phpunit-bridge": "^7.4.8"
     },
     "scripts": {
         "auto-scripts": {
@@ -108,7 +104,7 @@
     "extra": {
         "symfony": {
             "allow-contrib": false,
-            "require": "7.2.*"
+            "require": "7.4.*"
         }
     }
 }
