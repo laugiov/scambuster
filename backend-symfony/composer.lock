@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "a7c8f70b9d5154f53087d3e7bd647ae1",
+    "content-hash": "33da54d6b0bb8c7cbcde3f04d6ddc49e",
     "packages": [
         {
             "name": "brick/math",
@@ -2096,31 +2096,35 @@
         },
         {
             "name": "php-mime-mail-parser/php-mime-mail-parser",
-            "version": "1.7.4",
+            "version": "10.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-mime-mail-parser/php-mime-mail-parser.git",
-                "reference": "c6d091937f178be9f38d2ce187faab86b19a4f61"
+                "reference": "c5bd139a18a8643ff2ba408fdab2093b7fb7544e"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/php-mime-mail-parser/php-mime-mail-parser/zipball/c6d091937f178be9f38d2ce187faab86b19a4f61",
-                "reference": "c6d091937f178be9f38d2ce187faab86b19a4f61",
+                "url": "https://api.github.com/repos/php-mime-mail-parser/php-mime-mail-parser/zipball/c5bd139a18a8643ff2ba408fdab2093b7fb7544e",
+                "reference": "c5bd139a18a8643ff2ba408fdab2093b7fb7544e",
                 "shasum": ""
             },
             "require": {
                 "ext-mailparse": "*",
-                "php": ">=5.3.0"
+                "php": "^8.2"
+            },
+            "replace": {
+                "exorus/php-mime-mail-parser": "*",
+                "messaged/php-mime-mail-parser": "*"
             },
             "require-dev": {
-                "phpunit/phpunit": "4.*",
-                "satooshi/php-coveralls": "0.*",
-                "squizlabs/php_codesniffer": "2.*"
+                "php-coveralls/php-coveralls": "^2.2",
+                "phpunit/phpunit": "^10.0",
+                "squizlabs/php_codesniffer": "^3.5"
             },
             "type": "library",
             "autoload": {
                 "psr-4": {
-                    "eXorus\\PhpMimeMailParser\\": "src/"
+                    "PhpMimeMailParser\\": "src/"
                 }
             },
             "notification-url": "https://packagist.org/downloads/",
@@ -2128,12 +2132,6 @@
                 "MIT"
             ],
             "authors": [
-                {
-                    "name": "bucabay",
-                    "email": "gabe@fijiwebdesign.com",
-                    "homepage": "http://www.fijiwebdesign.com",
-                    "role": "Developer"
-                },
                 {
                     "name": "eXorus",
                     "email": "exorus.spam@gmail.com",
@@ -2157,21 +2155,29 @@
                     "email": "alkne@gmail.com",
                     "homepage": "https://code.google.com/p/php-mime-mail-parser",
                     "role": "Developer"
+                },
+                {
+                    "name": "bucabay",
+                    "email": "gabe@fijiwebdesign.com",
+                    "homepage": "http://www.fijiwebdesign.com",
+                    "role": "Developer"
                 }
             ],
-            "description": "Fully Tested Mailparse Extension Wrapper for PHP 5.3+",
-            "homepage": "https://github.com/eXorus/php-mime-mail-parser",
+            "description": "A fully tested email parser for PHP 8.2+ (mailparse extension wrapper).",
+            "homepage": "https://github.com/php-mime-mail-parser/php-mime-mail-parser",
             "keywords": [
                 "MimeMailParser",
                 "mail",
                 "mailparse",
-                "mime"
+                "mime",
+                "parser",
+                "php"
             ],
             "support": {
                 "issues": "https://github.com/php-mime-mail-parser/php-mime-mail-parser/issues",
-                "source": "https://github.com/php-mime-mail-parser/php-mime-mail-parser/tree/1.7.4"
+                "source": "https://github.com/php-mime-mail-parser/php-mime-mail-parser/tree/10.0.0"
             },
-            "time": "2015-03-01T21:30:05+00:00"
+            "time": "2026-04-22T13:23:50+00:00"
         },
         {
             "name": "psr/cache",

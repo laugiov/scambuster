@@ -14,7 +14,7 @@
         "guzzlehttp/guzzle": "^7.10.4",
         "lexik/jwt-authentication-bundle": "^3.2",
         "nelmio/cors-bundle": "^2.6.1",
-        "php-mime-mail-parser/php-mime-mail-parser": "^1.7.4",
+        "php-mime-mail-parser/php-mime-mail-parser": "^10.0.0",
         "ramsey/uuid": "^4.9.2",
         "scheb/2fa-bundle": "^7.13.1",
         "scheb/2fa-totp": ">=7.13.1",
