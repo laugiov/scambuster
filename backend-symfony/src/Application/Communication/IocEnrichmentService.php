@@ -38,6 +38,24 @@ class IocEnrichmentService
             throw new \RuntimeException('Message not found: ' . $msgId);
         }
 
+        // Spec 091 — closed-conversation short-circuit.
+        // ReplyHandler refuses to generate replies on non-open conversations
+        // (defense-in-depth at ReplyHandler.php:104). Surface should_reply=false
+        // at the /risk layer so n8n's Decision Gate skips WF-REPLY-GENERATE-V2
+        // entirely instead of triggering it to get a 400 downstream. Saves a
+        // sub-workflow invocation per inbound on each of the ~47 closed convs
+        // still receiving scammer mail (audit 2026-05-24).
+        $convStatus = $message->getConversation()->getStatus()->value;
+
+        if ($convStatus !== 'open') {
+            return [
+                'score_agg' => 0,
+                'level' => 'low',
+                'reason' => sprintf('conversation_closed: %s', $convStatus),
+                'should_reply' => false,
+            ];
+        }
+
         // Spec 086 §US2 — pre-filter decision shortcut.
         // matchPreFilter (spec 083) wrote headers['pre_filter'] at ingest
         // if the message was deemed non-conversational. Override any
