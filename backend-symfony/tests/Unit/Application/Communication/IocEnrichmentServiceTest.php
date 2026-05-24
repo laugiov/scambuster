@@ -9,6 +9,7 @@ use App\Application\Communication\IocExportMapper;
 use App\Application\Communication\RiskScoreCalculator;
 use App\Application\Communication\RiskScorer;
 use App\Domain\Communication\Conversation;
+use App\Domain\Communication\ConversationStatus;
 use App\Domain\Communication\Message;
 use App\Domain\Communication\ObservedIoc;
 use App\Domain\Communication\ScamType;
@@ -79,13 +80,17 @@ final class IocEnrichmentServiceTest extends TestCase
         });
     }
 
-    private function mockMessageWithScamType(string $scamCode): Message
+    private function mockMessageWithScamType(string $scamCode, ConversationStatus $status = ConversationStatus::OPEN): Message
     {
         $scamType = $this->createMock(ScamType::class);
         $scamType->method('getCode')->willReturn($scamCode);
 
         $conversation = $this->createMock(Conversation::class);
         $conversation->method('getScamType')->willReturn($scamType);
+        // Spec 091 — calculateMessageRisk now reads conv.status to short-circuit
+        // on closed/abandoned/mistake. Existing tests default to OPEN (preserves
+        // their assumed path); new closed-conv tests pass non-OPEN explicitly.
+        $conversation->method('getStatus')->willReturn($status);
 
         $message = $this->createMock(Message::class);
         $message->method('getConversation')->willReturn($conversation);
@@ -266,6 +271,8 @@ final class IocEnrichmentServiceTest extends TestCase
 
         $conversation = $this->createMock(Conversation::class);
         $conversation->method('getScamType')->willReturn($scamType);
+        // Spec 091 — production code reads conv.status before pre-filter check.
+        $conversation->method('getStatus')->willReturn(ConversationStatus::OPEN);
 
         $message = $this->createMock(Message::class);
         $message->method('getConversation')->willReturn($conversation);
@@ -350,6 +357,8 @@ final class IocEnrichmentServiceTest extends TestCase
 
             $conversation = $this->createMock(Conversation::class);
             $conversation->method('getScamType')->willReturn($scamType);
+            // Spec 091 — production code reads conv.status before pre-filter check.
+            $conversation->method('getStatus')->willReturn(ConversationStatus::OPEN);
 
             $message = $this->createMock(Message::class);
             $message->method('getConversation')->willReturn($conversation);
@@ -376,5 +385,61 @@ final class IocEnrichmentServiceTest extends TestCase
             );
             $service->calculateMessageRisk('msg-' . $label);
         }
+    }
+
+    // ─── Spec 091 — closed-conv short-circuit on /risk endpoint ──────────
+
+    public function test_calculateMessageRisk_shortcuts_when_conversation_is_closed(): void
+    {
+        // Spec 091 §US1 — when the operator has manually closed the conv,
+        // ReplyHandler refuses to generate a reply (defense-in-depth at
+        // ReplyHandler.php:104). /risk must surface should_reply=false
+        // before n8n's Decision Gate triggers WF-REPLY-GENERATE-V2 in
+        // vain. Even IOCs that would normally push should_reply=true
+        // (IBAN on INVOICE_FRAUD, intrinsic score >= high) must be
+        // bypassed.
+        $message = $this->mockMessageWithScamType('INVOICE_FRAUD', ConversationStatus::CLOSED);
+
+        // IOC fetch must NEVER be reached: the short-circuit returns
+        // before findBy, mirroring the spec 086 pre-filter pattern.
+        $messageRepo = $this->createMock(EntityRepository::class);
+        $messageRepo->method('find')->willReturn($message);
+
+        $iocRepo = $this->createMock(EntityRepository::class);
+        $iocRepo->expects($this->never())->method('findBy');
+
+        $this->em->method('getRepository')->willReturnCallback(function (string $class) use ($messageRepo, $iocRepo) {
+            return $class === Message::class ? $messageRepo : $iocRepo;
+        });
+
+        $result = $this->createService()->calculateMessageRisk('msg-closed-conv');
+
+        $this->assertSame(0, $result['score_agg']);
+        $this->assertSame('low', $result['level']);
+        $this->assertStringContainsString('conversation_closed: closed', $result['reason']);
+        $this->assertFalse($result['should_reply'], 'closed conv must yield should_reply=false');
+    }
+
+    public function test_calculateMessageRisk_shortcuts_when_conversation_is_abandoned(): void
+    {
+        // Spec 091 §US1.2 — same short-circuit applies to abandoned and
+        // mistake (any non-open status). The reason embeds the actual
+        // status so the operator can distinguish them in logs.
+        $message = $this->mockMessageWithScamType('PHISHING', ConversationStatus::ABANDONED);
+
+        $messageRepo = $this->createMock(EntityRepository::class);
+        $messageRepo->method('find')->willReturn($message);
+
+        $iocRepo = $this->createMock(EntityRepository::class);
+        $iocRepo->expects($this->never())->method('findBy');
+
+        $this->em->method('getRepository')->willReturnCallback(function (string $class) use ($messageRepo, $iocRepo) {
+            return $class === Message::class ? $messageRepo : $iocRepo;
+        });
+
+        $result = $this->createService()->calculateMessageRisk('msg-abandoned-conv');
+
+        $this->assertFalse($result['should_reply']);
+        $this->assertStringContainsString('conversation_closed: abandoned', $result['reason']);
     }
 }
