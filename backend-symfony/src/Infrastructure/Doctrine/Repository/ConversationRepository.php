@@ -7,6 +7,7 @@ namespace App\Infrastructure\Doctrine\Repository;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationRepositoryInterface;
 use App\Domain\Communication\ConversationStatus;
+use App\Domain\Communication\ScamType;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 use Symfony\Component\Uid\Uuid;
@@ -47,5 +48,32 @@ class ConversationRepository extends ServiceEntityRepository implements Conversa
             ->setParameter('threshold', $threshold)
             ->getQuery()
             ->getResult();
+    }
+
+    /**
+     * @return array<string, int> persona_code => open conv count
+     */
+    public function countOpenByPersonaForScamType(ScamType $scamType): array
+    {
+        /** @var list<array{personaCode: string, cnt: string}> $rows */
+        $rows = $this->createQueryBuilder('conv')
+            ->select('p.personaCode AS personaCode, COUNT(conv.convId) AS cnt')
+            ->innerJoin('conv.persona', 'p')
+            ->where('conv.scamType = :scamType')
+            ->andWhere('conv.status = :status')
+            ->andWhere('conv.deletedAt IS NULL')
+            ->setParameter('scamType', $scamType)
+            ->setParameter('status', ConversationStatus::OPEN)
+            ->groupBy('p.personaCode')
+            ->getQuery()
+            ->getArrayResult();
+
+        $result = [];
+
+        foreach ($rows as $row) {
+            $result[$row['personaCode']] = (int) $row['cnt'];
+        }
+
+        return $result;
     }
 }
