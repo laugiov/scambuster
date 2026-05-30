@@ -14,10 +14,14 @@ final readonly class PersonaPerformance implements \Stringable
     private const COLD_START_THRESHOLD = 3;
 
     /**
-     * @param string $personaCode   Code du persona (ex: 'elderly_person')
-     * @param string $scamTypeCode  Code du scam type (ex: 'PHISHING')
-     * @param int    $sessionsCount Number of completed sessions (>= 0)
-     * @param float  $rewardAvg     Reward moyen [0.0, 1.0]
+     * @param string $personaCode      Code du persona (ex: 'elderly_person')
+     * @param string $scamTypeCode     Code du scam type (ex: 'PHISHING')
+     * @param int    $sessionsCount    Number of CLOSED sessions (>= 0). Drives reward_avg and cold-start gate.
+     * @param float  $rewardAvg        Reward moyen [0.0, 1.0]
+     * @param int    $inFlightSessions Spec 092 — number of OPEN conversations on (persona, scam_type)
+     *                                 not yet folded into reward_avg. Defaults to 0 for backward
+     *                                 compatibility. Only inflates the UCB1 exploration bonus denominator;
+     *                                 does NOT affect reward_avg, cold-start gate, or convergence detection.
      *
      * @throws \InvalidArgumentException Si les valeurs sont invalides
      */
@@ -25,7 +29,8 @@ final readonly class PersonaPerformance implements \Stringable
         private string $personaCode,
         private string $scamTypeCode,
         private int $sessionsCount,
-        private float $rewardAvg
+        private float $rewardAvg,
+        private int $inFlightSessions = 0,
     ) {
         $this->validate();
     }
@@ -49,11 +54,15 @@ final readonly class PersonaPerformance implements \Stringable
         $newSessionsCount = $this->sessionsCount + 1;
         $newRewardAvg = ($this->rewardAvg * $this->sessionsCount + $newReward) / $newSessionsCount;
 
+        // Spec 092 §US2 invariant — withNewReward() is the closure-side
+        // formula. In-flight tracking is read-side only; the new instance
+        // preserves whatever in-flight count was on the original.
         return new self(
             personaCode: $this->personaCode,
             scamTypeCode: $this->scamTypeCode,
             sessionsCount: $newSessionsCount,
-            rewardAvg: $newRewardAvg
+            rewardAvg: $newRewardAvg,
+            inFlightSessions: $this->inFlightSessions,
         );
     }
 
@@ -94,6 +103,12 @@ final readonly class PersonaPerformance implements \Stringable
                 "Reward average must be in [0.0, 1.0], got {$this->rewardAvg}"
             );
         }
+
+        if ($this->inFlightSessions < 0) {
+            throw new \InvalidArgumentException(
+                "In-flight sessions count must be >= 0, got {$this->inFlightSessions}"
+            );
+        }
     }
 
     // Getters (readonly properties)
@@ -119,16 +134,41 @@ final readonly class PersonaPerformance implements \Stringable
     }
 
     /**
-     * UCB1 adjusted score: reward_avg + C * sqrt(ln(totalSessions) / personaSessions).
-     * Gives an exploration bonus to underexplored arms that decays with more observations.
+     * Spec 092 — in-flight pull count (OPEN conversations on (persona, scam_type)
+     * not yet folded into reward_avg). Read-side concept used to deflate the UCB1
+     * exploration bonus and avoid the "stuck persona" feedback loop on async pulls.
+     */
+    public function getInFlightSessions(): int
+    {
+        return $this->inFlightSessions;
+    }
+
+    /**
+     * Spec 092 — effective sample size for UCB1: closed + in-flight. Used in the
+     * exploration bonus denominator. Reward_avg and cold-start gate remain
+     * closed-only.
+     */
+    public function getEffectiveN(): int
+    {
+        return $this->sessionsCount + $this->inFlightSessions;
+    }
+
+    /**
+     * UCB1 adjusted score: reward_avg + C * sqrt(ln(totalSessions) / effectiveN).
+     * Gives an exploration bonus to underexplored arms that decays with more
+     * observations. Spec 092 — effectiveN counts both closed AND in-flight pulls
+     * so a burst of async selections naturally deflates the bonus before reward
+     * outcomes arrive.
      */
     public function getAdjustedScore(int $totalSessions, float $explorationC): float
     {
-        if ($this->sessionsCount === 0 || $totalSessions <= 1) {
+        $effectiveN = $this->getEffectiveN();
+
+        if ($effectiveN === 0 || $totalSessions <= 1) {
             return $this->rewardAvg;
         }
 
-        $bonus = $explorationC * sqrt(log($totalSessions) / $this->sessionsCount);
+        $bonus = $explorationC * sqrt(log($totalSessions) / $effectiveN);
 
         return $this->rewardAvg + $bonus;
     }

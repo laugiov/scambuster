@@ -205,4 +205,98 @@ final class PersonaPerformanceTest extends TestCase
 
         $this->assertSame(0.0, $perf->getAdjustedScore(100, 0.5));
     }
+
+    // ─── Spec 092 — in-flight pull tracking ───────────────────────────────
+
+    public function test_constructor_defaults_in_flight_to_zero(): void
+    {
+        // Spec 092 §US2 — backward compat: the new ctor parameter has a
+        // default of 0 so all pre-092 call sites compile and behave like
+        // today.
+        $perf = new PersonaPerformance('p', 's', 5, 0.4);
+
+        $this->assertSame(0, $perf->getInFlightSessions());
+    }
+
+    public function test_get_effective_n_sums_closed_and_in_flight(): void
+    {
+        $perf = new PersonaPerformance('p', 's', 5, 0.4, inFlightSessions: 17);
+
+        $this->assertSame(22, $perf->getEffectiveN());
+    }
+
+    public function test_get_adjusted_score_with_in_flight_zero_matches_legacy_behaviour(): void
+    {
+        // Spec 092 §US1 acceptance scenario 2 — when no in-flight pulls
+        // exist, the UCB1 score is bit-identical to today's. Pin two
+        // identical configurations (one without in_flight arg, one with
+        // explicit 0) and assert equality.
+        $legacy = new PersonaPerformance('p', 's', 5, 0.336);
+        $explicit = new PersonaPerformance('p', 's', 5, 0.336, inFlightSessions: 0);
+
+        $this->assertSame(
+            $legacy->getAdjustedScore(94, 0.5),
+            $explicit->getAdjustedScore(94, 0.5),
+        );
+    }
+
+    public function test_get_adjusted_score_with_in_flight_deflates_bonus(): void
+    {
+        // Spec 092 — reproduces the math from spec.md: hopeless_romantic
+        // on PHISHING with 5 closed + 17 in-flight, reward 0.336, total
+        // eligible 94. Effective N = 22, bonus = 0.5 * sqrt(ln(94)/22) ≈
+        // 0.228, adjusted ≈ 0.564.
+        $perfWithInFlight = new PersonaPerformance('p', 's', 5, 0.336, inFlightSessions: 17);
+        $perfClosedOnly = new PersonaPerformance('p', 's', 5, 0.336);
+
+        $scoreWith = $perfWithInFlight->getAdjustedScore(94, 0.5);
+        $scoreWithout = $perfClosedOnly->getAdjustedScore(94, 0.5);
+
+        // In-flight pulls deflate the exploration bonus.
+        $this->assertLessThan($scoreWithout, $scoreWith);
+        // Within tolerance of the spec.md predicted value.
+        $this->assertEqualsWithDelta(0.564, $scoreWith, 0.005);
+    }
+
+    public function test_is_in_cold_start_ignores_in_flight_still_cold_with_zero_closed(): void
+    {
+        // Spec 092 §US3 — cold start is a "no learning signal" gate. A
+        // persona with 0 closed conversations but 50 in-flight is still
+        // in cold start: no observed outcome has fed into reward_avg yet.
+        $perf = new PersonaPerformance('p', 's', 0, 0.0, inFlightSessions: 50);
+
+        $this->assertTrue($perf->isInColdStart());
+    }
+
+    public function test_is_in_cold_start_ignores_in_flight_not_cold_with_five_closed(): void
+    {
+        // Regression guard: a persona with 5 closed and 0 in-flight is
+        // past cold start (unchanged from today). Reaffirms the
+        // closed-only gate.
+        $perf = new PersonaPerformance('p', 's', 5, 0.4, inFlightSessions: 0);
+
+        $this->assertFalse($perf->isInColdStart());
+    }
+
+    public function test_with_new_reward_leaves_in_flight_untouched(): void
+    {
+        // Spec 092 §US2 invariant — withNewReward() only updates the
+        // closure-side stats (sessions_count + reward_avg). In-flight
+        // tracking is a read-side concept that does not flow through
+        // the reward closure path.
+        $perf = new PersonaPerformance('p', 's', 5, 0.6, inFlightSessions: 10);
+        $updated = $perf->withNewReward(0.8);
+
+        $this->assertSame(10, $updated->getInFlightSessions());
+        // And sessions still increments by 1 from the closed-only count.
+        $this->assertSame(6, $updated->getSessionsCount());
+    }
+
+    public function test_constructor_rejects_negative_in_flight(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('In-flight sessions count must be >= 0');
+
+        new PersonaPerformance('p', 's', 5, 0.4, inFlightSessions: -1);
+    }
 }
