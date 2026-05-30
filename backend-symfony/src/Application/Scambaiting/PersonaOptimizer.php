@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Scambaiting;
 
 use App\Application\Audit\AuditLogger;
+use App\Domain\Communication\ConversationRepositoryInterface;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
 use App\Domain\Scambaiting\PersonaPerformance;
@@ -35,6 +36,7 @@ final readonly class PersonaOptimizer
         private EntityManagerInterface $em,
         private LoggerInterface $logger,
         private ?AuditLogger $auditLogger = null,
+        private ?ConversationRepositoryInterface $convRepository = null,
     ) {
     }
 
@@ -113,21 +115,40 @@ final readonly class PersonaOptimizer
             $statsMap[$performance->getPersonaCode()] = $performance;
         }
 
+        // Spec 092 — fetch in-flight pull counts (OPEN convs per persona on
+        // this scam_type) to feed the UCB1 effective N. Without this, a burst
+        // of selections on the same persona never deflates the exploration
+        // bonus until conv outcomes arrive, causing the "stuck persona"
+        // feedback loop documented in spec 092 §Background.
+        $inFlightCounts = $this->convRepository?->countOpenByPersonaForScamType($scamType) ?? [];
+
         // 5. Build complete list with cold start for personas without stats
         $performances = [];
 
         foreach ($allPersonas as $persona) {
             $personaCode = $persona->getPersonaCode();
+            $inFlight = $inFlightCounts[$personaCode] ?? 0;
 
             if (isset($statsMap[$personaCode])) {
-                $performances[] = $statsMap[$personaCode];
+                // Spec 092 — rebuild the VO with the in-flight count attached.
+                // toPersonaPerformance() doesn't know about in-flight (factory
+                // lives in the Infrastructure layer and stays closed-only).
+                $existing = $statsMap[$personaCode];
+                $performances[] = new PersonaPerformance(
+                    personaCode: $existing->getPersonaCode(),
+                    scamTypeCode: $existing->getScamTypeCode(),
+                    sessionsCount: $existing->getSessionsCount(),
+                    rewardAvg: $existing->getRewardAvg(),
+                    inFlightSessions: $inFlight,
+                );
             } else {
                 // Persona sans stats = cold start (0 sessions)
                 $performances[] = new PersonaPerformance(
                     personaCode: $personaCode,
                     scamTypeCode: $scamTypeCode,
                     sessionsCount: 0,
-                    rewardAvg: 0.0
+                    rewardAvg: 0.0,
+                    inFlightSessions: $inFlight,
                 );
             }
         }
@@ -142,6 +163,15 @@ final readonly class PersonaOptimizer
                 break;
             }
         }
+
+        // Spec 092 — total effective N (closed + in-flight) for audit log
+        // traceability. Surfaced via 'effective_total_sessions' in payloads
+        // so operators can correlate bandit decisions with the in-flight
+        // state at the moment of selection.
+        $totalEffectiveN = array_sum(array_map(
+            static fn (PersonaPerformance $p): int => $p->getEffectiveN(),
+            $performances
+        ));
 
         // 7. Selection based on strategy
         if ($allInColdStart) {
@@ -165,6 +195,7 @@ final readonly class PersonaOptimizer
                 [
                     'scam_type_code' => $scamTypeCode,
                     'strategy' => 'cold_start',
+                    'effective_total_sessions' => $totalEffectiveN,
                 ],
             );
 
@@ -203,6 +234,7 @@ final readonly class PersonaOptimizer
                     'strategy' => 'exploration',
                     'epsilon' => $effectiveEpsilon,
                     'converged' => $converged,
+                    'effective_total_sessions' => $totalEffectiveN,
                 ],
             );
 
@@ -236,6 +268,8 @@ final readonly class PersonaOptimizer
                 'reward_avg' => $selectedPersona->getRewardAvg(),
                 'epsilon' => $effectiveEpsilon,
                 'converged' => $converged,
+                'effective_total_sessions' => $totalEffectiveN,
+                'in_flight_sessions' => $selectedPersona->getInFlightSessions(),
             ],
         );
 
@@ -279,9 +313,11 @@ final readonly class PersonaOptimizer
             return $this->selectRandomPersona($performances);
         }
 
-        // Compute total sessions for UCB1 bonus calculation
+        // Compute total sessions for UCB1 bonus calculation.
+        // Spec 092 — uses effective N (closed + in-flight) so the bonus
+        // denominator and the ln(total) numerator stay coherent.
         $totalSessions = array_sum(array_map(
-            static fn (PersonaPerformance $p): int => $p->getSessionsCount(),
+            static fn (PersonaPerformance $p): int => $p->getEffectiveN(),
             $eligiblePerformances
         ));
 
