@@ -241,9 +241,80 @@ final class PromptBuilderMutationTest extends TestCase
             ],
         ]);
         $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
-        // The prompt should contain the "If natural, try to obtain" section
-        // or at least OBJECTIVE section
+        // Spec 095 Fix #6 replaced the weak "If natural" directive with a
+        // stage-aware match expression; we now assert the OBJECTIVE section
+        // is still present (test name kept for historical traceability).
         $this->assertStringContainsString('## OBJECTIVE', $prompts['user']);
+    }
+
+    // ─── Spec 095 Fix #6 — stage-aware OBJECTIVE directive ──────────────
+
+    /**
+     * Spec 095 Fix #6 — first_contact stage (1-2 messages, no payment kw).
+     * The OBJECTIVE must instruct the LLM to ask about the offer, NOT
+     * about payment specifics. Asking for IBAN on turn 1 is a bot tell.
+     *
+     * See: specs/095-pipeline-audit/fix-05-06-coherent-ioc-directive/spec.md
+     */
+    public function test_objective_first_contact_directive_Fix06(): void
+    {
+        $context = $this->baseContext([
+            'last_messages' => [
+                ['direction' => 'in', 'body_text' => 'Hi, I have an opportunity for you', 'headers' => ['from' => 'a@b.com'], 'ts_msg' => '2026-01-01T10:00:00+00:00'],
+            ],
+        ]);
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+        $this->assertStringContainsString('first contact', $prompts['user'], 'OBJECTIVE must mention stage');
+        $this->assertStringContainsString('Hold off on payment', $prompts['user'], 'OBJECTIVE must defer payment-specifics on first_contact');
+    }
+
+    /**
+     * Spec 095 Fix #6 — follow_up stage (3-5 messages, no payment keyword).
+     * The OBJECTIVE must ask a practical question, not yet a specific IOC.
+     */
+    public function test_objective_follow_up_directive_Fix06(): void
+    {
+        // 3-5 messages WITHOUT payment keyword → ContextAnalyzer returns follow_up
+        $context = $this->baseContext([
+            'last_messages' => [
+                ['direction' => 'in', 'body_text' => 'Hi', 'headers' => ['from' => 'a@b.com'], 'ts_msg' => '2026-01-01T10:00:00+00:00'],
+                ['direction' => 'out', 'body_text' => 'Hello', 'headers' => ['from' => 'me@g.com'], 'ts_msg' => '2026-01-01T11:00:00+00:00'],
+                ['direction' => 'in', 'body_text' => 'Tell me more about you', 'headers' => ['from' => 'a@b.com'], 'ts_msg' => '2026-01-01T12:00:00+00:00'],
+                ['direction' => 'out', 'body_text' => 'Sure I am happy to share', 'headers' => ['from' => 'me@g.com'], 'ts_msg' => '2026-01-01T13:00:00+00:00'],
+            ],
+        ]);
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+        $this->assertStringContainsString('follow-up', $prompts['user'], 'OBJECTIVE must mention follow-up stage');
+        $this->assertStringContainsString('practical question', $prompts['user'], 'OBJECTIVE must request a practical question');
+    }
+
+    /**
+     * Spec 095 Fix #6 — payment_push stage (any message with payment keyword OR 6+ messages).
+     * The OBJECTIVE must explicitly request a concrete IOC question (IBAN/wallet/beneficiary/phone).
+     */
+    public function test_objective_payment_push_directive_Fix06(): void
+    {
+        // Payment keyword in any of the last 3 messages → ContextAnalyzer returns payment_push
+        $context = $this->baseContext([
+            'last_messages' => [
+                ['direction' => 'in', 'body_text' => 'Please send me 1000 euros via virement to my IBAN', 'headers' => ['from' => 'a@b.com'], 'ts_msg' => '2026-01-01T10:00:00+00:00'],
+            ],
+        ]);
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+        $this->assertStringContainsString('payment push', $prompts['user'], 'OBJECTIVE must mention payment push stage');
+        $this->assertStringContainsString('IBAN', $prompts['user'], 'OBJECTIVE must list IBAN among target IOCs');
+        $this->assertStringContainsString('wallet', $prompts['user'], 'OBJECTIVE must list wallet among target IOCs');
+    }
+
+    /**
+     * Spec 095 Fix #6 — the old weak "If natural, try to obtain" directive
+     * MUST be gone. Its replacement is the stage-aware match expression
+     * tested above.
+     */
+    public function test_objective_no_weak_if_natural_directive_Fix06(): void
+    {
+        $prompts = $this->builder->buildGeneratorPrompts($this->baseContext(), 'generic_user');
+        $this->assertStringNotContainsString('If natural, try to obtain', $prompts['user'], 'Weak directive must be removed');
     }
 
     // === Vary opening for multi-message threads ===

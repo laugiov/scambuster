@@ -61,4 +61,23 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('en', $rulesEn);
         $this->assertStringContainsString('fr', $rulesFr);
     }
+
+    /**
+     * Spec 095 Fix #5 — BasePromptRules now includes a behavioral rule telling
+     * the persona how to react to payment cues (descriptive, not prescriptive).
+     * The rule is intentionally short to fit within the 120-word budget
+     * (verified by testRulesAreUnder120Words).
+     *
+     * See: specs/095-pipeline-audit/fix-05-06-coherent-ioc-directive/spec.md
+     */
+    public function testRulesIncludePaymentCueRule_Fix05(): void
+    {
+        $rules = BasePromptRules::getRules('en');
+
+        // The behavioral rule must reference both branches: payment-mentioned
+        // and payment-not-mentioned. Wording is intentionally conversational.
+        $this->assertStringContainsString('payment', $rules, 'Rule must reference payment cue');
+        $this->assertStringContainsString('how to send', $rules, 'Rule must mention how to send (the IOC-pull behavior)');
+        $this->assertStringContainsString('offer', $rules, 'Rule must reference the fallback: ask about the offer when payment not mentioned');
+    }
 }
