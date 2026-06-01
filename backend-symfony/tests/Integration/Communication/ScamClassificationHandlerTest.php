@@ -157,16 +157,24 @@ final class ScamClassificationHandlerTest extends KernelTestCase
         $this->assertCount($initialPersonaCount + 1, $this->personaManager->getAllActive());
     }
 
+    /**
+     * Spec 095 Fix #2 — Updated: confidence threshold lowered from 0.75 to 0.55.
+     * Confidence 0.40 is now the boundary case for rejection (below 0.55).
+     * Confidence 0.65 (the previous test value) is now ACCEPTED — see
+     * testItAcceptsConfidence065_Fix02_PreviouslyRejected below.
+     *
+     * See: specs/095-pipeline-audit/fix-02-lower-confidence-threshold/spec.md
+     */
     public function testItThrowsExceptionWhenConfidenceTooLow(): void
     {
         $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
-        // Mock classification result with low confidence
+        // Mock classification result with low confidence (below new 0.55 threshold)
         $classificationResult = new ClassificationResult(
             scamTypeCode: 'phishing',
-            confidence: 0.65, // Below threshold of 0.75
+            confidence: 0.40, // Below new threshold of 0.55 (Spec 095 Fix #2)
             isNewType: false,
             isNewPersona: false,
             personaCode: null,
@@ -179,9 +187,48 @@ final class ScamClassificationHandlerTest extends KernelTestCase
             ->willReturn($classificationResult);
 
         $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Classification confidence too low: 0.65');
+        $this->expectExceptionMessage('Classification confidence too low: 0.4');
 
         $this->handler->classifyConversation($convId);
+    }
+
+    /**
+     * Spec 095 Fix #2 — confidence=0.65 (which was rejected under the old
+     * 0.75 threshold) MUST NOW be accepted under the new 0.55 threshold.
+     * This unblocks hybrid scams (Wikipedia/grant/invoice composites) that
+     * naturally elicit moderate confidence.
+     *
+     * See: specs/095-pipeline-audit/fix-02-lower-confidence-threshold/spec.md
+     */
+    public function testItAcceptsConfidence065_Fix02_PreviouslyRejected(): void
+    {
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $this->assertNotNull($conversation);
+        $convId = $conversation->getConvId();
+
+        // Need an existing scam type so updateConversationScamType() doesn't fail
+        $existingScamType = $this->scamTypeManager->getAll()[0] ?? null;
+        $this->assertNotNull($existingScamType, 'Need at least one scam type in fixtures');
+
+        $classificationResult = new ClassificationResult(
+            scamTypeCode: $existingScamType->getCode(),
+            confidence: 0.65, // ABOVE new 0.55 threshold — must be accepted now
+            isNewType: false,
+            isNewPersona: false,
+            personaCode: null,
+            reasoning: 'Hybrid scam pattern, moderate confidence'
+        );
+
+        $this->scamClassifier
+            ->expects($this->once())
+            ->method('classify')
+            ->willReturn($classificationResult);
+
+        $result = $this->handler->classifyConversation($convId);
+
+        $this->assertInstanceOf(ClassificationResult::class, $result);
+        $this->assertSame(0.65, $result->confidence);
+        $this->assertSame($existingScamType->getCode(), $result->scamTypeCode);
     }
 
     public function testItReusesExistingPersonaWhenCreatingNewScamType(): void
