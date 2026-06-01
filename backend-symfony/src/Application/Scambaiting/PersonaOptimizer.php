@@ -199,6 +199,19 @@ final readonly class PersonaOptimizer
                 ],
             );
 
+            // Spec 095 Fix #14 — rich introspection event
+            $this->emitBanditDecision(
+                $scamTypeCode,
+                'cold_start',
+                $selectedPersona,
+                $performances,
+                self::EPSILON,
+                false,
+                $totalEffectiveN,
+                null,
+                null,
+            );
+
             return ['persona_code' => $selectedPersona->getPersonaCode(), 'strategy' => 'cold_start'];
         }
 
@@ -238,6 +251,19 @@ final readonly class PersonaOptimizer
                 ],
             );
 
+            // Spec 095 Fix #14 — rich introspection event
+            $this->emitBanditDecision(
+                $scamTypeCode,
+                'exploration',
+                $selectedPersona,
+                $performances,
+                $effectiveEpsilon,
+                $converged,
+                $totalEffectiveN,
+                $random,
+                null,
+            );
+
             return ['persona_code' => $selectedPersona->getPersonaCode(), 'strategy' => 'exploration'];
         }
 
@@ -273,7 +299,118 @@ final readonly class PersonaOptimizer
             ],
         );
 
+        // Spec 095 Fix #14 — rich introspection event. Compute the selected
+        // UCB1 score from the same eligible pool selectBestPersona used.
+        $selectedUcb1 = $selectedPersona->isInColdStart()
+            ? null
+            : $selectedPersona->getAdjustedScore(
+                array_sum(array_map(
+                    static fn (PersonaPerformance $p): int => $p->getEffectiveN(),
+                    array_filter($performances, static fn (PersonaPerformance $p): bool => !$p->isInColdStart()),
+                )),
+                self::EXPLORATION_BONUS_C,
+            );
+
+        $this->emitBanditDecision(
+            $scamTypeCode,
+            'exploitation',
+            $selectedPersona,
+            $performances,
+            $effectiveEpsilon,
+            $converged,
+            $totalEffectiveN,
+            $random,
+            $selectedUcb1,
+        );
+
         return ['persona_code' => $selectedPersona->getPersonaCode(), 'strategy' => 'exploitation'];
+    }
+
+    /**
+     * Spec 095 Fix #14 — emit BANDIT_DECISION audit row carrying the FULL
+     * decision context: selected persona + ALL candidates (with UCB1 scores
+     * when applicable) + random_value + epsilon + converged flag.
+     *
+     * Complements (does not replace) PERSONA_SELECTED. Use case: research-grade
+     * introspection of the bandit's behavior over the post-TRUNCATE learning
+     * window. Lets operators answer "why was X picked over Y at decision T?"
+     * from a single SQL query.
+     *
+     * @param PersonaPerformance[] $performances All active personas with their state
+     */
+    private function emitBanditDecision(
+        string $scamTypeCode,
+        string $strategy,
+        PersonaPerformance $selected,
+        array $performances,
+        float $epsilon,
+        bool $converged,
+        int $totalEffectiveN,
+        ?float $randomValue,
+        ?float $selectedUcb1Score,
+    ): void {
+        if (!$this->auditLogger instanceof AuditLogger) {
+            return;
+        }
+
+        // UCB1 denominator uses only non-cold-start personas (mirrors
+        // selectBestPersona). For the candidate listing we report UCB1 only
+        // for eligible (non-cold-start) personas; cold_start entries get null.
+        $eligibleTotalN = array_sum(array_map(
+            static fn (PersonaPerformance $p): int => $p->getEffectiveN(),
+            array_filter($performances, static fn (PersonaPerformance $p): bool => !$p->isInColdStart()),
+        ));
+
+        $candidates = array_map(
+            function (PersonaPerformance $p) use ($selected, $eligibleTotalN): array {
+                $isColdStart = $p->isInColdStart();
+
+                return [
+                    'persona_code' => $p->getPersonaCode(),
+                    'reward_avg' => $p->getRewardAvg(),
+                    'sessions_count' => $p->getSessionsCount(),
+                    'in_flight_sessions' => $p->getInFlightSessions(),
+                    'ucb1_score' => $isColdStart ? null : $p->getAdjustedScore($eligibleTotalN, self::EXPLORATION_BONUS_C),
+                    'is_cold_start' => $isColdStart,
+                    'was_selected' => $p->getPersonaCode() === $selected->getPersonaCode(),
+                ];
+            },
+            $performances,
+        );
+
+        // Sort candidates by UCB1 desc (cold_start entries last)
+        usort($candidates, static function (array $a, array $b): int {
+            $aScore = $a['ucb1_score'] ?? -INF;
+            $bScore = $b['ucb1_score'] ?? -INF;
+
+            return $bScore <=> $aScore;
+        });
+
+        $this->auditLogger->log(
+            \App\Domain\Audit\AuditEventType::BANDIT_DECISION,
+            'system',
+            'select_persona',
+            'success',
+            'persona',
+            $selected->getPersonaCode(),
+            [
+                'scam_type_code' => $scamTypeCode,
+                'strategy' => $strategy,
+                'epsilon' => $epsilon,
+                'converged' => $converged,
+                'random_value' => $randomValue,
+                'effective_total_sessions' => $totalEffectiveN,
+                'selected' => [
+                    'persona_code' => $selected->getPersonaCode(),
+                    'reward_avg' => $selected->getRewardAvg(),
+                    'sessions_count' => $selected->getSessionsCount(),
+                    'in_flight_sessions' => $selected->getInFlightSessions(),
+                    'ucb1_score' => $selectedUcb1Score,
+                    'is_cold_start' => $selected->isInColdStart(),
+                ],
+                'candidates' => $candidates,
+            ],
+        );
     }
 
     /**

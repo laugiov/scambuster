@@ -73,6 +73,7 @@ final class CefFormatter implements SiemEventFormatterInterface
             'SCAM_CLASSIFIED' => 'Scam Type Classified',
             'REPLY_RETRY' => 'Reply Generation Retry',
             'REPLY_REJECTED' => 'Reply Final Rejection',
+            'BANDIT_DECISION' => 'Bandit Persona Selection Decision',
         };
     }
 
