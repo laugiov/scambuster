@@ -38,6 +38,10 @@ final class SiemSeverityMap
         // Spec 095 Fix #13 — orchestrator final rejection (Medium — fallback
         // emitted means degraded reply quality; worth surfacing on dashboards)
         'REPLY_REJECTED' => 4,
+        // Spec 095 Fix #14 — bandit decision context (Low, research-grade
+        // introspection; fires alongside PERSONA_SELECTED, no operational
+        // signal beyond what PERSONA_SELECTED already carries)
+        'BANDIT_DECISION' => 2,
 
         // Security events (6-9)
         'INJECTION_DETECTED' => 8,

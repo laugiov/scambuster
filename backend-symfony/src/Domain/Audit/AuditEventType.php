@@ -41,6 +41,13 @@ enum AuditEventType: string
     // Carries the exhausting gate name (policy_guard | validator |
     // leak_detector) and attempts count.
     case REPLY_REJECTED = 'REPLY_REJECTED';
+    // Spec 095 Fix #14 — emitted by PersonaOptimizer on every
+    // selectPersonaWithStrategy call. Carries the FULL decision context:
+    // selected persona + all candidates with UCB1 scores + random_value
+    // + epsilon + converged flag. Complements (does not replace)
+    // PERSONA_SELECTED — research-grade introspection for the bandit's
+    // re-learning window after P4 TRUNCATE.
+    case BANDIT_DECISION = 'BANDIT_DECISION';
 
     // Security events
     case INJECTION_DETECTED = 'INJECTION_DETECTED';
