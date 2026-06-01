@@ -145,6 +145,7 @@ final readonly class RetryCoordinator
                 if ($attempt === self::MAX_ATTEMPTS) {
                     $trace->attempts = $attempt;
                     $trace->fallbackUsed = true;
+                    $this->emitReplyRejected($convId, 'policy_guard', $attempt, $personaCode, ['PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts']);
                     $result = $this->buildFallbackResponse(
                         $policyResult['flags'],
                         ['PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts'],
@@ -158,6 +159,8 @@ final readonly class RetryCoordinator
 
                     return $result;
                 }
+
+                $this->emitReplyRetry($convId, 'policy_guard', $attempt, $personaCode, ['flags' => $policyResult['flags']]);
 
                 continue;
             }
@@ -185,6 +188,7 @@ final readonly class RetryCoordinator
                     if ($attempt === self::MAX_ATTEMPTS) {
                         $trace->attempts = $attempt;
                         $trace->fallbackUsed = true;
+                        $this->emitReplyRejected($convId, 'leak_detector', $attempt, $personaCode, ['LLM leak detector rejected all ' . self::MAX_ATTEMPTS . ' attempts']);
                         $result = $this->buildFallbackResponse(
                             ['operational_leak_detected'],
                             ['LLM leak detector rejected all ' . self::MAX_ATTEMPTS . ' attempts'],
@@ -198,6 +202,8 @@ final readonly class RetryCoordinator
 
                         return $result;
                     }
+
+                    $this->emitReplyRetry($convId, 'leak_detector', $attempt, $personaCode, ['reason_detail' => $leakResult->reason]);
 
                     continue;
                 }
@@ -222,6 +228,8 @@ final readonly class RetryCoordinator
                 if ($attempt === self::MAX_ATTEMPTS && $bestPolicyApprovedText !== null) { // @phpstan-ignore-line
                     break; // Use best-of-3
                 }
+
+                $this->emitReplyRetry($convId, 'validator_error', $attempt, $personaCode, ['error' => $e->getMessage()]);
 
                 continue;
             }
@@ -277,6 +285,10 @@ final readonly class RetryCoordinator
                         'ioc_score' => $iocScore,
                         'threshold' => $this->iocThreshold,
                     ]);
+                    $this->emitReplyRetry($convId, 'ioc_threshold', $attempt, $personaCode, [
+                        'ioc_score' => $iocScore,
+                        'threshold' => $this->iocThreshold,
+                    ]);
 
                     continue;
                 }
@@ -311,6 +323,8 @@ final readonly class RetryCoordinator
             if ($attempt === self::MAX_ATTEMPTS && $bestPolicyApprovedText !== null) { // @phpstan-ignore-line
                 break; // Use best-of-3
             }
+
+            $this->emitReplyRetry($convId, 'validator', $attempt, $personaCode, ['reasons' => $validatorResult['reasons']]);
         }
 
         // --- Fallback: best-of-3 or canned ---
@@ -336,6 +350,7 @@ final readonly class RetryCoordinator
 
         $trace->attempts = self::MAX_ATTEMPTS;
         $trace->fallbackUsed = true;
+        $this->emitReplyRejected($convId, 'validator', self::MAX_ATTEMPTS, $personaCode, ['All ' . self::MAX_ATTEMPTS . ' attempts failed validation without a PolicyGuard-approved fallback']);
         $result = $this->buildFallbackResponse(
             [],
             ['All attempts failed'],
@@ -348,6 +363,58 @@ final readonly class RetryCoordinator
         $result['pipeline_trace'] = $trace->toArray();
 
         return $result;
+    }
+
+    /**
+     * Spec 095 Fix #13 — emit REPLY_RETRY audit row each time a generation
+     * attempt is rejected and the loop continues to the next attempt.
+     * Provides DB-queryable per-attempt observability so operators can
+     * answer "why did attempt 2 fail?" without parsing logs.
+     *
+     * @param array<string, mixed> $extras Reason-specific payload (flags,
+     *                                     ioc_score, error message, …)
+     */
+    private function emitReplyRetry(string $convId, string $reason, int $attempt, string $personaCode, array $extras = []): void
+    {
+        $this->auditLogger?->log(
+            eventType: \App\Domain\Audit\AuditEventType::REPLY_RETRY,
+            actorId: 'orchestrator',
+            action: 'retry_attempt',
+            outcome: 'retry',
+            resourceType: 'conversation',
+            resourceId: $convId,
+            details: array_merge([
+                'attempt' => $attempt,
+                'reason' => $reason,
+                'persona_code' => $personaCode,
+            ], $extras),
+            actorType: 'system',
+        );
+    }
+
+    /**
+     * Spec 095 Fix #13 — emit REPLY_REJECTED audit row when all attempts
+     * are exhausted at a gate and the canned fallback response is used.
+     *
+     * @param list<string> $reasons Human-readable rejection reasons
+     */
+    private function emitReplyRejected(string $convId, string $gate, int $attempts, string $personaCode, array $reasons): void
+    {
+        $this->auditLogger?->log(
+            eventType: \App\Domain\Audit\AuditEventType::REPLY_REJECTED,
+            actorId: 'orchestrator',
+            action: 'reject_final',
+            outcome: 'fallback',
+            resourceType: 'conversation',
+            resourceId: $convId,
+            details: [
+                'gate' => $gate,
+                'attempts' => $attempts,
+                'persona_code' => $personaCode,
+                'reasons' => $reasons,
+            ],
+            actorType: 'system',
+        );
     }
 
     // ─── Private helpers (moved from ReplyOrchestrator) ────────────

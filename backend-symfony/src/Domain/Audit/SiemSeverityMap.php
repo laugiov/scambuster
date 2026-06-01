@@ -31,6 +31,13 @@ final class SiemSeverityMap
         'REPLY_SENT' => 3,
         'IOC_EXTRACTED' => 4,
         'CONVERSATION_CLOSED' => 2,
+        // Spec 095 Fix #13 — classifier observability (Low, informational)
+        'SCAM_CLASSIFIED' => 2,
+        // Spec 095 Fix #13 — orchestrator retry trail (Low, informational)
+        'REPLY_RETRY' => 2,
+        // Spec 095 Fix #13 — orchestrator final rejection (Medium — fallback
+        // emitted means degraded reply quality; worth surfacing on dashboards)
+        'REPLY_REJECTED' => 4,
 
         // Security events (6-9)
         'INJECTION_DETECTED' => 8,
