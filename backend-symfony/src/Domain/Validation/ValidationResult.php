@@ -89,9 +89,11 @@ final readonly class ValidationResult
             }
         }
 
-        // Compute verdict: reject if security fails, naturalness < 2, or avg < 2.5
+        // Compute verdict: reject if security fails, naturalness < 2, avg < 2.5,
+        // OR ti_value < 3 (passive/dead-end replies fail TI mission).
+        // Spec 095 Fix #3 — see specs/095-pipeline-audit/fix-03-block-low-ti-value/spec.md
         $avgScore = ($naturalness + $personaFit + $tiValue) / 3;
-        $approved = $securityPass && $naturalness >= 2 && $avgScore >= 2.5;
+        $approved = $securityPass && $naturalness >= 2 && $avgScore >= 2.5 && $tiValue >= 3;
 
         // Spec 080 §3 — parse optional structured correction.
         /** @var array<string, mixed>|null $correctionData */
