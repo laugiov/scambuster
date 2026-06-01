@@ -248,6 +248,27 @@ class ScamClassificationHandlerTest extends TestCase
         $this->assertFalse($result->shouldApply(0.95));
     }
 
+    /**
+     * Spec 095 Fix #2 — Default threshold lowered from 0.75 to 0.55.
+     * shouldApply() with no argument MUST use 0.55 as the new boundary.
+     *
+     * See: specs/095-pipeline-audit/fix-02-lower-confidence-threshold/spec.md
+     */
+    public function test_should_apply_default_threshold_is_055(): void
+    {
+        // Confidence 0.60 is now above the default threshold (0.55) — accepted
+        $accepted = new ClassificationResult('PHISHING', 0.60, false, false, 'generic', 'reason');
+        $this->assertTrue($accepted->shouldApply(), 'shouldApply() with no arg must accept confidence=0.60 (above new default 0.55)');
+
+        // Confidence 0.50 is below the new default threshold — rejected
+        $rejected = new ClassificationResult('PHISHING', 0.50, false, false, 'generic', 'reason');
+        $this->assertFalse($rejected->shouldApply(), 'shouldApply() with no arg must reject confidence=0.50 (below new default 0.55)');
+
+        // Confidence exactly at the boundary (0.55) — accepted (>=)
+        $boundary = new ClassificationResult('PHISHING', 0.55, false, false, 'generic', 'reason');
+        $this->assertTrue($boundary->shouldApply(), 'shouldApply() with no arg must accept confidence=0.55 (exactly at boundary)');
+    }
+
     public function test_classification_result_getters(): void
     {
         $personaData = ['persona_code' => 'test', 'persona_label' => 'Test'];

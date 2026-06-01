@@ -31,7 +31,11 @@ final readonly class ClassificationResult
     /**
      * Check if classification should be applied (confidence threshold)
      */
-    public function shouldApply(float $minConfidence = 0.75): bool
+    /**
+     * Spec 095 Fix #2 — default threshold lowered from 0.75 to 0.55.
+     * See: specs/095-pipeline-audit/fix-02-lower-confidence-threshold/spec.md
+     */
+    public function shouldApply(float $minConfidence = 0.55): bool
     {
         return $this->confidence >= $minConfidence;
     }
