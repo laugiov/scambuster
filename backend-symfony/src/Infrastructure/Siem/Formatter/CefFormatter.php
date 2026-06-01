@@ -70,6 +70,9 @@ final class CefFormatter implements SiemEventFormatterInterface
             'PERSONA_SELECTED' => 'Persona Selected',
             'CONFIG_CHANGED' => 'Configuration Changed',
             'INGEST_PRE_FILTER_HIT' => 'Automated Mail Pre-Filtered',
+            'SCAM_CLASSIFIED' => 'Scam Type Classified',
+            'REPLY_RETRY' => 'Reply Generation Retry',
+            'REPLY_REJECTED' => 'Reply Final Rejection',
         };
     }
 

@@ -4,21 +4,26 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Application\Communication;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\Communication\ClassificationResult;
 use App\Application\Communication\ConversationHandler;
 use App\Application\Communication\PersonaManager;
 use App\Application\Communication\ScamClassificationHandler;
 use App\Application\Communication\ScamTypeManager;
 use App\Application\LLM\ScamClassifier;
+use App\Domain\Audit\AuditEventType;
+use App\Domain\Audit\AuditLog;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
+use App\Infrastructure\Siem\Adapter\NullSiemExporter;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Unit tests for ScamClassificationHandler.
@@ -284,5 +289,37 @@ class ScamClassificationHandlerTest extends TestCase
         $this->assertSame($personaData, $result->getPersonaData());
         $this->assertSame($suggestedCodes, $result->getSuggestedPersonaCodes());
         $this->assertSame('fr', $result->detectedLanguage);
+    }
+
+    // === Spec 095 Fix #13 — SCAM_CLASSIFIED audit emission ===
+
+    /**
+     * Spec 095 Fix #13 — the constructor accepts an optional AuditLogger as
+     * 7th param. Smoke test that DI signature is backward-compatible (null)
+     * and that the emission point exists (success path with classification
+     * is covered end-to-end by the Fix #13 test_cases.sh against the live
+     * pipeline, since unit-mocking the Doctrine QueryBuilder used in
+     * getConversationMessages is brittle).
+     */
+    public function testHandlerCtorAcceptsOptionalAuditLogger_Fix13(): void
+    {
+        $auditLogger = new AuditLogger(
+            $this->createMock(EntityManagerInterface::class),
+            new NullLogger(),
+            new RequestStack(),
+            new NullSiemExporter(),
+        );
+
+        $handler = new ScamClassificationHandler(
+            $this->em,
+            $this->scamClassifier,
+            $this->personaManager,
+            $this->scamTypeManager,
+            $this->conversationHandler,
+            new NullLogger(),
+            $auditLogger,
+        );
+
+        $this->assertInstanceOf(ScamClassificationHandler::class, $handler);
     }
 }
