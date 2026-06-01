@@ -267,6 +267,17 @@ final readonly class RetryCoordinator
                     'ioc_likelihood' => $iocScore,
                     'fallback_used' => false,
                     'pipeline_trace' => $trace->toArray(),
+                    // Spec 095 Fix D — surface validator scores for audit_log
+                    // persistence (ReplyHandler picks them up). Keys are
+                    // guaranteed present by ReplyValidator::validate() contract
+                    // (see ValidationResult::toLegacyArray). See:
+                    // specs/095-pipeline-audit/fix-d-audit-validation-scores/spec.md
+                    'validation_scores' => [
+                        'naturalness' => $validatorResult['naturalness'],
+                        'persona_fit' => $validatorResult['persona_fit'],
+                        'ti_value' => $validatorResult['ti_value'],
+                        'security_pass' => $validatorResult['security_pass'],
+                    ],
                 ];
             }
 
@@ -292,6 +303,8 @@ final readonly class RetryCoordinator
                 'attempts' => self::MAX_ATTEMPTS,
                 'ioc_likelihood' => 0,
                 'pipeline_trace' => $trace->toArray(),
+                // Spec 095 Fix D — no validator approved → scores null
+                'validation_scores' => null,
             ];
         }
 
@@ -599,6 +612,9 @@ final readonly class RetryCoordinator
             'persona' => $personaCode,
             'cost_estimate' => $this->estimateTotalCost($dialogue, $msgCount),
             'attempts' => $attempts,
+            // Spec 095 Fix D — no validator scores available in fallback path
+            'validation_scores' => null,
+            'ioc_likelihood' => null,
         ];
     }
 
