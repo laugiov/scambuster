@@ -204,4 +204,38 @@ class ConversationHistoryServiceTest extends KernelTestCase
         $service = $this->buildService();
         $service->getSenderHistorySummary($data2['conv']->getConvId(), $senderEmail);
     }
+
+    /**
+     * Spec 095 Fix #12 — ConversationHistoryService::generateSummary's
+     * system+user prompt must now be in English (was French pre-Fix #12).
+     * Eliminates LLM code-switching with the 90 % EN corpus.
+     *
+     * See: specs/095-pipeline-audit/fix-12-translate-remaining-prompts/spec.md
+     */
+    public function testGenerateSummaryPromptIsInEnglish_Fix12(): void
+    {
+        $senderEmail = 'scammer-fix12@example.com';
+        $data1 = $this->createConversationWithMessage($senderEmail);
+        $data2 = $this->createConversationWithMessage($senderEmail);
+
+        $captured = '';
+        $this->llmClient->expects($this->once())
+            ->method('chat')
+            ->willReturnCallback(function (array $messages) use (&$captured) {
+                $captured = ($messages[0]['content'] ?? '') . "\n---\n" . ($messages[1]['content'] ?? '');
+
+                return 'Summary.';
+            });
+
+        $service = $this->buildService();
+        $service->getSenderHistorySummary($data2['conv']->getConvId(), $senderEmail);
+
+        // No FR markers
+        $this->assertStringNotContainsString('Tu es un assistant', $captured);
+        $this->assertStringNotContainsString('Voici les messages', $captured);
+        $this->assertStringNotContainsString('Génère un résumé', $captured);
+        // EN markers present
+        $this->assertStringContainsString('You are', $captured);
+        $this->assertStringContainsString('summary', $captured);
+    }
 }

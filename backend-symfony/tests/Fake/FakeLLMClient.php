@@ -14,7 +14,7 @@ final class FakeLLMClient implements LLMClientInterface
         $content = $lastMessage['content'] ?? '';
 
         // Check if this is a campaign profiling prompt
-        if (str_contains($content, 'Profile cette campagne') || str_contains($content, 'e-mails suspects')) {
+        if (str_contains($content, 'Profile this campaign') || str_contains($content, 'suspicious emails')) {
             return <<<'YAML'
 campaign:
   summary: "Test phishing campaign targeting bank customers"
@@ -36,7 +36,7 @@ YAML;
         }
 
         // Check if this is a rule compilation prompt
-        if (str_contains($content, 'règles DSL') || str_contains($content, 'MailGuard DSL')) {
+        if (str_contains($content, 'DSL rules') || str_contains($content, 'MailGuard DSL')) {
             return <<<'DSL'
 RULE scam.test_campaign {\n  WHERE subject.simhash≈"account verification" ±15%\n    AND body.containsAny ["verify account","urgent action"]\n    AND url.domain.age < 14d\n    AND dkim.pass ∈ {false, null}\n  ACTION tag="campaign:test", score+=35\n}
 DSL;

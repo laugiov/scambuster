@@ -64,7 +64,7 @@ final class ConversationAnalyzerMutationTest extends TestCase
             'repetitions_detected' => [],
             'strategic_analysis' => 'Test analysis',
             'missing_iocs' => [],
-            'tone_recommendation' => 'inquiet',
+            'tone_recommendation' => 'worried',
             'strategic_suggestions' => [],
             'instructions' => [
                 'interdictions' => [],
@@ -79,17 +79,17 @@ final class ConversationAnalyzerMutationTest extends TestCase
 
     // === Generic instructions (< 2 messages) ===
 
-    public function test_generic_tone_is_inquiet(): void
+    public function test_generic_tone_is_worried(): void
     {
-        // Kills: 'inquiet' -> '' or other value
+        // Kills: 'worried' -> '' or other value
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(1));
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertSame('worried', $result['tone_recommendation']);
     }
 
-    public function test_generic_analysis_text_contains_pas_assez(): void
+    public function test_generic_analysis_text_contains_not_enough(): void
     {
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(1));
-        $this->assertStringContainsString('Pas assez de messages', $result['analysis']);
+        $this->assertStringContainsString('Not enough messages', $result['analysis']);
     }
 
     public function test_generic_repetitions_detected_is_empty_array(): void
@@ -145,14 +145,14 @@ final class ConversationAnalyzerMutationTest extends TestCase
     public function test_0_messages_returns_generic(): void
     {
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(0));
-        $this->assertSame('inquiet', $result['tone_recommendation']);
-        $this->assertStringContainsString('Pas assez', $result['analysis']);
+        $this->assertSame('worried', $result['tone_recommendation']);
+        $this->assertStringContainsString('Not enough', $result['analysis']);
     }
 
     public function test_1_message_returns_generic(): void
     {
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(1));
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertSame('worried', $result['tone_recommendation']);
     }
 
     public function test_2_messages_calls_llm_not_generic(): void
@@ -163,7 +163,7 @@ final class ConversationAnalyzerMutationTest extends TestCase
             ->willReturn($this->validLlmResponse());
 
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(2));
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertSame('worried', $result['tone_recommendation']);
     }
 
     // === Cache key determinism ===
@@ -200,13 +200,13 @@ final class ConversationAnalyzerMutationTest extends TestCase
 
     // === IOC summary formatting ===
 
-    public function test_no_iocs_shows_aucun_in_prompt(): void
+    public function test_no_iocs_shows_no_ioc_in_prompt(): void
     {
         $this->llmClient->expects($this->once())
             ->method('chat')
             ->with(
                 $this->callback(function ($messages) {
-                    $this->assertStringContainsString('Aucun IOC extrait', $messages[0]['content']);
+                    $this->assertStringContainsString('No IOC extracted yet', $messages[0]['content']);
                     return true;
                 }),
                 $this->anything()
@@ -258,13 +258,13 @@ final class ConversationAnalyzerMutationTest extends TestCase
         $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(2));
     }
 
-    public function test_out_direction_labeled_victime(): void
+    public function test_out_direction_labeled_victim(): void
     {
         $this->llmClient->expects($this->once())
             ->method('chat')
             ->with(
                 $this->callback(function ($messages) {
-                    $this->assertStringContainsString('VICTIME', $messages[0]['content']);
+                    $this->assertStringContainsString('VICTIM', $messages[0]['content']);
                     return true;
                 }),
                 $this->anything()
@@ -283,7 +283,7 @@ final class ConversationAnalyzerMutationTest extends TestCase
             ->method('chat')
             ->with(
                 $this->callback(function ($messages) {
-                    $this->assertStringNotContainsString('RÉSUMÉ', $messages[0]['content']);
+                    $this->assertStringNotContainsString('SUMMARY', $messages[0]['content']);
                     return true;
                 }),
                 $this->anything()
@@ -299,7 +299,7 @@ final class ConversationAnalyzerMutationTest extends TestCase
             ->method('chat')
             ->with(
                 $this->callback(function ($messages) {
-                    $this->assertStringContainsString('RÉSUMÉ', $messages[0]['content']);
+                    $this->assertStringContainsString('SUMMARY', $messages[0]['content']);
                     return true;
                 }),
                 $this->anything()
@@ -459,13 +459,13 @@ final class ConversationAnalyzerMutationTest extends TestCase
     public function test_parse_response_with_markdown_json_block(): void
     {
         $llmResponse = '```json
-{"strategic_analysis": "test", "repetitions_detected": [], "tone_recommendation": "confiant", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": ["vary"]}}
+{"strategic_analysis": "test", "repetitions_detected": [], "tone_recommendation": "confident", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": ["vary"]}}
 ```';
 
         $this->llmClient->method('chat')->willReturn($llmResponse);
 
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(2));
-        $this->assertSame('confiant', $result['tone_recommendation']);
+        $this->assertSame('confident', $result['tone_recommendation']);
     }
 
     public function test_parse_response_missing_instructions_key_falls_to_generic(): void
@@ -475,7 +475,7 @@ final class ConversationAnalyzerMutationTest extends TestCase
 
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(2));
         // Falls back to generic
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertSame('worried', $result['tone_recommendation']);
     }
 
     public function test_parse_response_invalid_instructions_type_falls_to_generic(): void
@@ -485,7 +485,7 @@ final class ConversationAnalyzerMutationTest extends TestCase
         $this->llmClient->method('chat')->willReturn($llmResponse);
 
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(2));
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertSame('worried', $result['tone_recommendation']);
     }
 
     public function test_parse_response_missing_obligations_falls_to_generic(): void
@@ -494,7 +494,7 @@ final class ConversationAnalyzerMutationTest extends TestCase
         $this->llmClient->method('chat')->willReturn($llmResponse);
 
         $result = $this->analyzer->analyzeAndGenerateInstructions($this->contextWith(2));
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertSame('worried', $result['tone_recommendation']);
     }
 
     // === Prompt content verification ===

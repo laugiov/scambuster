@@ -39,7 +39,7 @@ class MockLLMClientTest extends TestCase
     public function testReturnsCampaignProfileForCampaignContent(): void
     {
         $messages = [
-            ['role' => 'user', 'content' => 'Profile cette campagne de phishing'],
+            ['role' => 'user', 'content' => 'Profile this campaign of phishing emails'],
         ];
 
         $result = $this->client->chat($messages);
@@ -52,7 +52,7 @@ class MockLLMClientTest extends TestCase
     public function testReturnsCampaignProfileForSuspiciousEmailContent(): void
     {
         $messages = [
-            ['role' => 'user', 'content' => 'Voici des e-mails suspects a analyser'],
+            ['role' => 'user', 'content' => 'Here are suspicious emails to analyze'],
         ];
 
         $result = $this->client->chat($messages);
@@ -63,7 +63,7 @@ class MockLLMClientTest extends TestCase
     public function testReturnsCompiledRuleForDslContent(): void
     {
         $messages = [
-            ['role' => 'user', 'content' => 'Compile les règles DSL suivantes'],
+            ['role' => 'user', 'content' => 'Compile the following DSL rules'],
         ];
 
         $result = $this->client->chat($messages);

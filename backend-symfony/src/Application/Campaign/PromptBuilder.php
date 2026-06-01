@@ -9,40 +9,40 @@ use App\Domain\Communication\Message;
 final class PromptBuilder
 {
     /**
-     * Construit les prompts pour le profiling de campagne.
+     * Builds prompts for campaign profiling.
      *
-     * @param array<Message> $sampleMessages Messages de la campagne (3-10 max)
+     * @param array<Message> $sampleMessages Campaign messages (3-10 max)
      *
      * @return array{system: string, user: string}
      */
     public function buildCampaignProfilerPrompts(array $sampleMessages): array
     {
         $systemPrompt = <<<'PROMPT'
-Tu es un analyste de Threat Intelligence spécialisé dans les campagnes de phishing/scam.
+You are a Threat Intelligence analyst specialized in phishing/scam campaigns.
 
-À partir d'un échantillon d'e-mails suspects, tu dois :
+From a sample of suspicious emails, you must:
 
-1. **Décrire** la campagne (tactiques, cibles, CTA, indices techniques)
-2. **Prédire** les variantes probables (nouveaux sujets, display names, formes d'URL)
+1. **Describe** the campaign (tactics, targets, CTA, technical clues)
+2. **Predict** likely variants (new subjects, display names, URL shapes)
 
-⚠️ CONTRAINTES STRICTES :
-- Sortie **YAML strict uniquement**
-- **AUCUNE PII** (pas d'adresses email, téléphones en clair)
-- Utiliser "lookalike" pour marques (ex. "banque-lookalike", pas "BNP Paribas")
-- Focus sur **patterns réutilisables**, pas sur instances spécifiques
+⚠️ STRICT CONSTRAINTS:
+- Output **strict YAML only**
+- **NO PII** (no email addresses, no phone numbers in clear)
+- Use "lookalike" for brands (e.g., "bank-lookalike", not "BNP Paribas")
+- Focus on **reusable patterns**, not specific instances
 
-Format de sortie attendu :
+Expected output format:
 
 campaign:
-  summary: "Description courte (1 phrase)"
-  tactics: ["tactique1", "tactique2"]
-  target_audience: "qui est visé"
-  cta: "call-to-action principale"
+  summary: "Short description (1 sentence)"
+  tactics: ["tactic1", "tactic2"]
+  target_audience: "who is targeted"
+  cta: "primary call-to-action"
   risk: 1-5
 
 variants:
-  subjects: ["variante1", "variante2"]
-  display_names: ["nom1", "nom2"]
+  subjects: ["variant1", "variant2"]
+  display_names: ["name1", "name2"]
   url_shapes: ["pattern1", "pattern2"]
 
 infra:
@@ -52,7 +52,7 @@ infra:
 PROMPT;
 
         $userPrompt = sprintf(
-            "Voici un échantillon de %d e-mails suspects regroupés en cluster :\n\n",
+            "Here is a sample of %d suspicious emails grouped in a cluster:\n\n",
             count($sampleMessages)
         );
 
@@ -62,7 +62,7 @@ PROMPT;
             $sanitizedBody = $this->defangUrlsInText($sanitizedBody);
 
             $userPrompt .= sprintf(
-                "---\nMessage %d:\nSujet: %s\nDe: %s\nCorps (extrait): %s\nURL(s): %s\nDKIM: %s\n---\n\n",
+                "---\nMessage %d:\nSubject: %s\nFrom: %s\nBody (excerpt): %s\nURL(s): %s\nDKIM: %s\n---\n\n",
                 $i + 1,
                 $message->getSubject() ?: 'no subject',
                 $this->maskEmail(\is_string($message->getHeaders()['from'] ?? null) ? $message->getHeaders()['from'] : 'unknown'),
@@ -72,7 +72,7 @@ PROMPT;
             );
         }
 
-        $userPrompt .= "\nProfile cette campagne et génère le YAML de sortie.";
+        $userPrompt .= "\nProfile this campaign and generate the output YAML.";
 
         return [
             'system' => $systemPrompt,
@@ -91,37 +91,37 @@ PROMPT;
     public function buildRuleCompilerPrompts(string $profileYaml, array $examples): array
     {
         $systemPrompt = <<<'PROMPT'
-Tu es un expert en génération de règles de détection au format **MailGuard DSL**.
+You are an expert in generating detection rules in the **MailGuard DSL** format.
 
-À partir d'un profil YAML de campagne, génère **1 à 3 règles DSL**.
+From a YAML campaign profile, generate **1 to 3 DSL rules**.
 
-⚠️ CONTRAINTES STRICTES :
-- Syntaxe DSL **stricte** : RULE { WHERE ... ACTION ... }
-- **Aucune PII**
-- Champs autorisés uniquement : subject, body, url.domain.age, sender.display_name, dkim.pass, spf.pass
-- Opérateurs autorisés : simhash≈, containsAny, fuzzy ∈, <, >, =, ∈
-- Sortie **DSL pur** (pas d'explication, pas de markdown)
+⚠️ STRICT CONSTRAINTS:
+- **Strict** DSL syntax: RULE { WHERE ... ACTION ... }
+- **No PII**
+- Allowed fields only: subject, body, url.domain.age, sender.display_name, dkim.pass, spf.pass
+- Allowed operators: simhash≈, containsAny, fuzzy ∈, <, >, =, ∈
+- **Pure DSL** output (no explanation, no markdown)
 
-Exemple de sortie attendue :
+Expected output example:
 
 RULE scam.bank_otp_2025_10 {
-  WHERE subject.simhash≈"avis important" ±15%
-    AND body.containsAny ["confirmer identité","vérifier compte"]
+  WHERE subject.simhash≈"important notice" ±15%
+    AND body.containsAny ["confirm identity","verify account"]
     AND url.domain.age < 14d
     AND dkim.pass ∈ {false, null}
   ACTION tag="campaign:bank_otp_2025_10", score+=40
 }
 PROMPT;
 
-        $userPrompt = "Profil YAML de la campagne :\n\n" . $profileYaml . "\n\n---\n\n";
+        $userPrompt = "Campaign YAML profile:\n\n" . $profileYaml . "\n\n---\n\n";
 
         if (!empty($examples['pos'])) {
-            $userPrompt .= "Exemples positifs (doivent matcher) :\n";
+            $userPrompt .= "Positive examples (must match):\n";
 
             foreach ($examples['pos'] as $ex) {
                 /** @var array{subject?: string, body?: string, dkim?: string} $ex */
                 $userPrompt .= sprintf(
-                    "- Sujet: %s, Body: %s, DKIM: %s\n",
+                    "- Subject: %s, Body: %s, DKIM: %s\n",
                     $ex['subject'] ?? 'N/A',
                     $this->truncateText($ex['body'] ?? '', 50),
                     $ex['dkim'] ?? 'N/A'
@@ -131,12 +131,12 @@ PROMPT;
         }
 
         if (!empty($examples['neg'])) {
-            $userPrompt .= "Exemples négatifs (ne doivent PAS matcher) :\n";
+            $userPrompt .= "Negative examples (must NOT match):\n";
 
             foreach ($examples['neg'] as $ex) {
                 /** @var array{subject?: string, body?: string, dkim?: string} $ex */
                 $userPrompt .= sprintf(
-                    "- Sujet: %s, Body: %s, DKIM: %s\n",
+                    "- Subject: %s, Body: %s, DKIM: %s\n",
                     $ex['subject'] ?? 'N/A',
                     $this->truncateText($ex['body'] ?? '', 50),
                     $ex['dkim'] ?? 'N/A'
@@ -145,7 +145,7 @@ PROMPT;
             $userPrompt .= "\n";
         }
 
-        $userPrompt .= "---\n\nGénère les règles DSL MailGuard.";
+        $userPrompt .= "---\n\nGenerate the MailGuard DSL rules.";
 
         return [
             'system' => $systemPrompt,
@@ -168,7 +168,7 @@ PROMPT;
     }
 
     /**
-     * Masque une adresse email (RGPD).
+     * Masks an email address (GDPR).
      */
     private function maskEmail(string $email): string
     {
@@ -176,7 +176,7 @@ PROMPT;
             $local = $matches[1];
             $domain = $matches[2];
 
-            // Masquer local part
+            // Mask local part
             $maskedLocal = substr($local, 0, 2) . '***';
 
             return $maskedLocal . '@' . $domain;
@@ -186,7 +186,7 @@ PROMPT;
     }
 
     /**
-     * Masque toutes les adresses emails dans un texte (RGPD).
+     * Masks all email addresses in a text (GDPR).
      */
     private function maskEmailsInText(string $text): string
     {
@@ -206,7 +206,7 @@ PROMPT;
     }
 
     /**
-     * Extrait les URLs d'un texte.
+     * Extracts URLs from a text.
      *
      * @return array<string>
      */
