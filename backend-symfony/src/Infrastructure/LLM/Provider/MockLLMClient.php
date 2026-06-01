@@ -20,11 +20,11 @@ final class MockLLMClient implements LLMClientInterface
         $lastMessage = end($messages);
         $content = $lastMessage['content'] ?? '';
 
-        if (str_contains($content, 'Profile cette campagne') || str_contains($content, 'e-mails suspects')) {
+        if (str_contains($content, 'Profile this campaign') || str_contains($content, 'suspicious emails')) {
             return $this->campaignProfile();
         }
 
-        if (str_contains($content, 'règles DSL') || str_contains($content, 'MailGuard DSL')) {
+        if (str_contains($content, 'DSL rules') || str_contains($content, 'MailGuard DSL')) {
             return $this->compiledRule();
         }
 

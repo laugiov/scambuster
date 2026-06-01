@@ -197,24 +197,24 @@ final readonly class ConversationHistoryService
         $formattedMessages = $this->formatMessagesForSummary($messages);
 
         $systemPrompt = <<<'PROMPT'
-Tu es un assistant qui résume des conversations email entre un scammer et une victime potentielle (un honeypot anti-scam).
-Ton rôle est de créer un résumé très concis (3-4 phrases maximum) des échanges précédents pour donner du contexte au système de génération de réponses.
+You are an assistant that summarizes email conversations between a scammer and a potential victim (an anti-scam honeypot).
+Your role is to produce a very concise summary (3-4 sentences maximum) of prior exchanges to provide context to the reply generation system.
 
-Concentre-toi sur :
-- Les thèmes et tactiques utilisés par le scammer
-- Les promesses ou demandes faites
-- L'évolution du ton et de l'urgence
-- Les points clés à retenir pour la conversation actuelle
+Focus on:
+- Themes and tactics used by the scammer
+- Promises or requests made
+- Evolution of tone and urgency
+- Key points to remember for the current conversation
 
-Sois factuel, concis et pertinent. Évite les détails superflus.
+Be factual, concise, and relevant. Avoid superfluous detail.
 PROMPT;
 
         $userPrompt = <<<PROMPT
-Voici les messages de conversations précédentes entre le scammer ({$senderEmail}) et notre système de honeypot :
+Here are the messages from prior conversations between the scammer ({$senderEmail}) and our honeypot system:
 
 {$formattedMessages}
 
-Génère un résumé concis (3-4 phrases maximum) de ces échanges précédents.
+Generate a concise summary (3-4 sentences maximum) of these prior exchanges.
 PROMPT;
 
         $messages = [

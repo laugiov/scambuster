@@ -35,7 +35,7 @@ class PolicyGuardConfigTest extends TestCase
 
     public function testBotAccusationViaToneRecommendation(): void
     {
-        $config = PolicyGuardConfig::fromContext(['tone_recommendation' => 'déstabilisé']);
+        $config = PolicyGuardConfig::fromContext(['tone_recommendation' => 'unsettled']);
 
         $this->assertSame(20, $config->minWords);
         $this->assertSame(70, $config->maxWords);
@@ -51,7 +51,7 @@ class PolicyGuardConfigTest extends TestCase
 
     public function testAggressionViaToneRecommendation(): void
     {
-        $config = PolicyGuardConfig::fromContext(['tone_recommendation' => 'offensé']);
+        $config = PolicyGuardConfig::fromContext(['tone_recommendation' => 'offended']);
 
         $this->assertSame(25, $config->minWords);
         $this->assertSame(90, $config->maxWords);

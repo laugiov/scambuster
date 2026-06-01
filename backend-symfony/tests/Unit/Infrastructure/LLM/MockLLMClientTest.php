@@ -26,14 +26,14 @@ class MockLLMClientTest extends TestCase
 
     public function test_returns_campaign_profile_for_profile_request(): void
     {
-        $result = $this->client->chat([['role' => 'user', 'content' => 'Profile cette campagne de phishing']]);
+        $result = $this->client->chat([['role' => 'user', 'content' => 'Profile this campaign of phishing emails']]);
         $this->assertStringContainsString('campaign:', $result);
         $this->assertStringContainsString('tactics:', $result);
     }
 
     public function test_returns_compiled_rule_for_dsl_request(): void
     {
-        $result = $this->client->chat([['role' => 'user', 'content' => 'Compile des règles DSL pour cette campagne']]);
+        $result = $this->client->chat([['role' => 'user', 'content' => 'Compile DSL rules for this campaign']]);
         $this->assertStringContainsString('RULE', $result);
         $this->assertStringContainsString('WHERE', $result);
     }
