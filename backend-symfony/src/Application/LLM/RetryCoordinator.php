@@ -255,6 +255,32 @@ final readonly class RetryCoordinator
                     'threshold' => $this->iocThreshold,
                 ]));
 
+                // Spec 095 Fix #8 — Gate on iocThreshold. Retry if score is too
+                // low AND attempts remain. On the final attempt, accept the
+                // reply anyway (a validator-approved-but-passive reply is
+                // better than a canned fallback). Fix D's audit log
+                // (ioc_likelihood field) makes the low score visible for
+                // post-hoc monitoring even when we accept the passive reply.
+                // See: specs/095-pipeline-audit/fix-08-wire-ioc-threshold/spec.md
+                if ($iocScore < $this->iocThreshold && $attempt < self::MAX_ATTEMPTS) {
+                    $dialogue[] = [
+                        'role' => 'ioc_scorer',
+                        'attempt' => $attempt,
+                        'approved' => false,
+                        'score' => $iocScore,
+                        'threshold' => $this->iocThreshold,
+                        'reason' => "IOC likelihood {$iocScore} below threshold {$this->iocThreshold} — reply too passive on threat intelligence collection",
+                    ];
+                    $this->logger->info('[RetryCoordinator] IOC threshold not met, retrying', [
+                        'conversation_id' => $convId,
+                        'attempt' => $attempt,
+                        'ioc_score' => $iocScore,
+                        'threshold' => $this->iocThreshold,
+                    ]);
+
+                    continue;
+                }
+
                 return [
                     'text' => $generatedText,
                     'approved' => true,

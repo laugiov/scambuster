@@ -59,6 +59,12 @@ class ReplyOrchestratorTest extends TestCase
             $this->logger
         );
 
+        // Spec 095 Fix #8 — iocThreshold set to 0 in this test fixture because
+        // these tests validate the orchestrator's flow (approve/fallback/retry
+        // on PolicyGuard or validator) NOT the IOC threshold gating. Setting
+        // to 0 keeps the existing chat() call-count expectations stable.
+        // The IOC threshold logic is covered by dedicated tests in
+        // RetryCoordinatorTest::test_low_ioc_score_triggers_retry_Fix08.
         $this->orchestrator = new ReplyOrchestrator(
             $this->llmClient,
             $this->promptBuilder,
@@ -66,7 +72,7 @@ class ReplyOrchestratorTest extends TestCase
             $this->replyValidator,
             $this->iocScorer,
             $this->logger,
-            60,
+            0, // Spec 095 Fix #8 — disable IOC threshold for legacy flow tests
             null,
             new \App\Application\LLM\CostEstimator(),
         );
@@ -85,10 +91,17 @@ class ReplyOrchestratorTest extends TestCase
 
         $generatedText = str_repeat('Bonjour, je suis intéressé par votre offre. ', 15);
 
+        // Spec 095 Fix D — validator response now also exposes the per-axis
+        // scores (consumed by ReplyHandler audit_log). Existing tests update
+        // their mock response shape to include the new fields.
         $validatorResponse = json_encode([
             'approved' => true,
             'reasons' => [],
             'fix_suggestion' => null,
+            'naturalness' => 4,
+            'persona_fit' => 4,
+            'ti_value' => 4,
+            'security_pass' => true,
         ]);
 
         $this->llmClient

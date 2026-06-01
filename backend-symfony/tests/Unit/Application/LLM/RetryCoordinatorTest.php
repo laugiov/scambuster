@@ -256,4 +256,94 @@ class RetryCoordinatorTest extends TestCase
         // CostEstimator is always present in createCoordinator, so cost > 0
         $this->assertIsFloat($result['cost_estimate']);
     }
+
+    // ─── Spec 095 Fix #8 — wire iocThreshold ─────────────────────────────
+
+    /**
+     * Spec 095 Fix #8 — when the IOC likelihood score is below the
+     * threshold (default 60), the orchestrator MUST retry. Without Fix #8
+     * the score was computed but ignored — passive replies were approved.
+     *
+     * Test setup: attempt 1 returns passive text (no `?`, generic — score
+     * far below 60). Attempt 2 returns active text (with channel keywords
+     * + question — score ≥ 60). Validator approves both. Expected:
+     * orchestrator retries on attempt 1, returns on attempt 2.
+     *
+     * See: specs/095-pipeline-audit/fix-08-wire-ioc-threshold/spec.md
+     */
+    public function test_low_ioc_score_triggers_retry_Fix08(): void
+    {
+        // Attempt 1: passive text. ~70 words, no question, no channel kw.
+        $passiveText = 'Hello there. Thank you for your interesting message. I appreciate you reaching out to me about this topic. ' .
+            'I will think about what you have shared with me carefully and consider all aspects of this matter. ' .
+            'I see your point and I understand the situation you are describing today. I will let you know soon.';
+
+        // Attempt 2: active text with channel keyword + question, no proactive
+        // patterns (avoid "I can send/share" which triggers -20 penalty).
+        // Must be ≥ 50 words to pass PolicyGuard.
+        $activeText = 'Hello again about your interesting proposal which sounds genuinely intriguing to me right now today. ' .
+            'Could you please tell me your bank account number, the wire routing details, and your beneficiary name? ' .
+            'These extra details would really help me prepare everything carefully on my end properly before we proceed any further together with the next steps later today indeed.';
+
+        $generatorCallCount = 0;
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$generatorCallCount, $passiveText, $activeText) {
+            $systemContent = $messages[0]['content'] ?? '';
+            // Validator call: always approve with ti_value >= 3
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
+            }
+            // Generator call: passive on attempt 1, active on attempt 2+
+            $generatorCallCount++;
+
+            return $generatorCallCount === 1 ? $passiveText : $activeText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // The KEY assertion for Fix #8: retry happened (attempts >= 2).
+        // Without Fix #8, the orchestrator would have returned at attempt 1
+        // with the passive reply. With Fix #8 wired, the low IOC score
+        // triggers a retry.
+        $this->assertTrue($result['approved']);
+        $this->assertFalse($result['fallback_used'], 'Canned fallback must not fire — the active reply or best-of-3 is returned');
+        $this->assertGreaterThanOrEqual(2, $result['attempts'], 'Orchestrator MUST retry when IOC score is below threshold (Fix #8 invariant)');
+    }
+
+    /**
+     * Spec 095 Fix #8 — when ALL 3 attempts score below the IOC threshold,
+     * the orchestrator returns the last reply ANYWAY (not a canned
+     * fallback). This avoids dropping a validator-approved reply just
+     * because the IOC score is consistently passive. Fix D's audit log
+     * captures the low score for post-hoc monitoring.
+     */
+    public function test_max_attempts_with_low_ioc_returns_anyway_Fix08(): void
+    {
+        // Always passive text — IOC score will be low on all 3 attempts.
+        $passiveText = 'Hello there. Thank you for your interesting message. I appreciate you reaching out to me about this topic. ' .
+            'I will think about what you have shared with me carefully and consider all aspects of this matter. ' .
+            'I see your point and I understand the situation you are describing today. I will let you know soon.';
+
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use ($passiveText) {
+            $systemContent = $messages[0]['content'] ?? '';
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
+            }
+
+            return $passiveText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        // After 3 attempts with persistently-low IOC scores: orchestrator
+        // exhausts retries and falls into best-of-3 path (PolicyGuard-approved
+        // text returned, fallback_used=false). The IOC threshold gate doesn't
+        // degrade behavior into a canned fallback — the validator-approved
+        // reply is still emitted. Fix D's audit log captures the low score
+        // for post-hoc monitoring.
+        $this->assertTrue($result['approved']);
+        $this->assertFalse($result['fallback_used'], 'No canned fallback — best-of-3 returns the policy-approved text');
+        $this->assertSame(3, $result['attempts'], 'Orchestrator must use all 3 attempts before falling back to best-of-3');
+    }
 }
