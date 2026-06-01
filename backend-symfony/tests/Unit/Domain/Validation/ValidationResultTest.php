@@ -280,6 +280,33 @@ class ValidationResultTest extends TestCase
         $this->assertSame('Improve tone', $legacy['fix_suggestion']);
     }
 
+    /**
+     * Spec 095 Fix D — toLegacyArray() now includes the 4 score fields so that
+     * RetryCoordinator and downstream consumers (ReplyHandler audit_log) can
+     * persist them. Backward-compatible extension — existing callers ignore
+     * unknown keys.
+     *
+     * See: specs/095-pipeline-audit/fix-d-audit-validation-scores/spec.md
+     */
+    public function testToLegacyArrayIncludesScores_FixD(): void
+    {
+        $result = new ValidationResult(
+            approved: true,
+            naturalness: 4,
+            personaFit: 3,
+            tiValue: 5,
+            securityPass: true,
+            feedback: 'Good',
+        );
+
+        $legacy = $result->toLegacyArray();
+
+        $this->assertSame(4, $legacy['naturalness'], 'naturalness must be exposed via toLegacyArray');
+        $this->assertSame(3, $legacy['persona_fit'], 'persona_fit must be exposed via toLegacyArray');
+        $this->assertSame(5, $legacy['ti_value'], 'ti_value must be exposed via toLegacyArray');
+        $this->assertTrue($legacy['security_pass'], 'security_pass must be exposed via toLegacyArray');
+    }
+
     public function testFromLLMResponseWithFixSuggestion(): void
     {
         $data = [

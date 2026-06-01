@@ -1037,17 +1037,29 @@ final class RetryCoordinatorMutationTest extends TestCase
         $this->assertSame('gpt-4o', $result['model']);
     }
 
-    // === ioc_likelihood key absent on fallback ===
+    // === ioc_likelihood key always present (Spec 095 Fix D) ===
 
-    public function test_fallback_has_no_ioc_likelihood(): void
+    /**
+     * Spec 095 Fix D — Updated: ioc_likelihood is now always present in the
+     * result (even on fallback), set to null when no score was computed.
+     * This gives a consistent JSON shape for audit_log consumers
+     * (ReplyHandler), avoiding "undefined key" handling at every call site.
+     *
+     * Old behavior: fallback response omitted ioc_likelihood entirely.
+     * New behavior: fallback response includes ioc_likelihood = null.
+     *
+     * See: specs/095-pipeline-audit/fix-d-audit-validation-scores/spec.md
+     */
+    public function test_fallback_has_null_ioc_likelihood_FixD(): void
     {
         $this->llmClient->method('chat')->willReturn('Hi');
 
         $coordinator = $this->createCoordinator();
         $result = $coordinator->execute($this->baseContext(), 'generic_user');
 
-        // Fallback response does not include ioc_likelihood key
-        $this->assertArrayNotHasKey('ioc_likelihood', $result);
+        // Spec 095 Fix D — key is present with null value for consistent shape
+        $this->assertArrayHasKey('ioc_likelihood', $result, 'Key must be present for consistent shape');
+        $this->assertNull($result['ioc_likelihood'], 'ioc_likelihood is null on fallback (no validator score computed)');
     }
 
     // === Attempt logging includes conversation_id ===

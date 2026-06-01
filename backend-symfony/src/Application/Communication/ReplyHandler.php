@@ -274,6 +274,11 @@ class ReplyHandler
         $this->em->flush();
 
         // Audit trail: log REPLY_GENERATED event
+        // Spec 095 Fix D — include validator scores (naturalness/persona_fit/
+        // ti_value/security_pass) and IOC likelihood for observability.
+        // See: specs/095-pipeline-audit/fix-d-audit-validation-scores/spec.md
+        /** @var array<string, int|bool|null>|null $validationScores */
+        $validationScores = $llmResult['validation_scores'] ?? null;
         $this->auditLogger?->log(
             \App\Domain\Audit\AuditEventType::REPLY_GENERATED,
             $convId,
@@ -288,6 +293,12 @@ class ReplyHandler
                 'attempts' => $llmResult['attempts'] ?? 1,
                 'detected_language' => $context['detected_language'],
                 'fallback_used' => $llmResult['fallback_used'] ?? false,
+                // Spec 095 Fix D — validator scores + IOC likelihood
+                'naturalness' => $validationScores['naturalness'] ?? null,
+                'persona_fit' => $validationScores['persona_fit'] ?? null,
+                'ti_value' => $validationScores['ti_value'] ?? null,
+                'security_pass' => $validationScores['security_pass'] ?? null,
+                'ioc_likelihood' => $llmResult['ioc_likelihood'] ?? null,
             ],
         );
 
