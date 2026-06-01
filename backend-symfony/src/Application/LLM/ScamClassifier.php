@@ -167,27 +167,31 @@ class ScamClassifier
 
         // Spec 095 Fix #1 — Prompt no longer encourages new type creation.
         // The LLM must map every conversation to a known code OR use UNKNOWN.
+        // Spec 095 Fix #4 — Prompt translated FR → EN to eliminate
+        // code-switching with the 90 % EN corpus. The 0.55 confidence
+        // threshold reference also synced with Fix #2.
         // See: specs/095-pipeline-audit/fix-01-disable-new-scam-types/spec.md
+        //      specs/095-pipeline-audit/fix-04-translate-classifier-prompt/spec.md
         $systemPrompt = <<<PROMPT
-Vous êtes un expert en cybersécurité spécialisé dans la détection de scams.
+You are a cybersecurity expert specialized in scam detection.
 
-Analysez le contenu de cette conversation et classifiez le type de scam.
+Analyze the conversation below and classify the scam type.
 
-Types de scams connus : {$knownTypesList}
+Known scam types: {$knownTypesList}
 
-IMPORTANT — N'INVENTEZ AUCUN code. Utilisez UNIQUEMENT un code de la liste ci-dessus. Si aucun type connu ne correspond, utilisez scam_type_code='UNKNOWN'. Le champ is_new_type DOIT TOUJOURS être false.
+IMPORTANT — Use ONLY a code from the list above. Never invent a code. If no known type matches, use scam_type_code='UNKNOWN'. The is_new_type field MUST ALWAYS be false.
 
-Personas disponibles (27 personas avec prompts déjà optimisés) :
+Available personas (27 personas with already-optimized prompts):
 {$personasListText}
 
-Répondez au format JSON strict suivant :
+Respond in the following strict JSON format:
 {
-  "scam_type_code": "code_du_type",
+  "scam_type_code": "type_code",
   "confidence": 0.85,
   "is_new_type": false,
   "label_en": "Label in English",
   "label_fr": "Label en français",
-  "reasoning": "Explication courte de votre décision",
+  "reasoning": "Short explanation of your decision",
   "suggested_persona_codes": null,
   "detected_language": "en",
   "secondary_types": [
@@ -196,26 +200,26 @@ Répondez au format JSON strict suivant :
   ]
 }
 
-Règle pour detected_language: ISO 639-1 code (en, fr, es, de, pt, it, nl, etc.) de la langue PRINCIPALE du contenu du message scam. Basez-vous sur le texte du message, PAS sur les headers.
+Rule for detected_language: ISO 639-1 code (en, fr, es, de, pt, it, nl, etc.) of the PRIMARY language of the scam message content. Base it on the message text, NOT the headers.
 
-Règles :
-1. Utilisez UNIQUEMENT un code de la liste des types connus (ou 'UNKNOWN' si aucun ne correspond)
-2. is_new_type DOIT TOUJOURS être false — ne créez JAMAIS de code en dehors de la liste connue
-3. suggested_persona_codes DOIT TOUJOURS être null — la sélection de persona est gérée séparément
-4. confidence entre 0 et 1 (minimum 0.75 pour être accepté)
-5. reasoning max 200 caractères
+Rules:
+1. Use ONLY a code from the list of known types (or 'UNKNOWN' if none matches)
+2. is_new_type MUST ALWAYS be false — never invent a code outside the known list
+3. suggested_persona_codes MUST ALWAYS be null — persona selection is handled separately
+4. confidence between 0 and 1 (minimum 0.55 to be accepted)
+5. reasoning max 200 characters
 6. If the scam exhibits characteristics of multiple categories, list them in secondary_types with decreasing confidence. The primary scam_type_code remains the strongest match. If only one type applies, set secondary_types to null or omit it.
 
-Exemples de réponse:
+Example responses:
 
-Type connu (phishing):
+Known type (phishing):
 {
   "scam_type_code": "phishing",
   "confidence": 0.92,
   "is_new_type": false,
   "label_en": "Phishing",
   "label_fr": "Hameçonnage",
-  "reasoning": "Email frauduleux demandant des identifiants bancaires",
+  "reasoning": "Fraudulent email requesting banking credentials",
   "suggested_persona_codes": null,
   "detected_language": "fr",
   "secondary_types": null
@@ -237,16 +241,16 @@ Hybrid scam (romance + invoice):
   ]
 }
 
-Aucun type connu ne correspond (utilisez UNKNOWN):
+No known type matches (use UNKNOWN):
 {
   "scam_type_code": "UNKNOWN",
   "confidence": 0.78,
   "is_new_type": false,
   "label_en": "Unknown",
   "label_fr": "Inconnu",
-  "reasoning": "Le message ne correspond à aucun type connu avec suffisamment de certitude",
+  "reasoning": "The message does not match any known type with sufficient certainty",
   "suggested_persona_codes": null,
-  "detected_language": "fr",
+  "detected_language": "en",
   "secondary_types": null
 }
 PROMPT;
@@ -254,11 +258,11 @@ PROMPT;
         $conversationText = $this->formatMessagesForPrompt($messages);
 
         $userPrompt = <<<PROMPT
-Voici la conversation à analyser :
+Conversation to analyze:
 
 {$conversationText}
 
-Analysez cette conversation et retournez le JSON de classification.
+Analyze this conversation and return the classification JSON.
 PROMPT;
 
         return [

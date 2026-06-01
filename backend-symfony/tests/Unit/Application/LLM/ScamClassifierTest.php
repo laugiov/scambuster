@@ -202,6 +202,41 @@ final class ScamClassifierTest extends TestCase
      *
      * See: specs/095-pipeline-audit/fix-01-disable-new-scam-types/spec.md
      */
+    /**
+     * Spec 095 Fix #4 — ScamClassifier prompt is now in English to eliminate
+     * code-switching with the 90 % EN corpus. The prompt content must contain
+     * EN markers and NO key French markers from the previous version.
+     *
+     * See: specs/095-pipeline-audit/fix-04-translate-classifier-prompt/spec.md
+     */
+    public function testPromptIsInEnglish_Fix04(): void
+    {
+        $messages = [['msg_id' => 'msg1', 'direction' => 'in', 'subject' => 'Test', 'body_text' => 'Test body', 'ts_msg' => '2026-06-01T10:00:00+00:00']];
+        $this->scamTypeManager->expects($this->once())->method('getAllCodes')->willReturn(['PHISHING']);
+
+        $captured = '';
+        $this->llmClient->expects($this->once())->method('chat')
+            ->willReturnCallback(function (array $msgs) use (&$captured) {
+                $captured = ($msgs[0]['content'] ?? '') . "\n---USER---\n" . ($msgs[1]['content'] ?? '');
+
+                return '{"scam_type_code":"PHISHING","confidence":0.9,"is_new_type":false,"reasoning":"test"}';
+            });
+        $this->jsonValidator->method('parseAndValidate')->willReturn(['success' => true, 'data' => ['scam_type_code' => 'PHISHING', 'confidence' => 0.9, 'is_new_type' => false, 'reasoning' => 'test'], 'errors' => []]);
+
+        $this->classifier->classify($messages);
+
+        // Negative: no French markers
+        $this->assertStringNotContainsString('Vous êtes', $captured, 'FR intro phrase must be gone');
+        $this->assertStringNotContainsString('Analysez', $captured, 'FR Analysez verb must be gone');
+        $this->assertStringNotContainsString('Types de scams', $captured, 'FR Types de scams must be gone');
+        $this->assertStringNotContainsString('Règle pour', $captured, 'FR Règle pour must be gone');
+        $this->assertStringNotContainsString('Voici la conversation', $captured, 'FR Voici must be gone');
+        // Positive: EN markers present
+        $this->assertStringContainsString('You are', $captured, 'EN intro phrase must be present');
+        $this->assertStringContainsString('Analyze', $captured, 'EN Analyze verb must be present');
+        $this->assertStringContainsString('Known scam types', $captured, 'EN Known scam types must be present');
+    }
+
     public function testPromptForbidsNewTypeCreation(): void
     {
         $messages = [['msg_id' => 'msg1', 'direction' => 'in', 'subject' => 'Test', 'body_text' => 'Test body', 'ts_msg' => '2026-06-01T10:00:00+00:00']];
