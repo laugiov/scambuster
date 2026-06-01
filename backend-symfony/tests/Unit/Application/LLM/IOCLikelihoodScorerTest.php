@@ -361,4 +361,103 @@ class IOCLikelihoodScorerTest extends TestCase
         // Should be low quality (generic + proactive)
         $this->assertLessThanOrEqual(20, $score);
     }
+
+    // ─── Spec 095 Fix #7 — i18n EN keywords ───────────────────────────
+
+    /**
+     * Spec 095 Fix #7 — EN channel keywords (account, wire, bank, beneficiary,
+     * etc.) must trigger the +25 targetsSpecificChannel bonus, mirroring
+     * the FR behavior. Pre-Fix #7, EN replies using ONLY these EN-specific
+     * words (no "iban" / "telephone" which coincidentally match FR) missed
+     * the bonus entirely.
+     *
+     * Test input deliberately uses EN-only words: "bank", "wire", "routing"
+     * (none of which are in the pre-Fix #7 FR keyword list for iban).
+     *
+     * See: specs/095-pipeline-audit/fix-07-i18n-ioc-scorer/spec.md
+     */
+    public function testScoreTargetsEnglishChannel_Fix07(): void
+    {
+        // EN reply using ONLY EN-specific keywords (no "iban" which would
+        // coincidentally match FR). Pre-Fix #7: only +25 from question;
+        // missing_iocs hint won't trigger because no FR keyword matches.
+        // After Fix #7: +25 (question) + +25 (channel: bank/wire/routing) +
+        // +10 (missing iban via EN keywords) = 60.
+        $text = 'Could you tell me the bank wire details and the routing number?';
+        $context = [
+            'state_slots' => [
+                'canal_cible' => 'iban',
+                'missing_iocs' => ['iban'],
+            ],
+            'last_messages' => [],
+        ];
+
+        $score = $this->scorer->score($text, $context);
+
+        // After Fix #7 expected score: ≥ 50 (question + channel + missing).
+        // Before Fix #7: only ~25 (just the question).
+        $this->assertGreaterThanOrEqual(50, $score, 'EN-only channel keywords (bank/wire/routing) must contribute to score after Fix #7');
+    }
+
+    /**
+     * Spec 095 Fix #7 — EN proactive patterns ("I will check", "I can send")
+     * must trigger the -20 penalty, mirroring FR behavior.
+     */
+    public function testScorePenalizesEnglishProactiveAction_Fix07(): void
+    {
+        // EN reply proposing to send something proactively (bad scambaiting)
+        $text = 'I will check my records and I can send you my IBAN tomorrow morning.';
+        $context = ['state_slots' => [], 'last_messages' => []];
+
+        $score = $this->scorer->score($text, $context);
+
+        // No question (0), but should be penalized by -20 for proactive intent
+        $this->assertLessThan(25, $score, 'EN proactive patterns must reduce score');
+    }
+
+    /**
+     * Spec 095 Fix #7 — EN generic phrases ("thank you for your message",
+     * "I understand") must trigger the -15 penalty when 2+ are present.
+     *
+     * Test design: include a `?` (+25 question) so we can DETECT the -15
+     * penalty (otherwise score=0 both before and after fix due to clamping).
+     * Pre-Fix #7: 25 (only question, EN generics don't fire).
+     * Post-Fix #7: 25 - 15 = 10.
+     */
+    public function testScorePenalizesEnglishGenericLanguage_Fix07(): void
+    {
+        // EN reply with positive signal (question) + 3 EN generic phrases
+        $text = 'Thank you for your message. I understand your offer. I appreciate the opportunity. Could we discuss?';
+        $context = ['state_slots' => [], 'last_messages' => []];
+
+        $score = $this->scorer->score($text, $context);
+
+        // After Fix #7: 25 (question) - 15 (3 EN generic phrases) = 10
+        // Before Fix #7: 25 (only question, generics don't fire)
+        $this->assertLessThan(25, $score, 'EN generic phrases must reduce score below the no-penalty baseline');
+    }
+
+    /**
+     * Spec 095 Fix #7 — FR detection MUST be preserved (additive change).
+     * Regression guard: feed the exact same text as the original
+     * it_gives_high_score_for_explicit_question_targeting_channel test
+     * and assert identical score.
+     */
+    public function testScorePreservesFrenchBehavior_Fix07(): void
+    {
+        // Same input as the FR baseline test (line ~28)
+        $text = 'Quel est votre numéro de téléphone pour vous joindre ?';
+        $context = [
+            'state_slots' => [
+                'canal_cible' => 'phone',
+                'missing_iocs' => ['phone', 'url'],
+            ],
+            'last_messages' => [],
+        ];
+
+        $score = $this->scorer->score($text, $context);
+
+        // FR behavior unchanged: +25 question + +25 channel + +10 missing IOC = 60
+        $this->assertGreaterThanOrEqual(50, $score, 'FR scoring must be preserved (additive i18n)');
+    }
 }

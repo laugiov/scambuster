@@ -24,35 +24,77 @@ final class IOCLikelihoodScorer
 {
     /**
      * Channel-related keywords for detection
+     *
+     * Spec 095 Fix #7 — extended with EN keywords (additive, FR detection
+     * preserved). Pre-Fix #7 the FR-only list missed scoring channels on
+     * the 90% EN corpus. See:
+     * specs/095-pipeline-audit/fix-07-i18n-ioc-scorer/spec.md
      */
     private const CHANNEL_KEYWORDS = [
-        'phone' => ['téléphone', 'numéro', 'appeler', 'joindre', 'contacter', 'mobile'],
+        'phone' => [
+            // FR
+            'téléphone', 'numéro', 'appeler', 'joindre', 'contacter', 'mobile',
+            // EN (Spec 095 Fix #7)
+            'phone', 'number', 'call', 'reach', 'cell',
+        ],
         'whatsapp' => ['whatsapp', 'telegram', 'signal'],
-        'url' => ['lien', 'site', 'page', 'url', 'adresse web'],
-        'iban' => ['iban', 'compte', 'virement', 'transfert', 'bancaire', 'rib'],
+        'url' => [
+            // FR
+            'lien', 'site', 'page', 'url', 'adresse web',
+            // EN (Spec 095 Fix #7)
+            'link', 'website',
+        ],
+        'iban' => [
+            // FR
+            'iban', 'compte', 'virement', 'transfert', 'bancaire', 'rib',
+            // EN (Spec 095 Fix #7)
+            'account', 'wire', 'bank', 'sort code', 'routing', 'beneficiary',
+        ],
         'email' => ['email', 'e-mail', 'mail', 'courriel'],
-        'crypto' => ['bitcoin', 'crypto', 'portefeuille', 'wallet'],
+        'crypto' => [
+            // FR + universal
+            'bitcoin', 'crypto', 'portefeuille', 'wallet',
+            // EN (Spec 095 Fix #7)
+            'btc', 'eth',
+        ],
     ];
 
     /**
      * Proactive action patterns (should be avoided)
+     *
+     * Spec 095 Fix #7 — extended with EN regex (additive).
      */
     private const PROACTIVE_PATTERNS = [
+        // FR
         '/je vais (vérifier|contacter|appeler)/i',
         '/je peux (vous envoyer|transmettre|fournir)/i',
         '/voici (mon|mes)/i',
         '/je vous (envoie|transmets|fournis)/i',
+        // EN (Spec 095 Fix #7)
+        '/I will (check|contact|call|verify)/i',
+        '/I can (send|share|provide|give)/i',
+        '/here (is|are) my/i',
+        '/let me send you/i',
     ];
 
     /**
      * Generic/vague phrases that reduce score
+     *
+     * Spec 095 Fix #7 — extended with EN phrases (additive).
      */
     private const GENERIC_PHRASES = [
+        // FR
         'je comprends',
         'je vois',
         'c\'est inquiétant',
         'je suis préoccupé',
         'merci pour votre message',
+        // EN (Spec 095 Fix #7)
+        'i understand',
+        'i see',
+        'thank you for your message',
+        'thank you for reaching out',
+        'i appreciate',
     ];
 
     /**
