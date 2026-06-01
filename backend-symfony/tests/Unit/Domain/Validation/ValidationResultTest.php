@@ -154,8 +154,76 @@ class ValidationResultTest extends TestCase
 
         $result = ValidationResult::fromLLMResponse($data);
 
-        // avg = (2+3+3)/3 = 2.67 >= 2.5 and naturalness >= 2 → approved
+        // avg = (2+3+3)/3 = 2.67 >= 2.5, naturalness >= 2, ti_value >= 3 → approved
         $this->assertTrue($result->approved);
+    }
+
+    /**
+     * Spec 095 Fix #3 — passive replies (ti_value=2) are now REJECTED at the
+     * validator gate, even when naturalness/persona_fit compensate in the average.
+     * ti_value=2 means "passive / does not advance threat intelligence collection".
+     *
+     * See: specs/095-pipeline-audit/fix-03-block-low-ti-value/spec.md
+     */
+    public function testFromLLMResponseRejectedWhenTiValueIsTwo_Fix03(): void
+    {
+        $data = [
+            'naturalness' => 4,
+            'persona_fit' => 4,
+            'ti_value' => 2, // passive — must now reject (Spec 095 Fix #3)
+            'security_pass' => true,
+            'feedback' => 'Reads well but passive',
+        ];
+
+        $result = ValidationResult::fromLLMResponse($data);
+
+        // avg = (4+4+2)/3 = 3.33 — used to be approved, now rejected by ti_value < 3
+        $this->assertFalse($result->approved, 'Reply with ti_value=2 must be rejected even when avg >= 2.5');
+        $this->assertSame(3.33, $result->averageQualityScore(), 'Average score unchanged — only the gate tightened');
+    }
+
+    /**
+     * Spec 095 Fix #3 — dead-end replies (ti_value=1) are REJECTED regardless of
+     * how good naturalness/persona_fit are. ti_value=1 means "shuts down the conversation".
+     *
+     * See: specs/095-pipeline-audit/fix-03-block-low-ti-value/spec.md
+     */
+    public function testFromLLMResponseRejectedWhenTiValueIsOne_Fix03(): void
+    {
+        $data = [
+            'naturalness' => 5,
+            'persona_fit' => 5,
+            'ti_value' => 1, // dead end — must reject (Spec 095 Fix #3)
+            'security_pass' => true,
+            'feedback' => 'Beautifully written but kills the conversation',
+        ];
+
+        $result = ValidationResult::fromLLMResponse($data);
+
+        // avg = 3.67 — used to be approved, now rejected by ti_value < 3
+        $this->assertFalse($result->approved, 'Reply with ti_value=1 must be rejected regardless of other scores');
+    }
+
+    /**
+     * Spec 095 Fix #3 — boundary case: ti_value=3 ("maintains engagement") must
+     * still be APPROVED. The gate is `ti_value >= 3`, not `> 3`.
+     *
+     * See: specs/095-pipeline-audit/fix-03-block-low-ti-value/spec.md
+     */
+    public function testFromLLMResponseApprovedAtTiValueBoundary_Fix03(): void
+    {
+        $data = [
+            'naturalness' => 3,
+            'persona_fit' => 3,
+            'ti_value' => 3, // exactly at the boundary — must approve
+            'security_pass' => true,
+            'feedback' => 'Acceptable — maintains engagement',
+        ];
+
+        $result = ValidationResult::fromLLMResponse($data);
+
+        // avg = 3.0 >= 2.5, naturalness >= 2, ti_value >= 3 → approved
+        $this->assertTrue($result->approved, 'Reply with ti_value=3 (boundary) must be approved');
     }
 
     public function testFromLLMResponseClampsScores(): void
