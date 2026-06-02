@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.16.0] - 2026-06-02
+
+This release bundles two streams of work shipped to `demo` together:
+incremental specs 083-093 (auto-mail pre-filter, mailbox UI, threading
+fixes, in-flight bandit tracking, CVE patches) AND the audit 095
+campaign — 15 fixes derived from the pipeline behavioral audit, lifting
+the system from "responds reliably" to "engages effectively".
+
+### Added — Audit 095 (Fix #1-15, May-June 2026)
+
+#### Engagement + IOC harvesting (Fix #5, #6, #7, #8)
+- Stage-aware IOC-pull directive in the meta-prompt (BasePromptRules + PromptBuilder), preserving persona-character while pushing for channel-specific information (BIC/SWIFT, postal address, phone) at the right conversation stage
+- `IOCLikelihoodScorer` now i18n-aware (FR + EN keywords across channel patterns, proactive triggers, generic-phrase penalties)
+- `RetryCoordinator` enforces an IOC-likelihood floor (`iocThreshold` config): replies scoring below threshold trigger a retry; on the 3rd attempt, accept the reply rather than fall back to canned
+
+#### Audit log observability — research-grade introspection (Fix #13, #14)
+- `SCAM_CLASSIFIED` event — every classifier call (success or failure) writes a row with `scam_type`, `confidence`, `detected_language`, `message_count`, `error`
+- `REPLY_RETRY` event — every gate rejection emits a row identifying which gate (policy_guard | validator | leak_detector | ioc_threshold | validator_error) and the attempt number
+- `REPLY_REJECTED` event — every fallback emission identifies the exhausting gate
+- `BANDIT_DECISION` event — every persona selection writes the full decision context (selected persona + ALL candidates with UCB1 scores + random_value + epsilon + converged flag), enabling live debugging and academic-grade analysis
+
+#### Reopen policy — recover late scammer follow-ups (Fix #15)
+- `allow_reopen=true` with 72h window added to 8 scam types previously denied: PHISHING, PHISH_CREDENTIALS, PHISH_MALWARE, TECH_SUPPORT, JOB_OFFER, INVOICE_FRAUD, CEO_FRAUD, UNKNOWN. Measured loss before fix: 17 % for PHISHING (volume leader), 21-33 % for the others.
+
+### Changed — Audit 095
+
+- `ScamClassifier` confidence threshold lowered 0.75 → 0.55 across 4 callsites + OpenAPI default (Fix #2) — accepts hybrid/ambiguous scams that previously routed to UNKNOWN
+- `ReplyValidator` `approved` expression tightened: replies with `ti_value < 3` now rejected (Fix #3), preventing passive engagement that wastes scammer attention
+- `REPLY_GENERATED` audit_log payload enriched with validator scores (`naturalness`, `persona_fit`, `ti_value`, `security_pass`, `ioc_likelihood`, `attempts`, `fallback_used`) via a 4-hop propagation chain ValidationResult → ReplyValidator → RetryCoordinator → ReplyHandler (Fix D)
+- LLM prompt language migrated FR → EN across ScamClassifier (Fix #4), ConversationHistoryService, ConversationAnalyzer (264-line meta-prompt + tone enum), Campaign/PromptBuilder profiler + rule compiler (Fix #12). Eliminates LLM code-switching on EN-dominant corpus per Chen 2023
+- `tone_recommendation` enum FR → EN: `inquiet→worried`, `méfiant→suspicious`, `rassuré→reassured`, `confiant→confident`, `agacé→annoyed`, `déstabilisé→unsettled`, `offensé→offended`
+- `ConversationClosureService::closeConversation()` and `closeConversationsBatch()` now actor-aware (Fix #15 part C). Default actors stay `user` for backward compat; CloseStaleConversationsCommand passes `cron`/`system`; CloseConversationController passes the authenticated user identifier. `closure_reason` is propagated through batch close (previously discarded, every cron close mis-tagged as `manual`)
+
+### Fixed — Audit 095
+
+- `ScamClassifier` no longer invents new `scam_type` codes (Fix #1) — disabled belt+suspenders in prompt instructions + parser, novel patterns map to existing 13 codes or UNKNOWN
+- `ThreadResolverService::reopenIfNeeded()` now persists the status change via explicit `$em->flush()` (Fix #15 bonus). Pre-existing latent bug: Doctrine's enum-typed status change-tracking was silently dropping the OPEN write. Affected ROMANCE/INVESTMENT/ADVANCE_FEE since their reopen-allowed era — they reopened in memory but never in DB
+- `CONVERSATION_CLOSED` audit `actor_id` no longer set to `$convId`; uses the passed-in actor identifier (resource_id still carries the conv_id correctly)
+
+### Added — Specs 083-093 (retroactively documented)
+
+- **Spec 083** — automated-mail pre-filter (DMARC, noreply, postmaster, mailer-daemon) + RFC 2822-compliant sender parser. Introduces `NOT_A_SCAM` scam_type for clean tagging
+- **Spec 084** — intrinsic risk scoring `reason` field annotates which trigger fired
+- **Spec 085** — outbound message-id persisted in headers for accurate inbound threading
+- **Spec 086** — pre-filter writes a structured decision marker, `/risk` endpoint short-circuits on it
+- **Spec 087** — operator-facing `/mail-accounts` endpoint + mailbox label/email surfaced on conversation DTOs; MAILBOX column + filter on Conversations UI + SESSION METADATA row in ConversationDetail
+- **Spec 091** — `/risk` endpoint returns `should_reply=false` on closed conversations (avoids redundant reply attempts)
+- **Spec 092** — `PersonaOptimizer` accounts for in-flight pulls in the UCB1 effective N; eliminates the "stuck persona" feedback loop where bursts of selections weren't deflating the exploration bonus
+
+### Fixed — Specs 083-093
+
+- **Spec 089** — provider_msg_id chevrons normalized in `markAsSent` (closes thread-resolution edge case)
+- **Spec 091** — closed conversations no longer trigger phantom reply generation
+
+### Security — Specs 090, 093
+
+- **Spec 090** — Symfony 7.2 → 7.4 LTS + Twig 3.21 → 3.26 (CVE remediation, May 2026 batch)
+- **Spec 093** — Symfony 7.4.x patches + Twig 3.27 (CVE remediation follow-up)
+
+### Operational
+
+- `persona_performance_stats` table TRUNCATED on 2026-06-01 20:59 UTC after the P4 bandit audit confirmed it was polluted by demo-fixture seed data (rewards inflated 2-3× vs production reality). Companion table `bandit_convergence_log` (408 historical snapshots) also truncated for symmetry. Bandit is now re-learning organically with measurement checkpoints scheduled at 2026-06-15 (2-week) and 2026-06-29 (4-week).
+- No data migration. In-flight conversations safely transition: `PersonaPerformanceStatsRepository::findOrCreate()` handles missing rows transparently; the next closure becomes the first organic reward for that persona × scam_type pair.
+
+### Tests
+
+- 21 new unit tests for Audit 095 fixes (PolicyGuardConfig, ConversationAnalyzer, ConversationClosureService, ConversationLifecycleConfig, PersonaOptimizer, RetryCoordinator)
+- 11 new spec-kit `test_cases.sh` scripts for end-to-end live-pipeline validation (one per Fix that touches behavior)
+- All 8 preflight gates green (PHPStan max + CS-Fixer + Unit + Integration + Functional + CompilerPass + E2E + Composer audit) across each Fix's merge
+
+### Migration notes
+
+- `ConversationClosureService::closeConversationsBatch()` signature changed from `array<string>` to `array<array{conv_id: string, reason: string}>` + optional `$actorId`/`$actorType`. Only known caller (CloseStaleConversationsCommand) updated; PHPStan max catches missed call-sites
+- `ScamClassificationHandler` constructor: optional `?AuditLogger $auditLogger` added as 7th param (backward-compatible)
+- `PersonaOptimizer` ctor unchanged; `BANDIT_DECISION` emits if AuditLogger is injected (already wired in production)
+
+---
+
 ## [2.15.0] - 2026-05-09
 
 ### Added — Spec 050: Multi-Account SMTP Routing
