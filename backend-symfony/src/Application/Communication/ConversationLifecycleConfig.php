@@ -26,27 +26,37 @@ final class ConversationLifecycleConfig
         'INVESTMENT'        => ['timeout_hours' => 168, 'max_turns' => 40, 'max_duration_days' => 45, 'allow_reopen' => true,  'reopen_window_hours' => 48],
 
         // Medium-duration scams: business/financial pretexts
-        'INVOICE_FRAUD'     => ['timeout_hours' => 72,  'max_turns' => 30, 'max_duration_days' => 21, 'allow_reopen' => false, 'reopen_window_hours' => 0],
-        'CEO_FRAUD'         => ['timeout_hours' => 120, 'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => false, 'reopen_window_hours' => 0],
+        // Spec 095 Fix #15 — INVOICE_FRAUD and CEO_FRAUD now allow reopen
+        // within 72h to recover late scammer follow-ups (measured loss
+        // 21 % and 100 % respectively over 30-day audit).
+        'INVOICE_FRAUD'     => ['timeout_hours' => 72,  'max_turns' => 30, 'max_duration_days' => 21, 'allow_reopen' => true,  'reopen_window_hours' => 72],
+        'CEO_FRAUD'         => ['timeout_hours' => 120, 'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => true,  'reopen_window_hours' => 72],
         'ADVANCE_FEE_419'   => ['timeout_hours' => 168, 'max_turns' => 40, 'max_duration_days' => 30, 'allow_reopen' => true,  'reopen_window_hours' => 48],
 
         // Short-duration scams: fast hit-and-run
-        'PHISHING'          => ['timeout_hours' => 48,  'max_turns' => 15, 'max_duration_days' => 7,  'allow_reopen' => false, 'reopen_window_hours' => 0],
-        'PHISH_CREDENTIALS' => ['timeout_hours' => 48,  'max_turns' => 15, 'max_duration_days' => 7,  'allow_reopen' => false, 'reopen_window_hours' => 0],
-        'PHISH_MALWARE'     => ['timeout_hours' => 48,  'max_turns' => 15, 'max_duration_days' => 7,  'allow_reopen' => false, 'reopen_window_hours' => 0],
-        'TECH_SUPPORT'      => ['timeout_hours' => 24,  'max_turns' => 20, 'max_duration_days' => 5,  'allow_reopen' => false, 'reopen_window_hours' => 0],
+        // Spec 095 Fix #15 — PHISHING/PHISH_*/TECH_SUPPORT now allow reopen
+        // within 72h. Measured loss before fix: PHISHING 17 %, TECH_SUPPORT
+        // 33 %. Timeout stays short to purge true hit-and-run, but late
+        // follow-ups can re-engage.
+        'PHISHING'          => ['timeout_hours' => 48,  'max_turns' => 15, 'max_duration_days' => 7,  'allow_reopen' => true,  'reopen_window_hours' => 72],
+        'PHISH_CREDENTIALS' => ['timeout_hours' => 48,  'max_turns' => 15, 'max_duration_days' => 7,  'allow_reopen' => true,  'reopen_window_hours' => 72],
+        'PHISH_MALWARE'     => ['timeout_hours' => 48,  'max_turns' => 15, 'max_duration_days' => 7,  'allow_reopen' => true,  'reopen_window_hours' => 72],
+        'TECH_SUPPORT'      => ['timeout_hours' => 24,  'max_turns' => 20, 'max_duration_days' => 5,  'allow_reopen' => true,  'reopen_window_hours' => 72],
 
         // Casual/opportunistic scams: moderate engagement
+        // Spec 095 Fix #15 — JOB_OFFER allows reopen (33 % loss measured).
+        // LOTTERY/CHARITY stay denied (low volume, low signal).
         'LOTTERY'           => ['timeout_hours' => 72,  'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => false, 'reopen_window_hours' => 0],
-        'JOB_OFFER'         => ['timeout_hours' => 72,  'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => false, 'reopen_window_hours' => 0],
+        'JOB_OFFER'         => ['timeout_hours' => 72,  'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => true,  'reopen_window_hours' => 72],
         'CHARITY'           => ['timeout_hours' => 72,  'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => false, 'reopen_window_hours' => 0],
 
-        // Fallback
-        'UNKNOWN'           => ['timeout_hours' => 72,  'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => false, 'reopen_window_hours' => 0],
+        // Fallback — Spec 095 Fix #15 — UNKNOWN inbound deserves reopen
+        // (B2B-pitch-becomes-scam case from late follow-ups).
+        'UNKNOWN'           => ['timeout_hours' => 72,  'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => true,  'reopen_window_hours' => 72],
     ];
 
     /** @var array{timeout_hours: int, max_turns: int, max_duration_days: int, allow_reopen: bool, reopen_window_hours: int} */
-    private const DEFAULT_POLICY = ['timeout_hours' => 72, 'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => false, 'reopen_window_hours' => 0];
+    private const DEFAULT_POLICY = ['timeout_hours' => 72, 'max_turns' => 25, 'max_duration_days' => 14, 'allow_reopen' => true, 'reopen_window_hours' => 72];
 
     /**
      * @return array{timeout_hours: int, max_turns: int, max_duration_days: int, allow_reopen: bool, reopen_window_hours: int}

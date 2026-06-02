@@ -352,6 +352,14 @@ class ThreadResolverService
             $previousReward = $conversation->getRewardValue();
             $conversation->setStatus(ConversationStatus::OPEN);
             $conversation->resetRewardValue();
+            // Spec 095 Fix #15 — explicit flush. Without it, downstream
+            // Doctrine UoW change-tracking does NOT emit an UPDATE on the
+            // `status` column (other writes to ts_last in the same tx flush
+            // cleanly, but the enum-typed status change is silently lost).
+            // Pre-existing bug exposed by Fix #15 because A now relies on
+            // reopen actually persisting. Affects all scam types that had
+            // allow_reopen=true historically (ROMANCE/INVESTMENT/ADVANCE_FEE).
+            $this->em->flush();
 
             $this->logger->info('[ThreadResolverService] Conversation reopened (within reopen window)', [
                 'conv_id' => $conversation->getConvId(),
@@ -363,6 +371,8 @@ class ThreadResolverService
             $previousReward = $conversation->getRewardValue();
             $conversation->setStatus(ConversationStatus::OPEN);
             $conversation->resetRewardValue();
+            // Spec 095 Fix #15 — same persistence fix as the windowed branch.
+            $this->em->flush();
 
             $this->logger->info('[ThreadResolverService] Conversation reopened on new inbound message', [
                 'conv_id' => $conversation->getConvId(),

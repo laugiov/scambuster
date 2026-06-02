@@ -123,8 +123,16 @@ class CloseStaleConversationsCommand extends Command
             return Command::SUCCESS;
         }
 
-        $convIds = array_map(static fn (array $item): string => $item['conv']->getConvId(), $toClose);
-        $closed = $this->closureService->closeConversationsBatch($convIds);
+        // Spec 095 Fix #15 — pass per-conv reasons (was being discarded → audit
+        // rows were all mis-tagged as 'manual'). Batch actor is 'cron'/'system'.
+        $items = array_map(
+            static fn (array $item): array => [
+                'conv_id' => $item['conv']->getConvId(),
+                'reason' => $item['reason'],
+            ],
+            $toClose,
+        );
+        $closed = $this->closureService->closeConversationsBatch($items);
 
         $io->table(
             ['Metric', 'Value'],

@@ -352,19 +352,20 @@ class ThreadResolverServiceTest extends KernelTestCase
 
     public function testReopenIfNeededDoesNotReopenWhenPolicyDisallows(): void
     {
-        // PHISHING has allow_reopen=false
+        // Spec 095 Fix #15 — PHISHING now allows reopen; only LOTTERY / CHARITY
+        // still deny it. Use LOTTERY here as the "no reopen" representative.
         $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
-        $scamTypePhishing = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'PHISHING']);
+        $scamTypeLottery = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'LOTTERY']);
         $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
 
-        if (!$scamTypePhishing) {
-            $this->markTestSkipped('PHISHING scam type not found in fixtures');
+        if (!$scamTypeLottery) {
+            $this->markTestSkipped('LOTTERY scam type not found in fixtures');
         }
 
         $conv = new Conversation(
             uuid_create(UUID_TYPE_RANDOM),
             $channel,
-            $scamTypePhishing,
+            $scamTypeLottery,
             $account,
             ConversationStatus::CLOSED,
             70,
@@ -378,6 +379,74 @@ class ThreadResolverServiceTest extends KernelTestCase
         $this->service->reopenIfNeeded($conv);
 
         $this->assertSame(ConversationStatus::CLOSED, $conv->getStatus());
+    }
+
+    public function testReopenIfNeededReopensPhishingWithin72h_Fix15(): void
+    {
+        // Spec 095 Fix #15 — PHISHING now allows reopen within 72h to recover
+        // late scammer follow-ups (was losing 17 % per the 30-day audit).
+        $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
+        $scamTypePhishing = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'PHISHING']);
+        $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
+
+        if (!$scamTypePhishing) {
+            $this->markTestSkipped('PHISHING scam type not found in fixtures');
+        }
+
+        $closedAt = new \DateTimeImmutable('-50 hours');  // within 72h window
+        $conv = new Conversation(
+            uuid_create(UUID_TYPE_RANDOM),
+            $channel,
+            $scamTypePhishing,
+            $account,
+            ConversationStatus::CLOSED,
+            70,
+            new \DateTimeImmutable('-3 days'),
+            $closedAt,
+            'stix-reopen-phishing-within-' . bin2hex(random_bytes(4)),
+            new \DateTimeImmutable('-3 days'),
+            $closedAt,  // updatedAt = closed_at (reopenIfNeeded reads this)
+        );
+        $this->em->persist($conv);
+        $this->em->flush();
+
+        $this->service->reopenIfNeeded($conv);
+
+        $this->assertSame(ConversationStatus::OPEN, $conv->getStatus(), 'PHISHING conv closed 50h ago must reopen (within 72h window post-Fix #15)');
+    }
+
+    public function testReopenIfNeededDoesNotReopenPhishingAfter72h_Fix15(): void
+    {
+        // Spec 095 Fix #15 — guard against opening the reopen window too wide.
+        // Past 72h, the PHISHING conv stays closed.
+        $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
+        $scamTypePhishing = $this->em->getRepository(ScamType::class)->findOneBy(['code' => 'PHISHING']);
+        $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
+
+        if (!$scamTypePhishing) {
+            $this->markTestSkipped('PHISHING scam type not found in fixtures');
+        }
+
+        $closedAt = new \DateTimeImmutable('-80 hours');  // beyond 72h window
+        $conv = new Conversation(
+            uuid_create(UUID_TYPE_RANDOM),
+            $channel,
+            $scamTypePhishing,
+            $account,
+            ConversationStatus::CLOSED,
+            70,
+            new \DateTimeImmutable('-5 days'),
+            $closedAt,
+            'stix-no-reopen-phishing-after-' . bin2hex(random_bytes(4)),
+            new \DateTimeImmutable('-5 days'),
+            $closedAt,  // updatedAt = closed_at (reopenIfNeeded reads this)
+        );
+        $this->em->persist($conv);
+        $this->em->flush();
+
+        $this->service->reopenIfNeeded($conv);
+
+        $this->assertSame(ConversationStatus::CLOSED, $conv->getStatus(), 'PHISHING conv closed 80h ago must stay closed (window is 72h)');
     }
 
     public function testReopenIfNeededReopensWhenPolicyAllows(): void

@@ -4,20 +4,26 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Application\Scambaiting;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\Scambaiting\ConversationClosureService;
 use App\Application\Scambaiting\ConversationMetricsCollector;
+use App\Domain\Audit\AuditEventType;
+use App\Domain\Audit\AuditLog;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\ConversationStatus;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
 use App\Domain\Scambaiting\ConversationMetrics;
 use App\Domain\Scambaiting\Event\ConversationEndedEvent;
+use App\Infrastructure\Siem\Adapter\NullSiemExporter;
 use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 class ConversationClosureServiceTest extends TestCase
 {
@@ -249,8 +255,11 @@ class ConversationClosureServiceTest extends TestCase
         $this->eventDispatcher->expects($this->exactly(2))
             ->method('dispatch');
 
-        // Act
-        $closedCount = $this->service->closeConversationsBatch(['conv-1', 'conv-2']);
+        // Act — Fix #15: new signature takes items with per-conv reason
+        $closedCount = $this->service->closeConversationsBatch([
+            ['conv_id' => 'conv-1', 'reason' => 'inactivity (>48h)'],
+            ['conv_id' => 'conv-2', 'reason' => 'max_turns (25/25)'],
+        ]);
 
         // Assert
         $this->assertSame(2, $closedCount);
@@ -291,8 +300,11 @@ class ConversationClosureServiceTest extends TestCase
                 $this->arrayHasKey('conv_id')
             );
 
-        // Act
-        $closedCount = $this->service->closeConversationsBatch(['conv-success', 'conv-fail']);
+        // Act — Fix #15: new signature
+        $closedCount = $this->service->closeConversationsBatch([
+            ['conv_id' => 'conv-success', 'reason' => 'inactivity'],
+            ['conv_id' => 'conv-fail', 'reason' => 'inactivity'],
+        ]);
 
         // Assert
         $this->assertSame(1, $closedCount, 'Only successful closures should be counted');
@@ -305,6 +317,143 @@ class ConversationClosureServiceTest extends TestCase
 
         // Assert
         $this->assertSame(0, $closedCount);
+    }
+
+    // ====================================================================
+    // Spec 095 Fix #15 — actor-aware closure + audit_log accuracy
+    // ====================================================================
+
+    /** @var list<AuditLog> Captured audit_log entities emitted during the test */
+    private array $emittedAuditLogs = [];
+
+    private function createAuditLoggerSpy(): AuditLogger
+    {
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('persist')->willReturnCallback(function ($entity): void {
+            if ($entity instanceof AuditLog) {
+                $this->emittedAuditLogs[] = $entity;
+            }
+        });
+
+        return new AuditLogger($em, new NullLogger(), new RequestStack(), new NullSiemExporter());
+    }
+
+    private function createServiceWithAuditSpy(): ConversationClosureService
+    {
+        $audit = $this->createAuditLoggerSpy();
+        return new ConversationClosureService(
+            $this->em,
+            $this->metricsCollector,
+            $this->eventDispatcher,
+            $this->logger,
+            $audit,
+        );
+    }
+
+    private function setupOpenConvAndMetrics(string $convId, string $scamCode = 'PHISHING'): void
+    {
+        $conversation = $this->createMockConversation(
+            convId: $convId,
+            status: ConversationStatus::OPEN,
+            scamTypeCode: $scamCode,
+            personaCode: 'persona_x',
+            turnsCount: 5,
+        );
+
+        $conversationRepo = $this->createMock(EntityRepository::class);
+        $conversationRepo->method('find')->willReturn($conversation);
+        $this->em->method('getRepository')->willReturn($conversationRepo);
+
+        $conn = $this->createMock(Connection::class);
+        $conn->method('fetchAssociative')->willReturn(['turns' => 5, 'duration_sec' => 600]);
+        $this->em->method('getConnection')->willReturn($conn);
+
+        $this->metricsCollector->method('collect')->willReturn(
+            new ConversationMetrics(600, 3, 1, true),
+        );
+    }
+
+    public function testCloseConversationEmitsAuditWithProvidedActor_Fix15(): void
+    {
+        $this->emittedAuditLogs = [];
+        $service = $this->createServiceWithAuditSpy();
+        $this->setupOpenConvAndMetrics('conv-fix15-cron');
+
+        $service->closeConversation('conv-fix15-cron', 'inactivity (>48h)', 'cron', 'system');
+
+        $closed = array_values(array_filter(
+            $this->emittedAuditLogs,
+            static fn (AuditLog $log): bool => $log->getEventType() === AuditEventType::CONVERSATION_CLOSED->value,
+        ));
+        $this->assertCount(1, $closed);
+        $this->assertSame('system', $closed[0]->getActorType(), 'actor_type must be "system" for cron');
+        $this->assertSame('cron', $closed[0]->getActorId(), 'actor_id must be the passed-in value, NOT conv_id');
+        $this->assertSame('conv-fix15-cron', $closed[0]->getResourceId(), 'resource_id must still carry conv_id');
+        $this->assertSame('inactivity (>48h)', $closed[0]->getDetails()['reason']);
+    }
+
+    public function testCloseConversationDefaultsPreserveLegacyUserActor_Fix15(): void
+    {
+        // Regression guard — existing callers that don't pass actor info
+        // still get actor_type='user' and reason='manual'.
+        $this->emittedAuditLogs = [];
+        $service = $this->createServiceWithAuditSpy();
+        $this->setupOpenConvAndMetrics('conv-fix15-legacy');
+
+        $service->closeConversation('conv-fix15-legacy');
+
+        $closed = array_values(array_filter(
+            $this->emittedAuditLogs,
+            static fn (AuditLog $log): bool => $log->getEventType() === AuditEventType::CONVERSATION_CLOSED->value,
+        ));
+        $this->assertCount(1, $closed);
+        $this->assertSame('user', $closed[0]->getActorType());
+        $this->assertSame('user', $closed[0]->getActorId());
+        $this->assertSame('manual', $closed[0]->getDetails()['reason']);
+    }
+
+    public function testCloseConversationsBatchPropagatesPerConvReason_Fix15(): void
+    {
+        // 2 convs in batch with different reasons. Both audit rows must
+        // carry their own reason, not the default 'manual'.
+        $this->emittedAuditLogs = [];
+
+        $conv1 = $this->createMockConversation('batch-1', ConversationStatus::OPEN, 'PHISHING', 'p1', 5);
+        $conv2 = $this->createMockConversation('batch-2', ConversationStatus::OPEN, 'PHISHING', 'p2', 15);
+        $conversationRepo = $this->createMock(EntityRepository::class);
+        $conversationRepo->method('find')->willReturnCallback(
+            static fn ($id) => $id === 'batch-1' ? $conv1 : ($id === 'batch-2' ? $conv2 : null),
+        );
+        $this->em->method('getRepository')->willReturn($conversationRepo);
+
+        $conn = $this->createMock(Connection::class);
+        $conn->method('fetchAssociative')->willReturn(['turns' => 5, 'duration_sec' => 600]);
+        $this->em->method('getConnection')->willReturn($conn);
+
+        $this->metricsCollector->method('collect')->willReturn(
+            new ConversationMetrics(600, 3, 1, true),
+        );
+
+        $service = $this->createServiceWithAuditSpy();
+        $service->closeConversationsBatch([
+            ['conv_id' => 'batch-1', 'reason' => 'inactivity (>48h)'],
+            ['conv_id' => 'batch-2', 'reason' => 'max_turns (15/15)'],
+        ], 'cron', 'system');
+
+        $closed = array_values(array_filter(
+            $this->emittedAuditLogs,
+            static fn (AuditLog $log): bool => $log->getEventType() === AuditEventType::CONVERSATION_CLOSED->value,
+        ));
+        $this->assertCount(2, $closed);
+        // Each row carries its own reason
+        $reasons = array_map(static fn (AuditLog $log): string => $log->getDetails()['reason'], $closed);
+        $this->assertContains('inactivity (>48h)', $reasons);
+        $this->assertContains('max_turns (15/15)', $reasons);
+        // Both rows carry the cron actor
+        foreach ($closed as $log) {
+            $this->assertSame('system', $log->getActorType());
+            $this->assertSame('cron', $log->getActorId());
+        }
     }
 
     private function createMockConversation(
