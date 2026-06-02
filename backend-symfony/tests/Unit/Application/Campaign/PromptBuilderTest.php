@@ -183,6 +183,51 @@ final class PromptBuilderTest extends TestCase
         $this->assertLessThan(1000, strlen($prompts['user']));
     }
 
+    /**
+     * Spec 095 Fix #12 — Campaign profiler prompt must now be in English
+     * (was French pre-Fix #12). Eliminates LLM code-switching.
+     *
+     * See: specs/095-pipeline-audit/fix-12-translate-remaining-prompts/spec.md
+     */
+    public function testCampaignProfilerPromptIsInEnglish_Fix12(): void
+    {
+        $messages = [$this->createMockMessage('Test', 'Test body')];
+        $prompts = $this->builder->buildCampaignProfilerPrompts($messages);
+
+        $combined = $prompts['system'] . "\n" . $prompts['user'];
+
+        // No FR markers
+        $this->assertStringNotContainsString('Tu es un analyste', $combined);
+        $this->assertStringNotContainsString('À partir d', $combined);
+        $this->assertStringNotContainsString('Décrire', $combined);
+        $this->assertStringNotContainsString('Voici un échantillon', $combined);
+        // EN markers present
+        $this->assertStringContainsString('You are', $combined);
+        $this->assertStringContainsString('campaign', $combined);
+    }
+
+    /**
+     * Spec 095 Fix #12 — Rule compiler prompt must now be in English
+     * (was French pre-Fix #12).
+     *
+     * See: specs/095-pipeline-audit/fix-12-translate-remaining-prompts/spec.md
+     */
+    public function testRuleCompilerPromptIsInEnglish_Fix12(): void
+    {
+        $prompts = $this->builder->buildRuleCompilerPrompts('campaign:\n  summary: test', ['pos' => [], 'neg' => []]);
+
+        $combined = $prompts['system'] . "\n" . $prompts['user'];
+
+        // No FR markers
+        $this->assertStringNotContainsString('Tu es un expert', $combined);
+        $this->assertStringNotContainsString('À partir d', $combined);
+        $this->assertStringNotContainsString('Aucune PII', $combined);
+        $this->assertStringNotContainsString('Profil YAML', $combined);
+        // EN markers present
+        $this->assertStringContainsString('You are', $combined);
+        $this->assertStringContainsString('MailGuard DSL', $combined);
+    }
+
     private function createMockMessage(
         string $subject,
         string $body,

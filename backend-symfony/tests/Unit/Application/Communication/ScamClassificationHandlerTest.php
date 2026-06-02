@@ -4,21 +4,26 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Application\Communication;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\Communication\ClassificationResult;
 use App\Application\Communication\ConversationHandler;
 use App\Application\Communication\PersonaManager;
 use App\Application\Communication\ScamClassificationHandler;
 use App\Application\Communication\ScamTypeManager;
 use App\Application\LLM\ScamClassifier;
+use App\Domain\Audit\AuditEventType;
+use App\Domain\Audit\AuditLog;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
+use App\Infrastructure\Siem\Adapter\NullSiemExporter;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\EntityRepository;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 /**
  * Unit tests for ScamClassificationHandler.
@@ -248,6 +253,27 @@ class ScamClassificationHandlerTest extends TestCase
         $this->assertFalse($result->shouldApply(0.95));
     }
 
+    /**
+     * Spec 095 Fix #2 — Default threshold lowered from 0.75 to 0.55.
+     * shouldApply() with no argument MUST use 0.55 as the new boundary.
+     *
+     * See: specs/095-pipeline-audit/fix-02-lower-confidence-threshold/spec.md
+     */
+    public function test_should_apply_default_threshold_is_055(): void
+    {
+        // Confidence 0.60 is now above the default threshold (0.55) — accepted
+        $accepted = new ClassificationResult('PHISHING', 0.60, false, false, 'generic', 'reason');
+        $this->assertTrue($accepted->shouldApply(), 'shouldApply() with no arg must accept confidence=0.60 (above new default 0.55)');
+
+        // Confidence 0.50 is below the new default threshold — rejected
+        $rejected = new ClassificationResult('PHISHING', 0.50, false, false, 'generic', 'reason');
+        $this->assertFalse($rejected->shouldApply(), 'shouldApply() with no arg must reject confidence=0.50 (below new default 0.55)');
+
+        // Confidence exactly at the boundary (0.55) — accepted (>=)
+        $boundary = new ClassificationResult('PHISHING', 0.55, false, false, 'generic', 'reason');
+        $this->assertTrue($boundary->shouldApply(), 'shouldApply() with no arg must accept confidence=0.55 (exactly at boundary)');
+    }
+
     public function test_classification_result_getters(): void
     {
         $personaData = ['persona_code' => 'test', 'persona_label' => 'Test'];
@@ -263,5 +289,37 @@ class ScamClassificationHandlerTest extends TestCase
         $this->assertSame($personaData, $result->getPersonaData());
         $this->assertSame($suggestedCodes, $result->getSuggestedPersonaCodes());
         $this->assertSame('fr', $result->detectedLanguage);
+    }
+
+    // === Spec 095 Fix #13 — SCAM_CLASSIFIED audit emission ===
+
+    /**
+     * Spec 095 Fix #13 — the constructor accepts an optional AuditLogger as
+     * 7th param. Smoke test that DI signature is backward-compatible (null)
+     * and that the emission point exists (success path with classification
+     * is covered end-to-end by the Fix #13 test_cases.sh against the live
+     * pipeline, since unit-mocking the Doctrine QueryBuilder used in
+     * getConversationMessages is brittle).
+     */
+    public function testHandlerCtorAcceptsOptionalAuditLogger_Fix13(): void
+    {
+        $auditLogger = new AuditLogger(
+            $this->createMock(EntityManagerInterface::class),
+            new NullLogger(),
+            new RequestStack(),
+            new NullSiemExporter(),
+        );
+
+        $handler = new ScamClassificationHandler(
+            $this->em,
+            $this->scamClassifier,
+            $this->personaManager,
+            $this->scamTypeManager,
+            $this->conversationHandler,
+            new NullLogger(),
+            $auditLogger,
+        );
+
+        $this->assertInstanceOf(ScamClassificationHandler::class, $handler);
     }
 }

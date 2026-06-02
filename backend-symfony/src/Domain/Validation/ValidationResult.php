@@ -89,9 +89,11 @@ final readonly class ValidationResult
             }
         }
 
-        // Compute verdict: reject if security fails, naturalness < 2, or avg < 2.5
+        // Compute verdict: reject if security fails, naturalness < 2, avg < 2.5,
+        // OR ti_value < 3 (passive/dead-end replies fail TI mission).
+        // Spec 095 Fix #3 — see specs/095-pipeline-audit/fix-03-block-low-ti-value/spec.md
         $avgScore = ($naturalness + $personaFit + $tiValue) / 3;
-        $approved = $securityPass && $naturalness >= 2 && $avgScore >= 2.5;
+        $approved = $securityPass && $naturalness >= 2 && $avgScore >= 2.5 && $tiValue >= 3;
 
         // Spec 080 §3 — parse optional structured correction.
         /** @var array<string, mixed>|null $correctionData */
@@ -114,7 +116,12 @@ final readonly class ValidationResult
     /**
      * Convert to legacy array format for backward compatibility.
      *
-     * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null, correction: array{problem_span: string, replacement: string, rationale: string}|null}
+     * Spec 095 Fix D — extended with score fields (naturalness, persona_fit,
+     * ti_value, security_pass) so RetryCoordinator and downstream consumers
+     * (ReplyHandler audit_log) can persist them for observability.
+     * Backward-compatible — existing callers ignore unknown keys.
+     *
+     * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null, correction: array{problem_span: string, replacement: string, rationale: string}|null, naturalness: int, persona_fit: int, ti_value: int, security_pass: bool}
      */
     public function toLegacyArray(): array
     {
@@ -123,6 +130,11 @@ final readonly class ValidationResult
             'reasons' => $this->reasons,
             'fix_suggestion' => $this->fixSuggestion,
             'correction' => $this->correction?->toArray(),
+            // Spec 095 Fix D — score fields exposed for audit_log persistence.
+            'naturalness' => $this->naturalness,
+            'persona_fit' => $this->personaFit,
+            'ti_value' => $this->tiValue,
+            'security_pass' => $this->securityPass,
         ];
     }
 

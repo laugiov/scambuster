@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Application\Communication;
 
+use App\Application\Audit\AuditLogger;
 use App\Application\LLM\ScamClassifier;
+use App\Domain\Audit\AuditEventType;
 use App\Domain\Communication\Conversation;
 use App\Domain\Communication\Persona;
 use App\Domain\Communication\ScamType;
@@ -22,7 +24,12 @@ class ScamClassificationHandler
         private readonly PersonaManager $personaManager,
         private readonly ScamTypeManager $scamTypeManager,
         private readonly ConversationHandler $conversationHandler,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        // Spec 095 Fix #13 — optional, nullable to preserve callsites that
+        // don't have an AuditLogger available (tests, CLI commands). When
+        // present, every classifyConversation outcome (success or
+        // confidence-too-low) emits a SCAM_CLASSIFIED audit_log row.
+        private readonly ?AuditLogger $auditLogger = null,
     ) {
     }
 
@@ -51,16 +58,34 @@ class ScamClassificationHandler
         $result = $this->scamClassifier->classify($messages);
 
         if (!$result instanceof \App\Application\Communication\ClassificationResult) {
+            $this->emitClassificationAudit($convId, 'failure', null, null, null, count($messages), 'llm_result_invalid');
+
             throw new \RuntimeException('LLM classification failed');
         }
 
         // Check confidence threshold
-        if (!$result->shouldApply(0.75)) {
+        // Spec 095 Fix #2 — threshold lowered from 0.75 to 0.55 to accept
+        // hybrid/ambiguous scams (e.g. Wikipedia + invoice + grant composites)
+        // that naturally elicit moderate LLM confidence. The 0.75 default was
+        // too conservative and produced ~57 % UNKNOWN routing in the
+        // 20-day corpus audit (spec 094). See:
+        // specs/095-pipeline-audit/fix-02-lower-confidence-threshold/spec.md
+        if (!$result->shouldApply(0.55)) {
             $this->logger->warning('Classification confidence too low', [
                 'conv_id' => $convId,
                 'scam_type' => $result->scamTypeCode,
                 'confidence' => $result->confidence,
             ]);
+
+            $this->emitClassificationAudit(
+                $convId,
+                'failure',
+                $result->scamTypeCode,
+                $result->confidence,
+                $result->detectedLanguage,
+                count($messages),
+                'confidence_below_threshold',
+            );
 
             throw new \RuntimeException("Classification confidence too low: {$result->confidence}");
         }
@@ -87,7 +112,52 @@ class ScamClassificationHandler
             'secondary_types_count' => $result->secondaryTypes !== null ? count($result->secondaryTypes) : 0,
         ]);
 
+        $this->emitClassificationAudit(
+            $convId,
+            'success',
+            $result->scamTypeCode,
+            $result->confidence,
+            $result->detectedLanguage,
+            count($messages),
+        );
+
         return $result;
+    }
+
+    /**
+     * Spec 095 Fix #13 — emit SCAM_CLASSIFIED audit_log row so UNKNOWN-rate
+     * and confidence distribution are queryable from SQL without parsing
+     * application logs.
+     */
+    private function emitClassificationAudit(
+        string $convId,
+        string $outcome,
+        ?string $scamType,
+        ?float $confidence,
+        ?string $detectedLanguage,
+        int $messageCount,
+        ?string $error = null,
+    ): void {
+        if (!$this->auditLogger instanceof AuditLogger) {
+            return;
+        }
+
+        $this->auditLogger->log(
+            eventType: AuditEventType::SCAM_CLASSIFIED,
+            actorId: 'classifier',
+            action: 'auto_classify',
+            outcome: $outcome,
+            resourceType: 'conversation',
+            resourceId: $convId,
+            details: [
+                'scam_type' => $scamType,
+                'confidence' => $confidence,
+                'detected_language' => $detectedLanguage,
+                'message_count' => $messageCount,
+                'error' => $error,
+            ],
+            actorType: 'system',
+        );
     }
 
     /**
@@ -410,7 +480,7 @@ class ScamClassificationHandler
      *
      * @return array{scam_type_code: string, scam_type_label: string, persona_code: string|null, persona_label: string|null, confidence: float, is_new_scam_type: bool, is_new_persona: bool, secondary_types: array<int, array{code: string, confidence: float}>|null}
      */
-    public function autoClassifyConversation(string $convId, bool $force = false, float $confidenceThreshold = 0.75): array
+    public function autoClassifyConversation(string $convId, bool $force = false, float $confidenceThreshold = 0.55): array
     {
         // Get conversation
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);

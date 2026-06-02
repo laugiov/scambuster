@@ -69,7 +69,15 @@ final class ScamClassifierTest extends TestCase
         $this->assertFalse($result->isNewType);
     }
 
-    public function testItClassifiesNewScamTypeWithPersona(): void
+    /**
+     * Spec 095 Fix #1 — LLM-driven new scam_type creation is disabled.
+     * Renamed from `testItClassifiesNewScamTypeWithPersona`. The test now documents
+     * the DEFENSIVE behavior: even when the LLM disobeys and returns is_new_type=true
+     * with suggested_persona_codes, the parser overrides BOTH fields.
+     *
+     * See: specs/095-pipeline-audit/fix-01-disable-new-scam-types/spec.md
+     */
+    public function testLegacyDeprecated_isNewTypeAlwaysFalse(): void
     {
         $messages = [['msg_id' => 'msg1', 'direction' => 'in', 'subject' => 'Crypto investment opportunity', 'body_text' => 'Invest in our new cryptocurrency', 'ts_msg' => '2025-10-27T10:00:00+00:00']];
 
@@ -86,9 +94,9 @@ final class ScamClassifierTest extends TestCase
         $this->assertInstanceOf(ClassificationResult::class, $result);
         $this->assertSame('crypto_scam', $result->scamTypeCode);
         $this->assertSame(0.88, $result->confidence);
-        $this->assertTrue($result->isNewType);
-        $this->assertNotNull($result->getSuggestedPersonaCodes());
-        $this->assertCount(3, $result->getSuggestedPersonaCodes());
+        // Spec 095 Fix #1 — these MUST be forced regardless of LLM output
+        $this->assertFalse($result->isNewType, 'Parser must force isNewType=false');
+        $this->assertNull($result->getSuggestedPersonaCodes(), 'Parser must drop suggested_persona_codes when isNewType is forced false');
     }
 
     public function testItReturnsNullWhenJsonValidationFails(): void
@@ -150,5 +158,105 @@ final class ScamClassifierTest extends TestCase
         $this->jsonValidator->method('parseAndValidate')->willReturn(['success' => true, 'data' => ['scam_type_code' => 'phishing', 'confidence' => 0.9, 'is_new_type' => false, 'reasoning' => 'test'], 'errors' => []]);
 
         $this->classifier->classify($messages);
+    }
+
+    /**
+     * Spec 095 Fix #1 — Defensive parser: even if the LLM disobeys the prompt
+     * instruction and returns is_new_type=true, the parser MUST force it to false.
+     * This guarantees no new scam_type rows are created via the LLM path,
+     * regardless of LLM compliance.
+     *
+     * See: specs/095-pipeline-audit/fix-01-disable-new-scam-types/spec.md
+     */
+    public function testItForcesIsNewTypeToFalseEvenWhenLLMReturnsTrue(): void
+    {
+        $messages = [['msg_id' => 'msg1', 'direction' => 'in', 'subject' => 'Novel scam', 'body_text' => 'Some new pattern', 'ts_msg' => '2026-06-01T10:00:00+00:00']];
+
+        $this->scamTypeManager->expects($this->once())->method('getAllCodes')->willReturn(['phishing', 'unknown']);
+
+        // Simulate LLM disobeying the prompt and returning is_new_type=true
+        $llmData = [
+            'scam_type_code' => 'novel_authority_scam',
+            'confidence' => 0.92,
+            'is_new_type' => true, // ← LLM disobedience
+            'label_en' => 'Novel scam',
+            'label_fr' => 'Nouvelle arnaque',
+            'reasoning' => 'A pattern not seen before',
+            'suggested_persona_codes' => ['generic_user'],
+        ];
+
+        $this->llmClient->expects($this->once())->method('chat')->willReturn(json_encode($llmData, JSON_THROW_ON_ERROR));
+        $this->jsonValidator->expects($this->once())->method('parseAndValidate')->willReturn(['success' => true, 'data' => $llmData, 'errors' => []]);
+
+        $result = $this->classifier->classify($messages);
+
+        $this->assertInstanceOf(ClassificationResult::class, $result);
+        $this->assertFalse($result->isNewType, 'Parser MUST force isNewType to false regardless of LLM output');
+        $this->assertNull($result->getSuggestedPersonaCodes(), 'When isNewType is forced to false, suggested_persona_codes must also be null');
+    }
+
+    /**
+     * Spec 095 Fix #1 — Prompt layer: the generated classification prompt
+     * MUST NOT instruct or invite the LLM to create new types. It must
+     * instruct the LLM to fall back to 'UNKNOWN' when no known type matches.
+     *
+     * See: specs/095-pipeline-audit/fix-01-disable-new-scam-types/spec.md
+     */
+    /**
+     * Spec 095 Fix #4 — ScamClassifier prompt is now in English to eliminate
+     * code-switching with the 90 % EN corpus. The prompt content must contain
+     * EN markers and NO key French markers from the previous version.
+     *
+     * See: specs/095-pipeline-audit/fix-04-translate-classifier-prompt/spec.md
+     */
+    public function testPromptIsInEnglish_Fix04(): void
+    {
+        $messages = [['msg_id' => 'msg1', 'direction' => 'in', 'subject' => 'Test', 'body_text' => 'Test body', 'ts_msg' => '2026-06-01T10:00:00+00:00']];
+        $this->scamTypeManager->expects($this->once())->method('getAllCodes')->willReturn(['PHISHING']);
+
+        $captured = '';
+        $this->llmClient->expects($this->once())->method('chat')
+            ->willReturnCallback(function (array $msgs) use (&$captured) {
+                $captured = ($msgs[0]['content'] ?? '') . "\n---USER---\n" . ($msgs[1]['content'] ?? '');
+
+                return '{"scam_type_code":"PHISHING","confidence":0.9,"is_new_type":false,"reasoning":"test"}';
+            });
+        $this->jsonValidator->method('parseAndValidate')->willReturn(['success' => true, 'data' => ['scam_type_code' => 'PHISHING', 'confidence' => 0.9, 'is_new_type' => false, 'reasoning' => 'test'], 'errors' => []]);
+
+        $this->classifier->classify($messages);
+
+        // Negative: no French markers
+        $this->assertStringNotContainsString('Vous êtes', $captured, 'FR intro phrase must be gone');
+        $this->assertStringNotContainsString('Analysez', $captured, 'FR Analysez verb must be gone');
+        $this->assertStringNotContainsString('Types de scams', $captured, 'FR Types de scams must be gone');
+        $this->assertStringNotContainsString('Règle pour', $captured, 'FR Règle pour must be gone');
+        $this->assertStringNotContainsString('Voici la conversation', $captured, 'FR Voici must be gone');
+        // Positive: EN markers present
+        $this->assertStringContainsString('You are', $captured, 'EN intro phrase must be present');
+        $this->assertStringContainsString('Analyze', $captured, 'EN Analyze verb must be present');
+        $this->assertStringContainsString('Known scam types', $captured, 'EN Known scam types must be present');
+    }
+
+    public function testPromptForbidsNewTypeCreation(): void
+    {
+        $messages = [['msg_id' => 'msg1', 'direction' => 'in', 'subject' => 'Test', 'body_text' => 'Test body', 'ts_msg' => '2026-06-01T10:00:00+00:00']];
+
+        $this->scamTypeManager->expects($this->once())->method('getAllCodes')->willReturn(['PHISHING', 'INVOICE_FRAUD']);
+
+        // Capture the prompt sent to LLM via the chat() mock
+        $capturedPrompt = '';
+        $this->llmClient->expects($this->once())->method('chat')
+            ->willReturnCallback(function (array $messages) use (&$capturedPrompt) {
+                $capturedPrompt = ($messages[0]['content'] ?? '') . "\n---USER---\n" . ($messages[1]['content'] ?? '');
+
+                return '{"scam_type_code":"PHISHING","confidence":0.9,"is_new_type":false,"reasoning":"test"}';
+            });
+        $this->jsonValidator->method('parseAndValidate')->willReturn(['success' => true, 'data' => ['scam_type_code' => 'PHISHING', 'confidence' => 0.9, 'is_new_type' => false, 'reasoning' => 'test'], 'errors' => []]);
+
+        $this->classifier->classify($messages);
+
+        $this->assertStringNotContainsStringIgnoringCase('NOUVEAU type', $capturedPrompt, 'Prompt must not encourage new type creation (FR)');
+        $this->assertStringNotContainsStringIgnoringCase('propose a new type', $capturedPrompt, 'Prompt must not encourage new type creation (EN)');
+        $this->assertStringContainsStringIgnoringCase('UNKNOWN', $capturedPrompt, 'Prompt must mention UNKNOWN as the fallback code');
     }
 }

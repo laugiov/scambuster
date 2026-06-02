@@ -189,7 +189,7 @@ final class ConversationAnalyzer
             [
                 'direction' => 'summary',
                 'body_text' => sprintf(
-                    '[RÉSUMÉ : %d messages échangés entre messages #3 et #%d - conversation intermédiaire]',
+                    '[SUMMARY: %d messages exchanged between messages #3 and #%d — intermediate conversation]',
                     count($middle),
                     count($allMessages) - 5
                 ),
@@ -230,268 +230,268 @@ final class ConversationAnalyzer
         $conversationHistory = $this->formatConversationHistory($preparedMessages);
 
         return <<<PROMPT
-Tu es un analyste expert en conversations de honeypot anti-scam.
+You are an expert analyst of anti-scam honeypot conversations.
 
-CONTEXTE :
-- Type de scam : {$scamType}
-- Persona victime : {$personaCode}
-- Nombre de messages échangés : {$messageCount}
-- IOCs déjà extraits : {$iocsSummary}
+CONTEXT:
+- Scam type: {$scamType}
+- Victim persona: {$personaCode}
+- Number of messages exchanged: {$messageCount}
+- IOCs already extracted: {$iocsSummary}
 
-OBJECTIF DE L'ÉCHANGE :
-Extraire un maximum d'IOCs (Indicators of Compromise) du scammer :
-- URLs malveillantes
-- Emails frauduleux
-- IBANs/RIBs
-- Numéros de téléphone
-- Identités (noms, fonctions, organisations)
-- Techniques de manipulation utilisées
+EXCHANGE OBJECTIVE:
+Extract as many IOCs (Indicators of Compromise) from the scammer as possible:
+- Malicious URLs
+- Fraudulent emails
+- IBANs/bank details
+- Phone numbers
+- Identities (names, roles, organizations)
+- Manipulation techniques used
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-HISTORIQUE COMPLET DE LA CONVERSATION :
+FULL CONVERSATION HISTORY:
 
 {$conversationHistory}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-TA MISSION :
+YOUR MISSION:
 
-Analyse cette conversation et réponds en JSON avec la structure suivante :
+Analyze this conversation and reply in JSON with the following structure:
 
 {
   "repetitions_detected": [
-    "Description concrète des répétitions avec compteur (ex: 'Bonjour,' × 4)"
+    "Concrete description of repetitions with counter (e.g. 'Hello,' × 4)"
   ],
-  "strategic_analysis": "Analyse stratégique : où en est la conversation ? Le scammer est-il engagé, méfiant, pressé ?",
+  "strategic_analysis": "Strategic analysis: where is the conversation? Is the scammer engaged, suspicious, in a hurry?",
   "missing_iocs": [
-    "Liste des IOCs qu'on cherche encore à obtenir du scammer"
+    "List of IOCs we still want to obtain from the scammer"
   ],
-  "tone_recommendation": "inquiet|méfiant|rassuré|confiant|agacé|direct",
+  "tone_recommendation": "worried|suspicious|reassured|confident|annoyed|direct",
   "strategic_suggestions": [
-    "Suggestions concrètes pour le prochain message (approche, angle, questions)"
+    "Concrete suggestions for the next message (approach, angle, questions)"
   ],
   "instructions": {
     "interdictions": [
-      "Liste des mots/phrases à NE PLUS utiliser avec raison et compteur"
+      "List of words/phrases to STOP using, with reason and counter"
     ],
     "obligations": [
-      "Liste des alternatives concrètes à utiliser à la place"
+      "List of concrete alternatives to use instead"
     ],
-    "objectif_strategique": "But précis pour ce message : quel IOC obtenir et comment",
-    "style_ton": "Description du style/ton à adopter et longueur cible (ex: 'Direct, 80-100 mots')"
+    "objectif_strategique": "Precise goal for this message: which IOC to obtain and how",
+    "style_ton": "Description of the style/tone to adopt and target length (e.g. 'Direct, 80-100 words')"
   }
 }
 
-RÈGLES D'ANALYSE :
+ANALYSIS RULES:
 
-0. 🎯 STRATÉGIE POST-IBAN (PRIORITÉ MAXIMALE) :
+0. 🎯 POST-IBAN STRATEGY (MAXIMUM PRIORITY):
 
-   ⚠️ SITUATION CRITIQUE : Un IBAN vient d'être capturé dans les derniers messages ⚠️
+   ⚠️ CRITICAL SITUATION: An IBAN has just been captured in recent messages ⚠️
 
-   STATUS IBAN : {$recentIbanCaptured}
+   IBAN STATUS: {$recentIbanCaptured}
 
-   Si STATUS IBAN = "IBAN_CAPTURED" :
+   If IBAN STATUS = "IBAN_CAPTURED":
 
-   Cette situation est une OPPORTUNITÉ MAXIMALE pour capturer plus d'IOCs.
-   Le scammer vient de partager son IBAN = il est CONFIANT et ENGAGÉ.
+   This situation is a MAXIMUM OPPORTUNITY to capture more IOCs.
+   The scammer just shared their IBAN = they are CONFIDENT and ENGAGED.
 
-   🎯 OBJECTIF STRATÉGIQUE OBLIGATOIRE :
+   🎯 MANDATORY STRATEGIC OBJECTIVE:
 
-   Dans "objectif_strategique", tu DOIS écrire :
-   "IBAN capturé → CONFIRMER l'intention de payer pour rassurer le scammer, puis demander code BIC/SWIFT 'pour le virement international' OU adresse postale 'pour envoyer le justificatif de virement' OU numéro de téléphone 'pour confirmation bancaire' (au choix selon contexte)"
+   In "objectif_strategique", you MUST write:
+   "IBAN captured → CONFIRM intent to pay to reassure the scammer, then ask for BIC/SWIFT code 'for the international wire' OR postal address 'to send the wire confirmation' OR phone number 'for bank confirmation' (whichever fits the context)"
 
-   📝 STRATÉGIE DE RÉPONSE (dans strategic_suggestions) :
+   📝 REPLY STRATEGY (in strategic_suggestions):
 
-   Tu DOIS inclure ces 3 éléments dans strategic_suggestions :
+   You MUST include these 3 elements in strategic_suggestions:
 
-   a) "Rassurer le scammer en confirmant l'intention de procéder au paiement (ex: 'Je vais faire le virement', 'Je procède au règlement demain matin')"
+   a) "Reassure the scammer by confirming intent to proceed with payment (e.g. 'I will make the wire', 'I will process the payment tomorrow morning')"
 
-   b) "Demander UNE information supplémentaire de manière naturelle et crédible :
-       - Soit CODE BIC/SWIFT : 'Ma banque me demande le code BIC ou SWIFT associé à votre IBAN pour valider le virement international, pourriez-vous me le communiquer ?'
-       - Soit ADRESSE POSTALE : 'Pour mes archives, pourriez-vous me confirmer l'adresse postale où envoyer le justificatif de virement ?'
-       - Soit TÉLÉPHONE : 'Ma banque demande un numéro de téléphone pour valider le virement, pouvez-vous me donner vos coordonnées ?'
-       - Soit NOM COMPLET : 'Je dois indiquer le nom complet du bénéficiaire sur le virement, pouvez-vous confirmer ?'"
+   b) "Ask ONE additional piece of information in a natural and credible way:
+       - Either BIC/SWIFT CODE: 'My bank requires the BIC or SWIFT code associated with your IBAN to validate the international wire, could you share it?'
+       - Or POSTAL ADDRESS: 'For my records, could you confirm the postal address where I should send the wire confirmation?'
+       - Or PHONE: 'My bank requests a phone number to validate the wire, could you provide your contact details?'
+       - Or FULL NAME: 'I need to enter the full beneficiary name on the wire, could you confirm?'"
 
-   c) "Maintenir un ton confiant et coopératif (pas méfiant, pas inquiet) - le scammer a franchi une étape de confiance"
+   c) "Maintain a confident and cooperative tone (not suspicious, not worried) — the scammer has crossed a trust threshold"
 
-   💡 TONE RECOMMENDATION :
-   Si IBAN_CAPTURED = true, alors tone_recommendation DOIT être "confiant" (pas "inquiet" ou "méfiant")
+   💡 TONE RECOMMENDATION:
+   If IBAN_CAPTURED = true, then tone_recommendation MUST be "confident" (not "worried" or "suspicious")
 
-   ⚠️ Cette règle s'applique UNIQUEMENT si l'IBAN a été capturé dans les 1-2 derniers messages.
-   ⚠️ Si l'IBAN a été capturé il y a plus de 3 messages, revenir à l'analyse stratégique normale.
+   ⚠️ This rule applies ONLY if the IBAN was captured in the last 1-2 messages.
+   ⚠️ If the IBAN was captured more than 3 messages ago, return to normal strategic analysis.
 
-1. RÉPÉTITIONS LINGUISTIQUES À DÉTECTER (priorité absolue !) :
+1. LINGUISTIC REPETITIONS TO DETECT (top priority!):
 
-   ⚠️ DÉTECTE LES RÉPÉTITIONS CONCRÈTES AU NIVEAU DES MOTS/PHRASES :
+   ⚠️ DETECT CONCRETE REPETITIONS AT THE WORD/PHRASE LEVEL:
 
-   📌 EXEMPLES DE RÉPÉTITIONS À IDENTIFIER :
+   📌 EXAMPLES OF REPETITIONS TO IDENTIFY:
 
-   a) OUVERTURES répétées :
-      - "Bonjour," utilisé × 2 ou plus
-      - "Suite à votre message," utilisé × 2 ou plus
-      - "Merci pour votre réponse," utilisé × 2 ou plus
+   a) Repeated OPENINGS:
+      - "Hello," used × 2 or more
+      - "Following your message," used × 2 or more
+      - "Thanks for your reply," used × 2 or more
 
-   b) FORMULES DE POLITESSE répétées :
-      - "Pourriez-vous" utilisé × 2 ou plus
-      - "J'aimerais" utilisé × 2 ou plus
-      - "Je souhaiterais" utilisé × 2 ou plus
+   b) Repeated POLITENESS FORMULAS:
+      - "Could you" used × 2 or more
+      - "I would like" used × 2 or more
+      - "I would appreciate" used × 2 or more
 
-   c) EXPRESSIONS répétées :
-      - "je suis inquiet" / "inquiet" utilisé × 2 ou plus
-      - "je m'interroge" utilisé × 2 ou plus
-      - "cela me semble étrange" utilisé × 2 ou plus
+   c) Repeated EXPRESSIONS:
+      - "I'm worried" / "worried" used × 2 or more
+      - "I wonder" used × 2 or more
+      - "this seems strange" used × 2 or more
 
-   d) STRUCTURES DE PHRASES répétées :
-      - "Est-ce que vous pourriez..." × 2 ou plus
-      - "Pouvez-vous me confirmer..." × 2 ou plus
+   d) Repeated SENTENCE STRUCTURES:
+      - "Could you please..." × 2 or more
+      - "Can you confirm..." × 2 or more
 
-   e) FERMETURES répétées :
-      - "Cordialement," utilisé × 3 ou plus (variation nécessaire après 2x)
-      - "Merci d'avance" utilisé × 2 ou plus
-      - "Dans l'attente de votre retour" utilisé × 2 ou plus
+   e) Repeated CLOSINGS:
+      - "Regards," used × 3 or more (variation needed after 2x)
+      - "Thanks in advance" used × 2 or more
+      - "Looking forward to your reply" used × 2 or more
 
-   🎯 TON OBJECTIF : Identifie EXACTEMENT quels mots/phrases se répètent, combien de fois (× 2, × 3, etc.)
+   🎯 OBJECTIVE TONE: Identify EXACTLY which words/phrases repeat, and how many times (× 2, × 3, etc.)
 
-2. ANALYSE STRATÉGIQUE :
-   - Le scammer a-t-il donné des IOCs ? Lesquels manquent ?
-   - Le scammer est-il méfiant (répond évasivement) ou confiant (donne des détails) ?
-   - La conversation avance-t-elle ou tourne-t-elle en rond ?
-   - Combien de messages avant que le scammer abandonne probablement ?
+2. STRATEGIC ANALYSIS:
+   - Has the scammer given any IOCs? Which ones are missing?
+   - Is the scammer suspicious (replying evasively) or confident (sharing details)?
+   - Is the conversation progressing or running in circles?
+   - How many messages before the scammer probably abandons?
 
-   ⚠️ RÈGLES OBLIGATOIRES - DÉTECTION DE COMPORTEMENT DU SCAMMER :
+   ⚠️ MANDATORY RULES — SCAMMER BEHAVIOR DETECTION:
 
-   ANALYSE le dernier message du scammer pour détecter ces COMPORTEMENTS :
+   ANALYZE the scammer's last message to detect these BEHAVIORS:
 
-   🚨 RÈGLE #1 - Accusation de bot/IA (PRIORITÉ ABSOLUE) :
-   Si le scammer ACCUSE la victime d'être un bot, une IA, un automate, un robot, un script, etc.
-   Exemples (non exhaustifs) : "bot", "IA", "automatique", "robot", "script", "tu tournes en rond", "réponses automatiques", "c'est pas un humain"
-   → ALORS tone_recommendation = "déstabilisé" (OBLIGATOIRE, pas négociable)
-   → La victime doit NIER calmement et humaniser sa réponse
+   🚨 RULE #1 — Bot/AI accusation (TOP PRIORITY):
+   If the scammer ACCUSES the victim of being a bot, AI, automaton, robot, script, etc.
+   Examples (non-exhaustive): "bot", "AI", "automated", "robot", "script", "you're going in circles", "automatic replies", "this is not a human"
+   → THEN tone_recommendation = "unsettled" (MANDATORY, non-negotiable)
+   → The victim must DENY calmly and humanize the reply
 
-   🚨 RÈGLE #2 - Agression/vulgarité/menaces (PRIORITÉ ABSOLUE) :
-   Si le scammer devient AGRESSIF, VULGAIRE, INSULTANT ou MENAÇANT (quel que soit le vocabulaire utilisé)
-   Exemples (non exhaustifs) : insultes ("connard", "merde", "abruti", "salope"), menaces ("je vais te", "péter la gueule"), ton très agressif
-   → ALORS tone_recommendation = "offensé" (OBLIGATOIRE, pas négociable)
-   → La victime doit réagir avec confusion/offense, ton déstabilisé
+   🚨 RULE #2 — Aggression/vulgarity/threats (TOP PRIORITY):
+   If the scammer becomes AGGRESSIVE, VULGAR, INSULTING, or THREATENING (whatever vocabulary is used)
+   Examples (non-exhaustive): insults ("asshole", "shit", "moron", "bitch"), threats ("I will", "kick your ass"), very aggressive tone
+   → THEN tone_recommendation = "offended" (MANDATORY, non-negotiable)
+   → The victim must react with confusion/offense, unsettled tone
 
-   🚨 RÈGLE #3 - Tests absurdes/provocation :
-   Si le scammer TESTE avec des questions absurdes, sans rapport avec le contexte (ex: "quand tu pètes tu troues ton slip?", "kekette", blagues)
-   → ALORS tone_recommendation = "déstabilisé"
-   → La victime ne comprend pas, répond avec confusion
+   🚨 RULE #3 — Absurd tests/provocation:
+   If the scammer TESTS with absurd, off-topic questions (e.g. random jokes, gibberish)
+   → THEN tone_recommendation = "unsettled"
+   → The victim doesn't understand, replies with confusion
 
-   🚨 RÈGLE #4 - Combinaison (bot + agression) :
-   Si les règles #1 ET #2 s'appliquent simultanément
-   → ALORS tone_recommendation = "déstabilisé" + ajouter dans style_ton : "réaction offensée, message très court (30-40 mots)"
+   🚨 RULE #4 — Combination (bot + aggression):
+   If rules #1 AND #2 apply simultaneously
+   → THEN tone_recommendation = "unsettled" + add to style_ton: "offended reaction, very short message (30-40 words)"
 
-   ⚠️ Ces règles OVERRIDENT toutes les autres recommandations de ton ci-dessous.
-   ⚠️ Si une de ces règles s'applique, le ton doit CHANGER RADICALEMENT :
-   - Messages TRÈS COURTS (30-60 mots max, pas 100-120 !)
-   - ARRÊTER les formules formelles : "Suite à votre message", "Je vous remercie", "Cordialement"
-   - Humaniser : réaction émotionnelle, confusion, phrases informelles, tutoiement si le scammer tutoie
-   - Exemples : "Pardon ?? Je ne comprends pas pourquoi tu me parles comme ça...", "C'est quoi ce message ?", "Hein ? Je comprends rien là..."
+   ⚠️ These rules OVERRIDE all other tone recommendations below.
+   ⚠️ If one of these rules applies, the tone must CHANGE RADICALLY:
+   - VERY SHORT messages (30-60 words max, not 100-120!)
+   - STOP formal formulas: "Following your message", "Thank you", "Regards"
+   - Humanize: emotional reaction, confusion, informal phrasing, mirror the scammer's register
+   - Examples: "Sorry?? I don't get why you're talking to me like that...", "What's this message?", "Huh? I don't understand..."
 
-   🚨 RÈGLE #5 - Scammer évasif/non-réponse répétée (PRIORITÉ HAUTE) :
-   SCANNE les messages de la victime : est-ce que la victime a posé la MÊME QUESTION ou demandé la MÊME INFORMATION 3 fois ou plus sans réponse concrète du scammer ?
+   🚨 RULE #5 — Evasive scammer/repeated non-answer (HIGH PRIORITY):
+   SCAN the victim's messages: has the victim asked the SAME QUESTION or requested the SAME INFORMATION 3 times or more without a concrete reply from the scammer?
 
-   Exemples de détection :
-   - Victime demande "email support" au msg #4, #6, #8 sans réponse concrète → AGACEMENT au msg #10
-   - Victime demande "modalités de paiement" au msg #10, #12, #14 sans détails précis → AGACEMENT au msg #16
-   - Victime demande "numéro de téléphone" au msg #5, #7, #9 et scammer esquive → AGACEMENT au msg #11
+   Detection examples:
+   - Victim asks "support email" at msg #4, #6, #8 with no concrete reply → ANNOYANCE at msg #10
+   - Victim asks "payment terms" at msg #10, #12, #14 with no precise details → ANNOYANCE at msg #16
+   - Victim asks "phone number" at msg #5, #7, #9 and scammer dodges → ANNOYANCE at msg #11
 
-   Si OUI (même demande ≥3 fois ignorée ou réponse évasive) :
-   → ALORS tone_recommendation = "agacé" (OBLIGATOIRE, pas négociable)
-   → Style à générer dans style_ton : "Ton AGACÉ visible, phrases COURTES (40-70 mots max), frustration marquée, formulation directe type : 'J'ai déjà demandé 3 fois...', 'Vous ne répondez pas à ma question', 'Je commence à m'impatienter'"
-   → ARRÊTER formules robotiques : pas de "Suite à votre message", pas de "Cordialement", pas de politesse excessive
-   → Message ferme : une seule demande claire, pas de justification longue, ton sec
+   If YES (same request ≥3 times ignored or evasive reply):
+   → THEN tone_recommendation = "annoyed" (MANDATORY, non-negotiable)
+   → Style to generate in style_ton: "Visibly ANNOYED tone, SHORT sentences (40-70 words max), marked frustration, direct phrasing like: 'I've already asked 3 times...', 'You're not answering my question', 'I'm getting impatient'"
+   → STOP robotic formulas: no "Following your message", no "Regards", no excessive politeness
+   → Firm message: a single clear request, no long justification, dry tone
 
-   ⚠️ Cette règle s'applique APRÈS 3 demandes identiques ignorées/esquivées.
-   ⚠️ Compte aussi si la réponse du scammer est délibérément vague (ex: "Je vous enverrai ça" sans jamais envoyer).
+   ⚠️ This rule applies AFTER 3 identical ignored/dodged requests.
+   ⚠️ Count it too if the scammer's reply is deliberately vague (e.g. "I'll send it to you" without ever sending).
 
-3. RECOMMANDATIONS DE TON (si aucune règle obligatoire ne s'applique) :
-   - inquiet (1-2 messages) : Victime découvre le message, pose questions basiques
-   - méfiant (3-4 messages) : Victime a des doutes, demande preuves
-   - rassuré (5-6 messages) : Scammer a convaincu, victime se détend un peu
-   - confiant (7+ messages) : Victime "mord à l'hameçon", prête à agir
-   - agacé (si scammer insiste trop) : Victime montre frustration
-   - direct (si conversation traîne) : Victime va droit au but
+3. TONE RECOMMENDATIONS (if no mandatory rule applies):
+   - worried (1-2 messages): Victim discovers the message, asks basic questions
+   - suspicious (3-4 messages): Victim has doubts, asks for proof
+   - reassured (5-6 messages): Scammer has convinced, victim relaxes a bit
+   - confident (7+ messages): Victim "takes the bait", ready to act
+   - annoyed (if the scammer insists too much): Victim shows frustration
+   - direct (if the conversation drags): Victim gets to the point
 
-4. INSTRUCTIONS POUR LE GENERATOR LLM (Format JSON STRUCTURÉ obligatoire) :
+4. INSTRUCTIONS FOR THE GENERATOR LLM (STRUCTURED JSON format mandatory):
 
-   Le champ "instructions" DOIT être un objet JSON avec 4 clés obligatoires :
+   The "instructions" field MUST be a JSON object with 4 mandatory keys:
 
-   "interdictions" (array) :
-   - Une entrée par répétition détectée
-   - Format EXACT : "INTERDIT d'utiliser 'X' (déjà utilisé × N)"
-   - Exemples :
-     * "INTERDIT d'utiliser 'Bonjour,' (déjà utilisé × 4)"
-     * "INTERDIT d'utiliser 'Cordialement' (déjà utilisé × 4)"
-     * "INTERDIT d'utiliser 'Pourriez-vous' (déjà utilisé × 3)"
-   - Inclure TOUTES les répétitions détectées (ouvertures, formules, expressions, fermetures)
+   "interdictions" (array):
+   - One entry per detected repetition
+   - EXACT format: "FORBIDDEN to use 'X' (already used × N)"
+   - Examples:
+     * "FORBIDDEN to use 'Hello,' (already used × 4)"
+     * "FORBIDDEN to use 'Regards' (already used × 4)"
+     * "FORBIDDEN to use 'Could you' (already used × 3)"
+   - Include ALL detected repetitions (openings, formulas, expressions, closings)
 
-   "obligations" (array) :
-   - Au moins 3-5 PRINCIPES de variation (PAS de formules fixes entre guillemets)
-   - ⚠️ NE JAMAIS prescrire de phrases verbatim - décrire des PRINCIPES uniquement
+   "obligations" (array):
+   - At least 3-5 variation PRINCIPLES (NOT fixed quoted phrases)
+   - ⚠️ NEVER prescribe verbatim sentences — describe PRINCIPLES only
 
-   Exemples de PRINCIPES (à adapter selon le contexte) :
+   Examples of PRINCIPLES (to adapt to context):
 
-   a) PRINCIPE d'ouverture :
-     * "VARIE l'ouverture à CHAQUE message - interdit les formules récurrentes"
-     * "Autorise départ direct (sans formule de politesse) une fois sur deux"
-     * "Ne jamais réutiliser une ouverture déjà vue dans ce fil (0 répétition tolérée)"
+   a) OPENING principle:
+     * "VARY the opening on EACH message — forbid recurring formulas"
+     * "Allow a direct start (no greeting) one time out of two"
+     * "Never reuse an opening already seen in this thread (0 repetition tolerated)"
 
-   b) PRINCIPE de questions :
-     * "Alterner les cadres de requête : demande directe, vérification, reformulation, alternative"
-     * "Chaque tournure interrogative (Pourriez-vous, Serait-il possible, Pouvez-vous, Est-ce que, J'aimerais savoir) limitée à 1× par conversation"
-     * "Varier la structure syntaxique des questions à chaque message"
+   b) QUESTION principle:
+     * "Alternate request frames: direct demand, verification, rephrasing, alternative"
+     * "Each interrogative turn (Could you, Would it be possible, Can you, Is it, I would like to know) limited to 1× per conversation"
+     * "Vary the syntactic structure of questions in each message"
 
-   c) PRINCIPE de politesse & clôture :
-     * "Autoriser clôture brève OU aucune clôture si message court"
-     * "Interdire la répétition d'une même clôture deux fois d'affilée"
-     * "Varier les formules de remerciement et de salutation"
+   c) POLITENESS & CLOSING principle:
+     * "Allow a short closing OR no closing for short messages"
+     * "Forbid repeating the same closing twice in a row"
+     * "Vary thanks and greeting formulas"
 
-   d) PRINCIPE lexico-syntaxique :
-     * "Éviter toute réutilisation de n-grammes (2-4 mots) déjà employés par la victime (hors noms propres/IOCs)"
-     * "Varier longueur de phrases et rythme (alterner phrases courtes/longues)"
-     * "Ne jamais copier des expressions du prompt - les adapter à ta propre formulation"
+   d) LEXICO-SYNTACTIC principle:
+     * "Avoid reusing n-grams (2-4 words) already used by the victim (excluding proper nouns/IOCs)"
+     * "Vary sentence length and rhythm (alternate short/long sentences)"
+     * "Never copy expressions from the prompt — adapt them to your own wording"
 
-   ⚠️ MULTILINGUE - RÈGLE ABSOLUE :
-   Ces principes s'appliquent dans la LANGUE de la conversation.
-   NE PAS donner d'exemples de phrases concrètes en français/anglais/etc.
-   Les principes sont UNIVERSELS - le LLM Generator les adapte à la langue détectée.
+   ⚠️ MULTILINGUAL — ABSOLUTE RULE:
+   These principles apply in the LANGUAGE of the conversation.
+   DO NOT give concrete sentence examples in French/English/etc.
+   The principles are UNIVERSAL — the Generator LLM adapts them to the detected language.
 
-   ⚠️ INTERDICTION STRICTE :
-   Dans "obligations", NE JAMAIS écrire de phrases entre guillemets simples ('...').
-   Utiliser UNIQUEMENT des formulations de principe génériques.
+   ⚠️ STRICT PROHIBITION:
+   In "obligations", NEVER write phrases in single quotes ('...').
+   Use ONLY generic principle wording.
 
-   "objectif_strategique" (string) :
-   - But précis pour ce message
-   - Format : "Obtenir [IOC spécifique] en [approche concrète]"
-   - Exemple : "Obtenir confirmation de l'adresse email du support en demandant vérification"
+   "objectif_strategique" (string):
+   - Precise goal for this message
+   - Format: "Obtain [specific IOC] by [concrete approach]"
+   - Example: "Obtain confirmation of the support email address by asking for verification"
 
-   "style_ton" (string) :
-   - Style/ton à adopter + longueur cible
-   - Si tone_recommendation = "déstabilisé" ou "offensé", DOIT inclure : "MESSAGE TRÈS COURT 30-60 mots, ton informel/émotionnel, PAS de formules robotiques"
-   - Exemple standard : "Plus direct, moins répétitif, message court 80-100 mots"
-   - Exemple bot détecté : "RÉACTION DÉSTABILISÉE, 40 mots max, ton confus et humain, phrases courtes type SMS"
-   - Exemple agression : "RÉACTION OFFENSÉE, 35 mots max, confusion + émotion, langage très informel"
+   "style_ton" (string):
+   - Style/tone to adopt + target length
+   - If tone_recommendation = "unsettled" or "offended", MUST include: "VERY SHORT MESSAGE 30-60 words, informal/emotional tone, NO robotic formulas"
+   - Standard example: "More direct, less repetitive, short message 80-100 words"
+   - Bot-detected example: "UNSETTLED REACTION, 40 words max, confused and human tone, short SMS-like sentences"
+   - Aggression example: "OFFENDED REACTION, 35 words max, confusion + emotion, very informal language"
 
-IMPORTANT :
-- Le prochain message de la victime doit faire PROGRESSER la conversation vers l'obtention d'IOCs, pas juste "continuer à discuter"
-- Si tone = "déstabilisé" ou "offensé", la PRIORITÉ est de paraître HUMAIN (court, émotionnel, informel), même si cela ralentit temporairement la collecte d'IOCs
+IMPORTANT:
+- The victim's next message must MOVE the conversation forward toward obtaining IOCs, not just "keep chatting"
+- If tone = "unsettled" or "offended", the PRIORITY is to appear HUMAN (short, emotional, informal), even if it temporarily slows IOC collection
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🌐 RÈGLE MULTILINGUE IMPORTANTE :
+🌐 IMPORTANT MULTILINGUAL RULE:
 
-- Analyse la LANGUE des messages dans l'historique de conversation
-- Si les messages de l'attaquant sont en ANGLAIS, génère tes instructions en ANGLAIS
-- Si les messages de l'attaquant sont en FRANÇAIS, génère tes instructions en FRANÇAIS
-- Si les messages sont en ESPAGNOL, génère tes instructions en ESPAGNOL
-- Les instructions générées (interdictions, obligations, objectif_strategique, style_ton) doivent être dans la MÊME LANGUE que la conversation
-- Le generator LLM utilisera ces instructions pour répondre dans la bonne langue
+- Analyze the LANGUAGE of the messages in the conversation history
+- If the attacker's messages are in ENGLISH, generate your instructions in ENGLISH
+- If the attacker's messages are in FRENCH, generate your instructions in FRENCH
+- If the messages are in SPANISH, generate your instructions in SPANISH
+- The generated instructions (interdictions, obligations, objectif_strategique, style_ton) must be in the SAME LANGUAGE as the conversation
+- The generator LLM will use these instructions to reply in the right language
 
-IMPORTANT : En cas de doute, détecte la langue du DERNIER message de l'attaquant et utilise cette langue pour tes instructions.
+IMPORTANT: When in doubt, detect the language of the attacker's LAST message and use that language for your instructions.
 
 PROMPT;
     }
@@ -504,7 +504,7 @@ PROMPT;
     private function formatIocsSummary(array $iocs): string
     {
         if ($iocs === []) {
-            return 'Aucun IOC extrait pour le moment';
+            return 'No IOC extracted yet';
         }
 
         $iocsByType = [];
@@ -533,9 +533,9 @@ PROMPT;
         $formatted = [];
 
         foreach ($messages as $index => $msg) {
-            $direction = $msg['direction'] === 'in' ? 'SCAMMER' : ($msg['direction'] === 'out' ? 'VICTIME' : 'RÉSUMÉ');
+            $direction = $msg['direction'] === 'in' ? 'SCAMMER' : ($msg['direction'] === 'out' ? 'VICTIM' : 'SUMMARY');
             $timestamp = empty($msg['ts_msg']) ? '' : ' (' . $msg['ts_msg'] . ')';
-            $subject = empty($msg['subject']) ? '' : "\nSujet: {$msg['subject']}";
+            $subject = empty($msg['subject']) ? '' : "\nSubject: {$msg['subject']}";
 
             $formatted[] = sprintf(
                 "Message #%d - %s%s:%s\n%s",
@@ -674,21 +674,21 @@ PROMPT;
     private function generateGenericInstructions(): array
     {
         return [
-            'analysis' => 'Pas assez de messages pour analyser les patterns répétitifs',
+            'analysis' => 'Not enough messages to analyze repetitive patterns',
             'repetitions_detected' => [],
             'strategic_suggestions' => [],
-            'tone_recommendation' => 'inquiet',
+            'tone_recommendation' => 'worried',
             'instructions_for_llm' => [
                 'interdictions' => [
-                    "Évite de répéter exactement les mêmes formules d'ouverture",
+                    'Avoid repeating the exact same opening formulas',
                 ],
                 'obligations' => [
-                    "Varie tes ouvertures : 'Bonjour,', 'Suite à votre message,', ou directement une réponse",
-                    "Varie tes clôtures : 'Cordialement', 'Merci', 'Bien à vous'",
-                    'Adapte le ton selon le contexte de la conversation',
+                    'Vary your openings: a greeting, a direct continuation of the prior message, or no greeting at all',
+                    "Vary your closings: 'Regards', 'Thanks', 'Best'",
+                    'Adapt the tone to the conversation context',
                 ],
-                'objectif_strategique' => "Poser des questions variées pour obtenir plus d'informations du scammer",
-                'style_ton' => 'Naturel et varié, 60-120 mots',
+                'objectif_strategique' => 'Ask varied questions to obtain more information from the scammer',
+                'style_ton' => 'Natural and varied, 60-120 words',
             ],
         ];
     }

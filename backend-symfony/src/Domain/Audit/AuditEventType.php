@@ -26,6 +26,28 @@ enum AuditEventType: string
     // Spec 083 — automated-mail pre-filter hit (DMARC, noreply, etc.).
     // Pipeline skipped LLM classification + reply generation.
     case INGEST_PRE_FILTER_HIT = 'INGEST_PRE_FILTER_HIT';
+    // Spec 095 Fix #13 — observability for the LLM auto-classification call.
+    // Emitted once per autoClassifyScamType invocation (success or failure),
+    // so UNKNOWN-rate and confidence distribution are queryable from DB
+    // without parsing app.INFO logs.
+    case SCAM_CLASSIFIED = 'SCAM_CLASSIFIED';
+    // Spec 095 Fix #13 — emitted by RetryCoordinator each time a generation
+    // attempt is rejected and the loop continues to the next attempt.
+    // Carries the gate name (policy_guard | validator | leak_detector |
+    // ioc_threshold | validator_error) and attempt number.
+    case REPLY_RETRY = 'REPLY_RETRY';
+    // Spec 095 Fix #13 — emitted by RetryCoordinator when all 3 attempts
+    // are exhausted at a gate and the canned fallback response is used.
+    // Carries the exhausting gate name (policy_guard | validator |
+    // leak_detector) and attempts count.
+    case REPLY_REJECTED = 'REPLY_REJECTED';
+    // Spec 095 Fix #14 — emitted by PersonaOptimizer on every
+    // selectPersonaWithStrategy call. Carries the FULL decision context:
+    // selected persona + all candidates with UCB1 scores + random_value
+    // + epsilon + converged flag. Complements (does not replace)
+    // PERSONA_SELECTED — research-grade introspection for the bandit's
+    // re-learning window after P4 TRUNCATE.
+    case BANDIT_DECISION = 'BANDIT_DECISION';
 
     // Security events
     case INJECTION_DETECTED = 'INJECTION_DETECTED';

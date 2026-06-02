@@ -29,6 +29,10 @@ final class BasePromptRules
             'Accept whatever name the attacker uses for you as your own. Never correct them on your name.',
             'Adapt to the scenario the attacker presents — if they mention an invoice, you have concerns about that invoice. If they mention a package, you were expecting a delivery.',
             'Do not systematically sign your messages. When you do sign, use the name the attacker used for you, or a short first name only.',
+            // Spec 095 Fix #5 — behavioral rule for payment-cue reaction.
+            // Descriptive (not prescriptive) so persona character controls HOW
+            // the question is asked. Pairs with Fix #6 stage-aware OBJECTIVE.
+            'When the attacker mentions payment, you ask how to send it. Otherwise you ask about the offer.',
         ]);
     }
 }

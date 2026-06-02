@@ -186,9 +186,17 @@ final class ScamClassifierMutationTest extends TestCase
         $this->assertSame('en', $result->detectedLanguage);
     }
 
-    // === New type with persona codes and labels ===
+    // === New type with persona codes and labels — DEPRECATED by Spec 095 Fix #1 ===
 
-    public function test_new_type_extracts_suggested_persona_codes(): void
+    /**
+     * Spec 095 Fix #1 — Parser now FORCES isNewType=false and drops suggested_persona_codes.
+     * Renamed from `test_new_type_extracts_suggested_persona_codes`. The test pins the
+     * defensive parser behavior: even when the LLM disobeys and emits is_new_type=true
+     * with suggested_persona_codes, the parser ignores both fields.
+     *
+     * See: specs/095-pipeline-audit/fix-01-disable-new-scam-types/spec.md
+     */
+    public function test_legacy_deprecated_parser_overrides_llm_is_new_type(): void
     {
         $this->llmClient->method('chat')->willReturn('{}');
         $this->jsonValidator->method('parseAndValidate')->willReturn([
@@ -196,7 +204,7 @@ final class ScamClassifierMutationTest extends TestCase
             'data' => [
                 'scam_type_code' => 'FAKE_DELIVERY',
                 'confidence' => 0.88,
-                'is_new_type' => true,
+                'is_new_type' => true, // LLM disobedience
                 'suggested_persona_codes' => ['elderly_person', 'generic_user'],
                 'label_en' => 'Fake Delivery',
                 'label_fr' => 'Fausse livraison',
@@ -207,9 +215,9 @@ final class ScamClassifierMutationTest extends TestCase
         ]);
 
         $result = $this->classifier->classify([['direction' => 'in', 'body_text' => 'text']]);
-        $this->assertTrue($result->isNewType);
-        $this->assertSame(['elderly_person', 'generic_user'], $result->suggestedPersonaCodes);
-        $this->assertSame(['label_en' => 'Fake Delivery', 'label_fr' => 'Fausse livraison'], $result->personaData);
+        $this->assertFalse($result->isNewType, 'Parser must force isNewType=false (Spec 095 Fix #1)');
+        $this->assertNull($result->suggestedPersonaCodes, 'Parser must drop suggested_persona_codes when isNewType is forced false');
+        $this->assertNull($result->personaData, 'Parser must drop personaData when isNewType is forced false');
     }
 
     // === Not new type => null persona codes ===

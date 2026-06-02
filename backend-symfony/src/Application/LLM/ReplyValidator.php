@@ -50,7 +50,10 @@ final readonly class ReplyValidator
      *
      * @throws \RuntimeException If LLM call fails or returns invalid JSON
      *
-     * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null, correction: array{problem_span: string, replacement: string, rationale: string}|null}
+     * Spec 095 Fix D — return array also includes score fields (naturalness,
+     * persona_fit, ti_value, security_pass) via ValidationResult::toLegacyArray().
+     *
+     * @return array{approved: bool, reasons: array<string>, fix_suggestion: string|null, correction: array{problem_span: string, replacement: string, rationale: string}|null, naturalness: int, persona_fit: int, ti_value: int, security_pass: bool}
      */
     public function validate(string $text, string $personaCode, ?array $context = null): array
     {

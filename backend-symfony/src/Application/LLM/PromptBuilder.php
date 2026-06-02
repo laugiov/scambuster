@@ -143,12 +143,24 @@ final readonly class PromptBuilder
         $maxWords = $context['policy_max_words'] ?? 150;
         $userPrompt .= "Target length: {$minWords}-{$maxWords} words.\n";
 
-        // Missing IOCs to collect naturally
-        if (!empty($stateSlots['missing_iocs'])) {
-            /** @var array<string> $missingIocs */
-            $missingIocs = $stateSlots['missing_iocs'];
-            $userPrompt .= 'If natural, try to obtain: ' . implode(', ', $missingIocs) . ".\n";
-        }
+        // Spec 095 Fix #6 — stage-aware IOC directive replaces the weak
+        // "If natural, try to obtain" wording. ContextAnalyzer's `stage` slot
+        // drives the per-turn objective so the LLM doesn't ask for IBAN on
+        // turn 1 (bot tell) but does push for specifics during payment_push.
+        // Pairs with BasePromptRules Fix #5 (behavioral rule on payment cues).
+        // See: specs/095-pipeline-audit/fix-05-06-coherent-ioc-directive/spec.md
+        /** @var string $stage */
+        $stage = $stateSlots['stage'];
+        $userPrompt .= match ($stage) {
+            'first_contact' =>
+                "Stage: first contact. Express plausible interest. Ask ONE specific question about the offer itself (timeline, who you are dealing with, why you were chosen). Hold off on payment specifics until the attacker raises them.\n",
+            'follow_up' =>
+                "Stage: follow-up. The relationship is forming. Ask ONE practical question (when you need to act, the best way to contact you, where exactly the money will go).\n",
+            'payment_push' =>
+                "Stage: payment push. Money is on the table. Ask ONE concrete question to extract a specific IOC: IBAN if bank transfer, wallet address if crypto, full beneficiary name, phone number for verification.\n",
+            default =>
+                "Ask ONE concrete question to advance the conversation toward payment details.\n",
+        };
 
         $langNames = ['en' => 'English', 'fr' => 'French', 'es' => 'Spanish', 'de' => 'German', 'pt' => 'Portuguese', 'it' => 'Italian', 'nl' => 'Dutch'];
         $langName = $langNames[$detectedLanguage] ?? 'English';

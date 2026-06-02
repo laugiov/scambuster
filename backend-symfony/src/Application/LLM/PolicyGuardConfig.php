@@ -35,9 +35,9 @@ final readonly class PolicyGuardConfig
     {
         $toneRecommendation = $context['tone_recommendation'] ?? '';
         $isBotAccusation = ($context['is_bot_accusation'] ?? false)
-            || $toneRecommendation === 'déstabilisé';
+            || $toneRecommendation === 'unsettled';
         $isAggression = ($context['is_aggression'] ?? false)
-            || $toneRecommendation === 'offensé';
+            || $toneRecommendation === 'offended';
         $isPostIban = $context['is_post_iban'] ?? false;
         $isEvasiveScammer = $context['is_evasive_scammer'] ?? false;
 

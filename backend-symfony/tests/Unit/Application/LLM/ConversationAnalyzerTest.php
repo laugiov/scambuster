@@ -52,7 +52,7 @@ final class ConversationAnalyzerTest extends TestCase
         $this->assertArrayHasKey('tone_recommendation', $result);
         $this->assertArrayHasKey('instructions_for_llm', $result);
 
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertSame('worried', $result['tone_recommendation']);
         $this->assertEmpty($result['repetitions_detected']);
         // instructions_for_llm is now a structured array, not a string
         $this->assertIsArray($result['instructions_for_llm']);
@@ -93,7 +93,7 @@ final class ConversationAnalyzerTest extends TestCase
             'repetitions_detected' => ['Répète "je suis inquiet" trop souvent'],
             'strategic_analysis' => 'Le scammer est engagé, conversation avance bien',
             'missing_iocs' => ['IBAN', 'Numéro de téléphone'],
-            'tone_recommendation' => 'méfiant',
+            'tone_recommendation' => 'suspicious',
             'strategic_suggestions' => ['Demander plus de preuves'],
             'instructions' => [
                 'interdictions' => ["INTERDIT d'utiliser 'je suis inquiet' (déjà utilisé × 2)"],
@@ -111,8 +111,8 @@ final class ConversationAnalyzerTest extends TestCase
                     $this->assertIsArray($messages);
                     $this->assertCount(1, $messages);
                     $this->assertSame('user', $messages[0]['role']);
-                    $this->assertStringContainsString('Type de scam : phishing', $messages[0]['content']);
-                    $this->assertStringContainsString('Nombre de messages échangés : 3', $messages[0]['content']);
+                    $this->assertStringContainsString('Scam type: phishing', $messages[0]['content']);
+                    $this->assertStringContainsString('Number of messages exchanged: 3', $messages[0]['content']);
                     $this->assertStringContainsString('email (1)', $messages[0]['content']);
 
                     return true;
@@ -138,7 +138,7 @@ final class ConversationAnalyzerTest extends TestCase
         $this->assertSame('Le scammer est engagé, conversation avance bien', $result['analysis']);
         $this->assertCount(1, $result['repetitions_detected']);
         $this->assertSame('Répète "je suis inquiet" trop souvent', $result['repetitions_detected'][0]);
-        $this->assertSame('méfiant', $result['tone_recommendation']);
+        $this->assertSame('suspicious', $result['tone_recommendation']);
         // instructions_for_llm is now a structured array
         $this->assertIsArray($result['instructions_for_llm']);
         $this->assertArrayHasKey('interdictions', $result['instructions_for_llm']);
@@ -171,7 +171,7 @@ final class ConversationAnalyzerTest extends TestCase
             'repetitions_detected' => [],
             'strategic_analysis' => 'Test analysis',
             'missing_iocs' => [],
-            'tone_recommendation' => 'inquiet',
+            'tone_recommendation' => 'worried',
             'strategic_suggestions' => [],
             'instructions' => [
                 'interdictions' => [],
@@ -222,7 +222,7 @@ final class ConversationAnalyzerTest extends TestCase
             'repetitions_detected' => [],
             'strategic_analysis' => 'Analysis with 2 messages',
             'missing_iocs' => [],
-            'tone_recommendation' => 'inquiet',
+            'tone_recommendation' => 'worried',
             'strategic_suggestions' => [],
             'instructions' => [
                 'interdictions' => [],
@@ -236,7 +236,7 @@ final class ConversationAnalyzerTest extends TestCase
             'repetitions_detected' => ['New repetition detected'],
             'strategic_analysis' => 'Analysis with 3 messages',
             'missing_iocs' => [],
-            'tone_recommendation' => 'méfiant',
+            'tone_recommendation' => 'suspicious',
             'strategic_suggestions' => [],
             'instructions' => [
                 'interdictions' => ["INTERDIT de répéter"],
@@ -297,8 +297,8 @@ final class ConversationAnalyzerTest extends TestCase
 
         // Should return generic instructions as fallback
         $this->assertIsArray($result);
-        $this->assertStringContainsString('Pas assez de messages', $result['analysis']);
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertStringContainsString('Not enough messages', $result['analysis']);
+        $this->assertSame('worried', $result['tone_recommendation']);
         // instructions_for_llm is now a structured array
         $this->assertIsArray($result['instructions_for_llm']);
         $this->assertArrayHasKey('interdictions', $result['instructions_for_llm']);
@@ -335,8 +335,8 @@ final class ConversationAnalyzerTest extends TestCase
 
         // Should return generic instructions as fallback
         $this->assertIsArray($result);
-        $this->assertStringContainsString('Pas assez de messages', $result['analysis']);
-        $this->assertSame('inquiet', $result['tone_recommendation']);
+        $this->assertStringContainsString('Not enough messages', $result['analysis']);
+        $this->assertSame('worried', $result['tone_recommendation']);
     }
 
     public function testItHandlesMissingRequiredFields(): void
@@ -375,7 +375,7 @@ final class ConversationAnalyzerTest extends TestCase
 
         // Should return generic instructions as fallback
         $this->assertIsArray($result);
-        $this->assertStringContainsString('Pas assez de messages', $result['analysis']);
+        $this->assertStringContainsString('Not enough messages', $result['analysis']);
     }
 
     public function testItFormatsIocsSummaryCorrectly(): void
@@ -407,7 +407,7 @@ final class ConversationAnalyzerTest extends TestCase
             'repetitions_detected' => [],
             'strategic_analysis' => 'Test',
             'missing_iocs' => [],
-            'tone_recommendation' => 'inquiet',
+            'tone_recommendation' => 'worried',
             'strategic_suggestions' => [],
             'instructions_for_llm' => 'Test',
         ], JSON_THROW_ON_ERROR);
@@ -458,7 +458,7 @@ final class ConversationAnalyzerTest extends TestCase
             'repetitions_detected' => [],
             'strategic_analysis' => 'Test',
             'missing_iocs' => [],
-            'tone_recommendation' => 'inquiet',
+            'tone_recommendation' => 'worried',
             'strategic_suggestions' => [],
             'instructions_for_llm' => 'Test',
         ], JSON_THROW_ON_ERROR);
@@ -470,9 +470,9 @@ final class ConversationAnalyzerTest extends TestCase
                 $this->callback(function ($messages) {
                     $prompt = $messages[0]['content'];
                     $this->assertStringContainsString('Message #1 - SCAMMER', $prompt);
-                    $this->assertStringContainsString('Sujet: Urgent action required', $prompt);
-                    $this->assertStringContainsString('Message #2 - VICTIME', $prompt);
-                    $this->assertStringContainsString('Sujet: Re: Urgent action required', $prompt);
+                    $this->assertStringContainsString('Subject: Urgent action required', $prompt);
+                    $this->assertStringContainsString('Message #2 - VICTIM', $prompt);
+                    $this->assertStringContainsString('Subject: Re: Urgent action required', $prompt);
 
                     return true;
                 }),
@@ -508,7 +508,7 @@ final class ConversationAnalyzerTest extends TestCase
             'repetitions_detected' => [],
             'strategic_analysis' => 'Test',
             'missing_iocs' => [],
-            'tone_recommendation' => 'inquiet',
+            'tone_recommendation' => 'worried',
             'strategic_suggestions' => [],
             'instructions_for_llm' => 'Test',
         ], JSON_THROW_ON_ERROR);
@@ -520,8 +520,8 @@ final class ConversationAnalyzerTest extends TestCase
                 $this->callback(function ($messages) {
                     $prompt = $messages[0]['content'];
                     // Should contain summary marker
-                    $this->assertStringContainsString('RÉSUMÉ', $prompt);
-                    $this->assertStringContainsString('messages échangés', $prompt);
+                    $this->assertStringContainsString('SUMMARY', $prompt);
+                    $this->assertStringContainsString('messages exchanged', $prompt);
 
                     return true;
                 }),
@@ -670,5 +670,37 @@ final class ConversationAnalyzerTest extends TestCase
         $result = $this->analyzer->analyzeAndGenerateInstructions($context);
 
         $this->assertSame('warm', $result['tone_recommendation']);
+    }
+
+    /**
+     * Spec 095 Fix #12 — ConversationAnalyzer's strategic analysis prompt
+     * must now be in English (was 264 lines of French pre-Fix #12).
+     * Eliminates LLM code-switching with the 90 % EN corpus.
+     *
+     * See: specs/095-pipeline-audit/fix-12-translate-remaining-prompts/spec.md
+     */
+    public function testAnalysisPromptIsInEnglish_Fix12(): void
+    {
+        $validResponse = '{"strategic_analysis": "OK", "repetitions_detected": [], "tone_recommendation": "confident", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": []}}';
+
+        $captured = '';
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$captured, $validResponse) {
+            $captured = ($messages[0]['content'] ?? '') . "\n---\n" . ($messages[1]['content'] ?? '');
+
+            return $validResponse;
+        });
+
+        $context = $this->buildContext();
+        $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // No FR markers
+        $this->assertStringNotContainsString('Tu es un analyste', $captured);
+        $this->assertStringNotContainsString('CONTEXTE :', $captured);
+        $this->assertStringNotContainsString('Voici', $captured);
+        $this->assertStringNotContainsString('OBJECTIF DE L', $captured);
+        // EN markers present
+        $this->assertStringContainsString('You are', $captured);
+        $this->assertStringContainsString('CONTEXT', $captured);
+        $this->assertStringContainsString('OBJECTIVE', $captured);
     }
 }

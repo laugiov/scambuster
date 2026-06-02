@@ -25,7 +25,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
             type: 'object',
             properties: [
                 new OA\Property(property: 'force', type: 'boolean', description: 'Force reclassification even if already classified', default: false),
-                new OA\Property(property: 'confidence_threshold', type: 'number', description: 'Minimum confidence threshold (0.0-1.0)', default: 0.75, minimum: 0, maximum: 1),
+                new OA\Property(property: 'confidence_threshold', type: 'number', description: 'Minimum confidence threshold (0.0-1.0). Default lowered to 0.55 by spec 095 Fix #2 to accept hybrid scams.', default: 0.55, minimum: 0, maximum: 1),
             ]
         )
     ),
@@ -91,7 +91,8 @@ final readonly class AutoClassifyConversationController
         }
 
         $force = ($data['force'] ?? false) === true;
-        $confidenceThreshold = $data['confidence_threshold'] ?? 0.75;
+        // Spec 095 Fix #2 — default lowered 0.75 → 0.55 (Phase 0 audit fix).
+        $confidenceThreshold = $data['confidence_threshold'] ?? 0.55;
 
         try {
             $result = $this->classificationHandler->autoClassifyConversation(

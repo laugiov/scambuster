@@ -30,12 +30,16 @@ final readonly class ConversationClosureService
     /**
      * Close a conversation: compute engagement metrics, calculate reward, dispatch event.
      *
-     * @param string $convId ID of the conversation to close
-     * @param string $reason Why the conversation is being closed ('manual', 'stale_timeout', 'max_turns', 'max_duration')
+     * @param string $convId    ID of the conversation to close
+     * @param string $reason    Why the conversation is being closed ('manual', 'inactivity (>Xh)', 'max_turns (N/M)', 'max_duration (>X days)')
+     * @param string $actorId   Spec 095 Fix #15 — the actor identifier emitted on CONVERSATION_CLOSED audit row.
+     *                          Defaults to 'user' for legacy callers; controllers should pass the authenticated user id.
+     *                          Cron callers pass 'cron'.
+     * @param string $actorType Spec 095 Fix #15 — 'user' for authenticated UI/API actions, 'system' for cron/automated closures.
      *
      * @throws \RuntimeException If the conversation does not exist or is deleted
      */
-    public function closeConversation(string $convId, string $reason = 'manual'): void
+    public function closeConversation(string $convId, string $reason = 'manual', string $actorId = 'user', string $actorType = 'user'): void
     {
         $conversation = $this->em->getRepository(Conversation::class)->find($convId);
 
@@ -71,9 +75,12 @@ final readonly class ConversationClosureService
 
         $this->em->flush();
 
+        // Spec 095 Fix #15 — actor_id is the passed-in actor (was bugged to $convId);
+        // actor_type carries 'system' for cron, 'user' for manual API closures.
+        // resource_id still carries $convId — that's where the conv reference belongs.
         $this->auditLogger?->log(
             \App\Domain\Audit\AuditEventType::CONVERSATION_CLOSED,
-            $convId,
+            $actorId,
             'close_conversation',
             'success',
             'conversation',
@@ -82,6 +89,9 @@ final readonly class ConversationClosureService
                 'reward' => $reward,
                 'reason' => $reason,
             ],
+            null,
+            null,
+            $actorType,
         );
 
         $event = new ConversationEndedEvent(
@@ -176,17 +186,28 @@ final readonly class ConversationClosureService
      * Ferme plusieurs conversations en batch (pour CRON journalier).
      * Returns the number of successfully closed conversations.
      *
-     * @param string[] $convIds List of conversation IDs to close
+     * Spec 095 Fix #15 — signature changed from `array<string>` to
+     * `array<array{conv_id: string, reason: string}>` so each conv carries
+     * the real closure reason (e.g. 'inactivity (>48h)', 'max_turns (15/15)').
+     * Previously the batch path discarded the reason and every cron-closed
+     * conv was mis-tagged as 'manual' in audit_log.
+     *
+     * @param list<array{conv_id: string, reason: string}> $items     List of (conv_id, reason) pairs
+     * @param string                                       $actorId   Defaults to 'cron' (the typical caller is CloseStaleConversationsCommand)
+     * @param string                                       $actorType Defaults to 'system'
      *
      * @return int Number of closed conversations
      */
-    public function closeConversationsBatch(array $convIds): int
+    public function closeConversationsBatch(array $items, string $actorId = 'cron', string $actorType = 'system'): int
     {
         $closedCount = 0;
 
-        foreach ($convIds as $convId) {
+        foreach ($items as $item) {
+            $convId = $item['conv_id'];
+            $reason = $item['reason'];
+
             try {
-                $this->closeConversation($convId);
+                $this->closeConversation($convId, $reason, $actorId, $actorType);
                 $closedCount++;
             } catch (\Exception $e) {
                 $this->logger->error('Failed to close conversation in batch', [
@@ -197,9 +218,9 @@ final readonly class ConversationClosureService
         }
 
         $this->logger->info('Batch conversation closure completed', [
-            'total' => count($convIds),
+            'total' => count($items),
             'closed' => $closedCount,
-            'failed' => count($convIds) - $closedCount,
+            'failed' => count($items) - $closedCount,
         ]);
 
         return $closedCount;
