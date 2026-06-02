@@ -69,7 +69,10 @@ class ConversationLifecycleConfigTest extends TestCase
         $this->assertSame(72, $policy['timeout_hours']);
         $this->assertSame(25, $policy['max_turns']);
         $this->assertSame(14, $policy['max_duration_days']);
-        $this->assertFalse($policy['allow_reopen']);
+        // Spec 095 Fix #15 — UNKNOWN bucket now allows reopen to recover
+        // late follow-ups on unclassifiable inbound.
+        $this->assertTrue($policy['allow_reopen']);
+        $this->assertSame(72, $policy['reopen_window_hours']);
     }
 
     public function testNonExistentScamTypeUsesDefault(): void
@@ -99,11 +102,25 @@ class ConversationLifecycleConfigTest extends TestCase
         $this->assertSame(48, ConversationLifecycleConfig::getReopenWindowHours('ADVANCE_FEE_419'));
     }
 
-    public function testReopenDeniedForShortScams(): void
+    public function testReopenDeniedOnlyForLowValueScams_Fix15(): void
     {
-        foreach (['PHISHING', 'PHISH_CREDENTIALS', 'PHISH_MALWARE', 'TECH_SUPPORT', 'CEO_FRAUD', 'LOTTERY', 'JOB_OFFER', 'CHARITY'] as $type) {
+        // Spec 095 Fix #15 — only LOTTERY + CHARITY still deny reopen
+        // (low volume, low signal). All other short-window types now allow
+        // reopen with a 72h window so late scammer follow-ups don't get lost.
+        foreach (['LOTTERY', 'CHARITY'] as $type) {
             $this->assertFalse(ConversationLifecycleConfig::allowsReopen($type), "$type should not allow reopen");
             $this->assertSame(0, ConversationLifecycleConfig::getReopenWindowHours($type), "$type reopen window");
+        }
+    }
+
+    public function testReopenAllowedForShortScams_Fix15(): void
+    {
+        // Spec 095 Fix #15 — short-window scam types that previously denied
+        // reopen now allow it within a 72h window. Measured loss before fix:
+        // PHISHING 17%, INVOICE_FRAUD 21%, TECH_SUPPORT 33%, JOB_OFFER 33%.
+        foreach (['PHISHING', 'PHISH_CREDENTIALS', 'PHISH_MALWARE', 'TECH_SUPPORT', 'CEO_FRAUD', 'JOB_OFFER', 'INVOICE_FRAUD', 'UNKNOWN'] as $type) {
+            $this->assertTrue(ConversationLifecycleConfig::allowsReopen($type), "$type should allow reopen post-Fix #15");
+            $this->assertSame(72, ConversationLifecycleConfig::getReopenWindowHours($type), "$type reopen window should be 72h");
         }
     }
 

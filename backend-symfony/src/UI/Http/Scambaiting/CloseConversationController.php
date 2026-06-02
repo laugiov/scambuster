@@ -75,7 +75,12 @@ final class CloseConversationController extends AbstractController
     public function __invoke(string $convId): JsonResponse
     {
         try {
-            $this->closureService->closeConversation($convId);
+            // Spec 095 Fix #15 — pass the authenticated user identifier so
+            // CONVERSATION_CLOSED audit rows can distinguish manual UI/API
+            // closures from automated (cron) closures.
+            $user = $this->getUser();
+            $actorId = $user?->getUserIdentifier() ?? 'user';
+            $this->closureService->closeConversation($convId, 'manual', $actorId, 'user');
 
             $this->logger->info('Conversation closed via API', [
                 'conv_id' => $convId,
