@@ -323,6 +323,66 @@ class ThreadResolverServiceTest extends KernelTestCase
         $this->assertStringContainsString('john@evil.test', $conversation->getStixId());
     }
 
+    /**
+     * Spec 095 Fix #16 — Microsoft 365 internal Exchange senders carry an
+     * X.400 distinguished name encoded as a fake email address (e.g.
+     * IMCEAEX-_O=FIRST+20...@AUSP*.PROD.OUTLOOK.COM). Combined with the
+     * full Outlook message-id (80 chars), the legacy concat-based stixId
+     * exceeded varchar(255) and PostgreSQL rejected the INSERT with
+     * SQLSTATE 22001, returning HTTP 500 to n8n.
+     */
+    public function testCreateNewConversationDoesNotOverflowOnOutlookX400Sender_Fix16(): void
+    {
+        $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
+        $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
+
+        $x400Dn = 'IMCEAEX-_O=FIRST+20ORGANIZATION_OU=EXCHANGE+20ADMINISTRATIVE+20GROUP+28FYDIBOHF23SPDLT+29_CN=RECIPIENTS_CN=00034001FCBB9658@AUSP282.PROD.OUTLOOK.COM';
+        $longMsgId = '<SY6P282MB38451244344C09B280C82972C1112-' . bin2hex(random_bytes(8)) . '@SY6P282MB3845.AUSP282.PROD.OUTLOOK.COM>';
+
+        $conversation = $this->service->createNewConversation(
+            'Nikta Goyal <' . $x400Dn . '>',
+            $longMsgId,
+            $account,
+            $channel,
+            50
+        );
+
+        $this->assertNotNull($conversation->getConvId(), 'Conversation must be created (no SQLSTATE 22001 overflow)');
+        $this->assertLessThanOrEqual(255, strlen($conversation->getStixId()), 'stixId must fit varchar(255)');
+        $this->assertLessThanOrEqual(200, strlen($conversation->getStixId()), 'stixId must stay under 200 chars (safety margin)');
+
+        // Email prefix must still be findable for forensic traceability
+        $this->assertStringContainsString(substr($x400Dn, 0, 40), $conversation->getStixId(), 'Sender prefix must remain in stixId for grep-by-sender');
+    }
+
+    /**
+     * Spec 095 Fix #16 — message-ids vary by source: Outlook prefixes with
+     * `<` and may include leading whitespace, Gmail strips them. Normalize
+     * to a single canonical form (no chevrons, no whitespace) before
+     * embedding in stixId.
+     */
+    public function testCreateNewConversationNormalizesMessageIdChevronsInStixId_Fix16(): void
+    {
+        $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
+        $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
+
+        $rawMsgId = '  <abc-' . bin2hex(random_bytes(8)) . '@example.test>  ';
+
+        $conversation = $this->service->createNewConversation(
+            'sender@example.test',
+            $rawMsgId,
+            $account,
+            $channel,
+            10
+        );
+
+        $stixId = $conversation->getStixId();
+        $this->assertStringContainsString('abc-', $stixId, 'Normalized message-id core must remain in stixId');
+        $this->assertStringNotContainsString('<', $stixId, 'Chevrons must be stripped before embedding');
+        $this->assertStringNotContainsString('>', $stixId, 'Chevrons must be stripped before embedding');
+        $this->assertStringNotContainsString('  ', $stixId, 'Leading/trailing whitespace must be stripped');
+    }
+
     // ── reopenIfNeeded ──
 
     public function testReopenIfNeededDoesNothingForOpenConversation(): void

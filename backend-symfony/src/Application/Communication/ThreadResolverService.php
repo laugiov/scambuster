@@ -273,9 +273,18 @@ class ThreadResolverService
         // Extract sender email
         $fromEmail = $fromHeader ? (preg_match('/<([^>]+)>/', $fromHeader, $matches) ? $matches[1] : $fromHeader) : '';
 
+        // Spec 095 Fix #16 — defensive truncation + normalization to fit varchar(255).
+        // Microsoft 365 internal Exchange senders emit X.400 DNs of ~150 chars; combined
+        // with the message-id and chevrons, the legacy concat overflowed and PostgreSQL
+        // rejected the INSERT (SQLSTATE 22001), breaking ingestion. Both variable parts
+        // are clamped to 80 chars; total stixId stays under 200 chars.
+        // See: specs/095-pipeline-audit/fix-16-stix-id-overflow/spec.md
+        $fromEmail = substr($fromEmail, 0, 80);
+        $normalizedMessageId = $messageId !== null ? substr(trim(trim($messageId), '<>'), 0, 80) : '';
+
         // Generate unique stixId
         $uniquePart = bin2hex(random_bytes(8));
-        $stixId = 'shadow-ingest-' . $fromEmail . '-' . $messageId . '-' . $uniquePart;
+        $stixId = 'shadow-ingest-' . $fromEmail . '-' . $normalizedMessageId . '-' . $uniquePart;
 
         $this->logger->info('[ThreadResolverService] Generated stixId', [
             'stixId' => $stixId,
