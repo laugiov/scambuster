@@ -703,4 +703,110 @@ final class ConversationAnalyzerTest extends TestCase
         $this->assertStringContainsString('CONTEXT', $captured);
         $this->assertStringContainsString('OBJECTIVE', $captured);
     }
+
+    /**
+     * Spec 095 Fix #17 — the meta-prompt must contain RULE #6 instructing
+     * the analyzer to pivot away from a deferred IOC rather than re-asking
+     * it robotically. Triggered by the first real bot-detection event on
+     * 2026-06-11 (conv d2a31055, yogesh@ecommstreet.com said "you are not
+     * human" after we asked for BIC/SWIFT 3 turns in a row despite his
+     * explicit deferral).
+     *
+     * See: specs/095-pipeline-audit/fix-17-anti-robotic-ioc-repetition/spec.md
+     */
+    public function testBuildAnalysisPromptContainsAntiRoboticIocRule_Fix17(): void
+    {
+        $validResponse = '{"strategic_analysis": "OK", "repetitions_detected": [], "tone_recommendation": "confident", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": []}}';
+
+        $captured = '';
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$captured, $validResponse) {
+            $captured = ($messages[0]['content'] ?? '') . "\n---\n" . ($messages[1]['content'] ?? '');
+
+            return $validResponse;
+        });
+
+        $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        // RULE #6 marker
+        $this->assertStringContainsString('RULE #6', $captured, 'RULE #6 must exist in the analyzer system prompt');
+        // Key concept: explicit deferral by scammer
+        $this->assertStringContainsString('deferred', $captured, 'Rule must mention "deferred" IOC concept');
+        // At least one canonical EN deferral phrase example
+        $this->assertTrue(
+            str_contains($captured, "I'll share later")
+                || str_contains($captured, 'share later')
+                || str_contains($captured, 'with the invoice')
+                || str_contains($captured, 'after we finalize'),
+            'Rule must give at least one EN example of a deferral phrase'
+        );
+        // The fix is about PIVOTING, not re-asking
+        $this->assertTrue(
+            str_contains(strtolower($captured), 'pivot')
+                || str_contains(strtolower($captured), 'switch to a different ioc')
+                || str_contains(strtolower($captured), 'change angle'),
+            'Rule must instruct the analyzer to pivot to a different IOC'
+        );
+    }
+
+    /**
+     * Spec 095 Fix #17 — when the scammer's recent reply contains an
+     * explicit deferral and the LLM applies RULE #6, the parsed
+     * `instructions_for_llm` payload should carry an interdiction
+     * forbidding the re-ask of the deferred IOC.
+     *
+     * This test verifies WIRING (prompt → LLM → parsing). The LLM is
+     * mocked to simulate compliant output; real LLM obedience is checked
+     * end-to-end in test_cases.sh.
+     */
+    public function testAnalyzerPivotsAwayFromDeferredIoc_Fix17(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-fix17',
+            'scam_type' => 'ADVANCE_FEE_419',
+            'persona_code' => 'small_business_owner',
+            'all_messages' => [
+                ['direction' => 'in', 'body_text' => 'Hi, please send your bank details for the wire.', 'ts_msg' => '2026-01-01T00:00:00+00:00'],
+                ['direction' => 'out', 'body_text' => 'Could you share the BIC/SWIFT code for the wire?', 'ts_msg' => '2026-01-01T01:00:00+00:00'],
+                ['direction' => 'in', 'body_text' => 'I will share the BIC later once we finalize the project.', 'ts_msg' => '2026-01-01T02:00:00+00:00'],
+            ],
+        ];
+
+        // Mock the LLM as if it had applied RULE #6 — output pivots away from BIC/SWIFT
+        $compliantResponse = json_encode([
+            'strategic_analysis' => 'Scammer deferred BIC; pivot to phone or postal address',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'confident',
+            'strategic_suggestions' => [
+                'Acknowledge the BIC will come later, ask for phone number for "bank verification call"',
+            ],
+            'instructions' => [
+                'interdictions' => [
+                    "FORBIDDEN to ask for 'BIC' or 'SWIFT' again (already deferred, would read as robotic)",
+                ],
+                'obligations' => [
+                    'Pivot to a different IOC angle (phone, postal address, full name)',
+                ],
+                'objectif_strategique' => 'Obtain a phone number for bank verification call',
+                'style_ton' => 'Cooperative, acknowledge their pace, 80-100 words',
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($compliantResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // The parsed output must carry the pivot directives
+        $this->assertIsArray($result['instructions_for_llm']);
+        $interdictions = $result['instructions_for_llm']['interdictions'] ?? [];
+        $this->assertNotEmpty($interdictions);
+        $combined = implode(' | ', $interdictions);
+        $this->assertTrue(
+            str_contains($combined, 'BIC') || str_contains($combined, 'SWIFT'),
+            'interdictions must reference the deferred IOC'
+        );
+        // objectif_strategique must NOT re-target BIC/SWIFT
+        $objectif = (string) ($result['instructions_for_llm']['objectif_strategique'] ?? '');
+        $this->assertStringNotContainsStringIgnoringCase('BIC', $objectif, 'New objectif_strategique should pivot away from BIC');
+        $this->assertStringNotContainsStringIgnoringCase('SWIFT', $objectif, 'New objectif_strategique should pivot away from SWIFT');
+    }
 }
