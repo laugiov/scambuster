@@ -809,4 +809,95 @@ final class ConversationAnalyzerTest extends TestCase
         $this->assertStringNotContainsStringIgnoringCase('BIC', $objectif, 'New objectif_strategique should pivot away from BIC');
         $this->assertStringNotContainsStringIgnoringCase('SWIFT', $objectif, 'New objectif_strategique should pivot away from SWIFT');
     }
+
+    // === Spec 095 Fix #18 — structured forbidden_iocs + pivot_to_iocs schema ===
+
+    /**
+     * Spec 095 Fix #18 — backward compatibility: when the LLM returns a
+     * response WITHOUT the new `forbidden_iocs` / `pivot_to_iocs` fields
+     * (the historical schema, all existing fixtures), parsing must succeed
+     * and default both fields to empty arrays in instructions_for_llm.
+     *
+     * This is the critical regression guard against breaking the 8 existing
+     * fixtures in ConversationAnalyzerTest + ConversationAnalyzerMutationTest.
+     */
+    public function testParseAcceptsResponseWithoutForbiddenIocsField_Fix18(): void
+    {
+        // Old schema — no forbidden_iocs, no pivot_to_iocs
+        $oldSchemaResponse = json_encode([
+            'strategic_analysis' => 'Test',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'confident',
+            'strategic_suggestions' => [],
+            'instructions' => [
+                'interdictions' => [],
+                'obligations' => ['stay engaged'],
+                'objectif_strategique' => 'Get phone number',
+                'style_ton' => 'Natural, 80-100 words',
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($oldSchemaResponse);
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertIsArray($result['instructions_for_llm']);
+        // The new fields must default to [] when absent — never throw, never null
+        $this->assertArrayHasKey('forbidden_iocs', $result['instructions_for_llm'], 'forbidden_iocs key must always be present (default empty array)');
+        $this->assertArrayHasKey('pivot_to_iocs', $result['instructions_for_llm'], 'pivot_to_iocs key must always be present (default empty array)');
+        $this->assertSame([], $result['instructions_for_llm']['forbidden_iocs']);
+        $this->assertSame([], $result['instructions_for_llm']['pivot_to_iocs']);
+    }
+
+    /**
+     * Spec 095 Fix #18 — when the LLM emits the new structured fields,
+     * they must flow through to instructions_for_llm verbatim.
+     */
+    public function testParseAcceptsForbiddenIocsField_Fix18(): void
+    {
+        $newSchemaResponse = json_encode([
+            'strategic_analysis' => 'Scammer deferred BIC; pivot to phone',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'confident',
+            'strategic_suggestions' => [],
+            'instructions' => [
+                'interdictions' => ['FORBIDDEN to ask BIC/SWIFT (deferred)'],
+                'obligations' => ['Pivot to phone'],
+                'objectif_strategique' => 'Obtain phone number',
+                'style_ton' => 'Cooperative, 80-100 words',
+                'forbidden_iocs' => ['BIC', 'SWIFT'],
+                'pivot_to_iocs' => ['phone', 'postal address', 'beneficiary name'],
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($newSchemaResponse);
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertSame(['BIC', 'SWIFT'], $result['instructions_for_llm']['forbidden_iocs']);
+        $this->assertSame(['phone', 'postal address', 'beneficiary name'], $result['instructions_for_llm']['pivot_to_iocs']);
+    }
+
+    /**
+     * Spec 095 Fix #18 — the fallback path (LLM error or message count < 2)
+     * must also expose the new fields with safe empty defaults, so
+     * PromptBuilder can read them unconditionally without isset/?? guards.
+     */
+    public function testGenericInstructionsContainEmptyForbiddenIocs_Fix18(): void
+    {
+        // Trigger fallback by providing a context with < 2 messages
+        $context = [
+            'conversation_id' => 'test-conv',
+            'scam_type' => 'PHISHING',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                ['direction' => 'in', 'body_text' => 'single msg', 'ts_msg' => '2026-01-01T00:00:00+00:00'],
+            ],
+        ];
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        $this->assertArrayHasKey('forbidden_iocs', $result['instructions_for_llm']);
+        $this->assertArrayHasKey('pivot_to_iocs', $result['instructions_for_llm']);
+        $this->assertSame([], $result['instructions_for_llm']['forbidden_iocs']);
+        $this->assertSame([], $result['instructions_for_llm']['pivot_to_iocs']);
+    }
 }

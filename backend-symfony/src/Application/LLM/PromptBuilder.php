@@ -179,6 +179,12 @@ final readonly class PromptBuilder
         /** @var array<string, string>|null $retryCorrection */
         $retryCorrection = (\is_array($context['retry_correction'] ?? null) && $this->generatorPatchMode) ? $context['retry_correction'] : null;
 
+        // Spec 095 Fix #18 — Conditional PRIORITY OVERRIDE section, placed
+        // AFTER OBJECTIVE so it benefits from recency bias when it fires.
+        // Empty string when the analyzer hasn't flagged any IOC as forbidden
+        // → prompt is bit-identical to pre-Fix #18 in that case (dominant path).
+        $userPrompt .= $this->buildPriorityOverrideSection($context, $personaCode, $messageCount);
+
         if ($retryCorrection !== null) {
             $userPrompt .= $this->formatPatchModeBlock($retryCorrection);
         } else {
@@ -341,41 +347,12 @@ PROMPT;
      */
     private function buildVarietySection(array $context, string $personaCode, int $messageCount): string
     {
-        /** @var array<string, string> $scamTypeData */
-        $scamTypeData = $context['scam_type'] ?? [];
+        $analysis = $this->runAnalyzerOrNull($context, $personaCode, $messageCount);
 
-        // Try ConversationAnalyzer first (LLM-powered anti-repetition)
-        if ($this->conversationAnalyzer instanceof \App\Application\LLM\ConversationAnalyzer && $messageCount >= 2) {
-            try {
-                /** @var array<array{direction: string, body_text: string, ts_msg: string, subject?: string}> $allMsgsForAnalysis */
-                $allMsgsForAnalysis = $context['last_messages'] ?? [];
-                /** @var array<array{type: string, value: string, category?: string}> $iocsForAnalysis */
-                $iocsForAnalysis = $context['extracted_iocs'] ?? [];
-                $analysisContext = [
-                    'conversation_id' => \is_string($context['conv_id'] ?? null) ? $context['conv_id'] : 'unknown',
-                    'scam_type' => (string) ($scamTypeData['code'] ?? 'unknown'),
-                    'persona_code' => $personaCode,
-                    'all_messages' => $allMsgsForAnalysis,
-                    'extracted_iocs' => $iocsForAnalysis,
-                ];
+        if ($analysis !== null) {
+            $result = $this->formatInstructions($analysis['instructions_for_llm']);
 
-                $analysis = $this->conversationAnalyzer->analyzeAndGenerateInstructions($analysisContext);
-
-                $this->logger->info('[PromptBuilder] ConversationAnalyzer instructions added', [
-                    'conv_id' => $context['conv_id'] ?? 'unknown',
-                    'repetitions_detected' => count($analysis['repetitions_detected']),
-                    'tone_recommended' => $analysis['tone_recommendation'],
-                ]);
-
-                $result = $this->formatInstructions($analysis['instructions_for_llm']);
-
-                return $result === '' || $result === '0' ? "Vary your opening and phrasing from previous messages.\n\n" : $result . "\n";
-            } catch (\Throwable $e) {
-                $this->logger->warning('[PromptBuilder] ConversationAnalyzer failed, falling back to VariationProvider', [
-                    'error' => $e->getMessage(),
-                    'conv_id' => $context['conv_id'] ?? 'unknown',
-                ]);
-            }
+            return $result === '' || $result === '0' ? "Vary your opening and phrasing from previous messages.\n\n" : $result . "\n";
         }
 
         // Fallback: VariationProvider (basic, PHP-only)
@@ -388,6 +365,126 @@ PROMPT;
         }
 
         return "Vary your opening and phrasing from previous messages.\n\n";
+    }
+
+    /**
+     * Spec 095 Fix #18 — Invoke ConversationAnalyzer once per reply build,
+     * with safe error handling. Returns null when the analyzer is unavailable,
+     * disabled (messageCount < 2), or threw.
+     *
+     * Both `buildVarietySection` and `buildPriorityOverrideSection` call this
+     * helper; the second call hits ConversationAnalyzer's in-memory cache
+     * (keyed by conversation_id + message count) so cost is incurred once.
+     *
+     * @param array<string, mixed> $context
+     *
+     * @return array{
+     *   analysis: string,
+     *   repetitions_detected: array<string>,
+     *   strategic_suggestions: array<string>,
+     *   tone_recommendation: string,
+     *   instructions_for_llm: array<string, mixed>
+     * }|null
+     */
+    private function runAnalyzerOrNull(array $context, string $personaCode, int $messageCount): ?array
+    {
+        if (!$this->conversationAnalyzer instanceof \App\Application\LLM\ConversationAnalyzer || $messageCount < 2) {
+            return null;
+        }
+
+        /** @var array<string, string> $scamTypeData */
+        $scamTypeData = $context['scam_type'] ?? [];
+        /** @var array<array{direction: string, body_text: string, ts_msg: string, subject?: string}> $allMsgsForAnalysis */
+        $allMsgsForAnalysis = $context['last_messages'] ?? [];
+        /** @var array<array{type: string, value: string, category?: string}> $iocsForAnalysis */
+        $iocsForAnalysis = $context['extracted_iocs'] ?? [];
+
+        $analysisContext = [
+            'conversation_id' => \is_string($context['conv_id'] ?? null) ? $context['conv_id'] : 'unknown',
+            'scam_type' => (string) ($scamTypeData['code'] ?? 'unknown'),
+            'persona_code' => $personaCode,
+            'all_messages' => $allMsgsForAnalysis,
+            'extracted_iocs' => $iocsForAnalysis,
+        ];
+
+        try {
+            $analysis = $this->conversationAnalyzer->analyzeAndGenerateInstructions($analysisContext);
+
+            $this->logger->info('[PromptBuilder] ConversationAnalyzer instructions added', [
+                'conv_id' => $context['conv_id'] ?? 'unknown',
+                'repetitions_detected' => count($analysis['repetitions_detected']),
+                'tone_recommended' => $analysis['tone_recommendation'],
+            ]);
+
+            return $analysis;
+        } catch (\Throwable $e) {
+            $this->logger->warning('[PromptBuilder] ConversationAnalyzer failed, falling back to VariationProvider', [
+                'error' => $e->getMessage(),
+                'conv_id' => $context['conv_id'] ?? 'unknown',
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
+     * Spec 095 Fix #18 — Build the conditional "## PRIORITY OVERRIDE" block
+     * appended AFTER the OBJECTIVE section. Fires ONLY when the analyzer has
+     * marked one or more IOCs as forbidden (RULE #6, anti-robotic repetition).
+     *
+     * Returns the empty string when no IOC is forbidden — the prompt is
+     * bit-identical to the pre-Fix #18 prompt in that case (regression
+     * guarantee for ~99.75 % of replies that don't hit the deferral path).
+     *
+     * @param array<string, mixed> $context
+     */
+    private function buildPriorityOverrideSection(array $context, string $personaCode, int $messageCount): string
+    {
+        $analysis = $this->runAnalyzerOrNull($context, $personaCode, $messageCount);
+
+        if ($analysis === null) {
+            return '';
+        }
+
+        $instructions = $analysis['instructions_for_llm'];
+        /** @var list<string> $forbidden */
+        $forbidden = is_array($instructions['forbidden_iocs'] ?? null) ? $instructions['forbidden_iocs'] : [];
+
+        if ($forbidden === []) {
+            return '';
+        }
+
+        /** @var list<string> $pivot */
+        $pivot = is_array($instructions['pivot_to_iocs'] ?? null) ? $instructions['pivot_to_iocs'] : [];
+
+        // Default fallback alternatives when the analyzer didn't suggest any.
+        // Keeps the Generator with concrete options to pick from instead of
+        // going silent on the IOC pull altogether.
+        $alternatives = $pivot !== [] ? $pivot : [
+            'phone number ("for the bank verification call")',
+            'postal address ("for the wire confirmation paper trail")',
+            'full beneficiary name ("to match my bank\'s record")',
+            'past project references ("for due diligence")',
+            'project timeline / team size (soft engagement, no IOC pressure)',
+        ];
+
+        $forbiddenList = implode(', ', $forbidden);
+        $alternativeBullets = '- ' . implode("\n- ", $alternatives);
+
+        return <<<OVERRIDE
+
+
+## PRIORITY OVERRIDE
+The scammer has explicitly deferred the following IOC(s) in their recent reply: {$forbiddenList}.
+
+DO NOT ask for these again in this message — re-asking would read as robotic and trigger bot detection (observed: conv d2a31055 lost on 2026-06-11, conv 204fab36 lost on 2026-06-11).
+
+Instead, ask for a DIFFERENT IOC angle this turn. Pick ONE from:
+{$alternativeBullets}
+
+This OVERRIDES the OBJECTIVE above for this turn only. Next turn, the analyzer will reassess.
+
+OVERRIDE;
     }
 
     /**
