@@ -279,7 +279,9 @@ Analyze this conversation and reply in JSON with the following structure:
       "List of concrete alternatives to use instead"
     ],
     "objectif_strategique": "Precise goal for this message: which IOC to obtain and how",
-    "style_ton": "Description of the style/tone to adopt and target length (e.g. 'Direct, 80-100 words')"
+    "style_ton": "Description of the style/tone to adopt and target length (e.g. 'Direct, 80-100 words')",
+    "forbidden_iocs": ["BIC", "SWIFT"],
+    "pivot_to_iocs": ["phone", "postal address"]
   }
 }
 
@@ -443,6 +445,25 @@ ANALYSIS RULES:
    → In "instructions.style_ton" acknowledge the scammer's pace before pivoting,
      example phrasing: "OK, I understand. Meanwhile, could you tell me ..."
 
+   → Spec 095 Fix #18 — ALSO produce two STRUCTURED arrays in the instructions
+     block so the prompt builder can wire a PRIORITY OVERRIDE block without
+     parsing free text:
+
+     "forbidden_iocs" (array of short tokens) — list the IOC tokens you
+     have decided the persona MUST NOT ask for this turn. Use these canonical
+     tokens (case-insensitive recognized): "BIC", "SWIFT", "IBAN", "wallet",
+     "phone", "postal address", "beneficiary", "account number", "routing",
+     "crypto". Empty array if no IOC is forbidden.
+
+     "pivot_to_iocs" (array of short tokens) — list the IOC tokens you
+     suggest pivoting toward instead. Examples: "phone", "postal address",
+     "beneficiary name", "past references", "timeline". Empty array if no
+     specific pivot is recommended (the generator will use a default list).
+
+     Both fields are MANDATORY when RULE #6 fires. When RULE #6 does NOT
+     fire (no explicit deferral detected), BOTH fields MUST be emitted as
+     empty arrays [].
+
    ⚠️ PRECEDENCE: If both RULE #5 (3+ ignored requests) AND RULE #6 (explicit deferral)
    apply, prefer RULE #6 (pivot). Pivoting is softer than annoyance and preserves
    the engagement. RULE #5's "annoyed" tone is for scammers who DODGE silently;
@@ -520,6 +541,21 @@ ANALYSIS RULES:
    - Standard example: "More direct, less repetitive, short message 80-100 words"
    - Bot-detected example: "UNSETTLED REACTION, 40 words max, confused and human tone, short SMS-like sentences"
    - Aggression example: "OFFENDED REACTION, 35 words max, confusion + emotion, very informal language"
+
+   "forbidden_iocs" (array of short tokens) — Spec 095 Fix #18:
+   - List the IOC tokens the persona must NOT ask for this turn (e.g.
+     ["BIC", "SWIFT"] when RULE #6 fires; [] otherwise).
+   - Use canonical tokens: BIC, SWIFT, IBAN, wallet, phone, postal address,
+     beneficiary, account number, routing, crypto.
+   - This array is read VERBATIM by the prompt builder to render a
+     PRIORITY OVERRIDE block. Do not put free-text explanations here.
+   - MUST always be present. Use [] when no IOC is forbidden.
+
+   "pivot_to_iocs" (array of short tokens) — Spec 095 Fix #18:
+   - List the IOC tokens the persona SHOULD pivot to this turn (e.g.
+     ["phone", "postal address"]).
+   - When [], the prompt builder uses a default fallback list.
+   - MUST always be present. Use [] when no pivot is recommended.
 
 IMPORTANT:
 - The victim's next message must MOVE the conversation forward toward obtaining IOCs, not just "keep chatting"
@@ -636,6 +672,17 @@ PROMPT;
             /** @var array<string, mixed> $instructions */
             $instructions = $decoded['instructions'];
 
+            // Spec 095 Fix #18 — guarantee forbidden_iocs + pivot_to_iocs
+            // keys exist with safe empty defaults so PromptBuilder reads
+            // them unconditionally. Old LLM responses (8 existing fixtures)
+            // don't emit these fields → they default to [] here.
+            $instructions['forbidden_iocs'] = is_array($instructions['forbidden_iocs'] ?? null)
+                ? array_values(array_filter($instructions['forbidden_iocs'], 'is_string'))
+                : [];
+            $instructions['pivot_to_iocs'] = is_array($instructions['pivot_to_iocs'] ?? null)
+                ? array_values(array_filter($instructions['pivot_to_iocs'], 'is_string'))
+                : [];
+
             return [
                 'analysis' => (string) ($decoded['strategic_analysis'] ?? ''),
                 'repetitions_detected' => $repetitions,
@@ -734,6 +781,11 @@ PROMPT;
                 ],
                 'objectif_strategique' => 'Ask varied questions to obtain more information from the scammer',
                 'style_ton' => 'Natural and varied, 60-120 words',
+                // Spec 095 Fix #18 — fallback path must expose the new fields
+                // with safe empty defaults for shape consistency with the LLM
+                // path. PromptBuilder reads these without isset/?? guards.
+                'forbidden_iocs' => [],
+                'pivot_to_iocs' => [],
             ],
         ];
     }
