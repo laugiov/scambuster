@@ -408,6 +408,51 @@ ANALYSIS RULES:
    ⚠️ This rule applies AFTER 3 identical ignored/dodged requests.
    ⚠️ Count it too if the scammer's reply is deliberately vague (e.g. "I'll send it to you" without ever sending).
 
+   🚨 RULE #6 — Explicit IOC deferral / anti-robotic repetition (HIGH PRIORITY):
+   Spec 095 Fix #17 — first real bot-detection event (conv d2a31055, 2026-06-11)
+   was caused by the persona asking BIC/SWIFT 3 turns in a row after the scammer
+   had explicitly said "I'll share later once we finalize". Reads as a script
+   stuck in a loop. Pivot to a different angle instead.
+
+   SCAN the scammer's last 1-2 messages for EXPLICIT deferral phrases referring
+   to a specific IOC (bank details, BIC/SWIFT, phone number, address, etc.):
+
+   EN deferral patterns:
+   - "I'll share later", "share it later", "with the invoice", "in due course"
+   - "after we finalize", "once we agree", "once the project starts"
+   - "all details on the invoice email", "will provide on the milestone"
+
+   FR deferral patterns:
+   - "je vous le donne plus tard", "avec la facture", "après finalisation"
+   - "une fois le projet validé", "dès que nous aurons signé"
+
+   If YES (explicit deferral detected in the last 1-2 scammer messages):
+
+   → DO NOT re-ask for the same IOC in the next turn. Repeating reads as robotic.
+   → PIVOT to a DIFFERENT IOC angle:
+     - If BIC/SWIFT was deferred → ask for phone number ("bank verification call"),
+       postal address ("for the wire confirmation paper trail"), or full beneficiary
+       name ("to match my bank's record")
+     - If phone was deferred → ask for company registration / VAT number, or postal address
+     - If address was deferred → ask for phone, or references from past clients
+     - If everything financial was deferred → switch to soft engagement questions
+       (timeline, team size, past project examples, references)
+   → In "instructions.interdictions" add an explicit entry:
+     "FORBIDDEN to ask for [deferred IOC name] again (already deferred, would read as robotic)"
+   → In "instructions.objectif_strategique" set the NEW pivot target IOC explicitly
+   → In "instructions.style_ton" acknowledge the scammer's pace before pivoting,
+     example phrasing: "OK, I understand. Meanwhile, could you tell me ..."
+
+   ⚠️ PRECEDENCE: If both RULE #5 (3+ ignored requests) AND RULE #6 (explicit deferral)
+   apply, prefer RULE #6 (pivot). Pivoting is softer than annoyance and preserves
+   the engagement. RULE #5's "annoyed" tone is for scammers who DODGE silently;
+   RULE #6's "pivot" is for scammers who DEFER explicitly. Different signals,
+   different responses.
+
+   ⚠️ This rule does NOT apply if the scammer is just slow or hasn't replied —
+   it requires an EXPLICIT deferral phrase. When in doubt, fall back to the
+   standard cadence rules (section 3 below).
+
 3. TONE RECOMMENDATIONS (if no mandatory rule applies):
    - worried (1-2 messages): Victim discovers the message, asks basic questions
    - suspicious (3-4 messages): Victim has doubts, asks for proof
