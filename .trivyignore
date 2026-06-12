@@ -20,6 +20,14 @@ CVE-2025-64500
 CVE-2026-43469
 CVE-2026-43472
 CVE-2026-43473
+# Additional kernel CVEs disclosed June 2026 — same rationale, kernel never
+# executed inside the container, fix requires host kernel update.
+CVE-2026-46241
+CVE-2026-46243
+CVE-2026-46246
+CVE-2026-46267
+CVE-2026-46300
+CVE-2026-46333
 
 # ncurses-base / ncurses-bin buffer overflow — ncurses is only invoked by
 # interactive shells / TUIs, none of which our PHP-FPM/CLI workload triggers.

@@ -95,8 +95,13 @@ jobs:
           docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
 
       - name: Run tests with coverage (unit + integration)
+        # `-d memory_limit=512M` — PHPUnit code-coverage report generation peaks
+        # around 200-300 MB once the suite grows past ~3500 tests. Default 128 MB
+        # OOMed at coverage-report time (tests themselves had passed). Same
+        # pattern as PHPStan above (which uses --memory-limit=1G).
         run: |
           docker compose exec backend-test vendor/bin/phpunit \
+            -d memory_limit=512M \
             --configuration phpunit.ci.xml \
             --testsuite unit,integration,functional \
             --exclude-group compiler-pass \
@@ -148,8 +153,11 @@ jobs:
 
       - name: Run E2E tests with coverage
         if: always()
+        # Same `-d memory_limit=512M` as the unit/integration job — coverage
+        # report generation OOMs at the default 128 MB on a 308-test suite.
         run: |
           docker compose exec backend-e2e vendor/bin/phpunit \
+            -d memory_limit=512M \
             --testsuite endtoend \
             --exclude-group ci-skip \
             --coverage-clover /tmp/coverage-e2e.xml \
