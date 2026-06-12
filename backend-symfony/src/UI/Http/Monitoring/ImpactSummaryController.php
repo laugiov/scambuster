@@ -18,6 +18,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     tags: ['Impact'],
     parameters: [
         new OA\Parameter(name: 'period', in: 'query', required: false, schema: new OA\Schema(type: 'string', default: 'all', enum: ['7d', '30d', '90d', 'all'])),
+        new OA\Parameter(name: 'scam_type', in: 'query', required: false, description: 'Spec 096 / C2 — optional filter by scam type code', schema: new OA\Schema(type: 'string')),
     ],
     responses: [new OA\Response(response: 200, description: 'Impact summary data')],
     security: [['Bearer' => []]],
@@ -33,7 +34,10 @@ final readonly class ImpactSummaryController
     public function __invoke(Request $request): JsonResponse
     {
         $period = $request->query->getString('period', 'all');
+        // Spec 096 / C2 — optional scam_type filter (e.g. INVOICE_FRAUD).
+        $scamTypeRaw = $request->query->get('scam_type');
+        $scamType = \is_string($scamTypeRaw) && trim($scamTypeRaw) !== '' ? trim($scamTypeRaw) : null;
 
-        return new JsonResponse($this->handler->getSummary($period), Response::HTTP_OK);
+        return new JsonResponse($this->handler->getSummary($period, $scamType), Response::HTTP_OK);
     }
 }

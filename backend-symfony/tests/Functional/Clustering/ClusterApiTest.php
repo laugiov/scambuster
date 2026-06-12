@@ -78,6 +78,44 @@ class ClusterApiTest extends WebTestCase
         $this->assertSame(11, $data['clustered_conversations']); // 5+3+3
     }
 
+    // === Spec 096 / C4 — scam_type filter on cluster stats ===
+
+    public function testClusterStatsAcceptsScamTypeFilter_096C4(): void
+    {
+        $this->client->request('GET', '/api/v1/clusters/stats?scam_type=INVOICE_FRAUD', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+        $this->assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true);
+        $this->assertIsArray($data);
+        $this->assertArrayHasKey('total_clusters', $data);
+        $this->assertGreaterThanOrEqual(0, $data['total_clusters']);
+    }
+
+    public function testClusterStatsScamTypeFilterReducesOrEquals_096C4(): void
+    {
+        $this->client->request('GET', '/api/v1/clusters/stats', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $baseline = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        $this->client->request('GET', '/api/v1/clusters/stats?scam_type=PHISHING', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $filtered = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        // Filter NEVER returns more clusters than the unfiltered set
+        $this->assertLessThanOrEqual($baseline['total_clusters'], $filtered['total_clusters']);
+        $this->assertLessThanOrEqual($baseline['clustered_conversations'], $filtered['clustered_conversations']);
+    }
+
+    public function testClusterStatsEmptyScamTypeBehavesAsNoFilter_096C4(): void
+    {
+        $this->client->request('GET', '/api/v1/clusters/stats', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $baseline = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        $this->client->request('GET', '/api/v1/clusters/stats?scam_type=', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $withEmpty = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        $this->assertSame($baseline['total_clusters'], $withEmpty['total_clusters']);
+    }
+
     public function testClusterDetail(): void
     {
         $clusterId = $this->conn->fetchOne(

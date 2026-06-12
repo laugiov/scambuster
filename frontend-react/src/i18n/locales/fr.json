@@ -499,7 +499,9 @@
     "scammer_engagement_tooltip": "Calculé par expéditeur réel, hors bruit technique (bounces, DMARC), hors engagements de moins de 4 jours (réponse possiblement en attente).",
     "scammer_engagement_filter_label": "Filtrer par type de scam",
     "scammer_engagement_filter_all": "Tous les types",
-    "scammer_engagement_breakdown": "Répartition par type de scam"
+    "scammer_engagement_breakdown": "Répartition par type de scam",
+    "scam_type_filter_label": "Filtrer par type de scam",
+    "scam_type_filter_all": "Tous les types"
   },
   "monitoring": {
     "title": "Monitoring des Conversations",

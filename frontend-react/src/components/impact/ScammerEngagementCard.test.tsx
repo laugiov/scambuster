@@ -37,7 +37,7 @@ describe('ScammerEngagementCard / Spec 096 C1', () => {
     // @ts-expect-error mock return shape is partial
     mockedHook.mockReturnValue({ data: fakeData, isLoading: false, error: null });
 
-    render(<ScammerEngagementCard />);
+    render(<ScammerEngagementCard scamType={null} period="all" />);
 
     expect(screen.getByText('34.3%')).toBeInTheDocument();
     expect(screen.getByText(/49\/143/)).toBeInTheDocument();
@@ -47,7 +47,7 @@ describe('ScammerEngagementCard / Spec 096 C1', () => {
     // @ts-expect-error mock return shape is partial
     mockedHook.mockReturnValue({ data: fakeData, isLoading: false, error: null });
 
-    render(<ScammerEngagementCard />);
+    render(<ScammerEngagementCard scamType={null} period="all" />);
 
     // Both scam types should be visible in the breakdown
     expect(screen.getByText('Invoice Fraud')).toBeInTheDocument();
@@ -58,7 +58,7 @@ describe('ScammerEngagementCard / Spec 096 C1', () => {
     // @ts-expect-error mock return shape is partial
     mockedHook.mockReturnValue({ data: undefined, isLoading: true, error: null });
 
-    render(<ScammerEngagementCard />);
+    render(<ScammerEngagementCard scamType={null} period="all" />);
 
     expect(screen.getByText('…')).toBeInTheDocument();
   });
@@ -67,7 +67,7 @@ describe('ScammerEngagementCard / Spec 096 C1', () => {
     // @ts-expect-error mock return shape is partial
     mockedHook.mockReturnValue({ data: undefined, isLoading: false, error: new Error('boom') });
 
-    render(<ScammerEngagementCard />);
+    render(<ScammerEngagementCard scamType={null} period="all" />);
 
     expect(screen.getByText('—')).toBeInTheDocument();
   });

@@ -122,6 +122,39 @@ final class ScammerEngagementControllerTest extends WebTestCase
         }
     }
 
+    // === Spec 096 / C2b — period filter combines with scam_type ===
+
+    public function testPeriodParamIsEchoedInResponse_096C2b(): void
+    {
+        $data = $this->authenticatedGet(self::ENDPOINT . '?period=30d');
+        $this->assertSame('30d', $data['params']['period']);
+    }
+
+    public function testPeriodDefaultsToAll_096C2b(): void
+    {
+        $data = $this->authenticatedGet(self::ENDPOINT);
+        $this->assertSame('all', $data['params']['period']);
+    }
+
+    public function testPeriodFilterReducesOrEqualsBaseline_096C2b(): void
+    {
+        $baseline = $this->authenticatedGet(self::ENDPOINT);
+        $filtered = $this->authenticatedGet(self::ENDPOINT . '?period=7d');
+        // 7-day window NEVER has more observable senders than the full dataset
+        $this->assertLessThanOrEqual(
+            $baseline['global']['observable'],
+            $filtered['global']['observable'],
+        );
+    }
+
+    public function testPeriodAndScamTypeCombined_096C2b(): void
+    {
+        // Spec 096 — both filters must apply together (AND, not OR).
+        $data = $this->authenticatedGet(self::ENDPOINT . '?period=30d&scam_type=PHISHING');
+        $this->assertSame('30d', $data['params']['period']);
+        $this->assertSame('PHISHING', $data['params']['scam_type_filter']);
+    }
+
     /**
      * @return array<string, mixed>
      */

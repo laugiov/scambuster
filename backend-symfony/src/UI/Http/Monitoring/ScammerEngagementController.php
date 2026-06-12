@@ -38,6 +38,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
             description: 'Restrict the metric to a single scam_type code (e.g. INVOICE_FRAUD).',
             schema: new OA\Schema(type: 'string'),
         ),
+        new OA\Parameter(
+            name: 'period',
+            in: 'query',
+            required: false,
+            description: 'Spec 096 / C2b — restrict to conversations with ts_last within this window. Combines with scam_type.',
+            schema: new OA\Schema(type: 'string', default: 'all', enum: ['7d', '30d', '90d', 'all']),
+        ),
     ],
     responses: [new OA\Response(response: 200, description: 'Scammer engagement rate')],
     security: [['Bearer' => []]],
@@ -60,9 +67,13 @@ final readonly class ScammerEngagementController
             $scamType = null;
         }
 
+        // Spec 096 / C2b — period combines with scam_type orthogonally.
+        $period = $request->query->getString('period', 'all');
+
         $result = $this->calculator->calculate(
             censoringHours: $censoringHours,
             scamTypeFilter: \is_string($scamType) ? $scamType : null,
+            period: $period,
         );
 
         return new JsonResponse($result, Response::HTTP_OK);

@@ -499,7 +499,9 @@
     "scammer_engagement_tooltip": "Computed per real sender, excluding technical noise (bounces, DMARC) and engagements newer than 4 days (response may still be in-flight).",
     "scammer_engagement_filter_label": "Filter by scam type",
     "scammer_engagement_filter_all": "All scam types",
-    "scammer_engagement_breakdown": "Breakdown by scam type"
+    "scammer_engagement_breakdown": "Breakdown by scam type",
+    "scam_type_filter_label": "Filter by scam type",
+    "scam_type_filter_all": "All scam types"
   },
   "monitoring": {
     "title": "Conversation Monitoring",

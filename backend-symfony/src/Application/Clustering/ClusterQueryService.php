@@ -66,36 +66,71 @@ final readonly class ClusterQueryService
     /**
      * Global clustering statistics.
      *
+     * Spec 096 / C4 — accepts optional `$scamType` filter. When set, all metrics
+     * are restricted to clusters whose `primary_scam_types` array contains the
+     * code, and to conversations of that scam_type.
+     *
      * @return array<string, mixed>
      */
-    public function getStats(): array
+    public function getStats(?string $scamType = null): array
     {
+        $scamType = (\is_string($scamType) && trim($scamType) !== '') ? trim($scamType) : null;
+
+        // Spec 096 / C4 — filter fragments for cluster + conversation scope.
+        $params = null !== $scamType ? ['scam_type' => $scamType] : [];
+        $convScamFilter = null !== $scamType
+            ? ' AND scam_type_id = (SELECT scam_type_id FROM lkp_scam_type WHERE code = :scam_type)'
+            : '';
+        // `primary_scam_types` is a Postgres text[] of scam-type codes per cluster.
+        $clusterScamFilter = null !== $scamType
+            ? ' AND :scam_type = ANY(primary_scam_types)'
+            : '';
+        $clusterScamFilterTac = null !== $scamType
+            ? ' AND :scam_type = ANY(tac.primary_scam_types)'
+            : '';
+
         /** @var int|string|false $totalConvs */
-        $totalConvs = $this->conn->fetchOne('SELECT COUNT(*) FROM conversation');
+        $totalConvs = $this->conn->fetchOne(
+            'SELECT COUNT(*) FROM conversation WHERE deleted_at IS NULL' . $convScamFilter,
+            $params,
+        );
         $totalConvs = (int) $totalConvs;
 
         /** @var int|string|false $clusteredConvs */
         $clusteredConvs = $this->conn->fetchOne(
             "SELECT COUNT(*) FROM threat_actor_cluster_conversation tacc
              JOIN threat_actor_cluster tac ON tac.cluster_id = tacc.cluster_id
-             WHERE tac.status != 'merged'"
+             WHERE tac.status != 'merged'" . $clusterScamFilterTac,
+            $params,
         );
         $clusteredConvs = (int) $clusteredConvs;
 
         /** @var int|string|false $totalClusters */
-        $totalClusters = $this->conn->fetchOne("SELECT COUNT(*) FROM threat_actor_cluster WHERE status != 'merged'");
+        $totalClusters = $this->conn->fetchOne(
+            "SELECT COUNT(*) FROM threat_actor_cluster WHERE status != 'merged'" . $clusterScamFilter,
+            $params,
+        );
         $totalClusters = (int) $totalClusters;
 
         /** @var int|string|false $suspectClusters */
-        $suspectClusters = $this->conn->fetchOne("SELECT COUNT(*) FROM threat_actor_cluster WHERE status = 'suspect'");
+        $suspectClusters = $this->conn->fetchOne(
+            "SELECT COUNT(*) FROM threat_actor_cluster WHERE status = 'suspect'" . $clusterScamFilter,
+            $params,
+        );
         $suspectClusters = (int) $suspectClusters;
 
         /** @var int|string|false $largestSize */
-        $largestSize = $this->conn->fetchOne("SELECT MAX(conversation_count) FROM threat_actor_cluster WHERE status != 'merged'");
+        $largestSize = $this->conn->fetchOne(
+            "SELECT MAX(conversation_count) FROM threat_actor_cluster WHERE status != 'merged'" . $clusterScamFilter,
+            $params,
+        );
         $largestSize = (int) $largestSize;
 
         /** @var string|false $lastClusteredAt */
-        $lastClusteredAt = $this->conn->fetchOne("SELECT MAX(last_clustered_at) FROM threat_actor_cluster WHERE status != 'merged'");
+        $lastClusteredAt = $this->conn->fetchOne(
+            "SELECT MAX(last_clustered_at) FROM threat_actor_cluster WHERE status != 'merged'" . $clusterScamFilter,
+            $params,
+        );
 
         $singletonConvs = $totalConvs - $clusteredConvs;
         $avgClusterSize = $totalClusters > 0 ? round($clusteredConvs / $totalClusters, 2) : 0;
@@ -108,8 +143,9 @@ final readonly class ClusterQueryService
         // Anchor IOC type coverage
         $coverageRows = $this->conn->fetchAllAssociative(
             "SELECT ioc_type, COUNT(*) as cnt FROM threat_actor_cluster_ioc
-             WHERE cluster_id IN (SELECT cluster_id FROM threat_actor_cluster WHERE status != 'merged')
-             GROUP BY ioc_type ORDER BY cnt DESC"
+             WHERE cluster_id IN (SELECT cluster_id FROM threat_actor_cluster WHERE status != 'merged'" . $clusterScamFilter . ')
+             GROUP BY ioc_type ORDER BY cnt DESC',
+            $params,
         );
 
         $anchorCoverage = [];

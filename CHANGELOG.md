@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.16.1] - 2026-06-12
+
+### Added — Spec 096 (Impact dashboard: scammer engagement metric + page-level filter)
+
+- **Scammer engagement (real rate)** card on the Impact page: bias-corrected
+  per-real-sender response rate, fixing three biases identified on one month
+  of production data (~9 points of underestimation in the naive metric):
+  1. **Technical noise** (bounces, DMARC, postmaster) filtered via a
+     dedicated `ScammerEngagementNoiseConfig`.
+  2. **Right-censoring** of recent engagements (default 96h, covers p95
+     of observed reply latency).
+  3. **Conversation fragmentation** (outbound `external_message_id` is
+     empty in DB): metric computed per real sender across conversations,
+     not per conversation.
+- **Page-level `scam_type` filter** on the Impact dashboard. A new
+  dropdown next to the existing `7d / 30d / 90d / All` period buttons
+  drives ALL 5 widgets simultaneously (Criminal Time Wasted, Novel IOCs,
+  Cost per IOC, Actor Dedup, Scammer engagement). `period` and `scam_type`
+  combine orthogonally (AND).
+- **`/api/v1/monitoring/analytics/scammer-engagement`** — new endpoint
+  with `censoring_hours`, `scam_type`, `period` query parameters.
+  Returns global rate + breakdown by scam type with response/observable
+  counts. Single PostgreSQL CTE, leverages existing `headers->>'from'`
+  btree index.
+- **Optional `scam_type` parameter** on existing analytics endpoints
+  (`/api/v1/impact/summary`, `/api/v1/impact/ioc-uniqueness`,
+  `/api/v1/clusters/stats`) — when null, response is byte-identical to
+  pre-spec-096 behavior (regression-safe).
+
+### Internal
+
+- New `App\Application\Monitoring\ScammerEngagementCalculator` service
+  + `ScammerEngagementNoiseConfig` value object.
+- `App\Application\Monitoring\ImpactHandler::getSummary` and
+  `getIocUniqueness` accept optional `?string $scamType`; all 6
+  sub-queries (`getWastedTime`, `getIocValue`, `getCostEfficiency`,
+  `getCampaigns`, `computeTrends`, `getIocUniqueness`) filter by scam
+  type via `lkp_scam_type` sub-query when set.
+- `App\Application\Clustering\ClusterQueryService::getStats` accepts
+  `?string $scamType`; uses `primary_scam_types ANY` match on the
+  `threat_actor_cluster` table.
+- Frontend: `useImpactSummary`, `useIocUniqueness`, `useClusterStats`,
+  `useScammerEngagement` all accept the new filters and include them in
+  React Query keys for proper cache invalidation.
+- New `ScammerEngagementCard` React component (`components/impact/`).
+- TODO comments documented in code for future improvements (persist
+  outbound `external_message_id` at send time, merge
+  `ScammerEngagementNoiseConfig` into the live ingest pre-filter,
+  consider a generated `counterpart_email` column for index acceleration
+  on long windows).
+
+### Tests
+
+- 33 new backend tests (13 functional + 5 integration ScammerEngagement
+  + 4 ImpactSummary C2 + 4 IocUniqueness C3 + 3 ClusterStats C4 + 4
+  ScammerEngagement C2b period).
+- 5 new frontend component tests; full suite 644/644.
+- All 8 preflight gates pass on the feature branch (489s).
+
+### Spec-kit
+
+`specs/096-impact-page-scam-type-filter-and-scammer-engagement/`
+(spec.md + plan.md + tasks.md, local-only / gitignored).
+
+---
+
 ## [2.16.0] - 2026-06-02
 
 This release bundles two streams of work shipped to `demo` together:
