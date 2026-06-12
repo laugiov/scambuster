@@ -6,11 +6,13 @@ import {
 } from 'recharts';
 import { useImpactSummary, useIocUniqueness } from '@/hooks/useImpact';
 import { useClusterStats } from '@/hooks/useClusters';
+import { useMetaConfig } from '@/hooks/useMetaConfig';
 import type { IocTypeEntry } from '@/hooks/useImpact';
 import { StatCard } from '@/components/ui/StatCard';
 import { ScammerEngagementCard } from '@/components/impact/ScammerEngagementCard';
 import { Loading } from '@/components/feedback/Loading';
 import { iocTypeLabel } from '@/lib/iocTypeLabels';
+import { scamTypeLabel } from '@/lib/scamTypeLabels';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
 const CHART_COLORS = ['#3b82f6', '#4ade80', '#fbbf24', '#f87171', '#60a5fa', '#a78bfa', '#adc6ff', '#fb923c'];
@@ -63,10 +65,13 @@ function buildPieData(byType: IocTypeEntry[]): IocTypeEntry[] {
 export function Impact() {
   const { t } = useTranslation();
   const [period, setPeriod] = useState<string>('all');
+  // Spec 096 / C4 — page-level scam_type filter. Empty string = no filter (All).
+  const [scamType, setScamType] = useState<string>('');
 
-  const { data, isLoading, error, refetch } = useImpactSummary(period);
-  const { data: iocData } = useIocUniqueness(period);
-  const { data: clusterStats } = useClusterStats();
+  const { data: metaConfig } = useMetaConfig();
+  const { data, isLoading, error, refetch } = useImpactSummary(period, scamType || null);
+  const { data: iocData } = useIocUniqueness(period, scamType || null);
+  const { data: clusterStats } = useClusterStats(scamType || null);
 
   if (isLoading) return <Loading message={t('common.loading')} />;
   if (error) return <ErrorMessage message={t('common.error')} onRetry={() => void refetch()} />;
@@ -90,22 +95,38 @@ export function Impact() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-center justify-between">
+      <header className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-semibold text-on-surface">{t('impact.title')}</h1>
         </div>
-        <div className="flex items-center gap-1 bg-surface-low rounded-lg p-1">
-          {PERIODS.map((p) => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={`px-3 py-1.5 text-xs rounded transition-colors cursor-pointer ${
-                period === p ? 'bg-accent-muted text-on-surface font-medium' : 'text-on-surface-variant hover:bg-surface-high'
-              }`}
-            >
-              {p === 'all' ? 'All' : p}
-            </button>
-          ))}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Spec 096 / C4 — page-level scam_type filter, drives all 5 widgets */}
+          <select
+            className="text-xs bg-surface-low text-on-surface rounded px-2 py-1.5 border border-outline-variant cursor-pointer"
+            value={scamType}
+            onChange={(e) => setScamType(e.target.value)}
+            aria-label={t('impact.scam_type_filter_label')}
+          >
+            <option value="">{t('impact.scam_type_filter_all')}</option>
+            {(metaConfig?.scam_types ?? []).map((st) => (
+              <option key={st.code} value={st.code}>
+                {scamTypeLabel(st.code)}
+              </option>
+            ))}
+          </select>
+          <div className="flex items-center gap-1 bg-surface-low rounded-lg p-1">
+            {PERIODS.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPeriod(p)}
+                className={`px-3 py-1.5 text-xs rounded transition-colors cursor-pointer ${
+                  period === p ? 'bg-accent-muted text-on-surface font-medium' : 'text-on-surface-variant hover:bg-surface-high'
+                }`}
+              >
+                {p === 'all' ? 'All' : p}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -164,8 +185,8 @@ export function Impact() {
         )}
       </div>
 
-      {/* Spec 096 / C1 \u2014 Scammer engagement card */}
-      <ScammerEngagementCard />
+      {/* Spec 096 / C1+C2b+C4 \u2014 Scammer engagement card, driven by page-level filters */}
+      <ScammerEngagementCard scamType={scamType || null} period={period} />
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

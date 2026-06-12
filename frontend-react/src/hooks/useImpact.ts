@@ -72,13 +72,14 @@ export interface ImpactSummary {
   trends: TrendDeltas | null;
 }
 
-export function useImpactSummary(period: string = 'all') {
+export function useImpactSummary(period: string = 'all', scamType?: string | null) {
   return useQuery<ImpactSummary>({
-    queryKey: ['impact-summary', period],
+    queryKey: ['impact-summary', period, scamType ?? 'all'],
     queryFn: async () => {
-      const { data } = await client.get<ImpactSummary>(ENDPOINTS.impact.summary, {
-        params: { period },
-      });
+      // Spec 096 / C2 — scam_type combines with period (orthogonal filters).
+      const params: Record<string, string> = { period };
+      if (scamType) params.scam_type = scamType;
+      const { data } = await client.get<ImpactSummary>(ENDPOINTS.impact.summary, { params });
       return data;
     },
     staleTime: 300_000,
@@ -97,13 +98,14 @@ interface IocUniquenessData {
   daily_trend: IocDailyPoint[];
 }
 
-export function useIocUniqueness(period: string = '30d') {
+export function useIocUniqueness(period: string = '30d', scamType?: string | null) {
   return useQuery<IocUniquenessData>({
-    queryKey: ['impact-ioc-uniqueness', period],
+    queryKey: ['impact-ioc-uniqueness', period, scamType ?? 'all'],
     queryFn: async () => {
-      const { data } = await client.get<IocUniquenessData>(ENDPOINTS.impact.iocUniqueness, {
-        params: { period },
-      });
+      // Spec 096 / C3 — scam_type combines with period.
+      const params: Record<string, string> = { period };
+      if (scamType) params.scam_type = scamType;
+      const { data } = await client.get<IocUniquenessData>(ENDPOINTS.impact.iocUniqueness, { params });
       return data;
     },
     staleTime: 300_000,
@@ -131,11 +133,17 @@ export interface ScammerEngagementResponse {
   methodology_note: string;
 }
 
-export function useScammerEngagement(censoringHours: number = 96, scamType?: string | null) {
+export function useScammerEngagement(
+  censoringHours: number = 96,
+  scamType?: string | null,
+  period: string = 'all',
+) {
   const params: Record<string, string | number> = { censoring_hours: censoringHours };
   if (scamType) params.scam_type = scamType;
+  // Spec 096 / C2b — period filter combines with scam_type orthogonally.
+  if (period && period !== 'all') params.period = period;
   return useQuery<ScammerEngagementResponse>({
-    queryKey: ['impact-scammer-engagement', censoringHours, scamType ?? 'all'],
+    queryKey: ['impact-scammer-engagement', censoringHours, scamType ?? 'all', period],
     queryFn: async () => {
       const { data } = await client.get<ScammerEngagementResponse>(
         ENDPOINTS.monitoring.analyticsScammerEngagement,

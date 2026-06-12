@@ -19,6 +19,7 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
     parameters: [
         new OA\Parameter(name: 'period', in: 'query', required: false, schema: new OA\Schema(type: 'string', default: '30d', enum: ['7d', '30d', '90d', 'all'])),
         new OA\Parameter(name: 'ioc_type', in: 'query', required: false, schema: new OA\Schema(type: 'string')),
+        new OA\Parameter(name: 'scam_type', in: 'query', required: false, description: 'Spec 096 / C3 — optional scam type filter', schema: new OA\Schema(type: 'string')),
     ],
     responses: [new OA\Response(response: 200, description: 'IOC uniqueness data')],
     security: [['Bearer' => []]],
@@ -36,7 +37,10 @@ final readonly class IocUniquenessController
         $period = $request->query->getString('period', '30d');
         $iocType = $request->query->get('ioc_type');
         $iocType = \is_string($iocType) && '' !== $iocType ? $iocType : null;
+        // Spec 096 / C3 — optional scam_type filter combines with period + ioc_type.
+        $scamTypeRaw = $request->query->get('scam_type');
+        $scamType = \is_string($scamTypeRaw) && trim($scamTypeRaw) !== '' ? trim($scamTypeRaw) : null;
 
-        return new JsonResponse($this->handler->getIocUniqueness($period, $iocType), Response::HTTP_OK);
+        return new JsonResponse($this->handler->getIocUniqueness($period, $iocType, $scamType), Response::HTTP_OK);
     }
 }

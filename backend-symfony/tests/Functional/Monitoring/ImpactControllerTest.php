@@ -146,6 +146,92 @@ final class ImpactControllerTest extends WebTestCase
         $this->assertNotNull($costPerIoc);
     }
 
+    // === Spec 096 / C2 — scam_type filter tests ===
+
+    public function testSummaryAcceptsScamTypeFilter_096C2(): void
+    {
+        $data = $this->authenticatedGet('/api/v1/impact/summary?scam_type=INVOICE_FRAUD');
+        // Endpoint must return a valid structure (filtered or not)
+        $this->assertArrayHasKey('wasted_time', $data);
+        $this->assertArrayHasKey('ioc_value', $data);
+        $this->assertArrayHasKey('cost_efficiency', $data);
+        $this->assertArrayHasKey('campaigns', $data);
+        // Numeric metrics remain non-negative
+        $this->assertGreaterThanOrEqual(0, $data['wasted_time']['total_conversations']);
+        $this->assertGreaterThanOrEqual(0, $data['ioc_value']['total_iocs']);
+    }
+
+    public function testSummaryWithScamTypeAndPeriodCombined_096C2(): void
+    {
+        // Spec 096 / C2 — date + scam_type filters MUST combine, not override each other.
+        $data = $this->authenticatedGet('/api/v1/impact/summary?period=30d&scam_type=PHISHING');
+        $this->assertArrayHasKey('wasted_time', $data);
+        $this->assertIsInt($data['wasted_time']['total_conversations']);
+    }
+
+    public function testSummaryEmptyScamTypeBehavesAsNoFilter_096C2(): void
+    {
+        $baseline = $this->authenticatedGet('/api/v1/impact/summary');
+        $withEmpty = $this->authenticatedGet('/api/v1/impact/summary?scam_type=');
+        // Empty string scam_type must be treated as null (no filter) — byte-identical response
+        $this->assertSame(
+            $baseline['wasted_time']['total_conversations'],
+            $withEmpty['wasted_time']['total_conversations'],
+        );
+        $this->assertSame(
+            $baseline['ioc_value']['total_iocs'],
+            $withEmpty['ioc_value']['total_iocs'],
+        );
+    }
+
+    public function testSummaryScamTypeFilterReducesOrEqualsBaseline_096C2(): void
+    {
+        $baseline = $this->authenticatedGet('/api/v1/impact/summary');
+        $filtered = $this->authenticatedGet('/api/v1/impact/summary?scam_type=INVOICE_FRAUD');
+        // A specific scam_type filter NEVER returns more conversations than the unfiltered set
+        $this->assertLessThanOrEqual(
+            $baseline['wasted_time']['total_conversations'],
+            $filtered['wasted_time']['total_conversations'],
+        );
+    }
+
+    // === Spec 096 / C3 — scam_type filter on IocUniqueness ===
+
+    public function testIocUniquenessAcceptsScamTypeFilter_096C3(): void
+    {
+        $data = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness?scam_type=INVOICE_FRAUD');
+        $this->assertArrayHasKey('summary', $data);
+        $this->assertArrayHasKey('by_type', $data);
+        $this->assertArrayHasKey('daily_trend', $data);
+        $this->assertGreaterThanOrEqual(0, $data['summary']['total_iocs']);
+    }
+
+    public function testIocUniquenessScamTypeFilterReducesOrEquals_096C3(): void
+    {
+        $baseline = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness');
+        $filtered = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness?scam_type=PHISHING');
+        $this->assertLessThanOrEqual(
+            $baseline['summary']['total_iocs'],
+            $filtered['summary']['total_iocs'],
+        );
+    }
+
+    public function testIocUniquenessScamTypeAndPeriodCombine_096C3(): void
+    {
+        $data = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness?period=30d&scam_type=INVOICE_FRAUD');
+        $this->assertArrayHasKey('summary', $data);
+    }
+
+    public function testIocUniquenessEmptyScamTypeBehavesAsNoFilter_096C3(): void
+    {
+        $baseline = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness');
+        $withEmpty = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness?scam_type=');
+        $this->assertSame(
+            $baseline['summary']['total_iocs'],
+            $withEmpty['summary']['total_iocs'],
+        );
+    }
+
     /**
      * @return array<string, mixed>
      */

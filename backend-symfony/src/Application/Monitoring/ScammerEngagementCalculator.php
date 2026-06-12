@@ -53,12 +53,18 @@ final readonly class ScammerEngagementCalculator
     }
 
     /**
+     * Spec 096 / C2b — `$period` accepts '7d', '30d', '90d', or 'all'. When
+     * set to anything but 'all', the metric is restricted to conversations
+     * whose `ts_last >= NOW() - period`. Combines with `$scamTypeFilter`
+     * orthogonally — both filters are AND-ed together per spec.
+     *
      * @return array{
      *   global: array{observable: int, responded: int, rate_pct: float},
      *   by_scam_type: list<array{scam_type: string, observable: int, responded: int, rate_pct: float}>,
      *   params: array{
      *     censoring_hours: int,
      *     scam_type_filter: ?string,
+     *     period: string,
      *     noise_subject_patterns: int,
      *     noise_sender_patterns: int,
      *     honeypot_addresses: int,
@@ -66,8 +72,11 @@ final readonly class ScammerEngagementCalculator
      *   methodology_note: string
      * }
      */
-    public function calculate(int $censoringHours = self::CENSORING_HOURS_DEFAULT, ?string $scamTypeFilter = null): array
-    {
+    public function calculate(
+        int $censoringHours = self::CENSORING_HOURS_DEFAULT,
+        ?string $scamTypeFilter = null,
+        string $period = 'all',
+    ): array {
         $censoringHours = max(self::CENSORING_HOURS_MIN, min(self::CENSORING_HOURS_MAX, $censoringHours));
 
         $subjectPatterns = $this->noiseConfig->subjectPatterns();
@@ -94,6 +103,9 @@ final readonly class ScammerEngagementCalculator
         $directionInId = $directionInRaw !== false ? (int) $directionInRaw : 1;
         $directionOutId = $directionOutRaw !== false ? (int) $directionOutRaw : 2;
 
+        // Spec 096 / C2b — period maps to a Postgres interval string. 'all' = no filter.
+        $periodInterval = $this->periodToInterval($period);
+
         $rows = $this->runQuery(
             $censoringHours,
             $subjectPatterns,
@@ -102,6 +114,7 @@ final readonly class ScammerEngagementCalculator
             $scamTypeFilter,
             $directionInId,
             $directionOutId,
+            $periodInterval,
         );
 
         // Split the rollup result into "global" (the null-scam_type row from ROLLUP) and per-type rows.
@@ -135,6 +148,7 @@ final readonly class ScammerEngagementCalculator
             'params' => [
                 'censoring_hours' => $censoringHours,
                 'scam_type_filter' => $scamTypeFilter,
+                'period' => $period,
                 'noise_subject_patterns' => \count($subjectPatterns),
                 'noise_sender_patterns' => \count($senderPatterns),
                 'honeypot_addresses' => \count($honeypots),
@@ -166,6 +180,7 @@ final readonly class ScammerEngagementCalculator
         ?string $scamTypeFilter,
         int $directionInId,
         int $directionOutId,
+        ?string $periodInterval,
     ): array {
         // We use ANY/ALL on a Postgres text[] cast. Empty arrays still
         // work and produce predictable results.
@@ -187,6 +202,11 @@ final readonly class ScammerEngagementCalculator
         $scamTypeFilterSql = $scamTypeFilter !== null ? ' AND scam_type = :scam_type_filter' : '';
         $honeypotFilterSql = $honeypotsHasItems ? ' AND counterpart != ALL(:honeypots::text[])' : '';
         $senderFilterSql = $sendersHasItems ? ' AND counterpart NOT ILIKE ALL(:sender_patterns::text[])' : '';
+        // Spec 096 / C2b — period filter scopes which conversations are
+        // considered. Empty string when period='all' → no time restriction.
+        $periodFilterSql = $periodInterval !== null
+            ? ' AND c.ts_last >= NOW() - (:period_interval)::interval'
+            : '';
 
         $noiseSubjectClause = $subjectPatterns !== []
             ? 'first_in.subject ILIKE ANY(:subject_patterns::text[])'
@@ -229,6 +249,7 @@ final readonly class ScammerEngagementCalculator
             WHERE m.deleted_at IS NULL
               AND c.deleted_at IS NULL
               AND c.conv_id NOT IN (SELECT conv_id FROM noise_convs)
+              {$periodFilterSql}
         ),
         per_msg AS (
             SELECT
@@ -301,6 +322,10 @@ final readonly class ScammerEngagementCalculator
             $params['scam_type_filter'] = $scamTypeFilter;
         }
 
+        if ($periodInterval !== null) {
+            $params['period_interval'] = $periodInterval;
+        }
+
         /** @var list<array{scam_type: ?string, observable: int, responded: int}> $rows */
         $rows = $this->connection->fetchAllAssociative($sql, $params);
 
@@ -331,5 +356,20 @@ final readonly class ScammerEngagementCalculator
         );
 
         return '{' . implode(',', $quoted) . '}';
+    }
+
+    /**
+     * Spec 096 / C2b — Map the period query param to a Postgres interval
+     * string suitable for `NOW() - INTERVAL ...`. Returns null when the
+     * period is 'all' (no filter) or unrecognized.
+     */
+    private function periodToInterval(string $period): ?string
+    {
+        return match ($period) {
+            '7d' => '7 days',
+            '30d' => '30 days',
+            '90d' => '90 days',
+            default => null,
+        };
     }
 }

@@ -36,19 +36,48 @@ final readonly class ImpactHandler
     /**
      * Full impact summary with wasted_time, ioc_value, cost_efficiency, campaigns.
      *
+     * Spec 096 / C2 — accepts optional `$scamType` to filter all metrics by
+     * scam type code (e.g. INVOICE_FRAUD). When null, behavior is byte-identical
+     * to the pre-spec-096 response (regression guarantee for `All` filter).
+     *
      * @return array{wasted_time: array<string, mixed>, ioc_value: array<string, mixed>, cost_efficiency: array<string, mixed>, campaigns: array<string, mixed>}
      */
-    public function getSummary(string $period = 'all'): array
+    public function getSummary(string $period = 'all', ?string $scamType = null): array
     {
         $threshold = $this->periodToThreshold($period);
+        $scamType = $this->normalizeScamType($scamType);
 
         return [
-            'wasted_time' => $this->getWastedTime($threshold),
-            'ioc_value' => $this->getIocValue($threshold),
-            'cost_efficiency' => $this->getCostEfficiency($threshold),
-            'campaigns' => $this->getCampaigns(),
-            'trends' => $this->computeTrends($period),
+            'wasted_time' => $this->getWastedTime($threshold, $scamType),
+            'ioc_value' => $this->getIocValue($threshold, $scamType),
+            'cost_efficiency' => $this->getCostEfficiency($threshold, $scamType),
+            'campaigns' => $this->getCampaigns($scamType),
+            'trends' => $this->computeTrends($period, $scamType),
         ];
+    }
+
+    /**
+     * Spec 096 / C2 — normalize the scam_type query param. Trims whitespace and
+     * treats empty strings as null (no filter).
+     */
+    private function normalizeScamType(?string $scamType): ?string
+    {
+        if (null === $scamType) {
+            return null;
+        }
+
+        $trimmed = trim($scamType);
+
+        return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * Spec 096 / C2 — sub-query fragment selecting `scam_type_id` from
+     * lkp_scam_type for the given code. Reusable across filters.
+     */
+    private function scamTypeIdLookupSubquery(): string
+    {
+        return '(SELECT scam_type_id FROM lkp_scam_type WHERE code = :scam_type)';
     }
 
     /**
@@ -56,11 +85,12 @@ final readonly class ImpactHandler
      *
      * @return array{summary: array<string, mixed>, by_type: list<array<string, mixed>>, daily_trend: list<array<string, mixed>>}
      */
-    public function getIocUniqueness(string $period = '30d', ?string $iocType = null): array
+    public function getIocUniqueness(string $period = '30d', ?string $iocType = null, ?string $scamType = null): array
     {
         $threshold = $this->periodToThreshold($period);
         $headerExclude = $this->headerExcludeClause();
         $typeFilter = '';
+        $scamType = $this->normalizeScamType($scamType);
 
         if (null !== $iocType && '' !== $iocType) {
             /** @var string $quoted */
@@ -70,16 +100,28 @@ final readonly class ImpactHandler
 
         $dateFilter = null !== $threshold ? " AND created_at >= {$threshold}" : '';
 
+        // Spec 096 / C3 — sub-query filter for scam_type via observed_ioc → message → conversation.
+        $params = null !== $scamType ? ['scam_type' => $scamType] : [];
+        $scamIdSubquery = null !== $scamType
+            ? ' AND indicator_id IN (SELECT DISTINCT oi.indicator_id FROM observed_ioc oi'
+            . ' JOIN message m ON oi.msg_id = m.msg_id'
+            . ' JOIN conversation c ON m.conv_id = c.conv_id'
+            . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
+            : '';
+
         // Summary
         $totalIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$typeFilter}{$dateFilter}",
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$typeFilter}{$dateFilter}{$scamIdSubquery}",
+            $params,
         );
 
         $novelIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$typeFilter}{$dateFilter}"
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$typeFilter}{$dateFilter}{$scamIdSubquery}"
             . " AND (enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal'))",
+            $params,
         );
 
         $novelPct = $totalIocs > 0 ? round($novelIocs * 100.0 / $totalIocs, 1) : 0.0;
@@ -96,8 +138,9 @@ final readonly class ImpactHandler
             . " COUNT(*) FILTER (WHERE enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal')) as novel"
-            . " FROM indicator WHERE {$headerExclude}{$typeFilter}{$dateFilter}"
+            . " FROM indicator WHERE {$headerExclude}{$typeFilter}{$dateFilter}{$scamIdSubquery}"
             . ' GROUP BY type ORDER BY total DESC',
+            $params,
         );
 
         $byType = array_map(static function (array $row): array {
@@ -120,7 +163,9 @@ final readonly class ImpactHandler
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal')) as novel"
             . " FROM indicator WHERE {$headerExclude}{$typeFilter}"
             . " AND created_at > NOW() - INTERVAL '30 days'"
+            . $scamIdSubquery
             . ' GROUP BY DATE(created_at) ORDER BY date ASC',
+            $params,
         );
 
         $dailyTrend = array_map(static fn (array $row): array => [
@@ -139,9 +184,11 @@ final readonly class ImpactHandler
     /**
      * @return array<string, mixed>
      */
-    private function getWastedTime(?string $threshold): array
+    private function getWastedTime(?string $threshold, ?string $scamType = null): array
     {
         $dateFilter = null !== $threshold ? " AND ts_last >= {$threshold}" : '';
+        $scamFilter = null !== $scamType ? ' AND scam_type_id = ' . $this->scamTypeIdLookupSubquery() : '';
+        $params = null !== $scamType ? ['scam_type' => $scamType] : [];
 
         $row = $this->connection->fetchAssociative(
             'SELECT'
@@ -152,18 +199,25 @@ final readonly class ImpactHandler
             . ' FROM conversation'
             . " WHERE status IN ('closed', 'open', 'abandoned')"
             . ' AND deleted_at IS NULL'
-            . $dateFilter,
+            . $dateFilter
+            . $scamFilter,
+            $params,
         );
 
         $row = \is_array($row) ? $row : [];
 
         // Scam type of the longest conversation
-        $longestScamType = $this->connection->fetchOne(
-            'SELECT st.code FROM conversation c'
-            . ' JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id'
-            . ' WHERE c.engagement_duration_sec = (SELECT MAX(engagement_duration_sec) FROM conversation WHERE deleted_at IS NULL)'
-            . ' LIMIT 1',
-        );
+        // When a scam_type filter is active, the longest is by definition that one.
+        if (null !== $scamType) {
+            $longestScamType = $scamType;
+        } else {
+            $longestScamType = $this->connection->fetchOne(
+                'SELECT st.code FROM conversation c'
+                . ' JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id'
+                . ' WHERE c.engagement_duration_sec = (SELECT MAX(engagement_duration_sec) FROM conversation WHERE deleted_at IS NULL)'
+                . ' LIMIT 1',
+            );
+        }
 
         // Weekly trend (last 12 weeks)
         $trendRows = $this->connection->fetchAllAssociative(
@@ -172,8 +226,10 @@ final readonly class ImpactHandler
             . ' FROM conversation'
             . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
             . " AND ts_last > NOW() - INTERVAL '12 weeks'"
+            . $scamFilter
             . " GROUP BY DATE_TRUNC('week', ts_last)"
             . ' ORDER BY week ASC',
+            $params,
         );
 
         $weeklyTrend = array_map(static fn (array $r): array => [
@@ -194,36 +250,59 @@ final readonly class ImpactHandler
     /**
      * @return array<string, mixed>
      */
-    private function getIocValue(?string $threshold): array
+    private function getIocValue(?string $threshold, ?string $scamType = null): array
     {
         $headerExclude = $this->headerExcludeClause();
         $dateFilter = null !== $threshold ? " AND created_at >= {$threshold}" : '';
         $obsDateFilter = null !== $threshold ? " AND ts_observed >= {$threshold}" : '';
 
+        // Spec 096 / C2 — when scam_type is provided, narrow the indicator set
+        // to those observed in messages from conversations of that scam_type.
+        // The sub-query is expensive on large windows; documented as a known
+        // limitation. TODO: cache by scam_type if perf becomes an issue.
+        $scamIdSubquery = null !== $scamType
+            ? ' AND indicator_id IN (SELECT DISTINCT oi.indicator_id FROM observed_ioc oi'
+            . ' JOIN message m ON oi.msg_id = m.msg_id'
+            . ' JOIN conversation c ON m.conv_id = c.conv_id'
+            . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
+            : '';
+        $obsScamFilter = null !== $scamType
+            ? ' AND msg_id IN (SELECT m.msg_id FROM message m JOIN conversation c ON m.conv_id = c.conv_id'
+            . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
+            : '';
+        $params = null !== $scamType ? ['scam_type' => $scamType] : [];
+
         $totalIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$dateFilter}",
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$dateFilter}{$scamIdSubquery}",
+            $params,
         );
 
         $novelIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$dateFilter}"
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$dateFilter}{$scamIdSubquery}"
             . " AND (enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal'))",
+            $params,
         );
 
         $financialIn = $this->inClause(self::FINANCIAL_TYPES);
         $financialIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE type IN ({$financialIn}){$dateFilter}",
+            "SELECT COUNT(*) FROM indicator WHERE type IN ({$financialIn}){$dateFilter}{$scamIdSubquery}",
+            $params,
         );
 
         $highConfidence = $this->fetchInt(
-            "SELECT COUNT(*) FROM observed_ioc WHERE confidence_score >= 0.9{$obsDateFilter}",
+            "SELECT COUNT(*) FROM observed_ioc WHERE confidence_score >= 0.9{$obsDateFilter}{$obsScamFilter}",
+            $params,
         );
 
         // By type (top 10)
         $byTypeRows = $this->connection->fetchAllAssociative(
-            "SELECT type, COUNT(*) as count FROM indicator WHERE {$headerExclude}{$dateFilter}"
+            "SELECT type, COUNT(*) as count FROM indicator WHERE {$headerExclude}{$dateFilter}{$scamIdSubquery}"
             . ' GROUP BY type ORDER BY count DESC LIMIT 10',
+            $params,
         );
 
         $byType = array_map(static fn (array $r): array => [
@@ -246,39 +325,74 @@ final readonly class ImpactHandler
     /**
      * @return array<string, mixed>
      */
-    private function getCostEfficiency(?string $threshold): array
+    private function getCostEfficiency(?string $threshold, ?string $scamType = null): array
     {
         $dateFilter = null !== $threshold ? " WHERE created_at >= {$threshold}" : '';
 
+        // Spec 096 / C2 — when scam_type is provided, llm_usage rows are filtered by
+        // conversation_id matching conversations of that scam_type. Rows with NULL
+        // conversation_id (non-conv LLM calls) are excluded — they don't belong to
+        // any scam_type.
+        $params = null !== $scamType ? ['scam_type' => $scamType] : [];
+        $llmScamFilter = null !== $scamType
+            ? ' conversation_id::text IN (SELECT conv_id::text FROM conversation'
+            . ' WHERE scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND deleted_at IS NULL)'
+            : '';
+
+        // Compose llm_usage filter combining date + scam_type
+        if ('' !== $llmScamFilter) {
+            $dateFilter = null !== $threshold
+                ? " WHERE created_at >= {$threshold} AND{$llmScamFilter}"
+                : " WHERE{$llmScamFilter}";
+        }
+
         $totalCost = $this->fetchFloat(
             "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage{$dateFilter}",
+            $params,
         );
 
         // Current month cost
         $currentMonthCost = $this->fetchFloat(
-            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= DATE_TRUNC('month', NOW())",
+            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= DATE_TRUNC('month', NOW())"
+            . ('' !== $llmScamFilter ? " AND{$llmScamFilter}" : ''),
+            $params,
         );
 
         // Previous month cost
         $previousMonthCost = $this->fetchFloat(
             'SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage'
             . " WHERE created_at >= DATE_TRUNC('month', NOW() - INTERVAL '1 month')"
-            . " AND created_at < DATE_TRUNC('month', NOW())",
+            . " AND created_at < DATE_TRUNC('month', NOW())"
+            . ('' !== $llmScamFilter ? " AND{$llmScamFilter}" : ''),
+            $params,
         );
 
         // Get total IOCs and total hours for cost-per calculations
         $headerExclude = $this->headerExcludeClause();
         $iocDateFilter = null !== $threshold ? " AND created_at >= {$threshold}" : '';
 
+        // Spec 096 / C2 — sub-query filter for indicator table when scam_type set
+        $scamIdSubquery = null !== $scamType
+            ? ' AND indicator_id IN (SELECT DISTINCT oi.indicator_id FROM observed_ioc oi'
+            . ' JOIN message m ON oi.msg_id = m.msg_id'
+            . ' JOIN conversation c ON m.conv_id = c.conv_id'
+            . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
+            : '';
+
         $totalIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$iocDateFilter}",
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}{$iocDateFilter}{$scamIdSubquery}",
+            $params,
         );
 
         $convDateFilter = null !== $threshold ? " AND ts_last >= {$threshold}" : '';
+        $convScamFilter = null !== $scamType ? ' AND scam_type_id = ' . $this->scamTypeIdLookupSubquery() : '';
 
         $totalHours = $this->fetchFloat(
             'SELECT COALESCE(SUM(engagement_duration_sec), 0) / 3600.0 FROM conversation'
-            . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL{$convDateFilter}",
+            . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL{$convDateFilter}{$convScamFilter}",
+            $params,
         );
 
         $costPerIoc = $totalIocs > 0 ? round($totalCost / $totalIocs, 4) : 0.0;
@@ -296,24 +410,58 @@ final readonly class ImpactHandler
     /**
      * @return array<string, mixed>
      */
-    private function getCampaigns(): array
+    private function getCampaigns(?string $scamType = null): array
     {
+        // Spec 096 / C2 — when scam_type set, narrow campaigns to those whose
+        // associated messages live in conversations of that scam_type.
+        $params = null !== $scamType ? ['scam_type' => $scamType] : [];
+        $campaignScamFilter = null !== $scamType
+            ? ' WHERE campaign_id IN (SELECT DISTINCT mc.campaign_id FROM message_campaign mc'
+            . ' JOIN message m ON mc.msg_id::text = m.msg_id::text'
+            . ' JOIN conversation c ON m.conv_id::text = c.conv_id::text'
+            . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
+            : '';
+
         $row = $this->connection->fetchAssociative(
             'SELECT COUNT(*) AS total,'
             . " COUNT(CASE WHEN status = 'promoted' THEN 1 END) AS promoted"
-            . ' FROM campaign',
+            . ' FROM campaign'
+            . $campaignScamFilter,
+            $params,
         );
 
         $row = \is_array($row) ? $row : [];
 
         // Distinct scam types in campaigns
-        $scamTypeCount = $this->fetchInt(
-            'SELECT COUNT(DISTINCT c.scam_type_id) FROM conversation c'
-            . ' INNER JOIN message msg ON msg.conv_id = c.conv_id'
-            . ' INNER JOIN message_campaign mc ON mc.msg_id::text = msg.msg_id::text',
-        );
+        // When filter active: this is always 1 (the filtered type) or 0.
+        if (null !== $scamType) {
+            $scamTypeCount = $this->fetchInt(
+                'SELECT COUNT(DISTINCT c.scam_type_id) FROM conversation c'
+                . ' INNER JOIN message msg ON msg.conv_id = c.conv_id'
+                . ' INNER JOIN message_campaign mc ON mc.msg_id::text = msg.msg_id::text'
+                . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery(),
+                $params,
+            );
+        } else {
+            $scamTypeCount = $this->fetchInt(
+                'SELECT COUNT(DISTINCT c.scam_type_id) FROM conversation c'
+                . ' INNER JOIN message msg ON msg.conv_id = c.conv_id'
+                . ' INNER JOIN message_campaign mc ON mc.msg_id::text = msg.msg_id::text',
+            );
+        }
 
-        // Top 5 promoted campaigns
+        // Top 5 promoted campaigns — same scam_type filter applies via campaign_id subquery
+        $topPromotedWhere = " WHERE c.status = 'promoted'";
+
+        if (null !== $scamType) {
+            $topPromotedWhere .= ' AND c.campaign_id IN (SELECT DISTINCT mc3.campaign_id FROM message_campaign mc3'
+                . ' JOIN message m3 ON mc3.msg_id::text = m3.msg_id::text'
+                . ' JOIN conversation cv3 ON m3.conv_id::text = cv3.conv_id::text'
+                . ' WHERE cv3.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+                . ' AND m3.deleted_at IS NULL AND cv3.deleted_at IS NULL)';
+        }
+
         $topRows = $this->connection->fetchAllAssociative(
             'SELECT c.campaign_id, c.status, c.severity, c.first_seen, c.tlp,'
             . ' COUNT(DISTINCT msg.conv_id) AS conv_count,'
@@ -359,7 +507,7 @@ final readonly class ImpactHandler
      *
      * @return array{wasted_hours_delta_pct: float|null, novel_pct_delta: float|null, cost_per_ioc_delta_pct: float|null, campaigns_delta: int|null}|null
      */
-    private function computeTrends(string $period): ?array
+    private function computeTrends(string $period, ?string $scamType = null): ?array
     {
         $daysMap = ['7d' => 7, '30d' => 30, '90d' => 90];
 
@@ -374,12 +522,37 @@ final readonly class ImpactHandler
         $currStart = "NOW() - INTERVAL '{$days} days'";
         $headerExclude = $this->headerExcludeClause();
 
+        // Spec 096 / C2 — scam_type filter fragments reused across all trend queries.
+        $params = null !== $scamType ? ['scam_type' => $scamType] : [];
+        $convScamFilter = null !== $scamType ? ' AND scam_type_id = ' . $this->scamTypeIdLookupSubquery() : '';
+        $iocScamSubquery = null !== $scamType
+            ? ' AND indicator_id IN (SELECT DISTINCT oi.indicator_id FROM observed_ioc oi'
+            . ' JOIN message m ON oi.msg_id = m.msg_id'
+            . ' JOIN conversation c ON m.conv_id = c.conv_id'
+            . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
+            : '';
+        $llmScamFilter = null !== $scamType
+            ? ' AND conversation_id::text IN (SELECT conv_id::text FROM conversation'
+            . ' WHERE scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND deleted_at IS NULL)'
+            : '';
+        $campaignScamFilter = null !== $scamType
+            ? ' AND campaign_id IN (SELECT DISTINCT mc.campaign_id FROM message_campaign mc'
+            . ' JOIN message m ON mc.msg_id::text = m.msg_id::text'
+            . ' JOIN conversation c ON m.conv_id::text = c.conv_id::text'
+            . ' WHERE c.scam_type_id = ' . $this->scamTypeIdLookupSubquery()
+            . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
+            : '';
+
         // Current wasted hours
         $currHours = $this->fetchFloat(
             'SELECT COALESCE(SUM(engagement_duration_sec), 0) / 3600.0'
             . ' FROM conversation'
             . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
-            . " AND ts_last >= {$currStart}",
+            . " AND ts_last >= {$currStart}"
+            . $convScamFilter,
+            $params,
         );
 
         // Previous wasted hours
@@ -387,41 +560,49 @@ final readonly class ImpactHandler
             'SELECT COALESCE(SUM(engagement_duration_sec), 0) / 3600.0'
             . ' FROM conversation'
             . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
-            . " AND ts_last >= {$prevStart} AND ts_last < {$prevEnd}",
+            . " AND ts_last >= {$prevStart} AND ts_last < {$prevEnd}"
+            . $convScamFilter,
+            $params,
         );
 
         // Current novel IOC percentage
         $currTotalIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$currStart}",
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$currStart}{$iocScamSubquery}",
+            $params,
         );
         $currNovelIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$currStart}"
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$currStart}{$iocScamSubquery}"
             . " AND (enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal'))",
+            $params,
         );
         $currNovelPct = $currTotalIocs > 0 ? round($currNovelIocs * 100.0 / $currTotalIocs, 1) : 0.0;
 
         // Previous novel IOC percentage
         $prevTotalIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$prevStart} AND created_at < {$prevEnd}",
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$prevStart} AND created_at < {$prevEnd}{$iocScamSubquery}",
+            $params,
         );
         $prevNovelIocs = $this->fetchInt(
-            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$prevStart} AND created_at < {$prevEnd}"
+            "SELECT COUNT(*) FROM indicator WHERE {$headerExclude} AND created_at >= {$prevStart} AND created_at < {$prevEnd}{$iocScamSubquery}"
             . " AND (enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal'))",
+            $params,
         );
         $prevNovelPct = $prevTotalIocs > 0 ? round($prevNovelIocs * 100.0 / $prevTotalIocs, 1) : 0.0;
 
         // Current cost
         $currCost = $this->fetchFloat(
-            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= {$currStart}",
+            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= {$currStart}{$llmScamFilter}",
+            $params,
         );
 
         // Previous cost
         $prevCost = $this->fetchFloat(
-            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= {$prevStart} AND created_at < {$prevEnd}",
+            "SELECT COALESCE(SUM(estimated_cost_usd), 0) FROM llm_usage WHERE created_at >= {$prevStart} AND created_at < {$prevEnd}{$llmScamFilter}",
+            $params,
         );
 
         // Cost per IOC
@@ -430,12 +611,14 @@ final readonly class ImpactHandler
 
         // Current campaigns
         $currCampaigns = $this->fetchInt(
-            "SELECT COUNT(*) FROM campaign WHERE created_at >= {$currStart}",
+            "SELECT COUNT(*) FROM campaign WHERE created_at >= {$currStart}{$campaignScamFilter}",
+            $params,
         );
 
         // Previous campaigns
         $prevCampaigns = $this->fetchInt(
-            "SELECT COUNT(*) FROM campaign WHERE created_at >= {$prevStart} AND created_at < {$prevEnd}",
+            "SELECT COUNT(*) FROM campaign WHERE created_at >= {$prevStart} AND created_at < {$prevEnd}{$campaignScamFilter}",
+            $params,
         );
 
         // Compute deltas
