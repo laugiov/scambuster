@@ -491,7 +491,15 @@
     "exclusive": "novel indicators not yet in threat intel feeds",
     "across_conversations": "across {{count}} conversations",
     "actor_dedup": "Actor Deduplication",
-    "actor_dedup_subtitle": "−{{pct}}% threat actors in TAXII feed"
+    "actor_dedup_subtitle": "−{{pct}}% threat actors in TAXII feed",
+    "scammer_engagement": "Scammer engagement (real rate)",
+    "scammer_engagement_loading": "Computing…",
+    "scammer_engagement_error": "Failed to load",
+    "scammer_engagement_senders": "senders",
+    "scammer_engagement_tooltip": "Computed per real sender, excluding technical noise (bounces, DMARC) and engagements newer than 4 days (response may still be in-flight).",
+    "scammer_engagement_filter_label": "Filter by scam type",
+    "scammer_engagement_filter_all": "All scam types",
+    "scammer_engagement_breakdown": "Breakdown by scam type"
   },
   "monitoring": {
     "title": "Conversation Monitoring",

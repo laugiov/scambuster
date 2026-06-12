@@ -8,6 +8,7 @@ import { useImpactSummary, useIocUniqueness } from '@/hooks/useImpact';
 import { useClusterStats } from '@/hooks/useClusters';
 import type { IocTypeEntry } from '@/hooks/useImpact';
 import { StatCard } from '@/components/ui/StatCard';
+import { ScammerEngagementCard } from '@/components/impact/ScammerEngagementCard';
 import { Loading } from '@/components/feedback/Loading';
 import { iocTypeLabel } from '@/lib/iocTypeLabels';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
@@ -162,6 +163,9 @@ export function Impact() {
           />
         )}
       </div>
+
+      {/* Spec 096 / C1 \u2014 Scammer engagement card */}
+      <ScammerEngagementCard />
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

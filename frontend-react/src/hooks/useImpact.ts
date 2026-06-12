@@ -110,4 +110,41 @@ export function useIocUniqueness(period: string = '30d') {
   });
 }
 
+// Spec 096 / C1 — Bias-corrected scammer engagement metric
+export interface ScammerEngagementByScamType {
+  scam_type: string;
+  observable: number;
+  responded: number;
+  rate_pct: number;
+}
+
+export interface ScammerEngagementResponse {
+  global: { observable: number; responded: number; rate_pct: number };
+  by_scam_type: ScammerEngagementByScamType[];
+  params: {
+    censoring_hours: number;
+    scam_type_filter: string | null;
+    noise_subject_patterns: number;
+    noise_sender_patterns: number;
+    honeypot_addresses: number;
+  };
+  methodology_note: string;
+}
+
+export function useScammerEngagement(censoringHours: number = 96, scamType?: string | null) {
+  const params: Record<string, string | number> = { censoring_hours: censoringHours };
+  if (scamType) params.scam_type = scamType;
+  return useQuery<ScammerEngagementResponse>({
+    queryKey: ['impact-scammer-engagement', censoringHours, scamType ?? 'all'],
+    queryFn: async () => {
+      const { data } = await client.get<ScammerEngagementResponse>(
+        ENDPOINTS.monitoring.analyticsScammerEngagement,
+        { params },
+      );
+      return data;
+    },
+    staleTime: 300_000,
+  });
+}
+
 export type { WeeklyPoint, IocTypeEntry, TopCampaign };

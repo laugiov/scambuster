@@ -22,6 +22,7 @@ export const ENDPOINTS = {
     analyticsPipelineTimeline: '/monitoring/analytics/pipeline-timeline',
     analyticsActivityFeed: '/monitoring/analytics/activity-feed',
     analyticsWeeklyTrends: '/monitoring/analytics/weekly-trends',
+    analyticsScammerEngagement: '/monitoring/analytics/scammer-engagement',
   },
   conversations: {
     list: '/communication/conversation',

@@ -491,7 +491,15 @@
     "exclusive": "indicateurs nouveaux, absents des feeds de renseignement",
     "across_conversations": "sur {{count}} conversations",
     "actor_dedup": "Deduplication d'acteurs",
-    "actor_dedup_subtitle": "−{{pct}}% d'acteurs dans le feed TAXII"
+    "actor_dedup_subtitle": "−{{pct}}% d'acteurs dans le feed TAXII",
+    "scammer_engagement": "Engagement scammers (taux réel)",
+    "scammer_engagement_loading": "Calcul…",
+    "scammer_engagement_error": "Échec du chargement",
+    "scammer_engagement_senders": "expéditeurs",
+    "scammer_engagement_tooltip": "Calculé par expéditeur réel, hors bruit technique (bounces, DMARC), hors engagements de moins de 4 jours (réponse possiblement en attente).",
+    "scammer_engagement_filter_label": "Filtrer par type de scam",
+    "scammer_engagement_filter_all": "Tous les types",
+    "scammer_engagement_breakdown": "Répartition par type de scam"
   },
   "monitoring": {
     "title": "Monitoring des Conversations",
