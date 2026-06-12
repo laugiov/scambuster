@@ -70,11 +70,32 @@ final readonly class ClusterQueryService
      * are restricted to clusters whose `primary_scam_types` array contains the
      * code, and to conversations of that scam_type.
      *
+     * Spec 096 / C5 — accepts optional `$period` filter ('7d'/'30d'/'90d'/'all').
+     * Filters CONVERSATION counts (total + clustered + singleton + noise_reduction)
+     * to that window. Cluster-level metrics (total_clusters, largest_cluster_size,
+     * last_clustered_at, suspect_clusters, anchor_ioc_coverage) remain UNFILTERED
+     * because a cluster persists across time — restricting "active clusters" to
+     * a 7-day window has no clear semantic (a cluster is a long-lived entity).
+     *
      * @return array<string, mixed>
      */
-    public function getStats(?string $scamType = null): array
+    public function getStats(?string $scamType = null, ?string $period = null): array
     {
         $scamType = (\is_string($scamType) && trim($scamType) !== '') ? trim($scamType) : null;
+
+        // Spec 096 / C5 — map period to a Postgres interval for conversation date filtering.
+        $periodInterval = match ($period) {
+            '7d' => '7 days',
+            '30d' => '30 days',
+            '90d' => '90 days',
+            default => null,
+        };
+        $convPeriodFilter = null !== $periodInterval
+            ? ' AND ts_last >= NOW() - INTERVAL \'' . $periodInterval . '\''
+            : '';
+        $convPeriodFilterC = null !== $periodInterval
+            ? ' AND c.ts_last >= NOW() - INTERVAL \'' . $periodInterval . '\''
+            : '';
 
         // Spec 096 / C4 — filter fragments for cluster + conversation scope.
         $params = null !== $scamType ? ['scam_type' => $scamType] : [];
@@ -91,7 +112,7 @@ final readonly class ClusterQueryService
 
         /** @var int|string|false $totalConvs */
         $totalConvs = $this->conn->fetchOne(
-            'SELECT COUNT(*) FROM conversation WHERE deleted_at IS NULL' . $convScamFilter,
+            'SELECT COUNT(*) FROM conversation WHERE deleted_at IS NULL' . $convScamFilter . $convPeriodFilter,
             $params,
         );
         $totalConvs = (int) $totalConvs;
@@ -100,7 +121,8 @@ final readonly class ClusterQueryService
         $clusteredConvs = $this->conn->fetchOne(
             "SELECT COUNT(*) FROM threat_actor_cluster_conversation tacc
              JOIN threat_actor_cluster tac ON tac.cluster_id = tacc.cluster_id
-             WHERE tac.status != 'merged'" . $clusterScamFilterTac,
+             JOIN conversation c ON c.conv_id = tacc.conv_id
+             WHERE tac.status != 'merged' AND c.deleted_at IS NULL" . $clusterScamFilterTac . $convPeriodFilterC,
             $params,
         );
         $clusteredConvs = (int) $clusteredConvs;

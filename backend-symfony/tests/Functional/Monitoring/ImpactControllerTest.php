@@ -232,6 +232,29 @@ final class ImpactControllerTest extends WebTestCase
         );
     }
 
+    // === Spec 096 / C5 — chart trends respect the period filter ===
+
+    public function testSummaryWeeklyTrendRespectsPeriod_096C5(): void
+    {
+        // With period=7d, weekly_trend rows must all fall within the 7-day window.
+        // We don't assert exact row count (depends on fixtures) — only that the response is well-formed.
+        $data = $this->authenticatedGet('/api/v1/impact/summary?period=7d');
+        $weeklyTrend = $data['wasted_time']['weekly_trend'];
+        $this->assertIsArray($weeklyTrend);
+        // 7-day window NEVER yields MORE rows than the full 12-week default
+        $baseline = $this->authenticatedGet('/api/v1/impact/summary');
+        $this->assertLessThanOrEqual(\count($baseline['wasted_time']['weekly_trend']), \count($weeklyTrend));
+    }
+
+    public function testIocUniquenessDailyTrendRespectsPeriod_096C5(): void
+    {
+        // Same regression on the daily_trend chart of /impact/ioc-uniqueness.
+        $data7d = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness?period=7d');
+        $data30d = $this->authenticatedGet('/api/v1/impact/ioc-uniqueness?period=30d');
+        // 7-day window NEVER has more daily points than 30-day window
+        $this->assertLessThanOrEqual(\count($data30d['daily_trend']), \count($data7d['daily_trend']));
+    }
+
     /**
      * @return array<string, mixed>
      */

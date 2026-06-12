@@ -155,14 +155,17 @@ final readonly class ImpactHandler
             ];
         }, $byTypeRows);
 
-        // Daily trend (last 30 days)
+        // Spec 096 / C5 — daily trend respects the period threshold when set;
+        // falls back to 30 days when period='all'. Ensures "IOCs per Day" chart
+        // narrows with the page-level period filter.
+        $dailyTrendWindow = null !== $threshold ? "created_at >= {$threshold}" : "created_at > NOW() - INTERVAL '30 days'";
         $trendRows = $this->connection->fetchAllAssociative(
             'SELECT DATE(created_at) as date, COUNT(*) as total,'
             . " COUNT(*) FILTER (WHERE enrichment IS NULL OR enrichment::text = '{}' OR enrichment::text = 'null'"
             . " OR (enrichment::jsonb -> 'virustotal' ->> 'malicious')::int < 3"
             . " OR NOT jsonb_exists(enrichment::jsonb, 'virustotal')) as novel"
             . " FROM indicator WHERE {$headerExclude}{$typeFilter}"
-            . " AND created_at > NOW() - INTERVAL '30 days'"
+            . " AND {$dailyTrendWindow}"
             . $scamIdSubquery
             . ' GROUP BY DATE(created_at) ORDER BY date ASC',
             $params,
@@ -219,13 +222,16 @@ final readonly class ImpactHandler
             );
         }
 
-        // Weekly trend (last 12 weeks)
+        // Spec 096 / C5 — weekly trend respects the period threshold when set;
+        // falls back to 12 weeks when period='all'. Ensures the chart at the
+        // bottom of the Impact page actually narrows when the user picks 7d/30d/90d.
+        $trendWindow = null !== $threshold ? "ts_last >= {$threshold}" : "ts_last > NOW() - INTERVAL '12 weeks'";
         $trendRows = $this->connection->fetchAllAssociative(
             "SELECT DATE_TRUNC('week', ts_last)::date AS week,"
             . ' SUM(engagement_duration_sec) / 3600.0 AS hours'
             . ' FROM conversation'
             . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
-            . " AND ts_last > NOW() - INTERVAL '12 weeks'"
+            . " AND {$trendWindow}"
             . $scamFilter
             . " GROUP BY DATE_TRUNC('week', ts_last)"
             . ' ORDER BY week ASC',

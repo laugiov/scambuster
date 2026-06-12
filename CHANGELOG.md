@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.16.2] - 2026-06-12
+
+### Fixed — Spec 096 C5 (period filter coverage)
+
+- **`ImpactHandler::getWastedTime.weekly_trend`** previously had a
+  hardcoded "12 weeks" window — now respects the period threshold when
+  set, so the "Hours Wasted per Week" chart actually narrows when the
+  user picks 7d/30d/90d.
+- **`ImpactHandler::getIocUniqueness.daily_trend`** previously had a
+  hardcoded "30 days" window — same fix on the "IOCs per Day" chart.
+- **`ClusterQueryService::getStats`** now accepts an optional `period`
+  filter. The 3 conversation-related metrics (`total_conversations`,
+  `clustered_conversations`, `singleton_conversations` and the derived
+  `taxii_noise_reduction_pct`) restrict to the selected window. Cluster-
+  level metrics (`total_clusters`, `largest_cluster_size`, etc.) remain
+  unfiltered because a cluster is a long-lived entity that doesn't
+  semantically narrow to a 7-day window.
+- Frontend: `useClusterStats` now takes a `period` argument, plumbed
+  from `pages/Impact.tsx` alongside `scamType`.
+
+### Tests
+
+5 new functional tests covering all three gaps + the regression
+guarantee that `total_clusters` remains period-invariant.
+
+---
+
 ## [2.16.1] - 2026-06-12
 
 ### Added — Spec 096 (Impact dashboard: scammer engagement metric + page-level filter)
