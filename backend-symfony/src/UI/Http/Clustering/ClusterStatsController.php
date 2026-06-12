@@ -23,6 +23,13 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
             description: 'Spec 096 / C4 — optional scam type filter (cluster.primary_scam_types ANY match)',
             schema: new OA\Schema(type: 'string'),
         ),
+        new OA\Parameter(
+            name: 'period',
+            in: 'query',
+            required: false,
+            description: 'Spec 096 / C5 — period restricts conversation counts (not cluster counts)',
+            schema: new OA\Schema(type: 'string', default: 'all', enum: ['7d', '30d', '90d', 'all']),
+        ),
     ],
     responses: [new OA\Response(response: 200, description: 'Clustering stats')],
     security: [['Bearer' => []]],
@@ -41,6 +48,9 @@ final readonly class ClusterStatsController
         $scamTypeRaw = $request->query->get('scam_type');
         $scamType = \is_string($scamTypeRaw) && trim($scamTypeRaw) !== '' ? trim($scamTypeRaw) : null;
 
-        return new JsonResponse($this->queryService->getStats($scamType));
+        // Spec 096 / C5 — optional period filter, applied to conversation counts.
+        $period = $request->query->getString('period', 'all');
+
+        return new JsonResponse($this->queryService->getStats($scamType, $period));
     }
 }

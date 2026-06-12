@@ -71,7 +71,7 @@ export function Impact() {
   const { data: metaConfig } = useMetaConfig();
   const { data, isLoading, error, refetch } = useImpactSummary(period, scamType || null);
   const { data: iocData } = useIocUniqueness(period, scamType || null);
-  const { data: clusterStats } = useClusterStats(scamType || null);
+  const { data: clusterStats } = useClusterStats(scamType || null, period);
 
   if (isLoading) return <Loading message={t('common.loading')} />;
   if (error) return <ErrorMessage message={t('common.error')} onRetry={() => void refetch()} />;

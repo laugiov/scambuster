@@ -92,13 +92,15 @@ export function useClusters() {
   });
 }
 
-export function useClusterStats(scamType?: string | null) {
+export function useClusterStats(scamType?: string | null, period: string = 'all') {
   return useQuery<ClusterStats>({
-    queryKey: ['cluster-stats', scamType ?? 'all'],
+    queryKey: ['cluster-stats', scamType ?? 'all', period],
     queryFn: async () => {
       // Spec 096 / C4 — optional scam_type filter combines with other Impact filters.
+      // Spec 096 / C5 — period filter restricts conversation counts.
       const params: Record<string, string> = {};
       if (scamType) params.scam_type = scamType;
+      if (period && period !== 'all') params.period = period;
       const { data } = await client.get<ClusterStats>(ENDPOINTS.clusters.stats, { params });
       return data;
     },

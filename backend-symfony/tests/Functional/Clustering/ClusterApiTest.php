@@ -116,6 +116,40 @@ class ClusterApiTest extends WebTestCase
         $this->assertSame($baseline['total_clusters'], $withEmpty['total_clusters']);
     }
 
+    // === Spec 096 / C5 — period filter on cluster stats (conv counts only) ===
+
+    public function testClusterStatsAcceptsPeriodFilter_096C5(): void
+    {
+        $this->client->request('GET', '/api/v1/clusters/stats?period=7d', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $this->assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('total_conversations', $data);
+        $this->assertGreaterThanOrEqual(0, $data['total_conversations']);
+    }
+
+    public function testClusterStatsPeriodReducesOrEqualsConvCounts_096C5(): void
+    {
+        $this->client->request('GET', '/api/v1/clusters/stats', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $baseline = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        $this->client->request('GET', '/api/v1/clusters/stats?period=7d', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $filtered = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        // A 7-day window NEVER has more conversations than the unfiltered set
+        $this->assertLessThanOrEqual($baseline['total_conversations'], $filtered['total_conversations']);
+        $this->assertLessThanOrEqual($baseline['clustered_conversations'], $filtered['clustered_conversations']);
+        // total_clusters is UNFILTERED by period per design — must remain equal
+        $this->assertSame($baseline['total_clusters'], $filtered['total_clusters']);
+    }
+
+    public function testClusterStatsPeriodAndScamTypeCombine_096C5(): void
+    {
+        $this->client->request('GET', '/api/v1/clusters/stats?period=30d&scam_type=PHISHING', [], [], ['HTTP_AUTHORIZATION' => 'Bearer fake-jwt']);
+        $this->assertResponseIsSuccessful();
+        $data = json_decode((string) $this->client->getResponse()->getContent(), true);
+        $this->assertArrayHasKey('total_conversations', $data);
+    }
+
     public function testClusterDetail(): void
     {
         $clusterId = $this->conn->fetchOne(
