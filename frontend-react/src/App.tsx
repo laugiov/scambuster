@@ -26,6 +26,8 @@ const Analytics = lazy(() => import('@/pages/Analytics'));
 const Clusters = lazy(() => import('@/pages/Clusters'));
 const ClusterDetail = lazy(() => import('@/pages/ClusterDetail'));
 const Settings = lazy(() => import('@/pages/Settings'));
+// Spec 097 — Live Bait Theater (full-screen, outside AppLayout)
+const Theater = lazy(() => import('@/pages/Theater'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -45,6 +47,15 @@ export default function App() {
           <Suspense fallback={<Loading message="Loading page..." />}>
           <Routes>
             <Route path="/login" element={<Login />} />
+            {/* Spec 097 — Theater is full-screen, outside the standard AppLayout */}
+            <Route
+              path="conversations/:id/theater"
+              element={
+                <AuthGuard>
+                  <Theater />
+                </AuthGuard>
+              }
+            />
             <Route
               element={
                 <AuthGuard>
