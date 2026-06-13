@@ -7,6 +7,151 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.17.0] - 2026-06-13
+
+### Added — Spec 097 (Live Bait Theater)
+
+A new "Replay extraction" experience accessible from any conversation
+detail page. Plays back the conversation message-by-message with the
+extracted indicators appearing on the right panel as their parent
+message is revealed, and a separate Human Factor panel surfacing the
+deterministic + LLM-derived signals captured during extraction.
+
+#### Backend
+
+- `GET /api/v1/communication/conversation/{convId}/theater` — composite
+  endpoint returning meta + ordered messages + deduplicated IOCs (each
+  with its `revelation_context` joined from `ioc_context`) + a
+  structured `human_factor` block. Single round-trip, reuses the
+  official IOC attribution from `IocHandler::getConversationIocs` (no
+  parallel filtering).
+- `App\Application\Communication\TheaterAssemblyService` orchestrates
+  the assembly. Enforces spec invariants: IOC dedup by `value_norm`,
+  orphan IOC exclusion (parent message deleted), 100-message cap with
+  `long_conversation_truncated` flag, `stimulus_msg_id` validated to
+  belong to the conv.
+- `App\Application\Communication\TheaterHumanFactorCalculator` —
+  pure deterministic aggregator. Split into two sub-blocks:
+  - **deterministic**: `total_turns`, `engagement_hours`,
+    `first_financial_turn/_ratio`, `scammer_response_times_hours`
+    (median), `cascade_events` (computed on DEDUPED set per spec
+    rule #7), `language_switch_count/_turns` (computed from
+    `message.lang_detect` deltas — NOT from LLM),
+    `persona_pressure_profile`.
+  - **exploratory_llm_signals**: aggregates of LLM-classified
+    fields (`urgency_score`, `hesitation_detected`, `stimulus_type`)
+    with `enrichment_confidence` average + median for transparency.
+- `App\Domain\Communication\IocCategory` — pure helper mapping IOC
+  type to `financial`/`contact`/`infrastructure`/`other` with an
+  EXPLICIT default bucket so future types render without code changes.
+- `App\UI\Http\Communication\GetConversationTheaterController` — single
+  `__invoke`, `conversation:read` permission, 404 on unknown/deleted.
+
+#### Frontend
+
+- New route `/conversations/:id/theater` (full-screen, outside
+  AppLayout but inside AuthGuard).
+- New page `pages/Theater.tsx` orchestrating the experience.
+- Entry point: "▶ Replay extraction" button in `ConversationDetail`
+  header, visible only when the conversation has at least one message.
+- 7 new components under `components/theater/`:
+  `TheaterHeader`, `TheaterThread` (in/out bubbles + typing indicator),
+  `TheaterIntelligencePanel`, `TheaterIocCard` (per-IOC psychological
+  footprint with stimulus badge, urgency bar, hesitation chip,
+  semantic role with inline confidence + muted style when < 0.40),
+  `TheaterPsychologyPanel` (deterministic FIRST as headline,
+  exploratory LLM signals SECOND with caveat header), `TheaterTransport`
+  (play/pause/restart/skip/scrub/speed), `MaskedValue` (centralized
+  sensitive-value rendering — single source of truth).
+- 4 new hooks: `useTheaterReplay`, `useTheaterPlayer` (state machine:
+  idle/playing/paused/finished + currentStep + speed + typing direction;
+  setTimeout-driven, cleanup on unmount), `useMaskMode` +
+  `MaskModeProvider` (centralized mask state), `useReducedMotion`
+  (matchMedia listener).
+- Keyboard shortcuts: Spacebar = play/pause, M = mask toggle.
+- 2 new lib helpers: `lib/iocCategory` (mirror of backend, explicit
+  default bucket), `lib/iocMask` (length-bucketed mask function with
+  4 buckets; phone gets prefix+"*****"+suffix; non-phone < 6 = "***",
+  6-11 = prefix+"***", ≥ 12 = prefix+"***"+suffix).
+- ~45 new i18n keys under `theater.*` and 1 under
+  `conversationDetail.replayExtraction` (EN + FR with parity test).
+
+### Construct validity rules (mandated in code + UI)
+
+- Per-IOC `enrichment_confidence` ALWAYS surfaced inline next to the
+  semantic role.
+- When confidence < 0.40: muted color + low-confidence icon. NOT
+  hidden — visually de-emphasized.
+- Psychology panel headline says "deterministic", LLM sub-section
+  explicitly labeled "Exploratory LLM signals" with the average
+  confidence in its header.
+- "Limited coverage" banner shown when `enrichment_coverage_pct < 50%`.
+- Causal verbs FORBIDDEN throughout the UI: use "preceded",
+  "co-occurred", "labelled as" — never "triggered", "caused", "made".
+- Per-conv aggregates ALWAYS prefixed with "In this conversation: …"
+  to remind the viewer of single-case scope.
+- Footnote referencing ScamBuster persona design (Spec 095) so
+  adjacency-vs-causation is explicit.
+
+### Tests (97 new total, all green)
+
+Backend (33):
+- 6 unit on `IocCategory` (including the EXPLICIT default bucket
+  invariant)
+- 12 unit on `TheaterHumanFactorCalculator` (cascade dedup,
+  deterministic language_switch, active stimuli dedup by msg_id, etc.)
+- 9 functional on the controller (auth, 404, dedup invariant vs
+  existing `/iocs`, structure, sort order, human_factor presence)
+- 6 integration on `TheaterAssemblyService` (orphan IOC exclusion,
+  `stimulus_msg_id` validation rule #9, enrichment coverage match
+  between meta and human_factor, empty IOC graceful output)
+
+Frontend (24):
+- 5 on `lib/iocCategory`
+- 9 on `lib/iocMask` (all 4 length buckets + sensitive type detection
+  + end-to-end displayValue)
+- 4 on `MaskedValue` — CRITICAL default-masked DOM-search assertions
+  (raw BIC and raw phone NEVER appear in the rendered DOM in default
+  state, even outside a provider)
+- 1 on i18n EN/FR parity (preventive against drift)
+- 11 on `useTheaterPlayer` state machine (transitions, cleanup,
+  reduced-motion branch, speed multiplier, auto-restart, scrub clamp)
+- 4 on `useReducedMotion` (matchMedia mock + listener cleanup)
+
+### Pre-flight investigations
+
+- **Survival bias check** (`specs/097-live-bait-theater/survival-bias-check.md`):
+  on the IOC types the Theater actually displays (domain, email, url,
+  phone, sha256, iban, ipv4, bic, wallet_*, bank_account, etc.),
+  enrichment coverage is 100 %. The 57 % global gap originally
+  observed comes from header artifacts that are excluded by
+  `IocHandler` anyway. The "limited coverage" UI safety net stays
+  but will rarely fire on production data.
+
+### Curated demo conversation set
+
+- `specs/097-live-bait-theater/curated-demo-convs.md` lists 6 hand-
+  picked conversations to use in public demos. Never demo a random
+  conv blind.
+
+### Spec-kit
+
+- `specs/097-live-bait-theater/` (local, gitignored): spec.md,
+  plan.md, tasks.md, self-review.md (15-point adversarial
+  self-challenge yielding 11 improvements applied), external-
+  review-response.md (response to a separate AI review of the spec,
+  8 corrections applied + 5 rejected with justifications),
+  survival-bias-check.md, curated-demo-convs.md.
+
+### Preflight gates (8/8 — backend ~500s, frontend ~24s)
+
+Backend: PHPStan max, PHP-CS-Fixer, Unit 3223, Integration 647,
+Functional, CompilerPass, E2E, Composer audit — all green.
+Frontend: typecheck 0 errors, lint 0 errors, 85 test files / 675
+tests green.
+
+---
+
 ## [2.16.2] - 2026-06-12
 
 ### Fixed — Spec 096 C5 (period filter coverage)

@@ -80,6 +80,16 @@ export function ConversationDetail() {
             </span>
           )}
           <Badge label={c.status} variant={statusToBadgeVariant(c.status)} />
+          {/* Spec 097 — Live Bait Theater button (hidden when conv has no messages) */}
+          {(messages.data?.length ?? 0) > 0 && (
+            <Link
+              to={`/conversations/${id}/theater`}
+              className="px-3 py-1 bg-accent text-bg text-xs uppercase tracking-wider font-bold rounded-lg hover:bg-accent-hover transition-colors"
+              data-testid="theater-link"
+            >
+              ▶ {t('conversationDetail.replayExtraction')}
+            </Link>
+          )}
         </div>
       </header>
 

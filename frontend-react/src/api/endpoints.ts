@@ -29,6 +29,8 @@ export const ENDPOINTS = {
     detail: (id: string) => `/communication/conversation/${id}`,
     messages: (id: string) => `/communication/conversation/${id}/messages`,
     iocs: (id: string) => `/communication/conversation/${id}/iocs`,
+    // Spec 097 — Live Bait Theater composite endpoint
+    theater: (id: string) => `/communication/conversation/${id}/theater`,
     exportStix: (id: string) => `/conversations/${id}/export/stix`,
   },
   mailAccounts: {
