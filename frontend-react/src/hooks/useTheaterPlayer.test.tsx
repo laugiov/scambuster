@@ -11,9 +11,7 @@ describe('useTheaterPlayer / Spec 097 S4 — state machine', () => {
   });
 
   function setup(totalSteps = 5, reducedMotion = false) {
-    const directionAt = (step: number): 'in' | 'out' | null =>
-      step % 2 === 0 ? 'in' : 'out';
-    return renderHook(() => useTheaterPlayer({ totalSteps, directionAt, reducedMotion }));
+    return renderHook(() => useTheaterPlayer({ totalSteps, reducedMotion }));
   }
 
   it('starts in idle status with currentStep=0', () => {
@@ -92,7 +90,7 @@ describe('useTheaterPlayer / Spec 097 S4 — state machine', () => {
   });
 
   it('SET_SPEED changes the multiplier and shortens delays', () => {
-    const { result } = setup(2, true);
+    const { result } = setup(2, true /* reducedMotion: 600ms base */);
     act(() => result.current.setSpeed(4));
     expect(result.current.state.speed).toBe(4);
     act(() => result.current.play());
@@ -125,21 +123,29 @@ describe('useTheaterPlayer / Spec 097 S4 — state machine', () => {
     // No assertion crash = success (no act() warning, no leak)
   });
 
-  it('Reduced-motion: no typing direction is set, reveal is immediate', () => {
+  it('Reduced-motion: reveals immediately (delay shorter)', () => {
     const { result } = setup(3, true);
     act(() => result.current.play());
     act(() => {
-      vi.advanceTimersByTime(0);
+      vi.advanceTimersByTime(599);
     });
-    expect(result.current.state.typingDirection).toBe(null);
+    expect(result.current.state.currentStep).toBe(0);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.state.currentStep).toBe(1);
   });
 
-  it('Normal motion: typing direction is set before reveal', () => {
+  it('Normal motion: reveal after typing delay (1500ms / speed)', () => {
     const { result } = setup(3, false);
     act(() => result.current.play());
     act(() => {
-      vi.advanceTimersByTime(0);
+      vi.advanceTimersByTime(1499);
     });
-    expect(result.current.state.typingDirection).toBe('in');
+    expect(result.current.state.currentStep).toBe(0);
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.state.currentStep).toBe(1);
   });
 });

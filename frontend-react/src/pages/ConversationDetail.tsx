@@ -84,10 +84,14 @@ export function ConversationDetail() {
           {(messages.data?.length ?? 0) > 0 && (
             <Link
               to={`/conversations/${id}/theater`}
-              className="px-3 py-1 bg-accent text-bg text-xs uppercase tracking-wider font-bold rounded-lg hover:bg-accent-hover transition-colors"
+              title={t('conversationDetail.replayExtraction')}
+              className="ml-1 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-on-surface-variant border border-outline-variant rounded-md hover:text-on-surface hover:border-accent transition-colors"
               data-testid="theater-link"
             >
-              ▶ {t('conversationDetail.replayExtraction')}
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              {t('conversationDetail.replayExtraction')}
             </Link>
           )}
         </div>

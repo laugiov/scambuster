@@ -87,11 +87,10 @@ function reducer(state: TheaterPlayerState, action: Action): TheaterPlayerState 
 
 interface UseTheaterPlayerProps {
   totalSteps: number;
-  directionAt: (step: number) => 'in' | 'out' | null;
   reducedMotion?: boolean;
 }
 
-export function useTheaterPlayer({ totalSteps, directionAt, reducedMotion = false }: UseTheaterPlayerProps) {
+export function useTheaterPlayer({ totalSteps, reducedMotion = false }: UseTheaterPlayerProps) {
   const [state, dispatch] = useReducer(reducer, {
     status: 'idle' as PlayerStatus,
     currentStep: 0,
@@ -108,7 +107,10 @@ export function useTheaterPlayer({ totalSteps, directionAt, reducedMotion = fals
     dispatch({ type: 'SET_TOTAL', total: totalSteps });
   }, [totalSteps]);
 
-  // Drive the playback loop
+  // Drive the playback loop — ONE timeout per step. The typing indicator
+  // is rendered by Theater.tsx as a DERIVED value (status=playing AND
+  // !reducedMotion AND step < total). This avoids the dispatch-then-
+  // setTimeout combo which was flaky under React 18 strict mode.
   useEffect(() => {
     if (state.status !== 'playing') {
       if (timeoutRef.current) {
@@ -120,25 +122,12 @@ export function useTheaterPlayer({ totalSteps, directionAt, reducedMotion = fals
 
     if (state.currentStep >= state.totalSteps) return;
 
-    const nextStep = state.currentStep;
-    const nextDirection = directionAt(nextStep);
-    const speed = state.speed;
+    const delay = reducedMotion ? 600 / state.speed : 1500 / state.speed;
 
-    if (reducedMotion || !nextDirection) {
-      // No typing animation: reveal directly after a short delay
-      timeoutRef.current = setTimeout(() => {
-        if (!mountedRef.current) return;
-        dispatch({ type: 'STEP_REVEAL' });
-      }, 600 / speed);
-      return;
-    }
-
-    // Show typing indicator first, then reveal
-    dispatch({ type: 'TYPING', direction: nextDirection });
     timeoutRef.current = setTimeout(() => {
       if (!mountedRef.current) return;
       dispatch({ type: 'STEP_REVEAL' });
-    }, 1300 / speed);
+    }, delay);
 
     return () => {
       if (timeoutRef.current) {
@@ -146,7 +135,7 @@ export function useTheaterPlayer({ totalSteps, directionAt, reducedMotion = fals
         timeoutRef.current = null;
       }
     };
-  }, [state.status, state.currentStep, state.totalSteps, state.speed, reducedMotion, directionAt]);
+  }, [state.status, state.currentStep, state.totalSteps, state.speed, reducedMotion]);
 
   // Cleanup on unmount — prevents setTimeout firing after unmount
   useEffect(() => {

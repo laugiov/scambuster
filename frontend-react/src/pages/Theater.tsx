@@ -54,7 +54,6 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
 
   const { state, play, pause, restart, skipToEnd, scrub, setSpeed } = useTheaterPlayer({
     totalSteps: data.messages.length,
-    directionAt,
     reducedMotion,
   });
 
@@ -80,6 +79,15 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
 
   const finished = useMemo(() => state.status === 'finished', [state.status]);
 
+  // Spec 097 — typing direction is DERIVED from state (not dispatched).
+  // Shows while we're actively playing and the next message is about to reveal.
+  const typingDirection = useMemo<'in' | 'out' | null>(() => {
+    if (reducedMotion) return null;
+    if (state.status !== 'playing') return null;
+    if (state.currentStep >= state.totalSteps) return null;
+    return directionAt(state.currentStep);
+  }, [reducedMotion, state.status, state.currentStep, state.totalSteps, directionAt]);
+
   return (
     <div className="h-screen flex flex-col bg-bg text-on-surface">
       <TheaterHeader meta={data.meta} />
@@ -88,7 +96,7 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
           messages={data.messages}
           visibleStep={state.currentStep}
           iocsByMsg={data.iocs_by_msg}
-          typingDirection={state.typingDirection}
+          typingDirection={typingDirection}
         />
         <aside className="w-[440px] shrink-0 overflow-y-auto border-l border-outline-variant bg-surface-low/30">
           <TheaterIntelligencePanel
