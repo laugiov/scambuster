@@ -8,6 +8,7 @@ use App\Domain\Communication\Conversation;
 use App\Domain\Communication\IocCategory;
 use App\Domain\Communication\Message;
 use App\Domain\Communication\ObservedIoc;
+use Doctrine\DBAL\Connection;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -35,6 +36,8 @@ final readonly class TheaterAssemblyService
     public function __construct(
         private EntityManagerInterface $em,
         private IocHandler $iocHandler,
+        private Connection $connection,
+        private TheaterHumanFactorCalculator $humanFactor,
     ) {
     }
 
@@ -44,7 +47,8 @@ final readonly class TheaterAssemblyService
      * @return array{
      *   meta: array<string, mixed>,
      *   messages: list<array<string, mixed>>,
-     *   iocs_by_msg: list<array<string, mixed>>
+     *   iocs_by_msg: list<array<string, mixed>>,
+     *   human_factor: array<string, mixed>
      * }
      */
     public function assemble(Conversation $conv): array
@@ -64,6 +68,13 @@ final readonly class TheaterAssemblyService
         $iocs = $this->iocHandler->getConversationIocs($conv->getConvId());
         $iocsByMsg = $this->serializeAndDedupIocs(array_values($iocs), $messageIdSet);
 
+        // Spec 097 / Slice 2 — enrich each IOC with its revelation_context
+        // (LEFT JOIN on ioc_context). Orphan stimulus_msg_id validated
+        // against the conv's message set per spec §Behavior rule #9.
+        $iocsByMsg = $this->enrichWithRevelationContext($iocsByMsg, $messageIdSet);
+
+        $enrichmentCoveragePct = $this->computeEnrichmentCoverage($iocsByMsg);
+
         $persona = $conv->getPersona();
 
         $meta = [
@@ -78,13 +89,185 @@ final readonly class TheaterAssemblyService
             'messages_count' => \count($messages),
             'iocs_count' => \count($iocsByMsg),
             'long_conversation_truncated' => $truncated,
+            'enrichment_coverage_pct' => $enrichmentCoveragePct,
         ];
+
+        $humanFactor = $this->humanFactor->compute(
+            $messages,
+            $iocsByMsg,
+            $persona?->getPersonaCode(),
+            $enrichmentCoveragePct,
+        );
 
         return [
             'meta' => $meta,
             'messages' => $messages,
             'iocs_by_msg' => $iocsByMsg,
+            'human_factor' => $humanFactor,
         ];
+    }
+
+    /**
+     * Spec 097 / Slice 2 — Single SQL fetch on ioc_context for all the IOCs
+     * in this conversation, then merge in-PHP into each IOC dict. Avoids N+1.
+     *
+     * Also validates `stimulus_msg_id` (rule #9): when the LLM-attributed
+     * stimulus message is NOT in the current conv's messages, we null it
+     * out so the UI never builds a broken overlay link.
+     *
+     * @param list<array<string, mixed>> $iocsByMsg
+     * @param array<string, true>        $messageIdSet
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function enrichWithRevelationContext(array $iocsByMsg, array $messageIdSet): array
+    {
+        if ([] === $iocsByMsg) {
+            return $iocsByMsg;
+        }
+
+        $obsIds = [];
+
+        foreach ($iocsByMsg as $r) {
+            $obsId = $r['obs_id'] ?? null;
+
+            if (\is_string($obsId) && '' !== $obsId) {
+                $obsIds[] = $obsId;
+            }
+        }
+
+        if ([] === $obsIds) {
+            return $iocsByMsg;
+        }
+
+        $sql = 'SELECT obs_id::text AS obs_id,'
+            . ' enrichment_status, enrichment_confidence, context_excerpt,'
+            . ' semantic_role, stimulus_type, urgency_score,'
+            . ' hesitation_detected, co_revealed_types, co_revealed_count,'
+            . ' stimulus_msg_id::text AS stimulus_msg_id,'
+            . ' revelation_turn, revelation_turn_ratio'
+            . ' FROM ioc_context WHERE obs_id IN (?)';
+
+        /** @var list<array<string, mixed>> $rows */
+        $rows = $this->connection->fetchAllAssociative(
+            $sql,
+            [$obsIds],
+            [\Doctrine\DBAL\ArrayParameterType::STRING],
+        );
+
+        $byObsId = [];
+
+        foreach ($rows as $row) {
+            $rowObsId = $row['obs_id'] ?? null;
+
+            if (\is_string($rowObsId)) {
+                $byObsId[$rowObsId] = $row;
+            }
+        }
+
+        $out = [];
+
+        foreach ($iocsByMsg as $ioc) {
+            $obsIdField = $ioc['obs_id'] ?? null;
+            $obsId = \is_string($obsIdField) ? $obsIdField : '';
+            $ctxRow = '' !== $obsId ? ($byObsId[$obsId] ?? null) : null;
+
+            if (null === $ctxRow || 'enriched' !== ($ctxRow['enrichment_status'] ?? null)) {
+                $statusVal = null === $ctxRow ? null : ($ctxRow['enrichment_status'] ?? null);
+                $ioc['revelation_context'] = null === $ctxRow ? null : [
+                    'enrichment_status' => \is_string($statusVal) ? $statusVal : 'unknown',
+                ];
+
+                $out[] = $ioc;
+
+                continue;
+            }
+
+            // Validate stimulus_msg_id belongs to this conversation
+            $stimMsgId = \is_string($ctxRow['stimulus_msg_id'] ?? null) ? (string) $ctxRow['stimulus_msg_id'] : null;
+
+            if (null !== $stimMsgId && !isset($messageIdSet[$stimMsgId])) {
+                $stimMsgId = null;
+            }
+
+            $coRevealed = $this->parsePgTextArray(\is_string($ctxRow['co_revealed_types'] ?? null) ? (string) $ctxRow['co_revealed_types'] : null);
+
+            $ioc['revelation_context'] = [
+                'enrichment_status' => 'enriched',
+                'enrichment_confidence' => $this->floatOrNull($ctxRow['enrichment_confidence']),
+                'context_excerpt' => \is_string($ctxRow['context_excerpt'] ?? null) ? (string) $ctxRow['context_excerpt'] : null,
+                'semantic_role' => \is_string($ctxRow['semantic_role'] ?? null) ? (string) $ctxRow['semantic_role'] : null,
+                'stimulus_type' => \is_string($ctxRow['stimulus_type'] ?? null) ? (string) $ctxRow['stimulus_type'] : null,
+                'urgency_score' => $this->floatOrNull($ctxRow['urgency_score']),
+                'hesitation_detected' => $this->boolOrNull($ctxRow['hesitation_detected']),
+                'co_revealed_types' => $coRevealed,
+                'co_revealed_count' => is_numeric($ctxRow['co_revealed_count'] ?? null) ? (int) $ctxRow['co_revealed_count'] : 0,
+                'stimulus_msg_id' => $stimMsgId,
+                'revelation_turn' => is_numeric($ctxRow['revelation_turn'] ?? null) ? (int) $ctxRow['revelation_turn'] : null,
+                'revelation_turn_ratio' => $this->floatOrNull($ctxRow['revelation_turn_ratio']),
+            ];
+
+            $out[] = $ioc;
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $iocsByMsg
+     */
+    private function computeEnrichmentCoverage(array $iocsByMsg): float
+    {
+        if ([] === $iocsByMsg) {
+            return 0.0;
+        }
+
+        $enriched = 0;
+
+        foreach ($iocsByMsg as $ioc) {
+            $ctx = $ioc['revelation_context'];
+
+            if (\is_array($ctx) && 'enriched' === ($ctx['enrichment_status'] ?? null)) {
+                $enriched++;
+            }
+        }
+
+        return round(100.0 * $enriched / \count($iocsByMsg), 1);
+    }
+
+    private function floatOrNull(mixed $v): ?float
+    {
+        return is_numeric($v) ? (float) $v : null;
+    }
+
+    private function boolOrNull(mixed $v): ?bool
+    {
+        return null === $v ? null : (bool) $v;
+    }
+
+    /**
+     * Parse Postgres text[] literal like `{a,b,c}` into a PHP list.
+     *
+     * @return list<string>
+     */
+    private function parsePgTextArray(?string $literal): array
+    {
+        if (null === $literal || '' === $literal || '{}' === $literal) {
+            return [];
+        }
+
+        $inner = trim($literal, '{}');
+
+        if ('' === $inner) {
+            return [];
+        }
+
+        $parts = array_map(
+            static fn (string $s): string => trim($s, " \"\t\n"),
+            explode(',', $inner),
+        );
+
+        return array_values(array_filter($parts, static fn (string $s): bool => '' !== $s));
     }
 
     /**
@@ -144,6 +327,7 @@ final readonly class TheaterAssemblyService
                 'sender' => $from,
                 'subject' => $m->getSubject(),
                 'body_text' => $m->getBodyText(),
+                'lang_detect' => $m->getLangDetect(),
             ];
         }
 

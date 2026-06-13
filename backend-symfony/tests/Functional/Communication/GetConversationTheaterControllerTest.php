@@ -135,10 +135,29 @@ final class GetConversationTheaterControllerTest extends WebTestCase
             foreach (['msg_id', 'obs_id', 'indicator_id', 'type', 'value', 'value_norm', 'category', 'ts_observed', 'revelation_context'] as $key) {
                 $this->assertArrayHasKey($key, $ioc);
             }
-            // Slice 1: revelation_context is always null. Slice 2 will populate.
-            $this->assertNull($ioc['revelation_context']);
+            // Slice 2: revelation_context is either null OR an array with at least enrichment_status.
+            $ctx = $ioc['revelation_context'];
+
+            if (null !== $ctx) {
+                $this->assertIsArray($ctx);
+                $this->assertArrayHasKey('enrichment_status', $ctx);
+            }
             $this->assertContains($ioc['category'], ['financial', 'contact', 'infrastructure', 'other']);
         }
+    }
+
+    public function testHumanFactorBlockPresentInResponse_097S2(): void
+    {
+        $convId = $this->pickConvIdWithMessages();
+        if (null === $convId) {
+            $this->markTestSkipped('No fixture conv');
+        }
+
+        $data = $this->authenticatedGet('/api/v1/communication/conversation/' . $convId . '/theater');
+        $this->assertArrayHasKey('human_factor', $data);
+        $this->assertArrayHasKey('deterministic', $data['human_factor']);
+        $this->assertArrayHasKey('exploratory_llm_signals', $data['human_factor']);
+        $this->assertArrayHasKey('enrichment_coverage_pct', $data['meta']);
     }
 
     public function testReturns404OnSoftDeletedConversation_097S1(): void
@@ -184,9 +203,12 @@ final class GetConversationTheaterControllerTest extends WebTestCase
 
     private function pickConvIdWithMessages(): ?string
     {
+        // Exclude the 00000000-…-XXX fixture conv IDs reserved by other
+        // handler tests (e.g. ScamClassificationHandlerTest) to avoid
+        // soft-delete interference between functional test runs.
         $row = $this->conn->fetchOne(
             'SELECT c.conv_id::text FROM conversation c'
-            . ' WHERE c.deleted_at IS NULL'
+            . " WHERE c.deleted_at IS NULL AND c.conv_id::text NOT LIKE '00000000-%'"
             . ' AND EXISTS (SELECT 1 FROM message m WHERE m.conv_id = c.conv_id AND m.deleted_at IS NULL)'
             . ' LIMIT 1',
         );
@@ -198,7 +220,7 @@ final class GetConversationTheaterControllerTest extends WebTestCase
     {
         $row = $this->conn->fetchOne(
             'SELECT c.conv_id::text FROM conversation c'
-            . ' WHERE c.deleted_at IS NULL'
+            . " WHERE c.deleted_at IS NULL AND c.conv_id::text NOT LIKE '00000000-%'"
             . ' AND EXISTS ('
             . '   SELECT 1 FROM observed_ioc oi'
             . '   JOIN message m ON oi.msg_id = m.msg_id'
