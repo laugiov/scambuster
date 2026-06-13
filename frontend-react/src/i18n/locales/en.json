@@ -571,6 +571,11 @@
     "low_confidence": "low confidence",
     "co_revealed": "Co-revealed",
     "enrichment_pending": "Enrichment pending",
-    "financial": "Financial"
+    "financial": "Financial",
+    "play": "Play",
+    "pause": "Pause",
+    "restart": "Restart",
+    "skip": "Skip to end",
+    "progress": "Replay progress"
   }
 }

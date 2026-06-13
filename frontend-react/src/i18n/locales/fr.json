@@ -571,6 +571,11 @@
     "low_confidence": "confiance faible",
     "co_revealed": "Co-révélés",
     "enrichment_pending": "Enrichissement en attente",
-    "financial": "Financier"
+    "financial": "Financier",
+    "play": "Lire",
+    "pause": "Pause",
+    "restart": "Redémarrer",
+    "skip": "Aller à la fin",
+    "progress": "Progression du replay"
   }
 }
