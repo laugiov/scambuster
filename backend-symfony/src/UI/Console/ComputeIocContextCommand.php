@@ -196,16 +196,27 @@ final class ComputeIocContextCommand extends Command
 
         $budgetRaw = $input->getOption('budget-usd');
         $budgetUsd = \is_numeric($budgetRaw) ? (float) $budgetRaw : 1.00;
+        $force = (bool) $input->getOption('force');
+        // When --force is set, also re-enrich rows already in 'enriched'
+        // status (used by spec 102 Phase F to backfill the corpus with
+        // the v2 prompt). Default behavior unchanged: only 'structural'.
+        $statusFilter = $force
+            ? "ic.enrichment_status IN ('structural', 'enriched')"
+            : "ic.enrichment_status = 'structural'";
 
         $io->section('LLM Contextual Enrichment');
         $io->info(\sprintf('Budget: $%.2f USD', $budgetUsd));
 
-        // Find messages with structural IOC context
+        if ($force) {
+            $io->info('Force mode: enriched rows will be recomputed.');
+        }
+
+        // Find messages with enrichable IOC context
         $msgRows = $this->connection->fetchAllAssociative(
             'SELECT DISTINCT oi.msg_id'
             . ' FROM ioc_context ic'
             . ' JOIN observed_ioc oi ON ic.obs_id = oi.obs_id'
-            . ' WHERE ic.enrichment_status = \'structural\''
+            . ' WHERE ' . $statusFilter
             . ' ORDER BY oi.msg_id'
             . ' LIMIT ' . $limit
         );
@@ -245,7 +256,7 @@ final class ComputeIocContextCommand extends Command
                 . ' JOIN observed_ioc oi ON ic.obs_id = oi.obs_id'
                 . ' JOIN indicator i ON ic.indicator_id = i.indicator_id'
                 . ' WHERE oi.msg_id = :msgId'
-                . ' AND ic.enrichment_status = \'structural\'',
+                . ' AND ' . $statusFilter,
                 ['msgId' => $msgId]
             );
 
