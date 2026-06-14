@@ -96,9 +96,22 @@ class IocUpsertService
      * For type='url', a malformed value (parse_url returns no host) falls
      * through — let downstream validation decide. We never invent a host.
      */
+    /**
+     * Spec 098 — un-defang an IOC value so the filter compares against the
+     * canonical (non-bracketed) form. IocCategorizer normalises domains and
+     * URLs by wrapping each '.' as '[.]' (and '://' as '[://]') so the
+     * stored value_norm is not auto-rendered as a clickable link by
+     * security tools. The runtime filter sees the defanged form on upsert,
+     * so it must reverse it before matching against the honeypot indexes.
+     */
+    private function unDefang(string $value): string
+    {
+        return str_replace(['[.]', '[/]', '[://]', '[:]'], ['.', '/', '://', ':'], $value);
+    }
+
     private function isHoneypotAddress(string $type, string $valueNorm): bool
     {
-        $needle = strtolower($valueNorm);
+        $needle = strtolower($this->unDefang($valueNorm));
 
         if ($type === 'email') {
             if (isset($this->honeypotAddressesIndex[$needle])) {

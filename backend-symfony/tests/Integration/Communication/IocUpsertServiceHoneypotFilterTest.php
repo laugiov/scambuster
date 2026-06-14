@@ -369,6 +369,49 @@ final class IocUpsertServiceHoneypotFilterTest extends KernelTestCase
         }
     }
 
+    public function testDefangedDomainValueNormIsRejected(): void
+    {
+        // Spec 098 fix-up — IocCategorizer stores value_norm in defanged form
+        // (acme.example → acme[.]com). The filter must un-defang before
+        // matching, otherwise the defanged form leaks through.
+        $service = $this->buildServiceWithHoneypot(['admin@example.com']);
+
+        $payload = [
+            'msg_id' => self::INCOMING_MSG_ID,
+            'ioc' => [
+                'type' => 'domain',
+                'value' => 'example.com',
+                'value_norm' => 'example[.]com',
+                'source' => 'body',
+                'first_seen' => '2026-06-14T00:00:00Z',
+            ],
+        ];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/honeypot/i');
+        $service->upsertEnrichedIoc($payload);
+    }
+
+    public function testDefangedUrlValueNormIsRejected(): void
+    {
+        $service = $this->buildServiceWithHoneypot(['admin@example.com']);
+
+        $payload = [
+            'msg_id' => self::INCOMING_MSG_ID,
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'https://www.example.com/x',
+                'value_norm' => 'https[://]www[.]example[.]com[/]x',
+                'source' => 'body',
+                'first_seen' => '2026-06-14T00:00:00Z',
+            ],
+        ];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/honeypot/i');
+        $service->upsertEnrichedIoc($payload);
+    }
+
     public function testPersonaAliasEmailUnderHoneypotDomainIsRejected(): void
     {
         // Only admin@example.com is configured, but alias.persona@example.com

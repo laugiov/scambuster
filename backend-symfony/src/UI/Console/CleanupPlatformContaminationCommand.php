@@ -333,14 +333,25 @@ final class CleanupPlatformContaminationCommand extends Command
     }
 
     /**
+     * Spec 098 fix-up — un-defang an indicator value before matching. The
+     * IocCategorizer stores value_norm in defanged form (e.g.
+     * acme.example → acme[.]com) so the SQL `IN (?)` against the bare
+     * domain list misses. Symmetric with IocUpsertService::unDefang().
+     */
+    private function unDefang(string $value): string
+    {
+        return str_replace(['[.]', '[/]', '[://]', '[:]'], ['.', '/', '://', ':'], $value);
+    }
+
+    /**
      * Spec 098 — resolve the set of indicator IDs that point back at the
-     * honeypot infrastructure. Covers three IOC types:
+     * honeypot infrastructure. Covers three IOC types via un-defanged
+     * value_norm comparison:
      *
-     *   - email  : exact value_norm match against $addresses
-     *   - domain : exact value_norm match against $domains
-     *   - url    : parse_url(host), strip www., match against $domains
-     *
-     * Returns a deduplicated list of indicator IDs.
+     *   - email  : exact match against $addresses OR domain-part match
+     *              against $domains
+     *   - domain : exact match against $domains (after stripping `www.`)
+     *   - url    : parse_url(host), strip `www.`, match against $domains
      *
      * @param list<string> $addresses
      * @param list<string> $domains
@@ -350,26 +361,9 @@ final class CleanupPlatformContaminationCommand extends Command
     private function findHoneypotIndicatorIds(array $addresses, array $domains): array
     {
         $ids = [];
+        $addressesSet = array_fill_keys($addresses, true);
 
         if ($addresses !== []) {
-            $rows = $this->conn->fetchAllAssociative(
-                "SELECT indicator_id FROM indicator WHERE type = 'email' AND LOWER(value_norm) IN (?)",
-                [$addresses],
-                [\Doctrine\DBAL\ArrayParameterType::STRING],
-            );
-
-            foreach ($rows as $r) {
-                if (\is_string($r['indicator_id'])) {
-                    $ids[$r['indicator_id']] = true;
-                }
-            }
-        }
-
-        if ($domains !== []) {
-            // EMAIL by domain part — catches persona aliases under a honeypot
-            // domain that aren't in the addresses list (e.g. alias.persona@
-            // when only admin@ is configured). Symmetric with the runtime
-            // filter in IocUpsertService::isHoneypotAddress() (Spec 098).
             $emailRows = $this->conn->fetchAllAssociative(
                 "SELECT indicator_id, value_norm FROM indicator WHERE type = 'email'",
             );
@@ -381,31 +375,65 @@ final class CleanupPlatformContaminationCommand extends Command
                 if (!\is_string($idVal) || !\is_string($valueNorm)) {
                     continue;
                 }
-                $needle = strtolower($valueNorm);
+
+                if (isset($addressesSet[strtolower($this->unDefang($valueNorm))])) {
+                    $ids[$idVal] = true;
+                }
+            }
+        }
+
+        if ($domains !== []) {
+            $domainsSet = array_fill_keys($domains, true);
+
+            // EMAIL by domain part — catches persona aliases under a honeypot
+            // domain that aren't enumerated in the addresses list.
+            $emailRows = $this->conn->fetchAllAssociative(
+                "SELECT indicator_id, value_norm FROM indicator WHERE type = 'email'",
+            );
+
+            foreach ($emailRows as $r) {
+                $idVal = $r['indicator_id'] ?? null;
+                $valueNorm = $r['value_norm'] ?? null;
+
+                if (!\is_string($idVal) || !\is_string($valueNorm)) {
+                    continue;
+                }
+                $needle = strtolower($this->unDefang($valueNorm));
                 $atPos = strrpos($needle, '@');
 
                 if ($atPos === false || $atPos >= strlen($needle) - 1) {
                     continue;
                 }
 
-                if (\in_array(substr($needle, $atPos + 1), $domains, true)) {
+                if (isset($domainsSet[substr($needle, $atPos + 1)])) {
                     $ids[$idVal] = true;
                 }
             }
 
-            $rows = $this->conn->fetchAllAssociative(
-                "SELECT indicator_id FROM indicator WHERE type = 'domain' AND LOWER(value_norm) IN (?)",
-                [$domains],
-                [\Doctrine\DBAL\ArrayParameterType::STRING],
+            // DOMAIN — exact match on un-defanged value_norm (handles www. prefix)
+            $domainRows = $this->conn->fetchAllAssociative(
+                "SELECT indicator_id, value_norm FROM indicator WHERE type = 'domain'",
             );
 
-            foreach ($rows as $r) {
-                if (\is_string($r['indicator_id'])) {
-                    $ids[$r['indicator_id']] = true;
+            foreach ($domainRows as $r) {
+                $idVal = $r['indicator_id'] ?? null;
+                $valueNorm = $r['value_norm'] ?? null;
+
+                if (!\is_string($idVal) || !\is_string($valueNorm)) {
+                    continue;
+                }
+                $clean = strtolower($this->unDefang($valueNorm));
+
+                if (str_starts_with($clean, 'www.')) {
+                    $clean = substr($clean, 4);
+                }
+
+                if (isset($domainsSet[$clean])) {
+                    $ids[$idVal] = true;
                 }
             }
 
-            $domainsSet = array_fill_keys($domains, true);
+            // URL — parse_url host on un-defanged value_norm
             $urlRows = $this->conn->fetchAllAssociative(
                 "SELECT indicator_id, value_norm FROM indicator WHERE type = 'url'",
             );
@@ -417,7 +445,7 @@ final class CleanupPlatformContaminationCommand extends Command
                 if (!\is_string($idVal) || !\is_string($valueNorm)) {
                     continue;
                 }
-                $host = parse_url(strtolower($valueNorm), PHP_URL_HOST);
+                $host = parse_url(strtolower($this->unDefang($valueNorm)), PHP_URL_HOST);
 
                 if (!\is_string($host) || $host === '') {
                     continue;
