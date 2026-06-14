@@ -15,6 +15,7 @@ parameters:
         - src/UI/Console/EvalSampleTestSetCommand.php
         - src/UI/Console/EvalRenderIocCommand.php
         - src/UI/Console/EvalRunJudgeCommand.php
+        - src/UI/Console/EvalComputeMetricsCommand.php
     checkMissingIterableValueType: true
     checkGenericClassInNonGenericObjectType: true
     checkUnionTypes: true
