@@ -5,6 +5,12 @@ interface TheaterPsychologyPanelProps {
   hf: TheaterHumanFactor;
   meta: TheaterMeta;
   finished: boolean;
+  /**
+   * Spec 099 S4 — current player step (0..totalSteps). Used to
+   * progressively reveal climax stats like `first_financial_at`
+   * instead of spoiling them on the empty step-0 frame.
+   */
+  visibleStep?: number;
 }
 
 /**
@@ -22,7 +28,7 @@ interface TheaterPsychologyPanelProps {
  *
  * Causal verbs are FORBIDDEN. Use "preceded", "co-occurred", "labelled".
  */
-export function TheaterPsychologyPanel({ hf, meta, finished }: TheaterPsychologyPanelProps) {
+export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: TheaterPsychologyPanelProps) {
   const { t } = useTranslation();
   const det = hf.deterministic;
   const llm = hf.exploratory_llm_signals;
@@ -31,6 +37,13 @@ export function TheaterPsychologyPanel({ hf, meta, finished }: TheaterPsychology
     typeof llm.enrichment_confidence_avg === 'number'
       ? Math.round(llm.enrichment_confidence_avg * 100)
       : null;
+  // Spec 099 S4 — progressive reveal of the financial-IOC turn. Until
+  // playback reaches that turn, show the unrevealed placeholder so the
+  // climax isn't pre-spoiled on the empty step-0 frame.
+  const financialRevealed =
+    det.first_financial_turn === null
+    || visibleStep === undefined
+    || visibleStep >= det.first_financial_turn;
 
   return (
     <section className="p-5 flex flex-col gap-4" data-testid="theater-psychology-panel">
@@ -53,13 +66,15 @@ export function TheaterPsychologyPanel({ hf, meta, finished }: TheaterPsychology
           value={
             det.first_financial_turn === null
               ? '—'
-              : t('theater.turn_x_of_y', {
-                  turn: det.first_financial_turn,
-                  total: det.total_turns,
-                  pct: det.first_financial_ratio
-                    ? Math.round(det.first_financial_ratio * 100)
-                    : 0,
-                })
+              : financialRevealed
+                ? t('theater.turn_x_of_y', {
+                    turn: det.first_financial_turn,
+                    total: det.total_turns,
+                    pct: det.first_financial_ratio
+                      ? Math.round(det.first_financial_ratio * 100)
+                      : 0,
+                  })
+                : t('theater.spoiler_pending')
           }
           prefix={t('theater.in_this_conv')}
         />
@@ -89,42 +104,75 @@ export function TheaterPsychologyPanel({ hf, meta, finished }: TheaterPsychology
         />
       </div>
 
-      {/* EXPLORATORY LLM SIGNALS — sub-section with caveat */}
-      <div className="bg-surface-low rounded-lg p-4 flex flex-col gap-2 border border-amber-500/20">
-        <h3 className="text-[11px] font-mono uppercase tracking-widest text-amber-300/80 mb-1">
-          {t('theater.exploratory_signals')}
-          {confidencePct !== null && (
-            <span className="ml-2 text-on-surface-dim normal-case font-normal tracking-normal">
-              — {t('theater.avg_confidence', { pct: confidencePct })}
-            </span>
-          )}
-        </h3>
-        <p className="text-[11px] italic text-on-surface-dim mb-2">
-          {t('theater.exploratory_caveat')}
-        </p>
-        {lowCoverage && (
-          <p className="text-[11px] text-amber-300 font-mono mb-1">
-            ⚠ {t('theater.limited_coverage', { pct: meta.enrichment_coverage_pct.toFixed(0) })}
-          </p>
-        )}
-        <SmallStat
-          label={t('theater.iocs_under_active_stim')}
-          value={`${llm.iocs_under_active_stimulus} / ${meta.iocs_count}`}
-        />
-        <SmallStat
-          label={t('theater.avg_urgency')}
-          value={
-            llm.avg_urgency_at_reveal === null
-              ? '—'
-              : `${Math.round(llm.avg_urgency_at_reveal * 100)}%`
-          }
-        />
-        <SmallStat
-          label={t('theater.hesitation_labelled')}
-          value={`${llm.hesitation_count} / ${meta.iocs_count}`}
-        />
-        <SmallStat label={t('theater.coverage')} value={`${meta.enrichment_coverage_pct.toFixed(0)}%`} />
-      </div>
+      {/* EXPLORATORY LLM SIGNALS — sub-section with caveat.
+          Spec 099 S5: hide-when-empty. If every per-IOC signal field
+          is zero/null, the sub-block collapses to a single honest line
+          rather than displaying "0 / N" everywhere (which reads as
+          "feature broken"). The deterministic block above carries the
+          conversation either way. */}
+      {(() => {
+        const isEmpty =
+          (llm.iocs_under_active_stimulus ?? 0) === 0
+          && (llm.hesitation_count ?? 0) === 0
+          && (llm.avg_urgency_at_reveal === null || llm.avg_urgency_at_reveal === 0);
+
+        if (isEmpty) {
+          return (
+            <div
+              className="bg-surface-low rounded-lg p-4 flex flex-col gap-1 border border-outline-variant"
+              data-testid="theater-psychology-llm-empty"
+            >
+              <h3 className="text-[11px] font-mono uppercase tracking-widest text-on-surface-dim mb-1">
+                {t('theater.exploratory_signals')}
+              </h3>
+              <p className="text-[11px] italic text-on-surface-dim">
+                {t('theater.no_labelled_signals')}
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            className="bg-surface-low rounded-lg p-4 flex flex-col gap-2 border border-amber-500/20"
+            data-testid="theater-psychology-llm"
+          >
+            <h3 className="text-[11px] font-mono uppercase tracking-widest text-amber-300/80 mb-1">
+              {t('theater.exploratory_signals')}
+              {confidencePct !== null && (
+                <span className="ml-2 text-on-surface-dim normal-case font-normal tracking-normal">
+                  — {t('theater.avg_confidence', { pct: confidencePct })}
+                </span>
+              )}
+            </h3>
+            <p className="text-[11px] italic text-on-surface-dim mb-2">
+              {t('theater.exploratory_caveat')}
+            </p>
+            {lowCoverage && (
+              <p className="text-[11px] text-amber-300 font-mono mb-1">
+                ⚠ {t('theater.limited_coverage', { pct: meta.enrichment_coverage_pct.toFixed(0) })}
+              </p>
+            )}
+            <SmallStat
+              label={t('theater.iocs_under_active_stim')}
+              value={`${llm.iocs_under_active_stimulus} / ${meta.iocs_count}`}
+            />
+            <SmallStat
+              label={t('theater.avg_urgency')}
+              value={
+                llm.avg_urgency_at_reveal === null
+                  ? '—'
+                  : `${Math.round(llm.avg_urgency_at_reveal * 100)}%`
+              }
+            />
+            <SmallStat
+              label={t('theater.hesitation_labelled')}
+              value={`${llm.hesitation_count} / ${meta.iocs_count}`}
+            />
+            <SmallStat label={t('theater.coverage')} value={`${meta.enrichment_coverage_pct.toFixed(0)}%`} />
+          </div>
+        );
+      })()}
 
       {finished && (
         <p className="text-[11px] text-on-surface-dim italic px-1">

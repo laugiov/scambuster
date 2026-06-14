@@ -1,6 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TheaterMessage, TheaterIoc } from '@/hooks/useTheaterReplay';
 import { TheaterPressureBadge } from './TheaterPressureBadge';
+import { useMaskMode } from '@/hooks/useMaskMode';
+import { maskPiiInBody } from '@/lib/maskPiiInBody';
 
 interface TheaterThreadProps {
   messages: TheaterMessage[];
@@ -21,7 +24,16 @@ interface TheaterThreadProps {
  * the IOC types that came in the immediately following inbound reveal.
  */
 export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirection }: TheaterThreadProps) {
+  const { t } = useTranslation();
+  const { screenShareMode } = useMaskMode();
   const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Spec 099 S7 — when screen-share mode is on, build the IOC value-norm
+  // set once and pass it to the body masker for each message render.
+  const iocValueNorms = useMemo<string[]>(
+    () => (screenShareMode ? iocsByMsg.map((i) => i.value_norm) : []),
+    [iocsByMsg, screenShareMode],
+  );
 
   useEffect(() => {
     if (scrollerRef.current) {
@@ -49,6 +61,18 @@ export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirectio
 
   return (
     <div ref={scrollerRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-3" data-testid="theater-thread">
+      {visible.length === 0 && !typingDirection && (
+        <div
+          className="m-auto flex flex-col items-center gap-3 text-center text-on-surface-dim"
+          data-testid="theater-teaser"
+        >
+          <span className="text-5xl opacity-50">▶</span>
+          <p className="text-sm font-mono">{t('theater.teaser_hint')}</p>
+          <p className="text-xs text-on-surface-dim/70 max-w-sm">
+            {t('theater.teaser_play_to_begin')}
+          </p>
+        </div>
+      )}
       {visible.map((msg) => {
         const isIn = msg.direction === 'in';
         const yieldedTypes = stimulusYield.get(msg.msg_id);
@@ -71,7 +95,9 @@ export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirectio
               {msg.subject && (
                 <p className="text-xs text-on-surface-dim mb-1 italic">{msg.subject}</p>
               )}
-              <p className="text-sm leading-relaxed whitespace-pre-line">{truncate(msg.body_text, 600)}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line">
+                {truncate(screenShareMode ? maskPiiInBody(msg.body_text, iocValueNorms) : msg.body_text, 600)}
+              </p>
             </div>
           </div>
         );

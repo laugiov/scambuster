@@ -59,6 +59,22 @@ final class GetConversationTheaterControllerTest extends WebTestCase
         foreach (['conv_id', 'scam_type', 'status', 'ts_first', 'ts_last', 'messages_count', 'iocs_count', 'long_conversation_truncated'] as $key) {
             $this->assertArrayHasKey($key, $meta, "meta must contain {$key}");
         }
+        // Spec 099 S2 — persona_label is now part of meta (human-readable
+        // label used by the Theater header). Key is always present; value
+        // may be null for legacy conversations without a Persona FK.
+        $this->assertArrayHasKey('persona_label', $meta, 'meta must contain persona_label (Spec 099 S2)');
+        $this->assertTrue(
+            $meta['persona_label'] === null || \is_string($meta['persona_label']),
+            'meta.persona_label must be string|null',
+        );
+        // Spec 099 S6 — Actionable-tier IOC count exposed for cross-check.
+        $this->assertArrayHasKey('iocs_count_actionable', $meta, 'meta must contain iocs_count_actionable (Spec 099 S6)');
+        $this->assertIsInt($meta['iocs_count_actionable']);
+        $this->assertLessThanOrEqual(
+            $meta['iocs_count'],
+            $meta['iocs_count_actionable'],
+            'iocs_count_actionable must be <= iocs_count (subset)',
+        );
         $this->assertIsInt($meta['messages_count']);
         $this->assertIsInt($meta['iocs_count']);
         $this->assertIsBool($meta['long_conversation_truncated']);

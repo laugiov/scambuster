@@ -577,6 +577,19 @@
     "restart": "Restart",
     "skip": "Skip to end",
     "progress": "Replay progress",
-    "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · Home start · End finish"
+    "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · S screen-share mode · Home start · End finish",
+    "screen_share_active": "Screen-share mode active — message body PII masked",
+    "no_labelled_signals": "No labelled signals on this conversation. The deterministic metrics above stand on their own.",
+    "context_section": "Header context ({{count}}) — subject, message-id, auth results",
+    "spoiler_pending": "(reveals as you play)",
+    "teaser_hint": "Press ▶ or → to start",
+    "teaser_play_to_begin": "Press play or arrow keys to step through the conversation",
+    "chapter": {
+      "first_phone": "First phone shared",
+      "first_url": "First URL shared",
+      "first_domain": "First domain shared",
+      "first_financial": "First financial IOC",
+      "cascade": "Cascade ({{count}} IOC types in one turn)"
+    }
   }
 }

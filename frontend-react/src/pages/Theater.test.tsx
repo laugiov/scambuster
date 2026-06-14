@@ -16,6 +16,7 @@ function fixture() {
       conv_id: CONV_ID,
       scam_type: 'INVOICE_FRAUD',
       persona: 'tech_newbie',
+      persona_label: 'Tech newbie (small business owner)',
       status: 'open',
       score_risk: 0.5,
       score_engagement: 0.6,
@@ -144,5 +145,175 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
   it('renders the keyboard hint chip', async () => {
     renderTheater();
     await waitFor(() => expect(screen.getByTestId('keyboard-hint')).toBeTruthy());
+  });
+
+  it('collapses LLM sub-block when all signals are zero (Spec 099 S5)', async () => {
+    // Base fixture already has all zeros for exploratory_llm_signals.
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('theater-psychology-llm-empty')).toBeTruthy());
+    expect(screen.queryByTestId('theater-psychology-llm')).toBeNull();
+  });
+
+  it('renders full LLM sub-block when at least one signal is non-zero (Spec 099 S5)', async () => {
+    const fix = fixture();
+    fix.human_factor.exploratory_llm_signals.iocs_under_active_stimulus = 3;
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByTestId('theater-psychology-llm')).toBeTruthy());
+    expect(screen.queryByTestId('theater-psychology-llm-empty')).toBeNull();
+  });
+
+  it('renders teaser at step 0 idle, hidden once playback advances (Spec 099 S4)', async () => {
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('theater-teaser')).toBeTruthy());
+    fireEvent.keyDown(window, { key: 'End' });
+    await waitFor(() => expect(screen.queryByTestId('theater-teaser')).toBeNull());
+  });
+
+  it('hides first-financial spoiler until visibleStep reaches turn (Spec 099 S4)', async () => {
+    // Configure fixture with first_financial_turn=2 to test the reveal.
+    const fix = fixture();
+    fix.human_factor.deterministic.first_financial_turn = 2;
+    fix.human_factor.deterministic.first_financial_ratio = 0.67;
+    fix.human_factor.deterministic.total_turns = 3;
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    // step 0 → spoiler placeholder
+    await waitFor(() => expect(screen.getByText(/reveals as you play/i)).toBeTruthy());
+
+    // arrow-right twice → reach turn 2 → spoiler revealed
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => expect(screen.queryByText(/reveals as you play/i)).toBeNull());
+  });
+
+  it('toggles screen-share mode via S key + masks IOC values in bodies (Spec 099 S7)', async () => {
+    const fix = fixture();
+    fix.messages[0].body_text = 'Send wire to DE89370400440532013000 today';
+    fix.iocs_by_msg = [
+      {
+        indicator_id: 'iban-1',
+        type: 'iban',
+        value: 'DE89370400440532013000',
+        value_norm: 'DE89370400440532013000',
+        category: 'financial',
+        msg_id: fix.messages[0].msg_id,
+        msg_idx: 0,
+        ts_observed: '2026-06-14T00:00:00Z',
+        revelation_context: null,
+      },
+    ];
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+    await waitFor(() => expect(screen.getByTestId('play-pause')).toBeTruthy());
+    // Reveal first message
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => expect(screen.getByText(/DE89370400440532013000/)).toBeTruthy());
+
+    // No banner before S press
+    expect(screen.queryByTestId('screen-share-banner')).toBeNull();
+
+    // Press S → banner appears + IBAN replaced by placeholder
+    fireEvent.keyDown(window, { key: 'S' });
+    await waitFor(() => expect(screen.getByTestId('screen-share-banner')).toBeTruthy());
+    expect(screen.queryByText(/DE89370400440532013000/)).toBeNull();
+  });
+
+  it('renders chapter markers on the progress bar (Spec 099 S3)', async () => {
+    // The base fixture has no IOCs and no cascades, so we need a richer
+    // fixture for this case. Re-define handlers inline with a financial
+    // IOC + a phone IOC + a cascade event.
+    const richFixture = fixture();
+    richFixture.iocs_by_msg = [
+      {
+        indicator_id: 'ind-1',
+        type: 'phone',
+        value: '+15555550111',
+        value_norm: '+15555550111',
+        category: 'contact',
+        msg_id: '22222222-2222-2222-2222-222222222222',
+        msg_idx: 1,
+        ts_observed: '2026-06-10T10:30:00Z',
+        revelation_context: null,
+      },
+      {
+        indicator_id: 'ind-2',
+        type: 'iban',
+        value: 'DE89370400440532013000',
+        value_norm: 'DE89370400440532013000',
+        category: 'financial',
+        msg_id: '33333333-3333-3333-3333-333333333333',
+        msg_idx: 2,
+        ts_observed: '2026-06-10T11:00:00Z',
+        revelation_context: null,
+      },
+    ];
+    richFixture.human_factor.deterministic.cascade_events = [
+      {
+        trigger_msg_id: '33333333-3333-3333-3333-333333333333',
+        turn: 3,
+        yielded_types: ['iban', 'bic'],
+      },
+    ];
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(richFixture)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByTestId('chapter-first_phone')).toBeTruthy());
+    expect(screen.getByTestId('chapter-first_financial')).toBeTruthy();
+    expect(screen.getByTestId('chapter-cascade')).toBeTruthy();
   });
 });

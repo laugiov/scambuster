@@ -2,11 +2,24 @@ import type { MouseEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PlayerStatus } from '@/hooks/useTheaterPlayer';
 
+/**
+ * Spec 099 S3 — a chapter marker is a single point on the progress bar
+ * that highlights a narrative beat: first PHONE shared, first URL,
+ * first DOMAIN, first FINANCIAL IOC, or a cascade event. Clicking a
+ * marker scrubs to its step. Computed in Theater.tsx and passed in.
+ */
+export interface TheaterChapter {
+  step: number; // 0-based, must satisfy 0 <= step < totalSteps
+  kind: 'first_phone' | 'first_url' | 'first_domain' | 'first_financial' | 'cascade';
+  label: string;
+}
+
 interface TheaterTransportProps {
   status: PlayerStatus;
   currentStep: number;
   totalSteps: number;
   speed: 1 | 2 | 4;
+  chapters?: TheaterChapter[];
   onPlay: () => void;
   onPause: () => void;
   onRestart: () => void;
@@ -27,6 +40,7 @@ export function TheaterTransport({
   currentStep,
   totalSteps,
   speed,
+  chapters = [],
   onPlay,
   onPause,
   onRestart,
@@ -92,6 +106,22 @@ export function TheaterTransport({
             style={{ left: `${((i + 1) / totalSteps) * 100}%` }}
           />
         ))}
+        {/* Spec 099 S3 — chapter markers (clickable, scrub on click) */}
+        {chapters.map((c) => (
+          <button
+            key={`${c.kind}-${c.step}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onScrub(c.step);
+            }}
+            title={c.label}
+            aria-label={c.label}
+            data-testid={`chapter-${c.kind}`}
+            className={`absolute top-[-6px] w-2 h-5 rounded-sm cursor-pointer hover:scale-125 transition-transform ${chapterColorClass(c.kind)}`}
+            style={{ left: `${(c.step / totalSteps) * 100}%` }}
+          />
+        ))}
       </div>
 
       <p className="text-[11px] font-mono text-on-surface-dim w-16 text-right">
@@ -103,7 +133,7 @@ export function TheaterTransport({
         title={t('theater.keyboardHintTitle')}
         data-testid="keyboard-hint"
       >
-        ← → space M
+        ← → space M S
       </p>
 
       {[1, 2, 4].map((s) => (
@@ -123,4 +153,18 @@ export function TheaterTransport({
       ))}
     </div>
   );
+}
+
+function chapterColorClass(kind: TheaterChapter['kind']): string {
+  switch (kind) {
+    case 'first_financial':
+      return 'bg-amber-400 border border-amber-500';
+    case 'cascade':
+      return 'bg-purple-400 border border-purple-500';
+    case 'first_phone':
+      return 'bg-emerald-400 border border-emerald-500';
+    case 'first_url':
+    case 'first_domain':
+      return 'bg-sky-400 border border-sky-500';
+  }
 }

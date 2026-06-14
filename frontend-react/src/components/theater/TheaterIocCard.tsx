@@ -16,14 +16,26 @@ interface TheaterIocCardProps {
  * role, context excerpt, co-revealed). Confidence is ALWAYS shown next
  * to the semantic role per spec § Construct validity.
  *
- * When confidence < 0.40, the semantic role and excerpt are visually
- * de-emphasized (muted color + low-confidence icon).
+ * Spec 099 — confidence gating:
+ *   - `enrichment_confidence < ROLE_DISPLAY_THRESHOLD` (0.70): semantic
+ *     role and excerpt are NOT rendered at all (was: muted style). The
+ *     pre-BH review showed `PHISHING_CREDENTIAL_URL` at 50% on a Play
+ *     Store search URL — labels under threshold are more harmful than
+ *     the confidence number alone.
+ *   - The `LOW_CONFIDENCE_MUTE_THRESHOLD` (0.40) still mutes the
+ *     remaining display when in the 0.40–0.70 grey zone (no role
+ *     shown, but the rest of the footprint stays).
  */
+const ROLE_DISPLAY_THRESHOLD = 0.7;
+const LOW_CONFIDENCE_MUTE_THRESHOLD = 0.4;
+
 export function TheaterIocCard({ ioc }: TheaterIocCardProps) {
   const { t } = useTranslation();
   const ctx = ioc.revelation_context;
   const isEnriched = ctx?.enrichment_status === 'enriched';
-  const isLowConfidence = isEnriched && (ctx?.enrichment_confidence ?? 1) < 0.4;
+  const confidence = ctx?.enrichment_confidence ?? 1;
+  const isLowConfidence = isEnriched && confidence < LOW_CONFIDENCE_MUTE_THRESHOLD;
+  const shouldDisplayRole = isEnriched && confidence >= ROLE_DISPLAY_THRESHOLD;
   const isFinancial = ioc.category === 'financial';
 
   return (
@@ -66,15 +78,12 @@ export function TheaterIocCard({ ioc }: TheaterIocCardProps) {
               💧 {t('theater.hesitation')}
             </span>
           )}
-          {isEnriched && ctx.semantic_role && (
-            <p className={`text-xs font-mono mt-1 ${isLowConfidence ? 'text-on-surface-dim italic' : 'text-on-surface-variant'}`}>
+          {shouldDisplayRole && ctx.semantic_role && (
+            <p className="text-xs font-mono mt-1 text-on-surface-variant">
               {t('theater.role')}: <span className="font-semibold">{ctx.semantic_role}</span>
-              {typeof ctx.enrichment_confidence === 'number' && (
-                <span className={isLowConfidence ? 'ml-1' : 'ml-1 text-on-surface-dim'}>
-                  · {Math.round((ctx.enrichment_confidence ?? 0) * 100)}%
-                  {isLowConfidence && <span title={t('theater.low_confidence')} className="ml-1">⚠</span>}
-                </span>
-              )}
+              <span className="ml-1 text-on-surface-dim">
+                · {Math.round(confidence * 100)}%
+              </span>
             </p>
           )}
           {isEnriched && ctx.context_excerpt && (

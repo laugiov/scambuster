@@ -577,6 +577,19 @@
     "restart": "Redémarrer",
     "skip": "Aller à la fin",
     "progress": "Progression du replay",
-    "keyboardHintTitle": "Clavier : ← précédent · → suivant · Espace lecture/pause · M masquer · Home début · End fin"
+    "keyboardHintTitle": "Clavier : ← précédent · → suivant · Espace lecture/pause · M masquer · S mode partage écran · Home début · End fin",
+    "screen_share_active": "Mode partage écran actif — PII masqué dans les corps de message",
+    "no_labelled_signals": "Aucun signal labellisé sur cette conversation. Les métriques déterministes ci-dessus sont suffisantes.",
+    "context_section": "Contexte d'en-tête ({{count}}) — sujet, message-id, résultats auth",
+    "spoiler_pending": "(révélé en cours de lecture)",
+    "teaser_hint": "Appuyez sur ▶ ou → pour démarrer",
+    "teaser_play_to_begin": "Appuyez sur lecture ou les flèches pour avancer dans la conversation",
+    "chapter": {
+      "first_phone": "Premier téléphone partagé",
+      "first_url": "Première URL partagée",
+      "first_domain": "Premier domaine partagé",
+      "first_financial": "Premier IOC financier",
+      "cascade": "Cascade ({{count}} types IOC en un tour)"
+    }
   }
 }
