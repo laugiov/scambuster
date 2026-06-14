@@ -215,6 +215,51 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     await waitFor(() => expect(screen.queryByText(/reveals as you play/i)).toBeNull());
   });
 
+  it('toggles screen-share mode via S key + masks IOC values in bodies (Spec 099 S7)', async () => {
+    const fix = fixture();
+    fix.messages[0].body_text = 'Send wire to DE89370400440532013000 today';
+    fix.iocs_by_msg = [
+      {
+        indicator_id: 'iban-1',
+        type: 'iban',
+        value: 'DE89370400440532013000',
+        value_norm: 'DE89370400440532013000',
+        category: 'financial',
+        msg_id: fix.messages[0].msg_id,
+        msg_idx: 0,
+        ts_observed: '2026-06-14T00:00:00Z',
+        revelation_context: null,
+      },
+    ];
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+    await waitFor(() => expect(screen.getByTestId('play-pause')).toBeTruthy());
+    // Reveal first message
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => expect(screen.getByText(/DE89370400440532013000/)).toBeTruthy());
+
+    // No banner before S press
+    expect(screen.queryByTestId('screen-share-banner')).toBeNull();
+
+    // Press S → banner appears + IBAN replaced by placeholder
+    fireEvent.keyDown(window, { key: 'S' });
+    await waitFor(() => expect(screen.getByTestId('screen-share-banner')).toBeTruthy());
+    expect(screen.queryByText(/DE89370400440532013000/)).toBeNull();
+  });
+
   it('renders chapter markers on the progress bar (Spec 099 S3)', async () => {
     // The base fixture has no IOCs and no cascades, so we need a richer
     // fixture for this case. Re-define handlers inline with a financial

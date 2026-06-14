@@ -13,6 +13,14 @@ export interface MaskModeContext {
   masked: boolean;
   toggle: () => void;
   setMasked: (masked: boolean) => void;
+  /**
+   * Spec 099 S7 — Screen-share mode. Independent of `masked`; when on,
+   * additionally masks IOC value occurrences inside message bodies (the
+   * `masked` flag only covers the right-panel catalog). Toggled with
+   * the `S` key. Always defaults to false on mount.
+   */
+  screenShareMode: boolean;
+  toggleScreenShare: () => void;
 }
 
 export const MaskModeReactContext = createContext<MaskModeContext | undefined>(undefined);
@@ -23,7 +31,13 @@ export function useMaskMode(): MaskModeContext {
     // Default fallback when used outside provider: always masked,
     // toggle no-op. This makes <MaskedValue> usable in isolation
     // (e.g. in a test) without crashing.
-    return { masked: true, toggle: () => {}, setMasked: () => {} };
+    return {
+      masked: true,
+      toggle: () => {},
+      setMasked: () => {},
+      screenShareMode: false,
+      toggleScreenShare: () => {},
+    };
   }
   return ctx;
 }

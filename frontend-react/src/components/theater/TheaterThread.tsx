@@ -1,7 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TheaterMessage, TheaterIoc } from '@/hooks/useTheaterReplay';
 import { TheaterPressureBadge } from './TheaterPressureBadge';
+import { useMaskMode } from '@/hooks/useMaskMode';
+import { maskPiiInBody } from '@/lib/maskPiiInBody';
 
 interface TheaterThreadProps {
   messages: TheaterMessage[];
@@ -23,7 +25,15 @@ interface TheaterThreadProps {
  */
 export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirection }: TheaterThreadProps) {
   const { t } = useTranslation();
+  const { screenShareMode } = useMaskMode();
   const scrollerRef = useRef<HTMLDivElement>(null);
+
+  // Spec 099 S7 — when screen-share mode is on, build the IOC value-norm
+  // set once and pass it to the body masker for each message render.
+  const iocValueNorms = useMemo<string[]>(
+    () => (screenShareMode ? iocsByMsg.map((i) => i.value_norm) : []),
+    [iocsByMsg, screenShareMode],
+  );
 
   useEffect(() => {
     if (scrollerRef.current) {
@@ -85,7 +95,9 @@ export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirectio
               {msg.subject && (
                 <p className="text-xs text-on-surface-dim mb-1 italic">{msg.subject}</p>
               )}
-              <p className="text-sm leading-relaxed whitespace-pre-line">{truncate(msg.body_text, 600)}</p>
+              <p className="text-sm leading-relaxed whitespace-pre-line">
+                {truncate(screenShareMode ? maskPiiInBody(msg.body_text, iocValueNorms) : msg.body_text, 600)}
+              </p>
             </div>
           </div>
         );

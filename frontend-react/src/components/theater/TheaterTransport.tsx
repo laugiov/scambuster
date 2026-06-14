@@ -133,7 +133,7 @@ export function TheaterTransport({
         title={t('theater.keyboardHintTitle')}
         data-testid="keyboard-hint"
       >
-        ← → space M
+        ← → space M S
       </p>
 
       {[1, 2, 4].map((s) => (

@@ -42,7 +42,7 @@ export function Theater() {
 function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheaterReplay>['data']> }) {
   const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
-  const { toggle: toggleMask } = useMaskMode();
+  const { toggle: toggleMask, toggleScreenShare, screenShareMode } = useMaskMode();
 
   // directionAt: maps step index to message direction for the typing indicator.
   const directionAt = useCallback(
@@ -78,6 +78,10 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
       } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         toggleMask();
+      } else if (e.key === 's' || e.key === 'S') {
+        // Spec 099 S7 — toggle screen-share mode (mask PII in bodies)
+        e.preventDefault();
+        toggleScreenShare();
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         scrub(state.currentStep + 1);
@@ -94,7 +98,7 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [state.status, state.currentStep, play, pause, scrub, skipToEnd, toggleMask]);
+  }, [state.status, state.currentStep, play, pause, scrub, skipToEnd, toggleMask, toggleScreenShare]);
 
   const finished = useMemo(() => state.status === 'finished', [state.status]);
 
@@ -152,6 +156,14 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
 
   return (
     <div className="h-screen flex flex-col bg-bg text-on-surface">
+      {screenShareMode && (
+        <div
+          className="bg-emerald-500/20 border-b border-emerald-500/40 text-emerald-300 text-xs font-mono uppercase tracking-widest text-center py-1"
+          data-testid="screen-share-banner"
+        >
+          🔒 {t('theater.screen_share_active')}
+        </div>
+      )}
       <TheaterHeader meta={data.meta} />
       <div className="flex-1 flex overflow-hidden">
         <TheaterThread
