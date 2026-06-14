@@ -85,7 +85,11 @@ describe('TheaterIocCard — Spec 099 S1 confidence-gated role display', () => {
     expect(screen.queryByText(/PAYMENT_DESTINATION/i)).toBeNull();
   });
 
-  it('still renders other footprint fields when role is hidden (excerpt, urgency)', () => {
+  // Spec 101 S2 — urgency_score + context_excerpt now ALSO gated by
+  // the same ≥0.7 confidence threshold (was only the Role label
+  // under Spec 099 S1). Replaces the earlier test that asserted the
+  // opposite behaviour.
+  it('Spec 101 S2: hides urgency bar AND excerpt when confidence < 0.7', () => {
     renderCard(
       baseIoc({
         revelation_context: {
@@ -98,6 +102,46 @@ describe('TheaterIocCard — Spec 099 S1 confidence-gated role display', () => {
       }),
     );
     expect(screen.queryByText(/PHISHING_CREDENTIAL_URL/i)).toBeNull();
+    expect(screen.queryByText(/portfolio link mid-thread/i)).toBeNull();
+    expect(screen.queryByText(/Scammer urgency/i)).toBeNull();
+  });
+
+  it('Spec 101 S2: renders urgency bar AND excerpt when confidence ≥ 0.7', () => {
+    renderCard(
+      baseIoc({
+        revelation_context: {
+          enrichment_status: 'enriched',
+          enrichment_confidence: 0.85,
+          semantic_role: 'PAYMENT_DESTINATION',
+          context_excerpt: 'scammer dropped a portfolio link mid-thread',
+          urgency_score: 0.4,
+        },
+      }),
+    );
     expect(screen.getByText(/portfolio link mid-thread/i)).toBeTruthy();
+    expect(screen.getByText(/Scammer urgency/i)).toBeTruthy();
+  });
+
+  // Kept under the original test name so the assertion library still
+  // surfaces a useful failure should this regress.
+  it('still renders other footprint fields (stimulus, hesitation, co-revealed) when role is hidden', () => {
+    renderCard(
+      baseIoc({
+        revelation_context: {
+          enrichment_status: 'enriched',
+          enrichment_confidence: 0.55,
+          semantic_role: 'PHISHING_CREDENTIAL_URL',
+          context_excerpt: 'scammer dropped a portfolio link mid-thread',
+          urgency_score: 0.4,
+          stimulus_type: 'active',
+          hesitation_detected: true,
+        },
+      }),
+    );
+    expect(screen.queryByText(/PHISHING_CREDENTIAL_URL/i)).toBeNull();
+    expect(screen.queryByText(/portfolio link mid-thread/i)).toBeNull(); // excerpt hidden under S2
+    // stimulus + hesitation badges still rendered (deterministic-ish, not LLM narrative)
+    expect(screen.getByText(/active/i)).toBeTruthy();
+    expect(screen.getByText(/hesitation/i)).toBeTruthy();
   });
 });

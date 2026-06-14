@@ -70,7 +70,11 @@ export function TheaterIocCard({ ioc }: TheaterIocCardProps) {
               ⚡ {t('theater.active_stimulus')}
             </span>
           )}
-          {isEnriched && typeof ctx.urgency_score === 'number' && (
+          {/* Spec 101 S2 — urgency_score is LLM-derived; gate by the
+              same ≥0.7 confidence threshold as the Role label, so the
+              deterministic/exploratory separation that holds in the
+              summary panel also holds at the card level. */}
+          {shouldDisplayRole && typeof ctx.urgency_score === 'number' && (
             <UrgencyBar value={ctx.urgency_score} label={t('theater.scammer_urgency')} />
           )}
           {isEnriched && ctx.hesitation_detected && (
@@ -86,7 +90,13 @@ export function TheaterIocCard({ ioc }: TheaterIocCardProps) {
               </span>
             </p>
           )}
-          {isEnriched && ctx.context_excerpt && (
+          {/* Spec 101 S2 — context_excerpt is the LLM's free-text
+              narrative; gate by the same ≥0.7 confidence threshold.
+              Under threshold the excerpt tended to repeat the same
+              templated phrase across cards (low specificity) and
+              presented itself as fact, which broke the deterministic/
+              exploratory separation. */}
+          {shouldDisplayRole && ctx.context_excerpt && (
             <p className={`text-xs italic ${isLowConfidence ? 'text-on-surface-dim' : 'text-on-surface-variant'}`}>
               “{ctx.context_excerpt}”
             </p>
