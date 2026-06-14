@@ -21,9 +21,16 @@ class IocUpsertService
     /** @var array<string, true> */
     private readonly array $honeypotAddressesIndex;
 
+    /** @var array<string, true> */
+    private readonly array $honeypotDomainsIndex;
+
     /**
      * @param list<string>|null $honeypotEmailAddresses Spec 061: canonical honeypot addresses to never ingest as IOCs.
-     *                                                  Null or empty array → filter is a no-op.
+     *                                                  Null or empty array → email exact-match filter is a no-op.
+     * @param list<string>|null $honeypotDomains        Spec 098: honeypot-OWNED domains (NOT derived from emails,
+     *                                                  because some addresses are on shared providers like gmail.com).
+     *                                                  Drives domain/url filters AND email-by-domain-part match.
+     *                                                  Null or empty array → domain filters are no-ops.
      */
     public function __construct(
         private readonly EntityManagerInterface $em,
@@ -36,32 +43,95 @@ class IocUpsertService
         private readonly ?IocContextService $contextService = null,
         // Spec 065h — extracted from Message::canExtractIocs()
         private readonly IocExtractionPolicy $iocExtractionPolicy = new IocExtractionPolicy(),
+        ?array $honeypotDomains = null,
     ) {
-        // Normalize once (lowercase, deduplicated, indexed for O(1) lookup)
-        $index = [];
+        // Normalize once (lowercase, deduplicated, indexed for O(1) lookup).
+        $addresses = [];
 
         foreach ($honeypotEmailAddresses ?? [] as $address) {
             $normalized = strtolower(trim($address));
 
             if ($normalized !== '') {
-                $index[$normalized] = true;
+                $addresses[$normalized] = true;
             }
         }
-        $this->honeypotAddressesIndex = $index;
+        $this->honeypotAddressesIndex = $addresses;
+
+        // Spec 098 — honeypot-owned domains are EXPLICITLY configured, not
+        // derived from email addresses. Auto-derivation would catch
+        // gmail.com / outlook.com if any persona uses a free-provider inbox,
+        // wiping legitimate scammer addresses on the same provider.
+        $domainsIdx = [];
+
+        foreach ($honeypotDomains ?? [] as $domain) {
+            $normalized = strtolower(trim($domain));
+
+            if ($normalized !== '') {
+                if (str_starts_with($normalized, 'www.')) {
+                    $normalized = substr($normalized, 4);
+                }
+                $domainsIdx[$normalized] = true;
+            }
+        }
+        $this->honeypotDomainsIndex = $domainsIdx;
     }
 
     /**
-     * Spec 061 — Layer 2: refuse to upsert any email IOC matching a configured
-     * honeypot address. Catches the case where a scammer quotes our reply,
-     * causing our own address to be re-extracted from an incoming message body.
+     * Spec 061 + Spec 098 — Layer 2: refuse to upsert any IOC pointing back
+     * at honeypot infrastructure. Catches the case where a scammer quotes
+     * our reply, causing our own identifiers to be re-extracted from an
+     * incoming message body. Covered IOC types:
+     *
+     *   - email  : exact address match OR domain-part match against
+     *              honeypot domains (Spec 098). Any address under a honeypot
+     *              domain is by definition our infrastructure (persona
+     *              alias, automated sender, etc.) — only EMAIL addresses
+     *              not in HONEYPOT_EMAIL_ADDRESSES but on a honeypot domain
+     *              still ought to be rejected, which the exact-match check
+     *              alone would miss.
+     *   - domain : exact match against honeypot domains (Spec 098)
+     *   - url    : host match against honeypot domains after stripping
+     *              `www.` (Spec 098)
+     *
+     * For type='url', a malformed value (parse_url returns no host) falls
+     * through — let downstream validation decide. We never invent a host.
      */
     private function isHoneypotAddress(string $type, string $valueNorm): bool
     {
-        if ($type !== 'email') {
-            return false;
+        $needle = strtolower($valueNorm);
+
+        if ($type === 'email') {
+            if (isset($this->honeypotAddressesIndex[$needle])) {
+                return true;
+            }
+            $atPos = strrpos($needle, '@');
+
+            if ($atPos === false || $atPos >= strlen($needle) - 1) {
+                return false;
+            }
+
+            return isset($this->honeypotDomainsIndex[substr($needle, $atPos + 1)]);
         }
 
-        return isset($this->honeypotAddressesIndex[strtolower($valueNorm)]);
+        if ($type === 'domain') {
+            return isset($this->honeypotDomainsIndex[$needle]);
+        }
+
+        if ($type === 'url') {
+            $host = parse_url($needle, PHP_URL_HOST);
+
+            if (!is_string($host) || $host === '') {
+                return false;
+            }
+
+            if (str_starts_with($host, 'www.')) {
+                $host = substr($host, 4);
+            }
+
+            return isset($this->honeypotDomainsIndex[$host]);
+        }
+
+        return false;
     }
 
     /**
@@ -109,11 +179,13 @@ class IocUpsertService
         $type = $iocData['type'];
         $valueNorm = $iocData['value_norm'];
 
-        // Spec 061 — Layer 2: refuse honeypot addresses (case-insensitive).
-        // Catches scammers quoting our reply email back at us in an incoming message body.
+        // Spec 061 + Spec 098 — Layer 2: refuse honeypot identifiers
+        // (case-insensitive). Covers email (061), domain + url (098).
+        // Catches scammers quoting our reply back at us in an incoming body.
         if ($this->isHoneypotAddress($type, $valueNorm)) {
             throw new \InvalidArgumentException(sprintf(
-                'Refused to upsert honeypot email "%s" as IOC (spec 061)',
+                'Refused to upsert honeypot %s "%s" as IOC (spec 061/098)',
+                $type,
                 $valueNorm,
             ));
         }
