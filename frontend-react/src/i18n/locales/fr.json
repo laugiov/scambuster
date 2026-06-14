@@ -578,6 +578,9 @@
     "skip": "Aller à la fin",
     "progress": "Progression du replay",
     "keyboardHintTitle": "Clavier : ← précédent · → suivant · Espace lecture/pause · M masquer · Home début · End fin",
+    "spoiler_pending": "(révélé en cours de lecture)",
+    "teaser_hint": "Appuyez sur ▶ ou → pour démarrer",
+    "teaser_play_to_begin": "Appuyez sur lecture ou les flèches pour avancer dans la conversation",
     "chapter": {
       "first_phone": "Premier téléphone partagé",
       "first_url": "Première URL partagée",

@@ -147,6 +147,44 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     await waitFor(() => expect(screen.getByTestId('keyboard-hint')).toBeTruthy());
   });
 
+  it('renders teaser at step 0 idle, hidden once playback advances (Spec 099 S4)', async () => {
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('theater-teaser')).toBeTruthy());
+    fireEvent.keyDown(window, { key: 'End' });
+    await waitFor(() => expect(screen.queryByTestId('theater-teaser')).toBeNull());
+  });
+
+  it('hides first-financial spoiler until visibleStep reaches turn (Spec 099 S4)', async () => {
+    // Configure fixture with first_financial_turn=2 to test the reveal.
+    const fix = fixture();
+    fix.human_factor.deterministic.first_financial_turn = 2;
+    fix.human_factor.deterministic.first_financial_ratio = 0.67;
+    fix.human_factor.deterministic.total_turns = 3;
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    // step 0 → spoiler placeholder
+    await waitFor(() => expect(screen.getByText(/reveals as you play/i)).toBeTruthy());
+
+    // arrow-right twice → reach turn 2 → spoiler revealed
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => expect(screen.queryByText(/reveals as you play/i)).toBeNull());
+  });
+
   it('renders chapter markers on the progress bar (Spec 099 S3)', async () => {
     // The base fixture has no IOCs and no cascades, so we need a richer
     // fixture for this case. Re-define handlers inline with a financial

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TheaterMessage, TheaterIoc } from '@/hooks/useTheaterReplay';
 import { TheaterPressureBadge } from './TheaterPressureBadge';
 
@@ -21,6 +22,7 @@ interface TheaterThreadProps {
  * the IOC types that came in the immediately following inbound reveal.
  */
 export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirection }: TheaterThreadProps) {
+  const { t } = useTranslation();
   const scrollerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,6 +51,18 @@ export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirectio
 
   return (
     <div ref={scrollerRef} className="flex-1 overflow-y-auto p-6 flex flex-col gap-3" data-testid="theater-thread">
+      {visible.length === 0 && !typingDirection && (
+        <div
+          className="m-auto flex flex-col items-center gap-3 text-center text-on-surface-dim"
+          data-testid="theater-teaser"
+        >
+          <span className="text-5xl opacity-50">▶</span>
+          <p className="text-sm font-mono">{t('theater.teaser_hint')}</p>
+          <p className="text-xs text-on-surface-dim/70 max-w-sm">
+            {t('theater.teaser_play_to_begin')}
+          </p>
+        </div>
+      )}
       {visible.map((msg) => {
         const isIn = msg.direction === 'in';
         const yieldedTypes = stimulusYield.get(msg.msg_id);

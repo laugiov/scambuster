@@ -5,6 +5,12 @@ interface TheaterPsychologyPanelProps {
   hf: TheaterHumanFactor;
   meta: TheaterMeta;
   finished: boolean;
+  /**
+   * Spec 099 S4 — current player step (0..totalSteps). Used to
+   * progressively reveal climax stats like `first_financial_at`
+   * instead of spoiling them on the empty step-0 frame.
+   */
+  visibleStep?: number;
 }
 
 /**
@@ -22,7 +28,7 @@ interface TheaterPsychologyPanelProps {
  *
  * Causal verbs are FORBIDDEN. Use "preceded", "co-occurred", "labelled".
  */
-export function TheaterPsychologyPanel({ hf, meta, finished }: TheaterPsychologyPanelProps) {
+export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: TheaterPsychologyPanelProps) {
   const { t } = useTranslation();
   const det = hf.deterministic;
   const llm = hf.exploratory_llm_signals;
@@ -31,6 +37,13 @@ export function TheaterPsychologyPanel({ hf, meta, finished }: TheaterPsychology
     typeof llm.enrichment_confidence_avg === 'number'
       ? Math.round(llm.enrichment_confidence_avg * 100)
       : null;
+  // Spec 099 S4 — progressive reveal of the financial-IOC turn. Until
+  // playback reaches that turn, show the unrevealed placeholder so the
+  // climax isn't pre-spoiled on the empty step-0 frame.
+  const financialRevealed =
+    det.first_financial_turn === null
+    || visibleStep === undefined
+    || visibleStep >= det.first_financial_turn;
 
   return (
     <section className="p-5 flex flex-col gap-4" data-testid="theater-psychology-panel">
@@ -53,13 +66,15 @@ export function TheaterPsychologyPanel({ hf, meta, finished }: TheaterPsychology
           value={
             det.first_financial_turn === null
               ? '—'
-              : t('theater.turn_x_of_y', {
-                  turn: det.first_financial_turn,
-                  total: det.total_turns,
-                  pct: det.first_financial_ratio
-                    ? Math.round(det.first_financial_ratio * 100)
-                    : 0,
-                })
+              : financialRevealed
+                ? t('theater.turn_x_of_y', {
+                    turn: det.first_financial_turn,
+                    total: det.total_turns,
+                    pct: det.first_financial_ratio
+                      ? Math.round(det.first_financial_ratio * 100)
+                      : 0,
+                  })
+                : t('theater.spoiler_pending')
           }
           prefix={t('theater.in_this_conv')}
         />

@@ -166,7 +166,12 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
             messages={data.messages}
             visibleStep={state.currentStep}
           />
-          <TheaterPsychologyPanel hf={data.human_factor} meta={data.meta} finished={finished} />
+          <TheaterPsychologyPanel
+            hf={data.human_factor}
+            meta={data.meta}
+            finished={finished}
+            visibleStep={state.currentStep}
+          />
         </aside>
       </div>
       <TheaterTransport

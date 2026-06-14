@@ -578,6 +578,9 @@
     "skip": "Skip to end",
     "progress": "Replay progress",
     "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · Home start · End finish",
+    "spoiler_pending": "(reveals as you play)",
+    "teaser_hint": "Press ▶ or → to start",
+    "teaser_play_to_begin": "Press play or arrow keys to step through the conversation",
     "chapter": {
       "first_phone": "First phone shared",
       "first_url": "First URL shared",
