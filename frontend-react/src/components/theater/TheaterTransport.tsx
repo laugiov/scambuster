@@ -106,7 +106,10 @@ export function TheaterTransport({
             style={{ left: `${((i + 1) / totalSteps) * 100}%` }}
           />
         ))}
-        {/* Spec 099 S3 — chapter markers (clickable, scrub on click) */}
+        {/* Spec 099 S3 — chapter markers (clickable, scrub on click).
+            Spec 100 S4 — visually differentiated per kind so the
+            financial-reveal marker stands out from cascades + first-
+            phone/url at a glance. */}
         {chapters.map((c) => (
           <button
             key={`${c.kind}-${c.step}`}
@@ -118,7 +121,7 @@ export function TheaterTransport({
             title={c.label}
             aria-label={c.label}
             data-testid={`chapter-${c.kind}`}
-            className={`absolute top-[-6px] w-2 h-5 rounded-sm cursor-pointer hover:scale-125 transition-transform ${chapterColorClass(c.kind)}`}
+            className={`absolute cursor-pointer rounded-sm hover:scale-125 transition-transform ${chapterShapeClass(c.kind)} ${chapterColorClass(c.kind)}`}
             style={{ left: `${(c.step / totalSteps) * 100}%` }}
           />
         ))}
@@ -158,7 +161,7 @@ export function TheaterTransport({
 function chapterColorClass(kind: TheaterChapter['kind']): string {
   switch (kind) {
     case 'first_financial':
-      return 'bg-amber-400 border border-amber-500';
+      return 'bg-amber-400 border border-amber-500 ring-2 ring-amber-400/40';
     case 'cascade':
       return 'bg-purple-400 border border-purple-500';
     case 'first_phone':
@@ -166,5 +169,23 @@ function chapterColorClass(kind: TheaterChapter['kind']): string {
     case 'first_url':
     case 'first_domain':
       return 'bg-sky-400 border border-sky-500';
+  }
+}
+
+/**
+ * Spec 100 S4 — size + offset per marker kind. Financial = tall +
+ * amber ring (this is the climax, deserves the most visual weight).
+ * Cascade = wide rectangle. Phone/URL/Domain = thin tick.
+ */
+function chapterShapeClass(kind: TheaterChapter['kind']): string {
+  switch (kind) {
+    case 'first_financial':
+      return 'top-[-8px] w-2.5 h-6';
+    case 'cascade':
+      return 'top-[-6px] w-3 h-5';
+    case 'first_phone':
+    case 'first_url':
+    case 'first_domain':
+      return 'top-[-5px] w-1.5 h-4';
   }
 }

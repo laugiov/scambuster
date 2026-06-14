@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TheaterHumanFactor, TheaterMeta } from '@/hooks/useTheaterReplay';
+import { useFinancialRevealTiming } from '@/hooks/useFinancialRevealTiming';
 
 interface TheaterPsychologyPanelProps {
   hf: TheaterHumanFactor;
@@ -32,7 +33,12 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
   const { t } = useTranslation();
   const det = hf.deterministic;
   const llm = hf.exploratory_llm_signals;
-  const lowCoverage = meta.enrichment_coverage_pct < 50;
+  // Spec 100 S6 — coverage warning threshold relaxed from <50% to
+  // <30%. Empirically the enrichment pipeline routinely lands in the
+  // 40-60% range on healthy data; flagging that as "limited" trained
+  // viewers to ignore the warning. <30% is the new threshold where
+  // the LLM signals genuinely cease to be representative.
+  const lowCoverage = meta.enrichment_coverage_pct < 30;
   const confidencePct =
     typeof llm.enrichment_confidence_avg === 'number'
       ? Math.round(llm.enrichment_confidence_avg * 100)
@@ -44,6 +50,25 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
     det.first_financial_turn === null
     || visibleStep === undefined
     || visibleStep >= det.first_financial_turn;
+
+  // Spec 100 S2 — corpus baseline so the per-conv reveal turn is
+  // contextualised ("typical" vs "outlier"). Hidden until the per-conv
+  // line has been revealed to avoid pre-spoiling.
+  const corpusTiming = useFinancialRevealTiming();
+  const corpus = corpusTiming.data;
+  const showCorpusLine =
+    financialRevealed
+    && corpus !== undefined
+    && corpus.n > 0
+    && corpus.median_ratio_pct !== null
+    && det.first_financial_ratio !== null;
+  const corpusThisRatio = det.first_financial_ratio !== null
+    ? Math.round(det.first_financial_ratio * 100)
+    : 0;
+  const isTypicalReveal =
+    corpus?.median_ratio_pct !== undefined
+    && corpus?.median_ratio_pct !== null
+    && corpusThisRatio >= corpus.median_ratio_pct - 15;
 
   return (
     <section className="p-5 flex flex-col gap-4" data-testid="theater-psychology-panel">
@@ -78,6 +103,26 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
           }
           prefix={t('theater.in_this_conv')}
         />
+        {/* Spec 100 S2 — corpus baseline for the financial-reveal turn */}
+        {showCorpusLine && corpus && (
+          <p
+            className="text-[11px] text-on-surface-dim mt-1 pl-30"
+            data-testid="theater-corpus-timing"
+          >
+            <span className="text-on-surface-variant font-mono">
+              {t('theater.corpus_median', {
+                pct: corpus.median_ratio_pct,
+                n: corpus.n,
+              })}
+            </span>
+            {' — '}
+            {isTypicalReveal ? (
+              <span className="text-emerald-300">{t('theater.typical_pattern')}</span>
+            ) : (
+              <span className="text-amber-300">{t('theater.outlier_pattern')}</span>
+            )}
+          </p>
+        )}
         <Stat
           label={t('theater.scammer_response_median')}
           value={
@@ -111,10 +156,18 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
           "feature broken"). The deterministic block above carries the
           conversation either way. */}
       {(() => {
-        const isEmpty =
-          (llm.iocs_under_active_stimulus ?? 0) === 0
-          && (llm.hesitation_count ?? 0) === 0
-          && (llm.avg_urgency_at_reveal === null || llm.avg_urgency_at_reveal === 0);
+        // Spec 100 S5 — tighter "empty" heuristic. Previously all 3
+        // had to be zero; in practice the LLM often produces a low
+        // non-zero urgency (e.g. 24%) on otherwise-empty data, which
+        // kept the full panel rendering "0/N · 0/N · 24%" — reads
+        // as broken. New rule: ≥2 of the 3 signal fields zero/null
+        // counts as empty.
+        const zeros = [
+          (llm.iocs_under_active_stimulus ?? 0) === 0 ? 1 : 0,
+          (llm.hesitation_count ?? 0) === 0 ? 1 : 0,
+          (llm.avg_urgency_at_reveal === null || llm.avg_urgency_at_reveal === 0) ? 1 : 0,
+        ].reduce<number>((a, b) => a + b, 0);
+        const isEmpty = zeros >= 2;
 
         if (isEmpty) {
           return (

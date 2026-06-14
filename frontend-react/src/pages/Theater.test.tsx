@@ -154,9 +154,13 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     expect(screen.queryByTestId('theater-psychology-llm')).toBeNull();
   });
 
-  it('renders full LLM sub-block when at least one signal is non-zero (Spec 099 S5)', async () => {
+  it('renders full LLM sub-block when at least 2 signals are non-zero (Spec 100 S5)', async () => {
     const fix = fixture();
+    // Spec 100 S5 — tighter heuristic: need ≥2/3 signals non-zero
+    // to escape the "empty" collapse. One non-zero alone no longer
+    // qualifies (was the case under Spec 099 S5).
     fix.human_factor.exploratory_llm_signals.iocs_under_active_stimulus = 3;
+    fix.human_factor.exploratory_llm_signals.hesitation_count = 2;
     server.use(
       http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
     );
@@ -213,6 +217,35 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     await waitFor(() => expect(screen.queryByText(/reveals as you play/i)).toBeNull());
+  });
+
+  it('?stage=1 enters stage mode: screen-share auto-on + stage banner (Spec 100 S7)', async () => {
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fixture())),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater?stage=1`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    // Screen-share banner appears AUTOMATICALLY because ?stage=1 toggled it
+    await waitFor(() => expect(screen.getByTestId('screen-share-banner')).toBeTruthy());
+    // The stage-mode flag is visible inside the banner
+    expect(screen.getByText(/Stage mode/i)).toBeTruthy();
+  });
+
+  it('default Theater route (no ?stage) does NOT auto-enable screen-share (Spec 100 S7)', async () => {
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('play-pause')).toBeTruthy());
+    expect(screen.queryByTestId('screen-share-banner')).toBeNull();
   });
 
   it('toggles screen-share mode via S key + masks IOC values in bodies (Spec 099 S7)', async () => {
