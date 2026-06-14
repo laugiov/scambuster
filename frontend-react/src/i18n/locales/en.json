@@ -576,6 +576,7 @@
     "pause": "Pause",
     "restart": "Restart",
     "skip": "Skip to end",
-    "progress": "Replay progress"
+    "progress": "Replay progress",
+    "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · Home start · End finish"
   }
 }

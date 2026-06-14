@@ -19,7 +19,8 @@ interface TheaterTransportProps {
  * Spec 097 / Slice 4 — Transport bar.
  *
  * Play / pause / restart / skip / progress + speed (1×, 2×, 4×).
- * Keyboard shortcut: spacebar toggles play/pause (wired in Theater page).
+ * Keyboard shortcuts wired in Theater page: Space (play/pause), M (mask),
+ * ← / → (step prev/next, auto-pause), Home / End (jump to start/end).
  */
 export function TheaterTransport({
   status,
@@ -95,6 +96,14 @@ export function TheaterTransport({
 
       <p className="text-[11px] font-mono text-on-surface-dim w-16 text-right">
         {currentStep}/{totalSteps}
+      </p>
+
+      <p
+        className="text-[10px] font-mono text-on-surface-dim hidden md:block"
+        title={t('theater.keyboardHintTitle')}
+        data-testid="keyboard-hint"
+      >
+        ← → space M
       </p>
 
       {[1, 2, 4].map((s) => (

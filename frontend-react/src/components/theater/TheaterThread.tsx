@@ -92,7 +92,7 @@ export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirectio
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso);
-    return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
   } catch {
     return iso;
   }

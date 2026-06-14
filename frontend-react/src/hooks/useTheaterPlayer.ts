@@ -7,9 +7,10 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
  * Plus: currentStep (0..messages.length), speed (1|2|4), maskMode (in
  * useMaskMode), typingDirection (transient, drives the indicator UI).
  *
- * Step delay is constant (1700ms / speed) between reveals; typing
- * indicator stays for 650ms / speed before the next message reveal.
- * setTimeout-driven (not RAF) so pause is deterministic.
+ * Step delay is 3000ms / speed (normal) or 1200ms / speed (reduced
+ * motion) between reveals. setTimeout-driven (not RAF) so pause is
+ * deterministic. The 3s base gives the viewer time to actually read
+ * each message at 1×; 4× = 750ms for snappy demo flythrough.
  *
  * Cleanup invariant: ALL pending timeouts are cleared on unmount via
  * the ref + useEffect return. No state update on unmounted component.
@@ -87,11 +88,10 @@ function reducer(state: TheaterPlayerState, action: Action): TheaterPlayerState 
 
 interface UseTheaterPlayerProps {
   totalSteps: number;
-  directionAt: (step: number) => 'in' | 'out' | null;
   reducedMotion?: boolean;
 }
 
-export function useTheaterPlayer({ totalSteps, directionAt, reducedMotion = false }: UseTheaterPlayerProps) {
+export function useTheaterPlayer({ totalSteps, reducedMotion = false }: UseTheaterPlayerProps) {
   const [state, dispatch] = useReducer(reducer, {
     status: 'idle' as PlayerStatus,
     currentStep: 0,
@@ -101,44 +101,30 @@ export function useTheaterPlayer({ totalSteps, directionAt, reducedMotion = fals
   });
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef = useRef(true);
 
   // Keep total in sync when conv loads/changes
   useEffect(() => {
     dispatch({ type: 'SET_TOTAL', total: totalSteps });
   }, [totalSteps]);
 
-  // Drive the playback loop
+  // Drive the playback loop — ONE timeout per step. The typing indicator
+  // is rendered by Theater.tsx as a DERIVED value (status=playing AND
+  // !reducedMotion AND step < total). This avoids the dispatch-then-
+  // setTimeout combo which was flaky under React 18 Strict Mode.
+  //
+  // No mountedRef guard: the cleanup's clearTimeout() makes setTimeout
+  // unreachable after unmount. A mountedRef would survive across the
+  // Strict-Mode double-mount (useRef does NOT reset on remount) and
+  // permanently silence the dispatch.
   useEffect(() => {
-    if (state.status !== 'playing') {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      return;
-    }
-
+    if (state.status !== 'playing') return;
     if (state.currentStep >= state.totalSteps) return;
 
-    const nextStep = state.currentStep;
-    const nextDirection = directionAt(nextStep);
-    const speed = state.speed;
+    const delay = reducedMotion ? 1200 / state.speed : 3000 / state.speed;
 
-    if (reducedMotion || !nextDirection) {
-      // No typing animation: reveal directly after a short delay
-      timeoutRef.current = setTimeout(() => {
-        if (!mountedRef.current) return;
-        dispatch({ type: 'STEP_REVEAL' });
-      }, 600 / speed);
-      return;
-    }
-
-    // Show typing indicator first, then reveal
-    dispatch({ type: 'TYPING', direction: nextDirection });
     timeoutRef.current = setTimeout(() => {
-      if (!mountedRef.current) return;
       dispatch({ type: 'STEP_REVEAL' });
-    }, 1300 / speed);
+    }, delay);
 
     return () => {
       if (timeoutRef.current) {
@@ -146,18 +132,7 @@ export function useTheaterPlayer({ totalSteps, directionAt, reducedMotion = fals
         timeoutRef.current = null;
       }
     };
-  }, [state.status, state.currentStep, state.totalSteps, state.speed, reducedMotion, directionAt]);
-
-  // Cleanup on unmount — prevents setTimeout firing after unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    };
-  }, []);
+  }, [state.status, state.currentStep, state.totalSteps, state.speed, reducedMotion]);
 
   return {
     state,

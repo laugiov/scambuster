@@ -54,11 +54,16 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
 
   const { state, play, pause, restart, skipToEnd, scrub, setSpeed } = useTheaterPlayer({
     totalSteps: data.messages.length,
-    directionAt,
     reducedMotion,
   });
 
-  // Spacebar = play/pause; M = mask toggle.
+  // Keyboard shortcuts:
+  //   Space         play / pause
+  //   M             toggle mask
+  //   ArrowRight    step forward 1 message (auto-pauses)
+  //   ArrowLeft     step back 1 message (auto-pauses)
+  //   Home          jump to start
+  //   End           jump to end
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       // Skip when user is typing in an input
@@ -72,13 +77,34 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
       } else if (e.key === 'm' || e.key === 'M') {
         e.preventDefault();
         toggleMask();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        scrub(state.currentStep + 1);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        scrub(state.currentStep - 1);
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        scrub(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        skipToEnd();
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [state.status, play, pause, toggleMask]);
+  }, [state.status, state.currentStep, play, pause, scrub, skipToEnd, toggleMask]);
 
   const finished = useMemo(() => state.status === 'finished', [state.status]);
+
+  // Spec 097 — typing direction is DERIVED from state (not dispatched).
+  // Shows while we're actively playing and the next message is about to reveal.
+  const typingDirection = useMemo<'in' | 'out' | null>(() => {
+    if (reducedMotion) return null;
+    if (state.status !== 'playing') return null;
+    if (state.currentStep >= state.totalSteps) return null;
+    return directionAt(state.currentStep);
+  }, [reducedMotion, state.status, state.currentStep, state.totalSteps, directionAt]);
 
   return (
     <div className="h-screen flex flex-col bg-bg text-on-surface">
@@ -88,7 +114,7 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
           messages={data.messages}
           visibleStep={state.currentStep}
           iocsByMsg={data.iocs_by_msg}
-          typingDirection={state.typingDirection}
+          typingDirection={typingDirection}
         />
         <aside className="w-[440px] shrink-0 overflow-y-auto border-l border-outline-variant bg-surface-low/30">
           <TheaterIntelligencePanel
