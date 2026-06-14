@@ -89,15 +89,35 @@ final class CleanupPlatformContaminationCommandTest extends KernelTestCase
 
         // Indicator D: mixed-origin email — observed on BOTH an outgoing and an incoming message
         // After cleanup: indicator must SURVIVE, but its outgoing observation must be deleted.
-        $indD = $this->insertIndicator('email', "mixed-spec061-{$this->testRunId}@example.com", $now);
+        // NOTE: must NOT be on the honeypot domain (Spec 098 — emails under a
+        // honeypot domain are now rejected outright). Use example.org instead.
+        $indD = $this->insertIndicator('email', "mixed-spec061-{$this->testRunId}@example.org", $now);
         $this->insertObserved($msgOutDirty, $indD);
         $this->insertObserved($msgInMixed, $indD);
+
+        // Spec 098 — Indicator E: honeypot DOMAIN observed on incoming msg
+        // (scammer quoted our reply). MUST be deleted entirely.
+        $indE = $this->insertIndicator('domain', "honeypot-domain-spec098-{$this->testRunId}.example", $now);
+        $this->insertObserved($msgInMixed, $indE);
+
+        // Spec 098 — Indicator F: honeypot URL with www. prefix.
+        // MUST be deleted entirely.
+        $indF = $this->insertIndicator('url', "https://www.honeypot-domain-spec098-{$this->testRunId}.example/x", $now);
+        $this->insertObserved($msgInMixed, $indF);
+
+        // Spec 098 — Indicator G: typo-squat domain (NOT honeypot).
+        // MUST survive.
+        $indG = $this->insertIndicator('domain', "honeypot-domain-spec098-{$this->testRunId}-pay.example", $now);
+        $this->insertObserved($msgInClean, $indG);
 
         $this->createdIndicatorIds = [
             'A_clean' => $indA,
             'B_honeypot' => $indB,
             'C_555' => $indC,
             'D_mixed' => $indD,
+            'E_honeypot_domain' => $indE,
+            'F_honeypot_url' => $indF,
+            'G_typosquat' => $indG,
         ];
     }
 
@@ -251,6 +271,43 @@ final class CleanupPlatformContaminationCommandTest extends KernelTestCase
             ['id' => $this->createdIndicatorIds['D_mixed']]
         );
         $this->assertSame(1, $dObservationsRemaining, 'Mixed indicator D must keep exactly its incoming observation');
+    }
+
+    public function testRealRunDeletesHoneypotDomainAndUrlAndKeepsTypoSquat(): void
+    {
+        // Spec 098 — honeypot DOMAINS are now EXPLICIT (not derived from
+        // addresses), so we pass --honeypot-domain directly.
+        $honeypotDomain = "honeypot-domain-spec098-{$this->testRunId}.example";
+
+        $tester = $this->runCommand([
+            '--no-csv' => true,
+            '--no-confirm' => true,
+            '--honeypot-address' => ["honeypot-spec061-{$this->testRunId}@example.com"],
+            '--honeypot-domain' => [$honeypotDomain],
+        ]);
+
+        $this->assertSame(0, $tester->getStatusCode());
+
+        // Indicator E (honeypot domain): MUST be deleted
+        $eExists = (int) $this->conn->fetchOne(
+            'SELECT COUNT(*) FROM indicator WHERE indicator_id = :id',
+            ['id' => $this->createdIndicatorIds['E_honeypot_domain']]
+        );
+        $this->assertSame(0, $eExists, 'Honeypot domain indicator E must be deleted');
+
+        // Indicator F (honeypot URL with www. prefix): MUST be deleted
+        $fExists = (int) $this->conn->fetchOne(
+            'SELECT COUNT(*) FROM indicator WHERE indicator_id = :id',
+            ['id' => $this->createdIndicatorIds['F_honeypot_url']]
+        );
+        $this->assertSame(0, $fExists, 'Honeypot URL indicator F must be deleted');
+
+        // Indicator G (typo-squat domain): MUST survive
+        $gExists = (int) $this->conn->fetchOne(
+            'SELECT COUNT(*) FROM indicator WHERE indicator_id = :id',
+            ['id' => $this->createdIndicatorIds['G_typosquat']]
+        );
+        $this->assertSame(1, $gExists, 'Typo-squat domain indicator G must survive');
     }
 
     public function testIdempotencySecondRunIsNoOp(): void
