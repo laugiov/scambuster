@@ -2,7 +2,12 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TheaterIoc, TheaterMessage } from '@/hooks/useTheaterReplay';
 import { TheaterIocCard } from './TheaterIocCard';
+import { TheaterMoneyShot } from './TheaterMoneyShot';
 import { tierForIocType } from '@/lib/iocTier';
+
+const FINANCIAL_TYPES = new Set([
+  'iban', 'bic', 'wallet_btc', 'wallet_eth', 'wallet_xmr', 'bank_account', 'credit_card',
+]);
 
 interface TheaterIntelligencePanelProps {
   iocs: TheaterIoc[];
@@ -32,9 +37,13 @@ export function TheaterIntelligencePanel({ iocs, messages, visibleStep }: Theate
   // Headline counts Actionable only; Context goes into a collapsible
   // section below so header artifacts (subject, message_id, dmarc/spf/
   // dkim results, whois_*) don't inflate the analyst-pivotable count.
-  const actionable = visibleIocs.filter((i) => tierForIocType(i.type) === 'actionable');
+  // Spec 100 S1 — Financial IOCs are extracted into the Money-Shot
+  // pinned banner at the top, so they are NOT also rendered in the
+  // actionable list below (would be a duplicate).
+  const actionableAll = visibleIocs.filter((i) => tierForIocType(i.type) === 'actionable');
+  const actionable = actionableAll.filter((i) => !FINANCIAL_TYPES.has(i.type));
   const context = visibleIocs.filter((i) => tierForIocType(i.type) === 'context');
-  const financialCount = actionable.filter((i) => i.category === 'financial').length;
+  const financialCount = actionableAll.filter((i) => FINANCIAL_TYPES.has(i.type)).length;
 
   if (iocs.length === 0) {
     return (
@@ -55,9 +64,9 @@ export function TheaterIntelligencePanel({ iocs, messages, visibleStep }: Theate
         {t('theater.intelligence_panel')}
       </h2>
       <div className="flex items-baseline gap-3" data-testid="intelligence-headline">
-        <p className="text-3xl font-light text-on-surface">{actionable.length}</p>
+        <p className="text-3xl font-light text-on-surface">{actionableAll.length}</p>
         <p className="text-xs text-on-surface-dim">
-          {t('theater.iocs_extracted', { count: actionable.length })}
+          {t('theater.iocs_extracted', { count: actionableAll.length })}
         </p>
       </div>
       {financialCount > 0 && (
@@ -65,6 +74,10 @@ export function TheaterIntelligencePanel({ iocs, messages, visibleStep }: Theate
           {t('theater.financial_count', { count: financialCount })}
         </p>
       )}
+
+      {/* Spec 100 S1 — pinned money-shot at the top when financial
+          IOCs have already revealed. Stacks one card per IOC. */}
+      <TheaterMoneyShot iocs={visibleIocs} messages={messages} visibleStep={visibleStep} />
 
       {/* Actionable tier — financial, contact, infrastructure */}
       {actionable.length > 0 && (
