@@ -3,7 +3,9 @@ import { useTranslation } from 'react-i18next';
 import type { TheaterIoc, TheaterMessage } from '@/hooks/useTheaterReplay';
 import { TheaterIocCard } from './TheaterIocCard';
 import { TheaterMoneyShot } from './TheaterMoneyShot';
+import { TheaterDomainClusterCard } from './TheaterDomainClusterCard';
 import { tierForIocType } from '@/lib/iocTier';
+import { clusterDomainVariants } from '@/lib/domainVariants';
 
 const FINANCIAL_TYPES = new Set([
   'iban', 'bic', 'wallet_btc', 'wallet_eth', 'wallet_xmr', 'bank_account', 'credit_card',
@@ -79,11 +81,17 @@ export function TheaterIntelligencePanel({ iocs, messages, visibleStep }: Theate
           IOCs have already revealed. Stacks one card per IOC. */}
       <TheaterMoneyShot iocs={visibleIocs} messages={messages} visibleStep={visibleStep} />
 
-      {/* Actionable tier — financial, contact, infrastructure */}
+      {/* Actionable tier — financial, contact, infrastructure.
+          Spec 100 S3 — domain + url IOCs go through clusterDomainVariants
+          so near-duplicates (techward + techwardinfo) collapse into one
+          primary card with a `▸ N variants` chip. */}
       {actionable.length > 0 && (
         <div className="flex flex-col gap-2 mt-2" data-testid="intelligence-actionable">
-          {actionable.map((ioc) => (
-            <TheaterIocCard key={ioc.indicator_id} ioc={ioc} />
+          {clusterDomainVariants(actionable).map((cluster) => (
+            <TheaterDomainClusterCard
+              key={cluster.primary.indicator_id}
+              cluster={cluster}
+            />
           ))}
         </div>
       )}
