@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.18.0] - 2026-06-15
+
+### Changed — Spec 102 (Human Factor calibration)
+
+Redesigned the ContextualEnricher LLM prompt to address six systematic
+biases measured in a 100-IOC test set + 20-IOC gold-annotated subset
+(see `phase-d-baseline.md`, `phase-e-s5-report.md`). Drop-in
+replacement at constant model (`gpt-4o-mini`) — same JSON wire shape,
+same field names, no consumer changes.
+
+#### Measured deltas (prompt v2 vs v1, gpt-4o-mini both)
+
+- `stimulus_type` PASSIVE share: 60% → 33% (target ≤45% met; matches
+  the gpt-4o judge distribution of 28% within 5 pp).
+- `semantic_role` accuracy vs gold annotations: 65% → **90%**. Top fix:
+  marketing / notification / unsubscribe URLs (Apollo, Snov.io, Facebook
+  notifications) now route to `INFRASTRUCTURE_DOMAIN` instead of
+  `PHISHING_CREDENTIAL_URL`.
+- `urgency_score` MAE vs gold: 0.13 → **0.036** (3.6× better). Replaced
+  the 10-example calibration scale with 6 sparse anchors tagged
+  "illustrative, not buckets".
+- `context_excerpt` templating: generic openers banned; concrete pretext
+  / alias / framing now required.
+- `language_switch_detected` false-positive rate: 20% → **0%**. Strict
+  redefinition — TRUE only on intra-message switch of meaningful
+  sentences (entire non-English emails = FALSE).
+- `hesitation_detected` false-positive rate: 21% → **0%**. Strict
+  redefinition — TRUE only on textual self-correction / reformulation.
+  Honest caveat: v2 mirrors the gpt-4o judge's 0% TRUE rate; N=1 gold
+  positive cannot resolve whether this is correct precision or
+  under-detection. Follow-up spec 103 will calibrate with ≥30 targeted
+  candidates.
+
+#### Infrastructure additions
+
+Four new CLI commands under `app:eval:*` for reproducible
+human-factor evaluation:
+
+- `app:eval:sample-test-set` — stratified train/test split with
+  reproducible seed (mt_srand) + SHA256 integrity hashes baked into
+  the docblock. 50/100 split, ≥25 per rare class (hesitation=true,
+  language_switch=true, non-PASSIVE), ≥30 high-confidence.
+- `app:eval:render-ioc` — single-IOC + 3-message-window renderer used
+  as input for annotation OR judge harness. Outputs markdown or JSON.
+- `app:eval:run-judge` — independent cross-validator that runs gpt-4o
+  (or any model) with a separate prompt; saves verdict envelopes for
+  metrics comparison.
+- `app:eval:compute-metrics` — per-field accuracy, F1, MAE, Cohen's
+  kappa, distribution comparison. Outputs Markdown + JSON.
+- `app:eval:test-prompt-v2` — runs prompt v2 on a batch of IOCs,
+  outputs judge-shape JSON so the metrics harness can ingest with
+  `--judge-model enricher-v2-gpt-4o-mini`.
+
+Plus an extension to the existing `app:ioc:compute-context` command:
+`--force` now also applies to the LLM enrichment phase (re-enriches
+rows already in `enrichment_status='enriched'`). This unlocked the
+Phase F backfill of the 4934-IOC corpus with the v2 prompt.
+
+#### Test coverage
+
+`ContextualEnricherPromptTest` and `UrgencyFewShotTest` updated to
+assert the v2 guardrails (anti-PASSIVE rule, strict hesitation /
+language_switch defs, URL tightening, excerpt specificity, 6-anchor
+calibration scale). Both test files retain their original intent
+(Spec F3 / 075a urgency calibration coverage) — assertions updated to
+match the new mechanism, with rationale in the docblocks.
+
+8/8 preflight gates green on both commits (`ecebd3ee`, `1bb24434`).
+
 ## [2.17.0] - 2026-06-13
 
 ### Added — Spec 097 (Live Bait Theater)
