@@ -31,6 +31,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *   - Phase 5: delete outgoing observations
  *   - Phase 6: delete orphan indicators
  *   - Phase 7: delete honeypot indicators (and their observations)
+ *                Covers EMAIL (Spec 061), plus DOMAIN + URL (Spec 098) whose
+ *                value points back at the honeypot infrastructure.
  *   - Phase 8: final report
  */
 #[AsCommand(
@@ -42,27 +44,48 @@ final class CleanupPlatformContaminationCommand extends Command
     /** @var list<string> */
     private readonly array $defaultHoneypotAddresses;
 
+    /** @var list<string> */
+    private readonly array $defaultHoneypotDomains;
+
     /**
      * @param list<string>|null $honeypotEmailAddresses Default honeypot addresses, normalised lowercase.
      *                                                  Overridable via --honeypot-address option.
+     * @param list<string>|null $honeypotDomains        Spec 098: explicit OWNED honeypot domains
+     *                                                  (NOT derived from emails — see services.yaml).
+     *                                                  Overridable via --honeypot-domain option.
      */
     public function __construct(
         private readonly Connection $conn,
         ?array $honeypotEmailAddresses = null,
         private readonly string $auditDir = '/app/var/audit',
+        ?array $honeypotDomains = null,
     ) {
         parent::__construct();
 
-        $normalised = [];
+        $normalisedAddrs = [];
 
         foreach ($honeypotEmailAddresses ?? [] as $address) {
             $clean = strtolower(trim($address));
 
             if ($clean !== '') {
-                $normalised[] = $clean;
+                $normalisedAddrs[] = $clean;
             }
         }
-        $this->defaultHoneypotAddresses = array_values(array_unique($normalised));
+        $this->defaultHoneypotAddresses = array_values(array_unique($normalisedAddrs));
+
+        $normalisedDomains = [];
+
+        foreach ($honeypotDomains ?? [] as $domain) {
+            $clean = strtolower(trim($domain));
+
+            if ($clean !== '') {
+                if (str_starts_with($clean, 'www.')) {
+                    $clean = substr($clean, 4);
+                }
+                $normalisedDomains[] = $clean;
+            }
+        }
+        $this->defaultHoneypotDomains = array_values(array_unique($normalisedDomains));
     }
 
     protected function configure(): void
@@ -91,6 +114,12 @@ final class CleanupPlatformContaminationCommand extends Command
                 null,
                 InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
                 'Override the configured honeypot addresses (repeatable)'
+            )
+            ->addOption(
+                'honeypot-domain',
+                null,
+                InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY,
+                'Spec 098: override the configured honeypot OWNED domains (repeatable)'
             );
     }
 
@@ -102,31 +131,51 @@ final class CleanupPlatformContaminationCommand extends Command
         $noCsv = (bool) $input->getOption('no-csv');
         $noConfirm = (bool) $input->getOption('no-confirm');
 
-        /** @var list<string> $overrides */
-        $overrides = $input->getOption('honeypot-address');
-        $honeypotAddresses = empty($overrides)
+        /** @var list<string> $addrOverrides */
+        $addrOverrides = $input->getOption('honeypot-address');
+        $honeypotAddresses = empty($addrOverrides)
             ? $this->defaultHoneypotAddresses
-            : array_values(array_unique(array_map(fn ($a) => strtolower(trim($a)), $overrides)));
+            : array_values(array_unique(array_map(fn ($a) => strtolower(trim($a)), $addrOverrides)));
 
-        $io->title('Spec 061 — Platform contamination cleanup');
+        /** @var list<string> $domOverrides */
+        $domOverrides = $input->getOption('honeypot-domain');
+        $honeypotDomains = empty($domOverrides)
+            ? $this->defaultHoneypotDomains
+            : array_values(array_unique(array_map(static function (string $d): string {
+                $clean = strtolower(trim($d));
+
+                return str_starts_with($clean, 'www.') ? substr($clean, 4) : $clean;
+            }, $domOverrides)));
+
+        $io->title('Spec 061 + 098 — Platform contamination cleanup');
 
         if ($dryRun) {
             $io->warning('DRY RUN — no DELETE will be executed');
         }
 
-        $io->section('Phase 1 — Honeypot addresses');
+        $io->section('Phase 1a — Honeypot addresses');
 
         if ($honeypotAddresses === []) {
-            $io->writeln('  (none configured — phase 7 will be a no-op)');
+            $io->writeln('  (none configured)');
         } else {
             foreach ($honeypotAddresses as $a) {
                 $io->writeln('  - ' . $a);
             }
         }
 
+        $io->section('Phase 1b — Honeypot domains (Spec 098 — owned only)');
+
+        if ($honeypotDomains === []) {
+            $io->writeln('  (none configured — domain/url filters and email-by-domain match are no-ops)');
+        } else {
+            foreach ($honeypotDomains as $d) {
+                $io->writeln('  - ' . $d);
+            }
+        }
+
         // Phase 2 — count
         $io->section('Phase 2 — Counting affected rows');
-        $counts = $this->countAffected($honeypotAddresses);
+        $counts = $this->countAffected($honeypotAddresses, $honeypotDomains);
         $io->table(
             ['Category', 'Count'],
             [
@@ -151,7 +200,7 @@ final class CleanupPlatformContaminationCommand extends Command
         // Phase 3 — CSV audit dump
         if (!$noCsv) {
             $io->section('Phase 3 — Audit CSV');
-            $csvPath = $this->writeAuditCsv($honeypotAddresses);
+            $csvPath = $this->writeAuditCsv($honeypotAddresses, $honeypotDomains);
             $io->writeln('  Written: ' . $csvPath);
         }
 
@@ -183,7 +232,7 @@ final class CleanupPlatformContaminationCommand extends Command
             $deletedOrphans = $this->deleteOrphanIndicators();
             $io->writeln(sprintf('  Phase 6: deleted %d orphan indicators', $deletedOrphans));
 
-            $deletedHoneypot = $this->deleteHoneypotIndicators($honeypotAddresses);
+            $deletedHoneypot = $this->deleteHoneypotIndicators($honeypotAddresses, $honeypotDomains);
             $io->writeln(sprintf('  Phase 7: deleted %d honeypot indicators (with cascade observations)', $deletedHoneypot));
 
             $this->conn->commit();
@@ -196,7 +245,7 @@ final class CleanupPlatformContaminationCommand extends Command
 
         // Phase 8 — final report
         $io->section('Phase 8 — Final report');
-        $remaining = $this->countAffected($honeypotAddresses);
+        $remaining = $this->countAffected($honeypotAddresses, $honeypotDomains);
         $allZero = $remaining['outgoing_observations'] === 0
             && $remaining['honeypot_indicators'] === 0;
 
@@ -228,10 +277,11 @@ final class CleanupPlatformContaminationCommand extends Command
 
     /**
      * @param list<string> $honeypotAddresses
+     * @param list<string> $honeypotDomains
      *
      * @return array{outgoing_observations: int, orphan_indicators_after_phase5: int, honeypot_indicators: int, honeypot_observations: int}
      */
-    private function countAffected(array $honeypotAddresses): array
+    private function countAffected(array $honeypotAddresses, array $honeypotDomains = []): array
     {
         $outgoingObservations = $this->countQuery(
             "SELECT COUNT(*) FROM observed_ioc oi
@@ -261,21 +311,17 @@ final class CleanupPlatformContaminationCommand extends Command
         $honeypotIndicators = 0;
         $honeypotObservations = 0;
 
-        if ($honeypotAddresses !== []) {
-            $honeypotIndicators = $this->countQuery(
-                "SELECT COUNT(*) FROM indicator
-                 WHERE type = 'email' AND LOWER(value_norm) IN (?)",
-                [$honeypotAddresses],
-                [\Doctrine\DBAL\ArrayParameterType::STRING]
-            );
+        if ($honeypotAddresses !== [] || $honeypotDomains !== []) {
+            $honeypotIndicatorIds = $this->findHoneypotIndicatorIds($honeypotAddresses, $honeypotDomains);
 
-            $honeypotObservations = $this->countQuery(
-                "SELECT COUNT(*) FROM observed_ioc oi
-                 JOIN indicator i ON oi.indicator_id = i.indicator_id
-                 WHERE i.type = 'email' AND LOWER(i.value_norm) IN (?)",
-                [$honeypotAddresses],
-                [\Doctrine\DBAL\ArrayParameterType::STRING]
-            );
+            if ($honeypotIndicatorIds !== []) {
+                $honeypotIndicators = \count($honeypotIndicatorIds);
+                $honeypotObservations = $this->countQuery(
+                    'SELECT COUNT(*) FROM observed_ioc WHERE indicator_id IN (?)',
+                    [$honeypotIndicatorIds],
+                    [\Doctrine\DBAL\ArrayParameterType::STRING],
+                );
+            }
         }
 
         return [
@@ -287,9 +333,151 @@ final class CleanupPlatformContaminationCommand extends Command
     }
 
     /**
-     * @param list<string> $honeypotAddresses
+     * Spec 098 fix-up — un-defang an indicator value before matching. The
+     * IocCategorizer stores value_norm in defanged form (e.g.
+     * acme.example → acme[.]com) so the SQL `IN (?)` against the bare
+     * domain list misses. Symmetric with IocUpsertService::unDefang().
      */
-    private function writeAuditCsv(array $honeypotAddresses): string
+    private function unDefang(string $value): string
+    {
+        return str_replace(['[.]', '[/]', '[://]', '[:]'], ['.', '/', '://', ':'], $value);
+    }
+
+    /**
+     * Spec 098 — resolve the set of indicator IDs that point back at the
+     * honeypot infrastructure. Covers three IOC types via un-defanged
+     * value_norm comparison:
+     *
+     *   - email  : exact match against $addresses OR domain-part match
+     *              against $domains
+     *   - domain : exact match against $domains (after stripping `www.`)
+     *   - url    : parse_url(host), strip `www.`, match against $domains
+     *
+     * @param list<string> $addresses
+     * @param list<string> $domains
+     *
+     * @return list<string>
+     */
+    private function findHoneypotIndicatorIds(array $addresses, array $domains): array
+    {
+        $ids = [];
+        $addressesSet = array_fill_keys($addresses, true);
+
+        if ($addresses !== []) {
+            $emailRows = $this->conn->fetchAllAssociative(
+                "SELECT indicator_id, value_norm FROM indicator WHERE type = 'email'",
+            );
+
+            foreach ($emailRows as $r) {
+                $idVal = $r['indicator_id'] ?? null;
+                $valueNorm = $r['value_norm'] ?? null;
+
+                if (!\is_string($idVal) || !\is_string($valueNorm)) {
+                    continue;
+                }
+
+                if (isset($addressesSet[strtolower($this->unDefang($valueNorm))])) {
+                    $ids[$idVal] = true;
+                }
+            }
+        }
+
+        if ($domains !== []) {
+            $domainsSet = array_fill_keys($domains, true);
+
+            // EMAIL by domain part — catches persona aliases under a honeypot
+            // domain that aren't enumerated in the addresses list.
+            $emailRows = $this->conn->fetchAllAssociative(
+                "SELECT indicator_id, value_norm FROM indicator WHERE type = 'email'",
+            );
+
+            foreach ($emailRows as $r) {
+                $idVal = $r['indicator_id'] ?? null;
+                $valueNorm = $r['value_norm'] ?? null;
+
+                if (!\is_string($idVal) || !\is_string($valueNorm)) {
+                    continue;
+                }
+                $needle = strtolower($this->unDefang($valueNorm));
+                $atPos = strrpos($needle, '@');
+
+                if ($atPos === false || $atPos >= strlen($needle) - 1) {
+                    continue;
+                }
+
+                if (isset($domainsSet[substr($needle, $atPos + 1)])) {
+                    $ids[$idVal] = true;
+                }
+            }
+
+            // DOMAIN — exact match on un-defanged value_norm (handles www. prefix)
+            $domainRows = $this->conn->fetchAllAssociative(
+                "SELECT indicator_id, value_norm FROM indicator WHERE type = 'domain'",
+            );
+
+            foreach ($domainRows as $r) {
+                $idVal = $r['indicator_id'] ?? null;
+                $valueNorm = $r['value_norm'] ?? null;
+
+                if (!\is_string($idVal) || !\is_string($valueNorm)) {
+                    continue;
+                }
+                $clean = strtolower($this->unDefang($valueNorm));
+
+                if (str_starts_with($clean, 'www.')) {
+                    $clean = substr($clean, 4);
+                }
+
+                if (isset($domainsSet[$clean])) {
+                    $ids[$idVal] = true;
+                }
+            }
+
+            // URL — parse_url host on un-defanged value_norm
+            $urlRows = $this->conn->fetchAllAssociative(
+                "SELECT indicator_id, value_norm FROM indicator WHERE type = 'url'",
+            );
+
+            foreach ($urlRows as $r) {
+                $idVal = $r['indicator_id'] ?? null;
+                $valueNorm = $r['value_norm'] ?? null;
+
+                if (!\is_string($idVal) || !\is_string($valueNorm)) {
+                    continue;
+                }
+                $clean = strtolower($this->unDefang($valueNorm));
+
+                // Scheme-less URLs (e.g. `www.example.com/x`) → parse_url
+                // returns no host. Prefix `https://` so parse_url can find
+                // the host. This is intent-preserving — we only use the
+                // parsed host to compare against honeypotDomains.
+                if (!preg_match('#^[a-z][a-z0-9+\-.]*://#', $clean)) {
+                    $clean = 'https://' . $clean;
+                }
+                $host = parse_url($clean, PHP_URL_HOST);
+
+                if (!\is_string($host) || $host === '') {
+                    continue;
+                }
+
+                if (str_starts_with($host, 'www.')) {
+                    $host = substr($host, 4);
+                }
+
+                if (isset($domainsSet[$host])) {
+                    $ids[$idVal] = true;
+                }
+            }
+        }
+
+        return array_keys($ids);
+    }
+
+    /**
+     * @param list<string> $honeypotAddresses
+     * @param list<string> $honeypotDomains
+     */
+    private function writeAuditCsv(array $honeypotAddresses, array $honeypotDomains = []): string
     {
         if (!is_dir($this->auditDir)) {
             mkdir($this->auditDir, 0o755, true);
@@ -320,20 +508,22 @@ final class CleanupPlatformContaminationCommand extends Command
             fputcsv($fh, $csvRow);
         }
 
-        // Phase 7 candidates
-        if ($honeypotAddresses !== []) {
-            $rows = $this->conn->fetchAllAssociative(
-                "SELECT indicator_id, type, value_norm
-                 FROM indicator
-                 WHERE type = 'email' AND LOWER(value_norm) IN (?)",
-                [$honeypotAddresses],
-                [\Doctrine\DBAL\ArrayParameterType::STRING]
-            );
+        // Phase 7 candidates — Spec 061 (email) + Spec 098 (domain, url)
+        if ($honeypotAddresses !== [] || $honeypotDomains !== []) {
+            $ids = $this->findHoneypotIndicatorIds($honeypotAddresses, $honeypotDomains);
 
-            foreach ($rows as $r) {
-                /** @var array<int, string> $honeypotRow */
-                $honeypotRow = ['honeypot', $r['indicator_id'] ?? '', $r['type'] ?? '', $r['value_norm'] ?? '', '', ''];
-                fputcsv($fh, $honeypotRow);
+            if ($ids !== []) {
+                $rows = $this->conn->fetchAllAssociative(
+                    'SELECT indicator_id, type, value_norm FROM indicator WHERE indicator_id IN (?)',
+                    [$ids],
+                    [\Doctrine\DBAL\ArrayParameterType::STRING],
+                );
+
+                foreach ($rows as $r) {
+                    /** @var array<int, string> $honeypotRow */
+                    $honeypotRow = ['honeypot', $r['indicator_id'] ?? '', $r['type'] ?? '', $r['value_norm'] ?? '', '', ''];
+                    fputcsv($fh, $honeypotRow);
+                }
             }
         }
 
@@ -360,28 +550,35 @@ final class CleanupPlatformContaminationCommand extends Command
     }
 
     /**
+     * Spec 061 (email) + Spec 098 (domain, url) — delete every indicator
+     * whose value points back at the honeypot, and cascade its observed_ioc
+     * rows first (no ON DELETE CASCADE on the FK).
+     *
      * @param list<string> $honeypotAddresses
+     * @param list<string> $honeypotDomains
      */
-    private function deleteHoneypotIndicators(array $honeypotAddresses): int
+    private function deleteHoneypotIndicators(array $honeypotAddresses, array $honeypotDomains = []): int
     {
-        if ($honeypotAddresses === []) {
+        if ($honeypotAddresses === [] && $honeypotDomains === []) {
             return 0;
         }
 
-        // Cascade observations first (FK has no ON DELETE CASCADE on indicator)
+        $ids = $this->findHoneypotIndicatorIds($honeypotAddresses, $honeypotDomains);
+
+        if ($ids === []) {
+            return 0;
+        }
+
         $this->conn->executeStatement(
-            "DELETE FROM observed_ioc WHERE indicator_id IN (
-                 SELECT indicator_id FROM indicator
-                 WHERE type = 'email' AND LOWER(value_norm) IN (?)
-             )",
-            [$honeypotAddresses],
-            [\Doctrine\DBAL\ArrayParameterType::STRING]
+            'DELETE FROM observed_ioc WHERE indicator_id IN (?)',
+            [$ids],
+            [\Doctrine\DBAL\ArrayParameterType::STRING],
         );
 
         return (int) $this->conn->executeStatement(
-            "DELETE FROM indicator WHERE type = 'email' AND LOWER(value_norm) IN (?)",
-            [$honeypotAddresses],
-            [\Doctrine\DBAL\ArrayParameterType::STRING]
+            'DELETE FROM indicator WHERE indicator_id IN (?)',
+            [$ids],
+            [\Doctrine\DBAL\ArrayParameterType::STRING],
         );
     }
 }

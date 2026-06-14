@@ -5,6 +5,13 @@ parameters:
     # Defaults to empty list (filter is a no-op for fresh deployments). Operators should
     # set HONEYPOT_EMAIL_ADDRESSES in .env to enable the filter.
     app.honeypot_email_addresses: '%env(default::csv:HONEYPOT_EMAIL_ADDRESSES)%'
+    # Spec 098: comma-separated list of honeypot-owned domains. Distinct from
+    # HONEYPOT_EMAIL_ADDRESSES because some configured addresses live on shared
+    # providers (gmail.com, outlook.com) which obviously cannot be treated as
+    # honeypot domains. Only enumerate domains we actually own.
+    # Any IOC of type domain (exact match), url (host match after stripping www.),
+    # or email (domain-part match) under one of these domains is rejected.
+    app.honeypot_domains: '%env(default::csv:HONEYPOT_DOMAINS)%'
 
 services:
     _defaults:
@@ -14,6 +21,7 @@ services:
             $projectDir: '%kernel.project_dir%'
             $monthlyLimitUsd: '%llm.max_cost_usd_month%'
             $honeypotEmailAddresses: '%app.honeypot_email_addresses%'
+            $honeypotDomains: '%app.honeypot_domains%'
             $appSecret: '%env(APP_SECRET)%'
             # Spec 080 — reply-pipeline feature flags (see config/packages/llm.yaml)
             $signatureStripEnabled:            '%reply.signature_strip.enabled%'
