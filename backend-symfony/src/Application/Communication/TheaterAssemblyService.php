@@ -83,6 +83,10 @@ final readonly class TheaterAssemblyService
             'scammer_address' => $this->extractScammerAddress($allMessages),
             'persona_address' => $this->extractPersonaAddress($allMessages),
             'persona_code' => $persona?->getPersonaCode(),
+            // Spec 099 S2 — human-readable persona label for display in
+            // the Theater header. Frontend prefers persona_label, falls
+            // back to persona_code when null (legacy conversations).
+            'persona_label' => $persona?->getPersonaLabel(),
             'status' => $conv->getStatus()->value,
             'ts_first' => $conv->getTsFirst()->format(DATE_ATOM),
             'ts_last' => $conv->getTsLast()->format(DATE_ATOM),

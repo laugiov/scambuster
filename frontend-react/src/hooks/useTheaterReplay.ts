@@ -17,6 +17,8 @@ export interface TheaterMeta {
   scammer_address: string | null;
   persona_address: string | null;
   persona_code: string | null;
+  /** Spec 099 S2 — human-readable persona label (preferred for display). */
+  persona_label: string | null;
   status: string;
   ts_first: string;
   ts_last: string;

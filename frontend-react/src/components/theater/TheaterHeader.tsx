@@ -37,8 +37,13 @@ export function TheaterHeader({ meta }: TheaterHeaderProps) {
             <span className="text-on-surface-dim">{meta.scammer_address ?? '—'}</span>
             {' ↔ '}
             <span className="text-on-surface-dim">{meta.persona_address ?? '—'}</span>
-            {meta.persona_code && (
-              <span className="text-on-surface-dim"> ({meta.persona_code})</span>
+            {(meta.persona_label || meta.persona_code) && (
+              <span
+                className="text-on-surface-dim"
+                title={meta.persona_code ?? undefined}
+              >
+                {' '}({meta.persona_label || meta.persona_code})
+              </span>
             )}
           </p>
         </div>

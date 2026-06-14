@@ -16,6 +16,7 @@ function fixture() {
       conv_id: CONV_ID,
       scam_type: 'INVOICE_FRAUD',
       persona: 'tech_newbie',
+      persona_label: 'Tech newbie (small business owner)',
       status: 'open',
       score_risk: 0.5,
       score_engagement: 0.6,
