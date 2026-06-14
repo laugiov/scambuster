@@ -392,6 +392,31 @@ final class IocUpsertServiceHoneypotFilterTest extends KernelTestCase
         $service->upsertEnrichedIoc($payload);
     }
 
+    public function testSchemeLessUrlValueNormIsRejected(): void
+    {
+        // Spec 098 fix-up — a URL like `www.example.com/x` without an
+        // explicit scheme returns null from parse_url. The filter must
+        // synthesise `https://` before parsing so the host check still
+        // bites. Otherwise scammers quoting our home page as `www.our-
+        // domain.example` would leak the IOC.
+        $service = $this->buildServiceWithHoneypot(['admin@example.com']);
+
+        $payload = [
+            'msg_id' => self::INCOMING_MSG_ID,
+            'ioc' => [
+                'type' => 'url',
+                'value' => 'www.example.com',
+                'value_norm' => 'www.example.com',
+                'source' => 'body',
+                'first_seen' => '2026-06-14T00:00:00Z',
+            ],
+        ];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessageMatches('/honeypot/i');
+        $service->upsertEnrichedIoc($payload);
+    }
+
     public function testDefangedUrlValueNormIsRejected(): void
     {
         $service = $this->buildServiceWithHoneypot(['admin@example.com']);

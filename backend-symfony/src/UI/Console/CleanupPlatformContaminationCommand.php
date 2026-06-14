@@ -445,7 +445,16 @@ final class CleanupPlatformContaminationCommand extends Command
                 if (!\is_string($idVal) || !\is_string($valueNorm)) {
                     continue;
                 }
-                $host = parse_url(strtolower($this->unDefang($valueNorm)), PHP_URL_HOST);
+                $clean = strtolower($this->unDefang($valueNorm));
+
+                // Scheme-less URLs (e.g. `www.example.com/x`) → parse_url
+                // returns no host. Prefix `https://` so parse_url can find
+                // the host. This is intent-preserving — we only use the
+                // parsed host to compare against honeypotDomains.
+                if (!preg_match('#^[a-z][a-z0-9+\-.]*://#', $clean)) {
+                    $clean = 'https://' . $clean;
+                }
+                $host = parse_url($clean, PHP_URL_HOST);
 
                 if (!\is_string($host) || $host === '') {
                     continue;

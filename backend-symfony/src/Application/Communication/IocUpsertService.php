@@ -131,7 +131,16 @@ class IocUpsertService
         }
 
         if ($type === 'url') {
-            $host = parse_url($needle, PHP_URL_HOST);
+            // Scheme-less URLs (e.g. `www.example.com/x`) → parse_url
+            // returns no host. Prefix `https://` so parse_url can find
+            // the host; we only use the parsed host to compare against
+            // honeypotDomainsIndex, so the synthetic scheme is harmless.
+            $forParse = $needle;
+
+            if (!preg_match('#^[a-z][a-z0-9+\-.]*://#', $forParse)) {
+                $forParse = 'https://' . $forParse;
+            }
+            $host = parse_url($forParse, PHP_URL_HOST);
 
             if (!is_string($host) || $host === '') {
                 return false;
