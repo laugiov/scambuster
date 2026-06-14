@@ -80,15 +80,19 @@ export function ConversationDetail() {
             </span>
           )}
           <Badge label={c.status} variant={statusToBadgeVariant(c.status)} />
-          {/* Spec 097 — Live Bait Theater button (hidden when conv has no messages) */}
+          {/* Spec 097 — Live Bait Theater button.
+              Spec 100 S8 — promoted to a prominent solid CTA (was a
+              discreet ghost chip in fix/097) because the user
+              reported it was being missed. The Theater is a flagship
+              feature; the entry point should look like it. */}
           {(messages.data?.length ?? 0) > 0 && (
             <Link
               to={`/conversations/${id}/theater`}
               title={t('conversationDetail.replayExtraction')}
-              className="ml-1 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs text-on-surface-variant border border-outline-variant rounded-md hover:text-on-surface hover:border-accent transition-colors"
+              className="ml-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-accent text-bg rounded-md shadow-md shadow-accent/30 hover:bg-accent-hover hover:shadow-lg hover:shadow-accent/40 hover:-translate-y-px active:translate-y-0 transition-all"
               data-testid="theater-link"
             >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                 <path d="M8 5v14l11-7z" />
               </svg>
               {t('conversationDetail.replayExtraction')}
