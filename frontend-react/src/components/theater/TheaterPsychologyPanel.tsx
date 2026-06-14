@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TheaterHumanFactor, TheaterMeta } from '@/hooks/useTheaterReplay';
+import { useFinancialRevealTiming } from '@/hooks/useFinancialRevealTiming';
 
 interface TheaterPsychologyPanelProps {
   hf: TheaterHumanFactor;
@@ -45,6 +46,25 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
     || visibleStep === undefined
     || visibleStep >= det.first_financial_turn;
 
+  // Spec 100 S2 — corpus baseline so the per-conv reveal turn is
+  // contextualised ("typical" vs "outlier"). Hidden until the per-conv
+  // line has been revealed to avoid pre-spoiling.
+  const corpusTiming = useFinancialRevealTiming();
+  const corpus = corpusTiming.data;
+  const showCorpusLine =
+    financialRevealed
+    && corpus !== undefined
+    && corpus.n > 0
+    && corpus.median_ratio_pct !== null
+    && det.first_financial_ratio !== null;
+  const corpusThisRatio = det.first_financial_ratio !== null
+    ? Math.round(det.first_financial_ratio * 100)
+    : 0;
+  const isTypicalReveal =
+    corpus?.median_ratio_pct !== undefined
+    && corpus?.median_ratio_pct !== null
+    && corpusThisRatio >= corpus.median_ratio_pct - 15;
+
   return (
     <section className="p-5 flex flex-col gap-4" data-testid="theater-psychology-panel">
       <h2 className="text-xs font-mono uppercase tracking-widest text-on-surface-dim">
@@ -78,6 +98,26 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
           }
           prefix={t('theater.in_this_conv')}
         />
+        {/* Spec 100 S2 — corpus baseline for the financial-reveal turn */}
+        {showCorpusLine && corpus && (
+          <p
+            className="text-[11px] text-on-surface-dim mt-1 pl-30"
+            data-testid="theater-corpus-timing"
+          >
+            <span className="text-on-surface-variant font-mono">
+              {t('theater.corpus_median', {
+                pct: corpus.median_ratio_pct,
+                n: corpus.n,
+              })}
+            </span>
+            {' — '}
+            {isTypicalReveal ? (
+              <span className="text-emerald-300">{t('theater.typical_pattern')}</span>
+            ) : (
+              <span className="text-amber-300">{t('theater.outlier_pattern')}</span>
+            )}
+          </p>
+        )}
         <Stat
           label={t('theater.scammer_response_median')}
           value={
