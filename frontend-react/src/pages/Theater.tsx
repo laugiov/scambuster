@@ -186,6 +186,17 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
           )}
         </div>
       )}
+      {/* Spec 101 S5 — persistent step-0 warning when screen-share is
+          OFF. Dismisses once the user reveals the first message (likely
+          a deliberate "show the demo" choice) OR enables screen-share. */}
+      {!screenShareMode && state.currentStep === 0 && state.status === 'idle' && (
+        <div
+          className="bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs font-mono text-center py-1.5"
+          data-testid="screen-share-warning"
+        >
+          ⚠ {t('theater.screen_share_off_warning')}
+        </div>
+      )}
       <TheaterHeader meta={data.meta} />
       <div className="flex-1 flex overflow-hidden">
         <TheaterThread

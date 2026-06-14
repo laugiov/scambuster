@@ -219,6 +219,36 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     await waitFor(() => expect(screen.queryByText(/reveals as you play/i)).toBeNull());
   });
 
+  it('Spec 101 S5: step-0 warning visible when screen-share is OFF + dismisses after first reveal', async () => {
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('screen-share-warning')).toBeTruthy());
+
+    // First arrow-right reveal dismisses the warning
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => expect(screen.queryByTestId('screen-share-warning')).toBeNull());
+  });
+
+  it('Spec 101 S5: step-0 warning is NOT shown when screen-share is ON', async () => {
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fixture())),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater?stage=1`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+    // ?stage=1 auto-enables screen-share → warning suppressed
+    await waitFor(() => expect(screen.getByTestId('screen-share-banner')).toBeTruthy());
+    expect(screen.queryByTestId('screen-share-warning')).toBeNull();
+  });
+
   it('?stage=1 enters stage mode: screen-share auto-on + stage banner (Spec 100 S7)', async () => {
     server.use(
       http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fixture())),
