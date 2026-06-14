@@ -56,7 +56,7 @@ export function TheaterMoneyShot({ iocs, messages, visibleStep }: TheaterMoneySh
   return (
     <div className="flex flex-col gap-2" data-testid="theater-money-shot">
       <h3 className="text-[10px] font-mono uppercase tracking-widest text-amber-400/80">
-        ★ {t('theater.money_shot_title')}
+        {t('theater.money_shot_title')}
       </h3>
       {visibleFinancial.map((ioc) => {
         // Spec 101 S1 — `m.idx` is serialised by the backend as 1-based

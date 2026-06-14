@@ -580,7 +580,7 @@
     "keyboardHintTitle": "Clavier : ← précédent · → suivant · Espace lecture/pause · M masquer · S mode partage écran · Home début · End fin",
     "screen_share_active": "Mode partage écran actif — PII masqué dans les corps de message",
     "stage_mode_active": "Mode scène (?stage=1) — animations réduites · vitesse 2×",
-    "money_shot_title": "Money shot — IOCs financiers révélés",
+    "money_shot_title": "Indicateurs financiers révélés",
     "money_shot_revealed_at": "Révélé au tour {{turn}}/{{total}} — {{pct}}% de la conversation",
     "corpus_median": "Médiane corpus : {{pct}}% (N={{n}} clos)",
     "multi_domain_operator": "Multi-domaine",
