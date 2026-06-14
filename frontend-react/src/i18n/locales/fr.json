@@ -576,6 +576,7 @@
     "pause": "Pause",
     "restart": "Redémarrer",
     "skip": "Aller à la fin",
-    "progress": "Progression du replay"
+    "progress": "Progression du replay",
+    "keyboardHintTitle": "Clavier : ← précédent · → suivant · Espace lecture/pause · M masquer · Home début · End fin"
   }
 }

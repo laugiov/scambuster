@@ -7,9 +7,10 @@ import { useCallback, useEffect, useReducer, useRef } from 'react';
  * Plus: currentStep (0..messages.length), speed (1|2|4), maskMode (in
  * useMaskMode), typingDirection (transient, drives the indicator UI).
  *
- * Step delay is constant (1700ms / speed) between reveals; typing
- * indicator stays for 650ms / speed before the next message reveal.
- * setTimeout-driven (not RAF) so pause is deterministic.
+ * Step delay is 3000ms / speed (normal) or 1200ms / speed (reduced
+ * motion) between reveals. setTimeout-driven (not RAF) so pause is
+ * deterministic. The 3s base gives the viewer time to actually read
+ * each message at 1×; 4× = 750ms for snappy demo flythrough.
  *
  * Cleanup invariant: ALL pending timeouts are cleared on unmount via
  * the ref + useEffect return. No state update on unmounted component.
@@ -100,7 +101,6 @@ export function useTheaterPlayer({ totalSteps, reducedMotion = false }: UseTheat
   });
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const mountedRef = useRef(true);
 
   // Keep total in sync when conv loads/changes
   useEffect(() => {
@@ -110,22 +110,19 @@ export function useTheaterPlayer({ totalSteps, reducedMotion = false }: UseTheat
   // Drive the playback loop — ONE timeout per step. The typing indicator
   // is rendered by Theater.tsx as a DERIVED value (status=playing AND
   // !reducedMotion AND step < total). This avoids the dispatch-then-
-  // setTimeout combo which was flaky under React 18 strict mode.
+  // setTimeout combo which was flaky under React 18 Strict Mode.
+  //
+  // No mountedRef guard: the cleanup's clearTimeout() makes setTimeout
+  // unreachable after unmount. A mountedRef would survive across the
+  // Strict-Mode double-mount (useRef does NOT reset on remount) and
+  // permanently silence the dispatch.
   useEffect(() => {
-    if (state.status !== 'playing') {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      return;
-    }
-
+    if (state.status !== 'playing') return;
     if (state.currentStep >= state.totalSteps) return;
 
-    const delay = reducedMotion ? 600 / state.speed : 1500 / state.speed;
+    const delay = reducedMotion ? 1200 / state.speed : 3000 / state.speed;
 
     timeoutRef.current = setTimeout(() => {
-      if (!mountedRef.current) return;
       dispatch({ type: 'STEP_REVEAL' });
     }, delay);
 
@@ -136,17 +133,6 @@ export function useTheaterPlayer({ totalSteps, reducedMotion = false }: UseTheat
       }
     };
   }, [state.status, state.currentStep, state.totalSteps, state.speed, reducedMotion]);
-
-  // Cleanup on unmount — prevents setTimeout firing after unmount
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    };
-  }, []);
 
   return {
     state,

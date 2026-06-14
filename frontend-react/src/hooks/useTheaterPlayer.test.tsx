@@ -28,15 +28,15 @@ describe('useTheaterPlayer / Spec 097 S4 — state machine', () => {
     act(() => result.current.play());
     expect(result.current.state.status).toBe('playing');
     act(() => {
-      vi.advanceTimersByTime(600);
+      vi.advanceTimersByTime(1200);
     });
     expect(result.current.state.currentStep).toBe(1);
     act(() => {
-      vi.advanceTimersByTime(600);
+      vi.advanceTimersByTime(1200);
     });
     expect(result.current.state.currentStep).toBe(2);
     act(() => {
-      vi.advanceTimersByTime(600);
+      vi.advanceTimersByTime(1200);
     });
     expect(result.current.state.status).toBe('finished');
     expect(result.current.state.currentStep).toBe(3);
@@ -90,12 +90,12 @@ describe('useTheaterPlayer / Spec 097 S4 — state machine', () => {
   });
 
   it('SET_SPEED changes the multiplier and shortens delays', () => {
-    const { result } = setup(2, true /* reducedMotion: 600ms base */);
+    const { result } = setup(2, true /* reducedMotion: 1200ms base */);
     act(() => result.current.setSpeed(4));
     expect(result.current.state.speed).toBe(4);
     act(() => result.current.play());
     act(() => {
-      vi.advanceTimersByTime(150); // 600 / 4
+      vi.advanceTimersByTime(300); // 1200 / 4
     });
     expect(result.current.state.currentStep).toBe(1);
   });
@@ -123,11 +123,11 @@ describe('useTheaterPlayer / Spec 097 S4 — state machine', () => {
     // No assertion crash = success (no act() warning, no leak)
   });
 
-  it('Reduced-motion: reveals immediately (delay shorter)', () => {
+  it('Reduced-motion: reveal after 1200ms / speed', () => {
     const { result } = setup(3, true);
     act(() => result.current.play());
     act(() => {
-      vi.advanceTimersByTime(599);
+      vi.advanceTimersByTime(1199);
     });
     expect(result.current.state.currentStep).toBe(0);
     act(() => {
@@ -136,11 +136,28 @@ describe('useTheaterPlayer / Spec 097 S4 — state machine', () => {
     expect(result.current.state.currentStep).toBe(1);
   });
 
-  it('Normal motion: reveal after typing delay (1500ms / speed)', () => {
+  it('REGRESSION: survives React Strict-Mode double-mount and still advances', () => {
+    // Strict Mode mounts the component twice in dev. A previous version of
+    // this hook kept a `mountedRef` that was set to `false` on the first
+    // cleanup and never reset on remount, permanently silencing the
+    // STEP_REVEAL dispatch. This test simulates that pattern by rendering
+    // → unmounting → rendering a second time and asserting playback still
+    // advances on the second instance.
+    const { unmount } = renderHook(() => useTheaterPlayer({ totalSteps: 3, reducedMotion: true }));
+    unmount();
+    const second = renderHook(() => useTheaterPlayer({ totalSteps: 3, reducedMotion: true }));
+    act(() => second.result.current.play());
+    act(() => {
+      vi.advanceTimersByTime(1200);
+    });
+    expect(second.result.current.state.currentStep).toBe(1);
+  });
+
+  it('Normal motion: reveal after typing delay (3000ms / speed)', () => {
     const { result } = setup(3, false);
     act(() => result.current.play());
     act(() => {
-      vi.advanceTimersByTime(1499);
+      vi.advanceTimersByTime(2999);
     });
     expect(result.current.state.currentStep).toBe(0);
     act(() => {
