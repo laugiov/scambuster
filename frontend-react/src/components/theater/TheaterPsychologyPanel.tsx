@@ -33,7 +33,12 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
   const { t } = useTranslation();
   const det = hf.deterministic;
   const llm = hf.exploratory_llm_signals;
-  const lowCoverage = meta.enrichment_coverage_pct < 50;
+  // Spec 100 S6 — coverage warning threshold relaxed from <50% to
+  // <30%. Empirically the enrichment pipeline routinely lands in the
+  // 40-60% range on healthy data; flagging that as "limited" trained
+  // viewers to ignore the warning. <30% is the new threshold where
+  // the LLM signals genuinely cease to be representative.
+  const lowCoverage = meta.enrichment_coverage_pct < 30;
   const confidencePct =
     typeof llm.enrichment_confidence_avg === 'number'
       ? Math.round(llm.enrichment_confidence_avg * 100)
@@ -151,10 +156,18 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
           "feature broken"). The deterministic block above carries the
           conversation either way. */}
       {(() => {
-        const isEmpty =
-          (llm.iocs_under_active_stimulus ?? 0) === 0
-          && (llm.hesitation_count ?? 0) === 0
-          && (llm.avg_urgency_at_reveal === null || llm.avg_urgency_at_reveal === 0);
+        // Spec 100 S5 — tighter "empty" heuristic. Previously all 3
+        // had to be zero; in practice the LLM often produces a low
+        // non-zero urgency (e.g. 24%) on otherwise-empty data, which
+        // kept the full panel rendering "0/N · 0/N · 24%" — reads
+        // as broken. New rule: ≥2 of the 3 signal fields zero/null
+        // counts as empty.
+        const zeros = [
+          (llm.iocs_under_active_stimulus ?? 0) === 0 ? 1 : 0,
+          (llm.hesitation_count ?? 0) === 0 ? 1 : 0,
+          (llm.avg_urgency_at_reveal === null || llm.avg_urgency_at_reveal === 0) ? 1 : 0,
+        ].reduce<number>((a, b) => a + b, 0);
+        const isEmpty = zeros >= 2;
 
         if (isEmpty) {
           return (

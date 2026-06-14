@@ -154,9 +154,13 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     expect(screen.queryByTestId('theater-psychology-llm')).toBeNull();
   });
 
-  it('renders full LLM sub-block when at least one signal is non-zero (Spec 099 S5)', async () => {
+  it('renders full LLM sub-block when at least 2 signals are non-zero (Spec 100 S5)', async () => {
     const fix = fixture();
+    // Spec 100 S5 — tighter heuristic: need ≥2/3 signals non-zero
+    // to escape the "empty" collapse. One non-zero alone no longer
+    // qualifies (was the case under Spec 099 S5).
     fix.human_factor.exploratory_llm_signals.iocs_under_active_stimulus = 3;
+    fix.human_factor.exploratory_llm_signals.hesitation_count = 2;
     server.use(
       http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
     );
