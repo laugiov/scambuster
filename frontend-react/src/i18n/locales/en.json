@@ -577,6 +577,13 @@
     "restart": "Restart",
     "skip": "Skip to end",
     "progress": "Replay progress",
-    "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · Home start · End finish"
+    "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · Home start · End finish",
+    "chapter": {
+      "first_phone": "First phone shared",
+      "first_url": "First URL shared",
+      "first_domain": "First domain shared",
+      "first_financial": "First financial IOC",
+      "cascade": "Cascade ({{count}} IOC types in one turn)"
+    }
   }
 }

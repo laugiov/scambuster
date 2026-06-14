@@ -10,7 +10,7 @@ import { TheaterHeader } from '@/components/theater/TheaterHeader';
 import { TheaterThread } from '@/components/theater/TheaterThread';
 import { TheaterIntelligencePanel } from '@/components/theater/TheaterIntelligencePanel';
 import { TheaterPsychologyPanel } from '@/components/theater/TheaterPsychologyPanel';
-import { TheaterTransport } from '@/components/theater/TheaterTransport';
+import { TheaterTransport, type TheaterChapter } from '@/components/theater/TheaterTransport';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 
@@ -40,6 +40,7 @@ export function Theater() {
 }
 
 function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheaterReplay>['data']> }) {
+  const { t } = useTranslation();
   const reducedMotion = useReducedMotion();
   const { toggle: toggleMask } = useMaskMode();
 
@@ -97,6 +98,49 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
 
   const finished = useMemo(() => state.status === 'finished', [state.status]);
 
+  // Spec 099 S3 — chapter markers on the progress bar. We derive one
+  // marker per narrative beat:
+  //   - first PHONE / URL / DOMAIN observation (one each, at most)
+  //   - first FINANCIAL IOC (any of iban/bic/wallet*/bank_account/credit_card)
+  //   - one per cascade event (≥2 IOC types yielded in a single turn)
+  // The presenter scrubs to any marker by clicking it (TheaterTransport
+  // wires the onClick → onScrub).
+  const chapters = useMemo<TheaterChapter[]>(() => {
+    const msgIdxById = new Map<string, number>();
+    data.messages.forEach((m, i) => msgIdxById.set(m.msg_id, i));
+
+    const FINANCIAL_TYPES = new Set(['iban', 'bic', 'wallet_btc', 'wallet_eth', 'wallet_xmr', 'bank_account', 'credit_card']);
+    const sortedIocs = [...data.iocs_by_msg].sort((a, b) => (msgIdxById.get(a.msg_id) ?? 0) - (msgIdxById.get(b.msg_id) ?? 0));
+
+    const firstByKind: Record<string, TheaterChapter | undefined> = {};
+    const acc: TheaterChapter[] = [];
+
+    const pushFirst = (kind: TheaterChapter['kind'], step: number, label: string) => {
+      if (firstByKind[kind] === undefined && step >= 0) {
+        firstByKind[kind] = { kind, step, label };
+        acc.push(firstByKind[kind]!);
+      }
+    };
+
+    for (const ioc of sortedIocs) {
+      const step = msgIdxById.get(ioc.msg_id);
+      if (step === undefined) continue;
+      if (ioc.type === 'phone') pushFirst('first_phone', step, t('theater.chapter.first_phone'));
+      else if (ioc.type === 'url') pushFirst('first_url', step, t('theater.chapter.first_url'));
+      else if (ioc.type === 'domain') pushFirst('first_domain', step, t('theater.chapter.first_domain'));
+      if (FINANCIAL_TYPES.has(ioc.type)) pushFirst('first_financial', step, t('theater.chapter.first_financial'));
+    }
+
+    for (const ev of data.human_factor.deterministic.cascade_events) {
+      const step = msgIdxById.get(ev.trigger_msg_id);
+      if (step !== undefined) {
+        acc.push({ kind: 'cascade', step, label: t('theater.chapter.cascade', { count: ev.yielded_types.length }) });
+      }
+    }
+
+    return acc.filter((c) => c.step < data.messages.length);
+  }, [data.messages, data.iocs_by_msg, data.human_factor.deterministic.cascade_events, t]);
+
   // Spec 097 — typing direction is DERIVED from state (not dispatched).
   // Shows while we're actively playing and the next message is about to reveal.
   const typingDirection = useMemo<'in' | 'out' | null>(() => {
@@ -130,6 +174,7 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
         currentStep={state.currentStep}
         totalSteps={state.totalSteps}
         speed={state.speed}
+        chapters={chapters}
         onPlay={play}
         onPause={pause}
         onRestart={restart}

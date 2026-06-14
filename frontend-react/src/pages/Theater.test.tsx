@@ -146,4 +146,61 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     renderTheater();
     await waitFor(() => expect(screen.getByTestId('keyboard-hint')).toBeTruthy());
   });
+
+  it('renders chapter markers on the progress bar (Spec 099 S3)', async () => {
+    // The base fixture has no IOCs and no cascades, so we need a richer
+    // fixture for this case. Re-define handlers inline with a financial
+    // IOC + a phone IOC + a cascade event.
+    const richFixture = fixture();
+    richFixture.iocs_by_msg = [
+      {
+        indicator_id: 'ind-1',
+        type: 'phone',
+        value: '+15555550111',
+        value_norm: '+15555550111',
+        category: 'contact',
+        msg_id: '22222222-2222-2222-2222-222222222222',
+        msg_idx: 1,
+        ts_observed: '2026-06-10T10:30:00Z',
+        revelation_context: null,
+      },
+      {
+        indicator_id: 'ind-2',
+        type: 'iban',
+        value: 'DE89370400440532013000',
+        value_norm: 'DE89370400440532013000',
+        category: 'financial',
+        msg_id: '33333333-3333-3333-3333-333333333333',
+        msg_idx: 2,
+        ts_observed: '2026-06-10T11:00:00Z',
+        revelation_context: null,
+      },
+    ];
+    richFixture.human_factor.deterministic.cascade_events = [
+      {
+        trigger_msg_id: '33333333-3333-3333-3333-333333333333',
+        turn: 3,
+        yielded_types: ['iban', 'bic'],
+      },
+    ];
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(richFixture)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByTestId('chapter-first_phone')).toBeTruthy());
+    expect(screen.getByTestId('chapter-first_financial')).toBeTruthy();
+    expect(screen.getByTestId('chapter-cascade')).toBeTruthy();
+  });
 });
