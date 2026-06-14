@@ -104,42 +104,75 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
         />
       </div>
 
-      {/* EXPLORATORY LLM SIGNALS — sub-section with caveat */}
-      <div className="bg-surface-low rounded-lg p-4 flex flex-col gap-2 border border-amber-500/20">
-        <h3 className="text-[11px] font-mono uppercase tracking-widest text-amber-300/80 mb-1">
-          {t('theater.exploratory_signals')}
-          {confidencePct !== null && (
-            <span className="ml-2 text-on-surface-dim normal-case font-normal tracking-normal">
-              — {t('theater.avg_confidence', { pct: confidencePct })}
-            </span>
-          )}
-        </h3>
-        <p className="text-[11px] italic text-on-surface-dim mb-2">
-          {t('theater.exploratory_caveat')}
-        </p>
-        {lowCoverage && (
-          <p className="text-[11px] text-amber-300 font-mono mb-1">
-            ⚠ {t('theater.limited_coverage', { pct: meta.enrichment_coverage_pct.toFixed(0) })}
-          </p>
-        )}
-        <SmallStat
-          label={t('theater.iocs_under_active_stim')}
-          value={`${llm.iocs_under_active_stimulus} / ${meta.iocs_count}`}
-        />
-        <SmallStat
-          label={t('theater.avg_urgency')}
-          value={
-            llm.avg_urgency_at_reveal === null
-              ? '—'
-              : `${Math.round(llm.avg_urgency_at_reveal * 100)}%`
-          }
-        />
-        <SmallStat
-          label={t('theater.hesitation_labelled')}
-          value={`${llm.hesitation_count} / ${meta.iocs_count}`}
-        />
-        <SmallStat label={t('theater.coverage')} value={`${meta.enrichment_coverage_pct.toFixed(0)}%`} />
-      </div>
+      {/* EXPLORATORY LLM SIGNALS — sub-section with caveat.
+          Spec 099 S5: hide-when-empty. If every per-IOC signal field
+          is zero/null, the sub-block collapses to a single honest line
+          rather than displaying "0 / N" everywhere (which reads as
+          "feature broken"). The deterministic block above carries the
+          conversation either way. */}
+      {(() => {
+        const isEmpty =
+          (llm.iocs_under_active_stimulus ?? 0) === 0
+          && (llm.hesitation_count ?? 0) === 0
+          && (llm.avg_urgency_at_reveal === null || llm.avg_urgency_at_reveal === 0);
+
+        if (isEmpty) {
+          return (
+            <div
+              className="bg-surface-low rounded-lg p-4 flex flex-col gap-1 border border-outline-variant"
+              data-testid="theater-psychology-llm-empty"
+            >
+              <h3 className="text-[11px] font-mono uppercase tracking-widest text-on-surface-dim mb-1">
+                {t('theater.exploratory_signals')}
+              </h3>
+              <p className="text-[11px] italic text-on-surface-dim">
+                {t('theater.no_labelled_signals')}
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <div
+            className="bg-surface-low rounded-lg p-4 flex flex-col gap-2 border border-amber-500/20"
+            data-testid="theater-psychology-llm"
+          >
+            <h3 className="text-[11px] font-mono uppercase tracking-widest text-amber-300/80 mb-1">
+              {t('theater.exploratory_signals')}
+              {confidencePct !== null && (
+                <span className="ml-2 text-on-surface-dim normal-case font-normal tracking-normal">
+                  — {t('theater.avg_confidence', { pct: confidencePct })}
+                </span>
+              )}
+            </h3>
+            <p className="text-[11px] italic text-on-surface-dim mb-2">
+              {t('theater.exploratory_caveat')}
+            </p>
+            {lowCoverage && (
+              <p className="text-[11px] text-amber-300 font-mono mb-1">
+                ⚠ {t('theater.limited_coverage', { pct: meta.enrichment_coverage_pct.toFixed(0) })}
+              </p>
+            )}
+            <SmallStat
+              label={t('theater.iocs_under_active_stim')}
+              value={`${llm.iocs_under_active_stimulus} / ${meta.iocs_count}`}
+            />
+            <SmallStat
+              label={t('theater.avg_urgency')}
+              value={
+                llm.avg_urgency_at_reveal === null
+                  ? '—'
+                  : `${Math.round(llm.avg_urgency_at_reveal * 100)}%`
+              }
+            />
+            <SmallStat
+              label={t('theater.hesitation_labelled')}
+              value={`${llm.hesitation_count} / ${meta.iocs_count}`}
+            />
+            <SmallStat label={t('theater.coverage')} value={`${meta.enrichment_coverage_pct.toFixed(0)}%`} />
+          </div>
+        );
+      })()}
 
       {finished && (
         <p className="text-[11px] text-on-surface-dim italic px-1">

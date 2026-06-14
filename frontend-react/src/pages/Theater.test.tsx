@@ -147,6 +147,36 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     await waitFor(() => expect(screen.getByTestId('keyboard-hint')).toBeTruthy());
   });
 
+  it('collapses LLM sub-block when all signals are zero (Spec 099 S5)', async () => {
+    // Base fixture already has all zeros for exploratory_llm_signals.
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('theater-psychology-llm-empty')).toBeTruthy());
+    expect(screen.queryByTestId('theater-psychology-llm')).toBeNull();
+  });
+
+  it('renders full LLM sub-block when at least one signal is non-zero (Spec 099 S5)', async () => {
+    const fix = fixture();
+    fix.human_factor.exploratory_llm_signals.iocs_under_active_stimulus = 3;
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    await waitFor(() => expect(screen.getByTestId('theater-psychology-llm')).toBeTruthy());
+    expect(screen.queryByTestId('theater-psychology-llm-empty')).toBeNull();
+  });
+
   it('renders teaser at step 0 idle, hidden once playback advances (Spec 099 S4)', async () => {
     renderTheater();
     await waitFor(() => expect(screen.getByTestId('theater-teaser')).toBeTruthy());
