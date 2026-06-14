@@ -12,9 +12,12 @@ use Psr\Log\NullLogger;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
 /**
- * Tests for F3 (urgency prompt refinement) and F5 (SHA256 role prompt).
+ * Tests for the contextual enrichment fallback prompt.
  *
- * Verifies the fallback prompt template contains the required guidance text.
+ * Original coverage (F3 urgency calibration, F5 SHA256 role guidance)
+ * is preserved via semantic assertions. Spec 102 / Phase E-S5 v2
+ * additions assert the new anti-bias guardrails for stimulus_type,
+ * hesitation_detected, and language_switch_detected.
  */
 final class ContextualEnricherPromptTest extends TestCase
 {
@@ -32,41 +35,40 @@ final class ContextualEnricherPromptTest extends TestCase
         $this->promptText = $ref->invoke($enricher);
     }
 
-    // --- F3: Urgency prompt refinement ---
+    // --- F3: Urgency prompt — anti-default + calibrated anchors ---
 
-    public function test_prompt_contains_do_not_default_to_075(): void
+    public function test_prompt_contains_anti_default_instruction(): void
     {
         $this->assertStringContainsString(
-            'Do NOT default to 0.75',
+            'Do NOT default to 0.5 or 0.75',
             $this->promptText,
-            'Prompt must contain anti-default-0.75 instruction',
+            'Prompt must instruct LLM not to anchor on common default values',
         );
     }
 
-    public function test_prompt_contains_full_range(): void
+    public function test_prompt_contains_calibration_anchors(): void
     {
-        $this->assertStringContainsString(
-            'FULL range',
-            $this->promptText,
-            'Prompt must instruct LLM to use FULL range',
-        );
+        // v2 uses 6 calibrated anchors (0.05 / 0.20 / 0.40 / 0.60 / 0.80 / 0.95)
+        // rather than the 10-bucket scale from F3 (which clustered around 0.5).
+        foreach (['0.05', '0.20', '0.40', '0.60', '0.80', '0.95'] as $anchor) {
+            $this->assertStringContainsString(
+                $anchor,
+                $this->promptText,
+                "Prompt must contain urgency anchor {$anchor}",
+            );
+        }
     }
 
-    public function test_prompt_contains_10_point_scale(): void
-    {
-        $this->assertStringContainsString('0.00-0.10', $this->promptText);
-        $this->assertStringContainsString('0.95-1.00', $this->promptText);
-    }
+    // --- F5: SHA256 role guidance preserved ---
 
-    // --- F5: SHA256 role prompt ---
-
-    public function test_prompt_contains_hash_footer_guidance(): void
+    public function test_prompt_contains_hash_signature_guidance(): void
     {
-        $this->assertStringContainsString(
-            'footer',
-            $this->promptText,
-            'Prompt must mention footer context for hash role assignment',
-        );
+        // v2 uses "signature blocks, audit fingerprints, footers" instead
+        // of the original F5 "footer" phrasing — assert any of the three.
+        $found = str_contains($this->promptText, 'signature')
+            || str_contains($this->promptText, 'footer')
+            || str_contains($this->promptText, 'fingerprint');
+        $this->assertTrue($found, 'Prompt must guide hash role for non-malware contexts');
     }
 
     public function test_prompt_contains_hash_identity_document_default(): void
@@ -84,6 +86,69 @@ final class ContextualEnricherPromptTest extends TestCase
             'MALWARE_DOWNLOAD_URL',
             $this->promptText,
             'Prompt must mention MALWARE_DOWNLOAD_URL for inline hashes',
+        );
+    }
+
+    // --- Spec 102 / Phase E-S5 v2 additions ---
+
+    public function test_prompt_contains_anti_passive_bias_rule(): void
+    {
+        $this->assertStringContainsString(
+            'ANTI-BIAS RULE',
+            $this->promptText,
+            'Prompt must contain explicit anti-PASSIVE-bias rule',
+        );
+        $this->assertStringContainsString(
+            'PASSIVE is the LAST resort',
+            $this->promptText,
+            'Prompt must declare PASSIVE as last-resort, not default',
+        );
+    }
+
+    public function test_prompt_contains_hesitation_strict_definition(): void
+    {
+        // v2 narrows hesitation_detected by explicitly excluding politeness
+        // and delay apologies — those were the major FP source per Phase D.
+        $this->assertStringContainsString(
+            'politeness',
+            $this->promptText,
+            'Prompt must explicitly exclude politeness from hesitation detection',
+        );
+        $this->assertStringContainsString(
+            'delay apology',
+            $this->promptText,
+            'Prompt must explicitly exclude delay apologies from hesitation detection',
+        );
+    }
+
+    public function test_prompt_contains_language_switch_strict_definition(): void
+    {
+        // v2 narrows language_switch_detected to intra-message switches only,
+        // excluding entire non-English emails (the major FP source per Phase D).
+        $this->assertStringContainsString(
+            'WITHIN this message',
+            $this->promptText,
+            'Prompt must require intra-message switch for language_switch=true',
+        );
+    }
+
+    public function test_prompt_contains_phishing_url_tightening(): void
+    {
+        // v2 tightens PHISHING_CREDENTIAL_URL to credential-soliciting paths
+        // only, sending marketing/notification URLs to INFRASTRUCTURE_DOMAIN.
+        $this->assertStringContainsString(
+            'INFRASTRUCTURE_DOMAIN, not PHISHING_CREDENTIAL_URL',
+            $this->promptText,
+            'Prompt must tighten URL classification rule',
+        );
+    }
+
+    public function test_prompt_contains_excerpt_specificity_requirement(): void
+    {
+        $this->assertStringContainsString(
+            'CONCRETE detail',
+            $this->promptText,
+            'Prompt must require concrete detail in context_excerpt',
         );
     }
 }

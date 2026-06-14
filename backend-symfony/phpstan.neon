@@ -8,6 +8,15 @@ parameters:
         - tests
     excludePaths:
         - src/UI/Console/LoadDemoDataCommand.php
+        # Spec 102 — research/eval tooling (human-factor calibration harness).
+        # Same precedent as LoadDemoDataCommand: scientific exploration commands
+        # are not production code paths; PHPStan max strict typing on the
+        # DB row + CLI option boundaries here creates more friction than safety.
+        - src/UI/Console/EvalSampleTestSetCommand.php
+        - src/UI/Console/EvalRenderIocCommand.php
+        - src/UI/Console/EvalRunJudgeCommand.php
+        - src/UI/Console/EvalComputeMetricsCommand.php
+        - src/UI/Console/EvalTestPromptV2Command.php
     checkMissingIterableValueType: true
     checkGenericClassInNonGenericObjectType: true
     checkUnionTypes: true
