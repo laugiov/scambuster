@@ -579,6 +579,7 @@
     "progress": "Replay progress",
     "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · Home start · End finish",
     "no_labelled_signals": "No labelled signals on this conversation. The deterministic metrics above stand on their own.",
+    "context_section": "Header context ({{count}}) — subject, message-id, auth results",
     "spoiler_pending": "(reveals as you play)",
     "teaser_hint": "Press ▶ or → to start",
     "teaser_play_to_begin": "Press play or arrow keys to step through the conversation",

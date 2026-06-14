@@ -92,6 +92,12 @@ final readonly class TheaterAssemblyService
             'ts_last' => $conv->getTsLast()->format(DATE_ATOM),
             'messages_count' => \count($messages),
             'iocs_count' => \count($iocsByMsg),
+            // Spec 099 S6 — count of IOCs in the Actionable tier (excludes
+            // header artifacts: subject, message_id, auth results, whois_*).
+            // Mirrors the frontend `tierForIocType` mapping so the headline
+            // number in the Theater can be cross-checked from the backend
+            // payload alone.
+            'iocs_count_actionable' => $this->countActionableIocs($iocsByMsg),
             'long_conversation_truncated' => $truncated,
             'enrichment_coverage_pct' => $enrichmentCoveragePct,
         ];
@@ -215,6 +221,41 @@ final readonly class TheaterAssemblyService
         }
 
         return $out;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $iocsByMsg
+     */
+    /**
+     * Spec 099 S6 — count IOCs in the Actionable tier. The Context tier
+     * (subject/message_id/auth-results/whois) is excluded so the headline
+     * number in the Theater Intelligence panel reflects analyst-pivotable
+     * IOCs only. The mapping mirrors the frontend `tierForIocType`.
+     *
+     * @param list<array<string, mixed>> $iocsByMsg
+     */
+    private function countActionableIocs(array $iocsByMsg): int
+    {
+        $contextTypes = [
+            'subject', 'message_id', 'x_mailer', 'return_path',
+            'spf_result', 'dkim_result', 'dmarc_result',
+            'whois_email', 'whois_registrar_name', 'registrar',
+            'filename', 'mimetype',
+            'cve', 'malware_family', 'mitre_attack_id', 'tracking_number',
+            'md5', 'sha1', 'sha256',
+        ];
+        $contextSet = array_fill_keys($contextTypes, true);
+        $count = 0;
+
+        foreach ($iocsByMsg as $ioc) {
+            $type = \is_string($ioc['type'] ?? null) ? $ioc['type'] : null;
+
+            if ($type !== null && !isset($contextSet[$type])) {
+                $count++;
+            }
+        }
+
+        return $count;
     }
 
     /**
