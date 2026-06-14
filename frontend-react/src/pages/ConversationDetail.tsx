@@ -89,7 +89,7 @@ export function ConversationDetail() {
             <Link
               to={`/conversations/${id}/theater`}
               title={t('conversationDetail.replayExtraction')}
-              className="ml-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-accent text-bg rounded-md shadow-md shadow-accent/30 hover:bg-accent-hover hover:shadow-lg hover:shadow-accent/40 hover:-translate-y-px active:translate-y-0 transition-all"
+              className="ml-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-accent-muted text-on-surface rounded-md shadow-md shadow-accent-muted/40 hover:bg-accent hover:text-surface-base hover:shadow-lg hover:shadow-accent/40 hover:-translate-y-px active:translate-y-0 transition-all"
               data-testid="theater-link"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
