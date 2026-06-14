@@ -219,6 +219,35 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     await waitFor(() => expect(screen.queryByText(/reveals as you play/i)).toBeNull());
   });
 
+  it('?stage=1 enters stage mode: screen-share auto-on + stage banner (Spec 100 S7)', async () => {
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fixture())),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater?stage=1`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    // Screen-share banner appears AUTOMATICALLY because ?stage=1 toggled it
+    await waitFor(() => expect(screen.getByTestId('screen-share-banner')).toBeTruthy());
+    // The stage-mode flag is visible inside the banner
+    expect(screen.getByText(/Stage mode/i)).toBeTruthy();
+  });
+
+  it('default Theater route (no ?stage) does NOT auto-enable screen-share (Spec 100 S7)', async () => {
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('play-pause')).toBeTruthy());
+    expect(screen.queryByTestId('screen-share-banner')).toBeNull();
+  });
+
   it('toggles screen-share mode via S key + masks IOC values in bodies (Spec 099 S7)', async () => {
     const fix = fixture();
     fix.messages[0].body_text = 'Send wire to DE89370400440532013000 today';

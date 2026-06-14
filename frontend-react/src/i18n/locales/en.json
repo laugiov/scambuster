@@ -579,6 +579,7 @@
     "progress": "Replay progress",
     "keyboardHintTitle": "Keyboard: ← previous · → next · Space play/pause · M toggle mask · S screen-share mode · Home start · End finish",
     "screen_share_active": "Screen-share mode active — message body PII masked",
+    "stage_mode_active": "Stage mode (?stage=1) — reduced motion · 2× speed",
     "money_shot_title": "Money shot — financial IOCs revealed",
     "money_shot_revealed_at": "Revealed at turn {{turn}}/{{total}} — {{pct}}% into the conversation",
     "corpus_median": "Corpus median: {{pct}}% (N={{n}} closed)",

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTheaterReplay } from '@/hooks/useTheaterReplay';
 import { useTheaterPlayer } from '@/hooks/useTheaterPlayer';
@@ -41,8 +41,14 @@ export function Theater() {
 
 function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheaterReplay>['data']> }) {
   const { t } = useTranslation();
-  const reducedMotion = useReducedMotion();
-  const { toggle: toggleMask, toggleScreenShare, screenShareMode } = useMaskMode();
+  const reducedMotionOs = useReducedMotion();
+  const [searchParams] = useSearchParams();
+  // Spec 100 S7 — `?stage=1` enters presenter mode: screen-share on,
+  // reduced-motion on, default playback speed 2×. Honoured once on
+  // first render via the effect below.
+  const stageMode = searchParams.get('stage') === '1';
+  const reducedMotion = reducedMotionOs || stageMode;
+  const { toggle: toggleMask, toggleScreenShare, screenShareMode, setMasked } = useMaskMode();
 
   // directionAt: maps step index to message direction for the typing indicator.
   const directionAt = useCallback(
@@ -99,6 +105,19 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [state.status, state.currentStep, play, pause, scrub, skipToEnd, toggleMask, toggleScreenShare]);
+
+  // Spec 100 S7 — apply `?stage=1` once on mount: screen-share on,
+  // default playback speed 2×, keep mask defaults so the right panel
+  // stays redacted on stage. Idempotent: reload of the same URL
+  // re-applies the same state.
+  const stageAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!stageMode || stageAppliedRef.current) return;
+    stageAppliedRef.current = true;
+    toggleScreenShare(); // false → true
+    setSpeed(2);
+    setMasked(true);
+  }, [stageMode, toggleScreenShare, setSpeed, setMasked]);
 
   const finished = useMemo(() => state.status === 'finished', [state.status]);
 
@@ -162,6 +181,9 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
           data-testid="screen-share-banner"
         >
           🔒 {t('theater.screen_share_active')}
+          {stageMode && (
+            <span className="ml-3 text-emerald-200/80">· {t('theater.stage_mode_active')}</span>
+          )}
         </div>
       )}
       <TheaterHeader meta={data.meta} />
