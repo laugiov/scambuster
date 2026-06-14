@@ -4,6 +4,7 @@ import type { TheaterIoc, TheaterMessage } from '@/hooks/useTheaterReplay';
 import { TheaterIocCard } from './TheaterIocCard';
 import { TheaterMoneyShot } from './TheaterMoneyShot';
 import { TheaterDomainClusterCard } from './TheaterDomainClusterCard';
+import { TheaterTradecraftChips } from './TheaterTradecraftChips';
 import { tierForIocType } from '@/lib/iocTier';
 import { clusterDomainVariants } from '@/lib/domainVariants';
 
@@ -80,6 +81,10 @@ export function TheaterIntelligencePanel({ iocs, messages, visibleStep }: Theate
       {/* Spec 100 S1 — pinned money-shot at the top when financial
           IOCs have already revealed. Stacks one card per IOC. */}
       <TheaterMoneyShot iocs={visibleIocs} messages={messages} visibleStep={visibleStep} />
+
+      {/* Spec 101 S4 — tradecraft signals (e.g. email trackers) in
+          the bodies of already-revealed messages. */}
+      <TheaterTradecraftChips messages={messages} visibleStep={visibleStep} />
 
       {/* Actionable tier — financial, contact, infrastructure.
           Spec 100 S3 — domain + url IOCs go through clusterDomainVariants

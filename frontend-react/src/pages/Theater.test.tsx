@@ -210,13 +210,91 @@ describe('Theater page — keyboard navigation (Spec 097 follow-up)', () => {
     );
     render(<Theater />, { wrapper: Wrapper });
 
-    // step 0 → spoiler placeholder
-    await waitFor(() => expect(screen.getByText(/reveals as you play/i)).toBeTruthy());
+    // step 0 → both first_financial AND language_switches show the
+    // spoiler placeholder (Spec 099 S4 + Spec 101 S6).
+    await waitFor(() => expect(screen.getAllByText(/reveals as you play/i).length).toBeGreaterThanOrEqual(1));
 
-    // arrow-right twice → reach turn 2 → spoiler revealed
+    // arrow-right twice → reach turn 2 → first_financial revealed,
+    // language_switches still hidden (only reveals at full conv end).
     fireEvent.keyDown(window, { key: 'ArrowRight' });
     fireEvent.keyDown(window, { key: 'ArrowRight' });
-    await waitFor(() => expect(screen.queryByText(/reveals as you play/i)).toBeNull());
+    await waitFor(() => {
+      // first_financial line no longer contains "reveals as you play"
+      // (specifically check the financial line by its label).
+      const financialLabel = screen.getByText(/first financial IOC at/i);
+      const row = financialLabel.closest('p, div');
+      expect(row?.textContent ?? '').not.toMatch(/reveals as you play/i);
+    });
+  });
+
+  it('Spec 101 S6: cascade_events counter ticks up live (not pre-spoiled at step 0)', async () => {
+    const fix = fixture();
+    fix.human_factor.deterministic.cascade_events = [
+      { trigger_msg_id: 'x', turn: 2, yielded_types: ['url', 'phone'] },
+      { trigger_msg_id: 'y', turn: 3, yielded_types: ['iban', 'bic'] },
+    ];
+    fix.human_factor.deterministic.total_turns = 3;
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fix)),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+
+    // Step 0 → 0 cascade events visible (neither has triggered yet)
+    await waitFor(() => {
+      const label = screen.getByText(/cascade events/i);
+      const row = label.closest('p, div');
+      expect(row?.textContent ?? '').toMatch(/\b0\b/);
+    });
+
+    // Step 2 → one cascade visible (turn 2)
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => {
+      const label = screen.getByText(/cascade events/i);
+      const row = label.closest('p, div');
+      expect(row?.textContent ?? '').toMatch(/\b1\b/);
+    });
+  });
+
+  it('Spec 101 S5: step-0 warning visible when screen-share is OFF + dismisses after first reveal', async () => {
+    renderTheater();
+    await waitFor(() => expect(screen.getByTestId('screen-share-warning')).toBeTruthy());
+
+    // First arrow-right reveal dismisses the warning
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await waitFor(() => expect(screen.queryByTestId('screen-share-warning')).toBeNull());
+  });
+
+  it('Spec 101 S5: step-0 warning is NOT shown when screen-share is ON', async () => {
+    server.use(
+      http.get(`${BASE}/communication/conversation/${CONV_ID}/theater`, () => HttpResponse.json(fixture())),
+    );
+
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const Wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={qc}>
+        <MemoryRouter initialEntries={[`/conversations/${CONV_ID}/theater?stage=1`]}>
+          <Routes>
+            <Route path="/conversations/:id/theater" element={children} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+    render(<Theater />, { wrapper: Wrapper });
+    // ?stage=1 auto-enables screen-share → warning suppressed
+    await waitFor(() => expect(screen.getByTestId('screen-share-banner')).toBeTruthy());
+    expect(screen.queryByTestId('screen-share-warning')).toBeNull();
   });
 
   it('?stage=1 enters stage mode: screen-share auto-on + stage banner (Spec 100 S7)', async () => {

@@ -56,11 +56,15 @@ export function TheaterMoneyShot({ iocs, messages, visibleStep }: TheaterMoneySh
   return (
     <div className="flex flex-col gap-2" data-testid="theater-money-shot">
       <h3 className="text-[10px] font-mono uppercase tracking-widest text-amber-400/80">
-        ★ {t('theater.money_shot_title')}
+        {t('theater.money_shot_title')}
       </h3>
       {visibleFinancial.map((ioc) => {
+        // Spec 101 S1 — `m.idx` is serialised by the backend as 1-based
+        // (1..N). DO NOT add +1; that produced "turn 9/9 — 100%" on a
+        // financial that actually revealed at turn 8/9 (= 89%), and the
+        // inflated ratio was visible on the BH-review screenshots.
         const parentIdx = idxByMsg.get(ioc.msg_id) ?? 0;
-        const turn = parentIdx + 1;
+        const turn = parentIdx;
         const ratioPct = totalTurns > 0 ? Math.round((turn / totalTurns) * 100) : 0;
         return (
           <MoneyShotCard

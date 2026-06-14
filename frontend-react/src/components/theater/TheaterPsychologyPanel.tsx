@@ -132,9 +132,19 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
           }
           prefix={t('theater.in_this_conv')}
         />
+        {/* Spec 101 S6 — progressively reveal cascade events. We
+            count only cascades whose trigger message has actually been
+            played, so the number ticks up live with the playback
+            instead of spoiling the final count on the empty step-0
+            frame. `messages` is not in scope here so we rely on the
+            visibleStep + cascade.turn comparison (turn is 1-based). */}
         <Stat
           label={t('theater.cascade_events_label')}
-          value={`${det.cascade_events.length}`}
+          value={
+            visibleStep === undefined
+              ? `${det.cascade_events.length}`
+              : `${det.cascade_events.filter((c) => c.turn <= visibleStep).length}`
+          }
           prefix={t('theater.in_this_conv')}
         />
         <Stat
@@ -142,9 +152,19 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
           value={`${det.persona_pressure_profile.persona_code ?? '—'} (${det.persona_pressure_profile.financial_obtained}/${det.persona_pressure_profile.iocs_obtained} ${t('theater.financial_short')})`}
           prefix={t('theater.in_this_conv')}
         />
+        {/* Spec 101 S6 — language_switch_count is a per-conv aggregate
+            without per-turn data on the wire, so we cannot tick it up
+            progressively. We hide it until the playback completes (or
+            visibleStep is undefined, i.e. no player context) and show
+            "(reveals as you play)" until then. Final state is still
+            accurate. */}
         <Stat
           label={t('theater.language_switches')}
-          value={`${det.language_switch_count}`}
+          value={
+            visibleStep === undefined || visibleStep >= det.total_turns
+              ? `${det.language_switch_count}`
+              : t('theater.spoiler_pending')
+          }
           prefix={t('theater.in_this_conv')}
         />
       </div>
