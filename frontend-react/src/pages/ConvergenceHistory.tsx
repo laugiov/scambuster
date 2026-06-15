@@ -125,25 +125,56 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
   const personas = useMemo(() => [...new Set(logs.map((l) => l.dominant_persona))], [logs]);
 
   // Spec 104 P2 — convergence threshold (% dominance) read from bandit
-  // config, falls back to 50% if the field is absent. The exact number
-  // matters less than the visible reference line: it tells the viewer
-  // "here is where the bandit declares it has chosen, you can see
-  // whether the trajectory crossed it".
+  // config, falls back to 50% if the field is absent.
   const convergenceThresholdPct = Math.round((config?.bandit?.convergence_threshold ?? 0.5) * 100);
+  // Backend's PersonaOptimizer requires BOTH conditions for true
+  // convergence: dominance over threshold AND at least N sessions
+  // accumulated. The earlier banner declared "Converged on YYYY"
+  // even when the crossing happened on a single session (= 100% by
+  // construction). A CTI sceptic recomputing the math would spot that
+  // immediately. We now expose the three honest states.
+  const minSessionsForConvergence = config?.bandit?.min_sessions_for_convergence ?? 10;
 
-  // Find the FIRST date where any persona's dominance crossed the
-  // threshold. If none, the chart shows the line + a banner saying
-  // we're still exploring.
-  const { firstCrossingDate, latestSessions } = useMemo(() => {
-    if (logs.length === 0) return { firstCrossingDate: null as string | null, latestSessions: 0 };
+  // Find the FIRST date where dominance crossed the threshold, and
+  // capture the sessions_count AT THAT DATE (not the latest count).
+  // The previous code showed the latest sessions count alongside the
+  // crossing date, which falsely suggested the convergence happened
+  // on that volume.
+  const { firstCrossing, latest } = useMemo(() => {
+    if (logs.length === 0) {
+      return {
+        firstCrossing: null as { date: string; sessions: number; persona: string; dominance: number } | null,
+        latest: null as { date: string; sessions: number; persona: string; dominance: number } | null,
+      };
+    }
     const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
     const crossed = sortedLogs.find((l) => l.dominant_pct * 100 >= convergenceThresholdPct);
+    const last = sortedLogs[sortedLogs.length - 1];
 
     return {
-      firstCrossingDate: crossed?.date ?? null,
-      latestSessions: sortedLogs[sortedLogs.length - 1]?.sessions_count ?? 0,
+      firstCrossing: crossed
+        ? {
+            date: crossed.date,
+            sessions: crossed.sessions_count,
+            persona: crossed.dominant_persona,
+            dominance: Math.round(crossed.dominant_pct * 100),
+          }
+        : null,
+      latest: last
+        ? {
+            date: last.date,
+            sessions: last.sessions_count,
+            persona: last.dominant_persona,
+            dominance: Math.round(last.dominant_pct * 100),
+          }
+        : null,
     };
   }, [logs, convergenceThresholdPct]);
+
+  const isTrueConverged =
+    firstCrossing !== null && firstCrossing.sessions >= minSessionsForConvergence;
+  const isEarlySignal =
+    firstCrossing !== null && firstCrossing.sessions < minSessionsForConvergence;
 
   if (scamTypes.length === 0) return null;
 
@@ -163,25 +194,54 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
         </select>
       </div>
 
-      {/* Spec 104 P2 — convergence state banner above the chart.
-          When no scam type has crossed the threshold yet, this is the
-          honest "still exploring" state — better than implying
-          convergence the data doesn't support. */}
-      {chartData.length >= 1 && (firstCrossingDate ? (
+      {/* Spec 104 follow-up — current state line, always visible,
+          built from the latest snapshot so the viewer has a single
+          anchor for "where are we right now" before reading the
+          trajectory. */}
+      {latest !== null && (
+        <p
+          className="text-[11px] text-on-surface-variant font-mono"
+          data-testid="convergence-state-current"
+        >
+          Currently dominant:{' '}
+          <span className="text-on-surface font-semibold">{personaDisplayName(config, latest.persona)}</span>
+          {' — '}
+          <span className="text-on-surface font-semibold">{latest.dominance}% dominance</span>
+          {' on '}
+          {latest.sessions} session{latest.sessions === 1 ? '' : 's'}
+          {' '}({latest.date})
+        </p>
+      )}
+
+      {/* Convergence state banner: three honest states.
+          True converged = threshold crossed AND sessions >= 10 at crossing.
+          Early signal = threshold crossed but on too few sessions (a 1-pull
+            persona is 100% dominant by construction; not a real convergence).
+          Still exploring = never crossed. */}
+      {chartData.length >= 1 && isTrueConverged && firstCrossing !== null && (
         <p
           className="text-[11px] text-emerald-300 font-mono"
           data-testid="convergence-state-converged"
         >
-          ✓ Converged on {firstCrossingDate} (dominance ≥ {convergenceThresholdPct}%, {latestSessions} sessions)
+          ✓ Converged on {firstCrossing.date} — {personaDisplayName(config, firstCrossing.persona)} reached {firstCrossing.dominance}% on {firstCrossing.sessions} sessions (threshold ≥ {convergenceThresholdPct}% & ≥ {minSessionsForConvergence} sessions)
         </p>
-      ) : (
+      )}
+      {chartData.length >= 1 && isEarlySignal && firstCrossing !== null && (
+        <p
+          className="text-[11px] text-amber-300 font-mono"
+          data-testid="convergence-state-early"
+        >
+          ⚠ Early signal on {firstCrossing.date} — {personaDisplayName(config, firstCrossing.persona)} hit {firstCrossing.dominance}% but only on {firstCrossing.sessions} sessions. True convergence needs ≥ {minSessionsForConvergence} sessions; the bandit is still exploring.
+        </p>
+      )}
+      {chartData.length >= 1 && firstCrossing === null && (
         <p
           className="text-[11px] text-amber-300 font-mono"
           data-testid="convergence-state-exploring"
         >
-          ⧖ Still exploring — {latestSessions} sessions so far, no persona has reached the {convergenceThresholdPct}% dominance threshold for {scamTypeLabel(activeType)}
+          ⧖ Still exploring — {latest?.sessions ?? 0} sessions so far, no persona has reached the {convergenceThresholdPct}% dominance threshold for {scamTypeLabel(activeType)}
         </p>
-      ))}
+      )}
 
       {chartData.length < 2 ? (
         <p className="text-sm text-on-surface-dim text-center py-8">Not enough data points to show evolution for {scamTypeLabel(activeType)}.</p>
@@ -219,6 +279,18 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
             ))}
           </LineChart>
         </ResponsiveContainer>
+      )}
+
+      {/* Spec 104 follow-up — caption explaining the multi-color
+          trajectory. Without this, a viewer sees the line change color
+          and assumes the chart is broken. The data records ONE
+          dominant persona per date, so each colored segment shows
+          a different winning persona at that date — and a colour shift
+          tells the story "the bandit changed its mind". */}
+      {chartData.length >= 2 && (
+        <p className="text-[10px] text-on-surface-dim/70 italic px-1">
+          Each colored segment shows the dominance share of the persona currently winning at that date. A color shift means the bandit's choice of dominant persona changed between snapshots — not a chart artefact.
+        </p>
       )}
     </div>
   );

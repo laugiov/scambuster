@@ -111,17 +111,30 @@ describe('ConvergenceHistory', () => {
   // banner reports the FIRST crossing date, or "still exploring" if
   // none. Either way, the banner must always be present so the viewer
   // knows where in the learning curve they are.
-  it('Spec 104 P2: renders the convergence state banner on the dominance chart', async () => {
+  it('Spec 104 P2 + follow-up: renders one of the three convergence state banners', async () => {
     setupHandlers();
     render(<ConvergenceHistory />, { wrapper: createWrapper() });
     await waitFor(() => {
-      // Banner is one of the two testids — either converged or exploring,
-      // depending on which scam type is selected first. We just assert
-      // that ONE of the two states is present, i.e. the banner renders.
+      // Three honest states. The fixture's PHISHING entries hit 75%
+      // on only 10 sessions (above 0.6 threshold but below the
+      // configured min_sessions_for_convergence=10 — so triggers
+      // "early signal"). ROMANCE at 85% on 12 sessions triggers
+      // "true converged". Either way, one of the three banners
+      // renders; we don't pin which because the chart's default
+      // selection may pick either scam type.
       const banner =
         screen.queryByTestId('convergence-state-converged') ??
+        screen.queryByTestId('convergence-state-early') ??
         screen.queryByTestId('convergence-state-exploring');
       expect(banner).not.toBeNull();
+    });
+  });
+
+  it('Spec 104 follow-up: "currently dominant" line always renders when data exists', async () => {
+    setupHandlers();
+    render(<ConvergenceHistory />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByTestId('convergence-state-current')).toBeInTheDocument();
     });
   });
 });
