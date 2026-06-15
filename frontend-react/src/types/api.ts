@@ -169,6 +169,7 @@ export interface IocDetail {
 export interface IocContextStructural {
   scam_type: string | null;
   attck_technique: string | null;
+  misp_taxonomy: string | null;
   persona_code: string | null;
   persona_label: string | null;
   extraction_method: string | null;

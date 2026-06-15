@@ -251,6 +251,8 @@
     "campaign": "Campaign",
     "reward": "Reward",
     "viewInTheater": "View in Live Bait Theater",
+    "attckTechnique": "MITRE ATT&CK",
+    "mispTaxonomy": "MISP Taxonomy",
     "observation": "Observation"
   },
   "personas": {

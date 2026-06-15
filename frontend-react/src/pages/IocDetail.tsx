@@ -505,6 +505,26 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
           {s.extraction_method && <MetaField label={t('iocContext.extraction')} value={s.extraction_method === 'llm' ? 'LLM' : s.extraction_method === 'regex' ? 'Regex' : s.extraction_method === 'header' ? 'Header' : s.extraction_method} />}
           {s.engagement_hours != null && <MetaField label={t('iocContext.engagement')} value={s.engagement_hours === 0 ? 'Turn 1 · Initial email' : `${s.engagement_hours}h`} />}
         </div>
+
+        {/* CTI standards — surfaced for SOC/CERT consumers. Spec 102
+            already populates scam_type_attck + scam_type_misp from the
+            upstream classifier; previously not displayed. */}
+        {(s.attck_technique || s.misp_taxonomy) && (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t border-surface-high">
+            {s.attck_technique && (
+              <MetaField
+                label={t('iocContext.attckTechnique')}
+                value={s.attck_technique}
+              />
+            )}
+            {s.misp_taxonomy && (
+              <MetaField
+                label={t('iocContext.mispTaxonomy')}
+                value={s.misp_taxonomy}
+              />
+            )}
+          </div>
+        )}
       </div>
 
       {/* Enriched sections — reordered: Excerpt → Role → Signals → Metadata */}
@@ -623,9 +643,12 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
         </div>
       )}
 
-      {/* Footer: enrichment status + computed_at */}
-      <div className="border-t border-surface-high px-5 py-3 flex items-center gap-4 text-xs text-on-surface-dim">
+      {/* Footer: enrichment status + computed_at + model (for audit) */}
+      <div className="border-t border-surface-high px-5 py-3 flex items-center gap-4 text-xs text-on-surface-dim flex-wrap">
         <span>{t('iocContext.enrichmentStatus')}: {statusStyle.label}</span>
+        {ctx.semantic?.enrichment_model && (
+          <span>{t('iocContext.model')}: <span className="font-mono">{ctx.semantic.enrichment_model}</span></span>
+        )}
         {ctx.computed_at && <span>{t('iocContext.computedAt')}: {formatNonAmbiguousDate(ctx.computed_at)}</span>}
       </div>
     </div>

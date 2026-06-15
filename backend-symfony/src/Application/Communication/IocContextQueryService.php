@@ -49,6 +49,7 @@ class IocContextQueryService
             $structural = [
                 'scam_type' => $this->str($row, 'scam_type_code'),
                 'attck_technique' => $this->str($row, 'scam_type_attck'),
+                'misp_taxonomy' => $this->str($row, 'scam_type_misp'),
                 'persona_code' => $this->str($row, 'persona_code'),
                 'persona_label' => $this->str($row, 'persona_label'),
                 'extraction_method' => $this->str($row, 'extraction_method'),

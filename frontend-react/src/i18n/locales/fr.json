@@ -251,7 +251,9 @@
     "campaign": "Campagne",
     "reward": "Recompense",
     "observation": "Observation",
-    "viewInTheater": "Voir dans Live Bait Theater"
+    "viewInTheater": "Voir dans Live Bait Theater",
+    "attckTechnique": "MITRE ATT&CK",
+    "mispTaxonomy": "Taxonomie MISP"
   },
   "personas": {
     "title": "Configuration Persona & Bandit",
