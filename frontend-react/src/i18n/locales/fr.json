@@ -250,7 +250,8 @@
     "hasContext": "A du contexte",
     "campaign": "Campagne",
     "reward": "Recompense",
-    "observation": "Observation"
+    "observation": "Observation",
+    "viewInTheater": "Voir dans Live Bait Theater"
   },
   "personas": {
     "title": "Configuration Persona & Bandit",

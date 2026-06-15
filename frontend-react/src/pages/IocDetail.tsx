@@ -460,13 +460,24 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
     <div className="bg-surface-low rounded-lg overflow-hidden">
       {/* Revelation Context */}
       <div className="p-5 space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h3 className="text-xs font-bold text-on-surface-dim uppercase tracking-widest">
             {t('iocContext.revelationContext')}
           </h3>
-          <span className={`text-xs px-2 py-0.5 rounded font-medium ${statusStyle.bg}`}>
-            {statusStyle.label}
-          </span>
+          <div className="flex items-center gap-2">
+            {s.conv_id && (
+              <Link
+                to={`/conversations/${s.conv_id}/theater`}
+                className="text-xs px-2 py-0.5 rounded bg-accent/20 text-accent hover:bg-accent/30 transition-colors"
+                data-testid="ioc-context-theater-link"
+              >
+                {t('iocContext.viewInTheater')}
+              </Link>
+            )}
+            <span className={`text-xs px-2 py-0.5 rounded font-medium ${statusStyle.bg}`}>
+              {statusStyle.label}
+            </span>
+          </div>
         </div>
 
         {/* Turn progress */}

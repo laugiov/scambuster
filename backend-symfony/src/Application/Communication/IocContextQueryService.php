@@ -28,8 +28,18 @@ class IocContextQueryService
      */
     public function findContextsByIndicatorId(string $indicatorId): array
     {
+        // JOIN observed_ioc + message so that the API caller can pivot
+        // from an IOC context row back to its source conversation
+        // (Live Bait Theater) or source message. Without this, the IOC
+        // detail page is a dead-end: it shows "Stimulus: Direct Request"
+        // but no way to see which conversation / which outbound that
+        // refers to.
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT * FROM ioc_context WHERE indicator_id = :id ORDER BY created_at DESC',
+            'SELECT ic.*, oi.msg_id AS observed_msg_id, m.conv_id AS observed_conv_id'
+            . ' FROM ioc_context ic'
+            . ' LEFT JOIN observed_ioc oi ON oi.obs_id = ic.obs_id'
+            . ' LEFT JOIN message m ON m.msg_id = oi.msg_id AND m.deleted_at IS NULL'
+            . ' WHERE ic.indicator_id = :id ORDER BY ic.created_at DESC',
             ['id' => $indicatorId]
         );
 
@@ -50,6 +60,8 @@ class IocContextQueryService
                 'co_revealed_types' => $this->parsePostgresArray($this->str($row, 'co_revealed_types')),
                 'co_revealed_count' => $this->intOrNull($row, 'co_revealed_count') ?? 0,
                 'campaign_id' => $this->str($row, 'campaign_id'),
+                'conv_id' => $this->str($row, 'observed_conv_id'),
+                'msg_id' => $this->str($row, 'observed_msg_id'),
             ];
 
             $semantic = null;

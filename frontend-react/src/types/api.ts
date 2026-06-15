@@ -180,6 +180,8 @@ export interface IocContextStructural {
   co_revealed_types: string[];
   co_revealed_count: number;
   campaign_id: string | null;
+  conv_id: string | null;
+  msg_id: string | null;
 }
 
 export interface IocContextSemantic {
