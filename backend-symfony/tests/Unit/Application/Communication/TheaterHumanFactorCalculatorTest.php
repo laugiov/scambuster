@@ -171,7 +171,7 @@ final class TheaterHumanFactorCalculatorTest extends TestCase
             ['msg_id' => 'm1', 'category' => 'financial', 'type' => 'iban', 'revelation_context' => [
                 'enrichment_status' => 'enriched',
                 'enrichment_confidence' => 0.80,
-                'stimulus_type' => 'active',
+                'stimulus_type' => 'DIRECT_REQUEST',
                 'stimulus_msg_id' => 'o1',
                 'urgency_score' => 0.30,
                 'hesitation_detected' => true,
@@ -179,7 +179,7 @@ final class TheaterHumanFactorCalculatorTest extends TestCase
             ['msg_id' => 'm2', 'category' => 'contact', 'type' => 'phone', 'revelation_context' => [
                 'enrichment_status' => 'enriched',
                 'enrichment_confidence' => 0.40,
-                'stimulus_type' => 'passive',
+                'stimulus_type' => 'PASSIVE',
                 'stimulus_msg_id' => null,
                 'urgency_score' => 0.10,
                 'hesitation_detected' => false,
@@ -205,12 +205,12 @@ final class TheaterHumanFactorCalculatorTest extends TestCase
         $iocs = [
             ['msg_id' => 'm1', 'category' => 'financial', 'type' => 'iban', 'revelation_context' => [
                 'enrichment_status' => 'enriched',
-                'stimulus_type' => 'active',
+                'stimulus_type' => 'DIRECT_REQUEST',
                 'stimulus_msg_id' => 'same-outbound',
             ]],
             ['msg_id' => 'm1', 'category' => 'financial', 'type' => 'bic', 'revelation_context' => [
                 'enrichment_status' => 'enriched',
-                'stimulus_type' => 'active',
+                'stimulus_type' => 'DIRECT_REQUEST',
                 'stimulus_msg_id' => 'same-outbound',
             ]],
         ];

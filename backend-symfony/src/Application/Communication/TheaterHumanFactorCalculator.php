@@ -378,6 +378,27 @@ final readonly class TheaterHumanFactorCalculator
     }
 
     /**
+     * "Active" means the IOC reveal was driven by the honeypot's
+     * stimulus rather than a spontaneous / first-contact spam blast.
+     *
+     * Spec 097 originally assumed a binary `active`/`passive` field.
+     * Spec 102 replaced it with a 7-value enum (PASSIVE, DIRECT_REQUEST,
+     * URGENCY_PRESSURE, DOCUMENT_REQUEST, PAYMENT_INITIATION,
+     * TRUST_BUILDING, UNKNOWN). Everything that is NOT PASSIVE and NOT
+     * UNKNOWN reflects engagement-driven IOC surfacing — i.e. active.
+     */
+    private const NON_ACTIVE_STIMULI = ['PASSIVE', 'UNKNOWN'];
+
+    private function isActiveStimulus(mixed $stimulusType): bool
+    {
+        if (!\is_string($stimulusType) || '' === $stimulusType) {
+            return false;
+        }
+
+        return !\in_array($stimulusType, self::NON_ACTIVE_STIMULI, true);
+    }
+
+    /**
      * @param list<array<string, mixed>> $iocsByMsg
      */
     private function activeStimuliCount(array $iocsByMsg): int
@@ -387,7 +408,7 @@ final readonly class TheaterHumanFactorCalculator
         foreach ($iocsByMsg as $ioc) {
             $ctx = $ioc['revelation_context'] ?? null;
 
-            if (!\is_array($ctx) || 'active' !== ($ctx['stimulus_type'] ?? null)) {
+            if (!\is_array($ctx) || !$this->isActiveStimulus($ctx['stimulus_type'] ?? null)) {
                 continue;
             }
 
@@ -411,8 +432,8 @@ final readonly class TheaterHumanFactorCalculator
         foreach ($iocsByMsg as $ioc) {
             $ctx = $ioc['revelation_context'] ?? null;
 
-            if (\is_array($ctx) && 'active' === ($ctx['stimulus_type'] ?? null)) {
-                $count++;
+            if (\is_array($ctx) && $this->isActiveStimulus($ctx['stimulus_type'] ?? null)) {
+                ++$count;
             }
         }
 
