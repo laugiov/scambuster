@@ -4,6 +4,7 @@ import type { TheaterMessage, TheaterIoc } from '@/hooks/useTheaterReplay';
 import { TheaterPressureBadge } from './TheaterPressureBadge';
 import { useMaskMode } from '@/hooks/useMaskMode';
 import { maskPiiInBody } from '@/lib/maskPiiInBody';
+import { displayValue } from '@/lib/iocMask';
 
 interface TheaterThreadProps {
   messages: TheaterMessage[];
@@ -25,14 +26,16 @@ interface TheaterThreadProps {
  */
 export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirection }: TheaterThreadProps) {
   const { t } = useTranslation();
-  const { screenShareMode } = useMaskMode();
+  const { masked } = useMaskMode();
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Spec 099 S7 — when screen-share mode is on, build the IOC value-norm
-  // set once and pass it to the body masker for each message render.
+  // Body PII masking is now driven by the unified `masked` state (the
+  // same flag that controls the right-panel catalog and the header
+  // addresses). When masked, build the IOC value-norm set once and
+  // pass it to the body masker for each message render.
   const iocValueNorms = useMemo<string[]>(
-    () => (screenShareMode ? iocsByMsg.map((i) => i.value_norm) : []),
-    [iocsByMsg, screenShareMode],
+    () => (masked ? iocsByMsg.map((i) => i.value_norm) : []),
+    [iocsByMsg, masked],
   );
 
   useEffect(() => {
@@ -89,14 +92,16 @@ export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirectio
               }`}
             >
               <div className="text-xs font-mono mb-2 flex justify-between gap-4">
-                <span className={isIn ? 'text-red-300' : 'text-blue-300'}>{msg.sender}</span>
+                <span className={isIn ? 'text-red-300' : 'text-blue-300'}>
+                  {displayValue(msg.sender, 'email', masked)}
+                </span>
                 <span className="text-on-surface-dim">{formatTime(msg.ts_msg)}</span>
               </div>
               {msg.subject && (
                 <p className="text-xs text-on-surface-dim mb-1 italic">{msg.subject}</p>
               )}
               <p className="text-sm leading-relaxed whitespace-pre-line">
-                {truncate(screenShareMode ? maskPiiInBody(msg.body_text, iocValueNorms) : msg.body_text, 600)}
+                {truncate(masked ? maskPiiInBody(msg.body_text, iocValueNorms) : msg.body_text, 600)}
               </p>
             </div>
           </div>

@@ -48,7 +48,7 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
   // first render via the effect below.
   const stageMode = searchParams.get('stage') === '1';
   const reducedMotion = reducedMotionOs || stageMode;
-  const { toggle: toggleMask, toggleScreenShare, screenShareMode, setMasked } = useMaskMode();
+  const { masked, toggle: toggleMask, setMasked } = useMaskMode();
 
   // directionAt: maps step index to message direction for the typing indicator.
   const directionAt = useCallback(
@@ -66,11 +66,16 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
 
   // Keyboard shortcuts:
   //   Space         play / pause
-  //   M             toggle mask
+  //   M or S        toggle mask (covers header + body PII + IOC catalog)
   //   ArrowRight    step forward 1 message (auto-pauses)
   //   ArrowLeft     step back 1 message (auto-pauses)
   //   Home          jump to start
   //   End           jump to end
+  // Post-CTI-review: M and S are aliases. Previously M masked only the
+  // right-panel catalog while S masked only message bodies — two
+  // shortcuts for the same intent (don't leak PII when presenting),
+  // and the conv header was masked by neither. The unified toggle
+  // now flips a single state across header + bodies + catalog.
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       // Skip when user is typing in an input
@@ -81,13 +86,9 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
         e.preventDefault();
         if (state.status === 'playing') pause();
         else play();
-      } else if (e.key === 'm' || e.key === 'M') {
+      } else if (e.key === 'm' || e.key === 'M' || e.key === 's' || e.key === 'S') {
         e.preventDefault();
         toggleMask();
-      } else if (e.key === 's' || e.key === 'S') {
-        // Spec 099 S7 — toggle screen-share mode (mask PII in bodies)
-        e.preventDefault();
-        toggleScreenShare();
       } else if (e.key === 'ArrowRight') {
         e.preventDefault();
         scrub(state.currentStep + 1);
@@ -104,20 +105,20 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [state.status, state.currentStep, play, pause, scrub, skipToEnd, toggleMask, toggleScreenShare]);
+  }, [state.status, state.currentStep, play, pause, scrub, skipToEnd, toggleMask]);
 
-  // Spec 100 S7 — apply `?stage=1` once on mount: screen-share on,
-  // default playback speed 2×, keep mask defaults so the right panel
-  // stays redacted on stage. Idempotent: reload of the same URL
-  // re-applies the same state.
+  // Spec 100 S7 — apply `?stage=1` once on mount: mask on (default
+  // already, but enforce), default playback speed 2×. Idempotent.
+  // Post-CTI-review: unified mask state already covers everything
+  // (header + bodies + catalog), so the stage preset no longer needs
+  // to flip a separate screen-share toggle.
   const stageAppliedRef = useRef(false);
   useEffect(() => {
     if (!stageMode || stageAppliedRef.current) return;
     stageAppliedRef.current = true;
-    toggleScreenShare(); // false → true
     setSpeed(2);
     setMasked(true);
-  }, [stageMode, toggleScreenShare, setSpeed, setMasked]);
+  }, [stageMode, setSpeed, setMasked]);
 
   const finished = useMemo(() => state.status === 'finished', [state.status]);
 
@@ -175,28 +176,28 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
 
   return (
     <div className="h-screen flex flex-col bg-bg text-on-surface">
-      {screenShareMode && (
-        <div
-          className="bg-emerald-500/20 border-b border-emerald-500/40 text-emerald-300 text-xs font-mono uppercase tracking-widest text-center py-1"
-          data-testid="screen-share-banner"
-        >
-          🔒 {t('theater.screen_share_active')}
-          {stageMode && (
-            <span className="ml-3 text-emerald-200/80">· {t('theater.stage_mode_active')}</span>
-          )}
-        </div>
-      )}
-      {/* Spec 101 S5 — persistent step-0 warning when screen-share is
-          OFF. Dismisses once the user reveals the first message (likely
-          a deliberate "show the demo" choice) OR enables screen-share. */}
-      {!screenShareMode && state.currentStep === 0 && state.status === 'idle' && (
-        <div
-          className="bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs font-mono text-center py-1.5"
-          data-testid="screen-share-warning"
-        >
-          ⚠ {t('theater.screen_share_off_warning')}
-        </div>
-      )}
+      {/* Post-CTI-review unified mask banner. Single line always
+          present at the top of the Theater so the operator knows at
+          a glance whether what's on screen is safe to share. Green
+          when masked (default and recommended for any external
+          audience), amber when revealed (deliberate operator action).
+          Replaces the previous two banners (separate screen-share
+          and step-0 warning). */}
+      <div
+        className={
+          masked
+            ? 'bg-emerald-500/20 border-b border-emerald-500/40 text-emerald-300 text-xs font-mono uppercase tracking-widest text-center py-1'
+            : 'bg-amber-500/15 border-b border-amber-500/40 text-amber-200 text-xs font-mono uppercase tracking-widest text-center py-1'
+        }
+        data-testid="mask-banner"
+      >
+        {masked
+          ? `🔒 ${t('theater.mask_banner_masked')}`
+          : `⚠ ${t('theater.mask_banner_revealed')}`}
+        {stageMode && masked && (
+          <span className="ml-3 text-emerald-200/80">· {t('theater.stage_mode_active')}</span>
+        )}
+      </div>
       <TheaterHeader meta={data.meta} />
       <div className="flex-1 flex overflow-hidden">
         <TheaterThread

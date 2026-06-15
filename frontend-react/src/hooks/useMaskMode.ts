@@ -1,26 +1,21 @@
 import { createContext, useContext } from 'react';
 
 /**
- * Spec 097 — Centralized mask state for the Theater.
+ * Spec 097 + post-CTI-review unification — Centralized mask state.
  *
- * Single source of truth. All `<MaskedValue>` components in the Theater
- * tree read from this context and re-render when the toggle flips.
- * Mask state ALWAYS defaults to true on mount — reveal must be a
- * deliberate user action, and is NOT persisted across reloads.
+ * A single boolean controls masking of every sensitive value in the
+ * Theater: header conv addresses, message body inline PII, and the
+ * right-panel IOC catalog. ALWAYS defaults to true on mount; reveal
+ * must be a deliberate user action and is NOT persisted.
+ *
+ * Bound to two equivalent keyboard shortcuts (S, M) so muscle-memory
+ * around either still works.
  */
 
 export interface MaskModeContext {
   masked: boolean;
   toggle: () => void;
   setMasked: (masked: boolean) => void;
-  /**
-   * Spec 099 S7 — Screen-share mode. Independent of `masked`; when on,
-   * additionally masks IOC value occurrences inside message bodies (the
-   * `masked` flag only covers the right-panel catalog). Toggled with
-   * the `S` key. Always defaults to false on mount.
-   */
-  screenShareMode: boolean;
-  toggleScreenShare: () => void;
 }
 
 export const MaskModeReactContext = createContext<MaskModeContext | undefined>(undefined);
@@ -29,14 +24,12 @@ export function useMaskMode(): MaskModeContext {
   const ctx = useContext(MaskModeReactContext);
   if (!ctx) {
     // Default fallback when used outside provider: always masked,
-    // toggle no-op. This makes <MaskedValue> usable in isolation
-    // (e.g. in a test) without crashing.
+    // toggle no-op. Lets <MaskedValue> render in isolation (e.g.
+    // unit tests) without crashing.
     return {
       masked: true,
       toggle: () => {},
       setMasked: () => {},
-      screenShareMode: false,
-      toggleScreenShare: () => {},
     };
   }
   return ctx;

@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useMaskMode } from '@/hooks/useMaskMode';
 import type { TheaterMeta } from '@/hooks/useTheaterReplay';
+import { displayValue } from '@/lib/iocMask';
 import { scamTypeLabel } from '@/lib/scamTypeLabels';
 
 interface TheaterHeaderProps {
@@ -34,9 +35,13 @@ export function TheaterHeader({ meta }: TheaterHeaderProps) {
           </h1>
           <p className="text-xs text-on-surface-variant font-mono mt-1">
             {scamTypeLabel(meta.scam_type)} ·{' '}
-            <span className="text-on-surface-dim">{meta.scammer_address ?? '—'}</span>
+            <span className="text-on-surface-dim">
+              {meta.scammer_address ? displayValue(meta.scammer_address, 'email', masked) : '—'}
+            </span>
             {' ↔ '}
-            <span className="text-on-surface-dim">{meta.persona_address ?? '—'}</span>
+            <span className="text-on-surface-dim">
+              {meta.persona_address ? displayValue(meta.persona_address, 'email', masked) : '—'}
+            </span>
             {(meta.persona_label || meta.persona_code) && (
               <span
                 className="text-on-surface-dim"
