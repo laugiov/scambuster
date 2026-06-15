@@ -547,7 +547,7 @@
     "deterministic_metrics": "Métriques d'engagement (déterministe)",
     "exploratory_signals": "Signaux LLM exploratoires",
     "exploratory_caveat": "Ces signaux proviennent d'un pipeline d'enrichissement LLM. Exploratoires, non validés contre une vérité terrain. La confiance par IOC est affichée à côté de chaque valeur.",
-    "design_footnote": "Les prompts persona dans ScamBuster sont conçus pour appliquer de la pression (Spec 095 BasePromptRules). L'adjacence est cohérente avec cette intention mais ne prouve pas la causalité à elle seule.",
+    "design_footnote": "Les personas ScamBuster sont conçus pour appliquer de la pression sur le scammer afin de faire émerger les IOCs. L'adjacence entre un message stimulus et une révélation d'IOC est cohérente avec cette intention mais ne prouve pas la causalité à elle seule.",
     "in_this_conv": "Sur cette conversation",
     "engagement_duration": "durée d'engagement",
     "first_financial_at": "premier IOC financier au",
