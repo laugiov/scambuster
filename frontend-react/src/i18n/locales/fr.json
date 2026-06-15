@@ -560,7 +560,7 @@
     "persona_used": "persona utilisée",
     "financial_short": "financier",
     "language_switches": "changements de langue",
-    "avg_confidence": "confiance moyenne {{pct}}%",
+    "avg_confidence": "confiance moyenne {{pct}}% (sur {{n}} IOCs)",
     "limited_coverage": "Couverture d'enrichissement limitée ({{pct}}%) — le footprint psychologique peut être incomplet.",
     "iocs_under_active_stim": "IOCs révélés sous stimulus actif (étiqueté)",
     "avg_urgency": "urgence moyenne du scammer à la révélation (étiqueté)",

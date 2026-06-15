@@ -149,7 +149,7 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
         />
         <Stat
           label={t('theater.persona_used')}
-          value={`${det.persona_pressure_profile.persona_code ?? '—'} (${det.persona_pressure_profile.financial_obtained}/${det.persona_pressure_profile.iocs_obtained} ${t('theater.financial_short')})`}
+          value={`${meta.persona_label ?? meta.persona_code ?? det.persona_pressure_profile.persona_code ?? '—'} (${det.persona_pressure_profile.financial_obtained}/${det.persona_pressure_profile.iocs_obtained} ${t('theater.financial_short')})`}
           prefix={t('theater.in_this_conv')}
         />
         {/* Spec 101 S6 — language_switch_count is a per-conv aggregate
@@ -214,7 +214,7 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
               {t('theater.exploratory_signals')}
               {confidencePct !== null && (
                 <span className="ml-2 text-on-surface-dim normal-case font-normal tracking-normal">
-                  — {t('theater.avg_confidence', { pct: confidencePct })}
+                  — {t('theater.avg_confidence', { pct: confidencePct, n: meta.iocs_count })}
                 </span>
               )}
             </h3>
@@ -238,10 +238,16 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
                   : `${Math.round(llm.avg_urgency_at_reveal * 100)}%`
               }
             />
-            <SmallStat
-              label={t('theater.hesitation_labelled')}
-              value={`${llm.hesitation_count} / ${meta.iocs_count}`}
-            />
+            {/* Hesitation is hidden when always-zero in the corpus
+                (spec 102 prompt v2 collapsed it to ~0.12% TRUE rate).
+                Displaying "0/N" on every demo signal looked broken;
+                showing only when non-zero is honest. */}
+            {(llm.hesitation_count ?? 0) > 0 && (
+              <SmallStat
+                label={t('theater.hesitation_labelled')}
+                value={`${llm.hesitation_count} / ${meta.iocs_count}`}
+              />
+            )}
             <SmallStat label={t('theater.coverage')} value={`${meta.enrichment_coverage_pct.toFixed(0)}%`} />
           </div>
         );
