@@ -6,7 +6,7 @@ import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { Pagination } from '@/components/ui/Pagination';
 import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
 import { useMetaConfig, personaDisplayName } from '@/hooks/useMetaConfig';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts';
 
 const PAGE_SIZE = 25;
 
@@ -124,6 +124,27 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
   // Get unique personas for this scam type
   const personas = useMemo(() => [...new Set(logs.map((l) => l.dominant_persona))], [logs]);
 
+  // Spec 104 P2 — convergence threshold (% dominance) read from bandit
+  // config, falls back to 50% if the field is absent. The exact number
+  // matters less than the visible reference line: it tells the viewer
+  // "here is where the bandit declares it has chosen, you can see
+  // whether the trajectory crossed it".
+  const convergenceThresholdPct = Math.round((config?.bandit?.convergence_threshold ?? 0.5) * 100);
+
+  // Find the FIRST date where any persona's dominance crossed the
+  // threshold. If none, the chart shows the line + a banner saying
+  // we're still exploring.
+  const { firstCrossingDate, latestSessions } = useMemo(() => {
+    if (logs.length === 0) return { firstCrossingDate: null as string | null, latestSessions: 0 };
+    const sortedLogs = [...logs].sort((a, b) => a.date.localeCompare(b.date));
+    const crossed = sortedLogs.find((l) => l.dominant_pct * 100 >= convergenceThresholdPct);
+
+    return {
+      firstCrossingDate: crossed?.date ?? null,
+      latestSessions: sortedLogs[sortedLogs.length - 1]?.sessions_count ?? 0,
+    };
+  }, [logs, convergenceThresholdPct]);
+
   if (scamTypes.length === 0) return null;
 
   return (
@@ -142,6 +163,26 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
         </select>
       </div>
 
+      {/* Spec 104 P2 — convergence state banner above the chart.
+          When no scam type has crossed the threshold yet, this is the
+          honest "still exploring" state — better than implying
+          convergence the data doesn't support. */}
+      {chartData.length >= 1 && (firstCrossingDate ? (
+        <p
+          className="text-[11px] text-emerald-300 font-mono"
+          data-testid="convergence-state-converged"
+        >
+          ✓ Converged on {firstCrossingDate} (dominance ≥ {convergenceThresholdPct}%, {latestSessions} sessions)
+        </p>
+      ) : (
+        <p
+          className="text-[11px] text-amber-300 font-mono"
+          data-testid="convergence-state-exploring"
+        >
+          ⧖ Still exploring — {latestSessions} sessions so far, no persona has reached the {convergenceThresholdPct}% dominance threshold for {scamTypeLabel(activeType)}
+        </p>
+      ))}
+
       {chartData.length < 2 ? (
         <p className="text-sm text-on-surface-dim text-center py-8">Not enough data points to show evolution for {scamTypeLabel(activeType)}.</p>
       ) : (
@@ -153,6 +194,16 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
             <Tooltip
               contentStyle={{ backgroundColor: '#1e1e2e', border: 'none', borderRadius: 8, fontSize: 12 }}
               labelStyle={{ color: '#9ca3af' }}
+            />
+            {/* Spec 104 P2 — horizontal reference line at the convergence
+                threshold so the viewer can recompose "crossed = chosen"
+                without reading any text. */}
+            <ReferenceLine
+              y={convergenceThresholdPct}
+              stroke="#fbbf24"
+              strokeDasharray="4 4"
+              strokeOpacity={0.6}
+              label={{ value: `${convergenceThresholdPct}% threshold`, position: 'right', fill: '#fbbf24', fontSize: 10 }}
             />
             {personas.map((persona, i) => (
               <Line
