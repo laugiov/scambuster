@@ -111,20 +111,18 @@ describe('ConvergenceHistory', () => {
   // banner reports the FIRST crossing date, or "still exploring" if
   // none. Either way, the banner must always be present so the viewer
   // knows where in the learning curve they are.
-  it('Spec 104 P2 + follow-up: renders one of the three convergence state banners', async () => {
+  it('Spec 104 P2 + v3: renders one of the three current-state convergence banners', async () => {
     setupHandlers();
     render(<ConvergenceHistory />, { wrapper: createWrapper() });
     await waitFor(() => {
-      // Three honest states. The fixture's PHISHING entries hit 75%
-      // on only 10 sessions (above 0.6 threshold but below the
-      // configured min_sessions_for_convergence=10 — so triggers
-      // "early signal"). ROMANCE at 85% on 12 sessions triggers
-      // "true converged". Either way, one of the three banners
-      // renders; we don't pin which because the chart's default
-      // selection may pick either scam type.
+      // Banner is driven by the CURRENT (latest) snapshot, not by a
+      // historical crossing event. Three possible states:
+      //   converged  = latest sessions >= min AND latest dominance >= threshold
+      //   settled    = latest sessions >= min AND latest dominance < threshold
+      //   exploring  = latest sessions < min
       const banner =
         screen.queryByTestId('convergence-state-converged') ??
-        screen.queryByTestId('convergence-state-early') ??
+        screen.queryByTestId('convergence-state-settled') ??
         screen.queryByTestId('convergence-state-exploring');
       expect(banner).not.toBeNull();
     });

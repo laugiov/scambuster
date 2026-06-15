@@ -171,10 +171,41 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
     };
   }, [logs, convergenceThresholdPct]);
 
-  const isTrueConverged =
-    firstCrossing !== null && firstCrossing.sessions >= minSessionsForConvergence;
-  const isEarlySignal =
-    firstCrossing !== null && firstCrossing.sessions < minSessionsForConvergence;
+  // State machine, driven by the CURRENT snapshot (not a historical
+  // crossing event). The earlier version anchored on "first time
+  // dominance crossed the threshold" which was misleading: on Phishing
+  // a 1-session anomaly at 100% on 2026-06-02 kept generating "Early
+  // signal" headlines even though 19 sessions had since been observed
+  // with a stable winner at 32%. A viewer recomputed the ratios from
+  // the table and the banner was simply not telling them the truth
+  // about NOW.
+  //
+  // New states, in priority order:
+  //   1. converged    — current sessions ≥ N AND current dominance ≥ threshold
+  //   2. settled      — current sessions ≥ N AND current dominance < threshold
+  //                    (bandit has accumulated evidence, picked a winner,
+  //                     but the winner is not dominant enough to lock in)
+  //   3. exploring    — current sessions < N (still gathering evidence)
+  //
+  // A separate (small) note shows up if there was a past spike on too
+  // few sessions to be a real convergence — kept for historical
+  // transparency, but no longer the headline.
+  const isCurrentlyConverged =
+    latest !== null
+    && latest.sessions >= minSessionsForConvergence
+    && latest.dominance >= convergenceThresholdPct;
+  const isSettledButBelow =
+    latest !== null
+    && latest.sessions >= minSessionsForConvergence
+    && latest.dominance < convergenceThresholdPct;
+  const isStillExploring =
+    latest !== null && latest.sessions < minSessionsForConvergence;
+  const pastAnomaly =
+    firstCrossing !== null
+    && firstCrossing.sessions < minSessionsForConvergence
+    && !isCurrentlyConverged
+      ? firstCrossing
+      : null;
 
   if (scamTypes.length === 0) return null;
 
@@ -213,33 +244,41 @@ function DominanceChart({ entries, config, selectedScamType, onScamTypeChange }:
         </p>
       )}
 
-      {/* Convergence state banner: three honest states.
-          True converged = threshold crossed AND sessions >= 10 at crossing.
-          Early signal = threshold crossed but on too few sessions (a 1-pull
-            persona is 100% dominant by construction; not a real convergence).
-          Still exploring = never crossed. */}
-      {chartData.length >= 1 && isTrueConverged && firstCrossing !== null && (
+      {/* Convergence state banner: three states based on CURRENT
+          snapshot. Past anomalies (single-session spikes) are kept
+          in a separate, smaller note below so they don't drive the
+          headline. */}
+      {chartData.length >= 1 && isCurrentlyConverged && latest !== null && (
         <p
           className="text-[11px] text-emerald-300 font-mono"
           data-testid="convergence-state-converged"
         >
-          ✓ Converged on {firstCrossing.date} — {personaDisplayName(config, firstCrossing.persona)} reached {firstCrossing.dominance}% on {firstCrossing.sessions} sessions (threshold ≥ {convergenceThresholdPct}% & ≥ {minSessionsForConvergence} sessions)
+          ✓ Converged — {personaDisplayName(config, latest.persona)} holds {latest.dominance}% dominance on {latest.sessions} sessions (threshold ≥ {convergenceThresholdPct}% & ≥ {minSessionsForConvergence} sessions)
         </p>
       )}
-      {chartData.length >= 1 && isEarlySignal && firstCrossing !== null && (
+      {chartData.length >= 1 && isSettledButBelow && latest !== null && (
         <p
           className="text-[11px] text-amber-300 font-mono"
-          data-testid="convergence-state-early"
+          data-testid="convergence-state-settled"
         >
-          ⚠ Early signal on {firstCrossing.date} — {personaDisplayName(config, firstCrossing.persona)} hit {firstCrossing.dominance}% but only on {firstCrossing.sessions} sessions. True convergence needs ≥ {minSessionsForConvergence} sessions; the bandit is still exploring.
+          ⧖ Bandit settled on {personaDisplayName(config, latest.persona)} ({latest.dominance}% dominance over {latest.sessions} sessions) — has not reached the {convergenceThresholdPct}% threshold required for a final declaration. Exploration continues.
         </p>
       )}
-      {chartData.length >= 1 && firstCrossing === null && (
+      {chartData.length >= 1 && isStillExploring && (
         <p
           className="text-[11px] text-amber-300 font-mono"
           data-testid="convergence-state-exploring"
         >
-          ⧖ Still exploring — {latest?.sessions ?? 0} sessions so far, no persona has reached the {convergenceThresholdPct}% dominance threshold for {scamTypeLabel(activeType)}
+          ⧖ Still exploring — only {latest?.sessions ?? 0} sessions so far, need ≥ {minSessionsForConvergence} before a convergence verdict on {scamTypeLabel(activeType)}.
+        </p>
+      )}
+
+      {pastAnomaly !== null && (
+        <p
+          className="text-[10px] text-on-surface-dim/70 italic px-1"
+          data-testid="convergence-past-anomaly"
+        >
+          ⓘ Note: an early snapshot on {pastAnomaly.date} briefly hit {pastAnomaly.dominance}% dominance, but only on {pastAnomaly.sessions} session{pastAnomaly.sessions === 1 ? '' : 's'} — a single-tirage statistical artefact, not a real convergence event.
         </p>
       )}
 
