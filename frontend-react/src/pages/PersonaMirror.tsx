@@ -4,6 +4,7 @@ import { usePersonaMatrix } from '@/hooks/usePersonaMatrix';
 import { usePersonaMirrors } from '@/hooks/usePersonaMirrors';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { scamTypeLabel } from '@/lib/scamTypeLabels';
 import type { PersonaMatrixCell } from '@/types/api';
 
 const MIN_SESSIONS_FOR_WINNER = 3;
@@ -207,7 +208,10 @@ function computeWinners(rows: PersonaMatrixCell[]): Record<string, WinnerInfo> {
     const qualifying = cells.filter(
       (c) => c.sessions >= MIN_SESSIONS_FOR_WINNER && c.reward_avg !== null,
     );
-    const scamLabel = cells[0]?.scam_type_label ?? scamCode;
+    // Prefer the locale-aware frontend helper over the raw DB label
+    // so the mirror screen matches the rest of the UI (matrix headers,
+    // convergence chart selector, money-shot badges).
+    const scamLabel = scamTypeLabel(scamCode);
 
     if (qualifying.length === 0) {
       out[scamCode] = {

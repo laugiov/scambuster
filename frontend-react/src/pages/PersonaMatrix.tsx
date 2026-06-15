@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { usePersonaMatrix } from '@/hooks/usePersonaMatrix';
 import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
+import { scamTypeLabel } from '@/lib/scamTypeLabels';
 import type { PersonaMatrixCell } from '@/types/api';
 
 const MIN_SESSIONS_FOR_HEADLINE = 3;
@@ -160,7 +161,12 @@ function buildGrid(rows: PersonaMatrixCell[]): GridShape {
 
   for (const r of rows) {
     personaMap.set(r.persona_code, r.persona_label);
-    scamTypeMap.set(r.scam_type_code, r.scam_type_label);
+    // Prefer the frontend-side scam-type label helper over the raw
+    // DB column: the helper is locale-aware (matches what the rest
+    // of the app uses — Convergence table, money-shot badges, etc.)
+    // so the matrix headers don't drift out of sync with the rest
+    // of the UI. The DB column is fallback only.
+    scamTypeMap.set(r.scam_type_code, scamTypeLabel(r.scam_type_code));
     byPair.set(`${r.persona_code}|${r.scam_type_code}`, r);
   }
 
