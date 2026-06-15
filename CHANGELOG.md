@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.19.0] - 2026-06-15
+
+### Added — Spec 104 (Persona analytics for Black Hat USA)
+
+Four additions and one correction to the Persona area of the app,
+driven by a CTI expert review of the existing Performance and
+Convergence screens. The fix addresses an honesty bug (P0); the new
+views surface comparative claims the white paper makes about the
+bandit which the existing UI did not show.
+
+#### Backend
+
+- `PersonaMatrixQueryService` + `GET /api/v1/scambaiting/persona-matrix`
+  — single read for the full active-persona × active-scam-type
+  matrix (351 rows today on a cartesian, empty cells included so the
+  UI can dim them as "not yet sampled"). Bounded, no pagination.
+- `PersonaMirrorGenerator` + `app:persona:compute-mirrors` CLI +
+  `persona_scam_mirror` table (additive migration) — generates and
+  caches the Cognitive Mirror editorial framing (hunted victim
+  profile, cognitive lever, mirror explanation) per pair. Fail-safe:
+  any LLM failure returns null and the row is simply not written,
+  no exception propagates. Budget guard built into the command.
+- `PersonaMirrorQueryService` + `GET /api/v1/personas/{code}/mirrors`
+  + `GET /api/v1/scam-types/{code}/mirrors` — read paths backing the
+  Cognitive Mirror panel.
+
+#### Frontend
+
+- **Persona × Scam Type Matrix** (`/personas/matrix`) — grid view
+  with reward-colored cells, winner per column highlighted in
+  emerald (only when the cell clears the min-session threshold),
+  best-vs-worst gap shown per column header. Demonstrates the "no
+  single best persona" claim in one image.
+- **Cognitive Mirror** (`/personas/mirror`) — per scam type, shows
+  the current winning persona + the LLM-generated editorial framing
+  ("Investment fraud hunts retirees flattered to be called investors
+  — we deploy 'Optimistic retiree, thrilled'"). Caveat footer says
+  explicitly the text is inferred from definitions, not measured.
+- **Convergence trajectory** — added a horizontal reference line at
+  the convergence threshold + a state banner above the chart
+  ("converged on YYYY-MM-DD" in emerald, or "still exploring, N
+  sessions so far" in amber) so the viewer can tell convergence
+  state from the visual alone.
+
+#### Correction
+
+- **Personas page KPI gate** (P0) — `bestPersona` reduce on the
+  headline KPI now applies the `total_sessions >= 3` filter that
+  the table rows below already use. Previously a 1-pull persona at
+  0.76 reward could dominate the headline while the same row was
+  dimmed in the table below. Asymmetry fixed; new test asserts a
+  1-pull 0.95 persona never wins the KPI against a 15-pull 0.60
+  one.
+
+#### Refused from the audit
+
+- "Demote per-IOC psychological signals" — refused, contradicts the
+  shipped + validated spec 102 work. The two layers (per-IOC for
+  SOC analysts on individual indicators, per-persona for strategy
+  stakeholders on aggregate) serve different audiences and are
+  complementary.
+- "Strategy comparison (random vs fixed vs bandit)" — deferred,
+  requires a controlled A/B/C experiment we have not run. The
+  audit's "observational reconstruction" path is methodologically
+  weak and dismantles easily under expert questioning.
+
+#### Cost
+
+LLM batch for the Cognitive Mirror cache cost $0.35 (350 successful
+generations, 1 idempotent skip, 0 errors, gpt-4o-mini).
+
 ## [2.18.0] - 2026-06-15
 
 ### Changed — Spec 102 (Human Factor calibration)
