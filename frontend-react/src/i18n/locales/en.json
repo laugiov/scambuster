@@ -36,6 +36,7 @@
     "personasGroup": "Personas",
     "personas": "Performance",
     "personaMatrix": "Matrix",
+    "personaMirror": "Cognitive Mirror",
     "convergence": "Convergence",
     "settings": "Settings",
     "logout": "Logout",
@@ -255,6 +256,23 @@
     "attckTechnique": "MITRE ATT&CK",
     "mispTaxonomy": "MISP Taxonomy",
     "observation": "Observation"
+  },
+  "personaMirror": {
+    "title": "Cognitive Mirror",
+    "subtitle": "Why this persona is matched to this scam type — same weapon, different target",
+    "loading": "Loading mirror data...",
+    "failedLoad": "Failed to load mirror data",
+    "noData": "No active personas or scam types yet.",
+    "selectScamType": "Scam type",
+    "scamType": "Scam type",
+    "winningPersona": "Currently winning persona",
+    "huntedVictim": "Victim profile this scam preys on",
+    "cognitiveLever": "Cognitive lever exploited",
+    "whyMirror": "Why this persona mirrors that target",
+    "noWinnerYet": "Still exploring for {{scamType}} — no persona has reached the min-session threshold yet.",
+    "generationPending": "Mirror generation pending for the current winning persona {{persona}} — run app:persona:compute-mirrors to populate.",
+    "generationFooter": "Generated {{date}} · {{model}} · prompt {{version}}",
+    "caveat": "Editorial framing inferred from persona and scam-type definitions by an LLM. Not a measured behavioural signal. The measured ranking is in Performance and Matrix; this view explains the pairing in plain language."
   },
   "personaMatrix": {
     "title": "Persona × Scam Type Matrix",

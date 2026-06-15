@@ -36,6 +36,7 @@
     "personasGroup": "Personas",
     "personas": "Performance",
     "personaMatrix": "Matrice",
+    "personaMirror": "Miroir cognitif",
     "convergence": "Convergence",
     "settings": "Parametres",
     "logout": "Deconnexion",
@@ -255,6 +256,23 @@
     "viewInTheater": "Voir dans Live Bait Theater",
     "attckTechnique": "MITRE ATT&CK",
     "mispTaxonomy": "Taxonomie MISP"
+  },
+  "personaMirror": {
+    "title": "Miroir cognitif",
+    "subtitle": "Pourquoi cette persona est associée à ce type d'arnaque — même arme, cible différente",
+    "loading": "Chargement des données miroir...",
+    "failedLoad": "Échec du chargement des données miroir",
+    "noData": "Aucune persona ou type d'arnaque actif.",
+    "selectScamType": "Type d'arnaque",
+    "scamType": "Type d'arnaque",
+    "winningPersona": "Persona gagnante actuelle",
+    "huntedVictim": "Profil de victime que ce scam chasse",
+    "cognitiveLever": "Levier cognitif exploité",
+    "whyMirror": "Pourquoi cette persona reflète cette cible",
+    "noWinnerYet": "Encore en exploration pour {{scamType}} — aucune persona n'a atteint le seuil de sessions minimum.",
+    "generationPending": "Génération du miroir en attente pour la persona gagnante {{persona}} — lancer app:persona:compute-mirrors.",
+    "generationFooter": "Généré {{date}} · {{model}} · prompt {{version}}",
+    "caveat": "Cadrage éditorial inféré des définitions de persona et de type d'arnaque par un LLM. N'est pas un signal comportemental mesuré. Le classement mesuré est dans Performance et Matrice ; cette vue explique l'appariement en langage clair."
   },
   "personaMatrix": {
     "title": "Matrice Persona × Type d'arnaque",

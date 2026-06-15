@@ -224,6 +224,26 @@ export interface PersonaMatrixResponse {
   data: PersonaMatrixCell[];
 }
 
+// Spec 104 P3 — Cognitive Mirror
+export interface PersonaMirrorEntry {
+  scam_type_code: string;
+  scam_type_label: string;
+  hunted_victim_profile: string;
+  cognitive_lever: string;
+  mirror_explanation: string;
+  generated_at: string;
+  generated_by_model: string;
+  prompt_version: string;
+}
+
+export interface PersonaMirrorsResponse {
+  success: boolean;
+  data: {
+    persona_code: string;
+    mirrors: PersonaMirrorEntry[];
+  };
+}
+
 // IOC Co-occurrence Graph
 export interface GraphNode {
   id: string;

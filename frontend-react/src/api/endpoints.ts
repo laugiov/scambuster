@@ -48,6 +48,8 @@ export const ENDPOINTS = {
     statsByType: (code: string) => `/scambaiting/stats/${code}`,
     personaPerformance: (code: string) => `/scambaiting/persona/${code}/performance`,
     personaMatrix: '/scambaiting/persona-matrix',
+    personaMirrors: (code: string) => `/personas/${code}/mirrors`,
+    scamTypeMirrors: (code: string) => `/scam-types/${code}/mirrors`,
     selectPersona: '/scambaiting/select-persona',
     closeConversation: (id: string) => `/scambaiting/conversation/${id}/close`,
   },

@@ -16,6 +16,7 @@ const IocDetail = lazy(() => import('@/pages/IocDetail'));
 const StixExport = lazy(() => import('@/pages/StixExport'));
 const Personas = lazy(() => import('@/pages/Personas'));
 const PersonaMatrix = lazy(() => import('@/pages/PersonaMatrix'));
+const PersonaMirror = lazy(() => import('@/pages/PersonaMirror'));
 const ConvergenceHistory = lazy(() => import('@/pages/ConvergenceHistory'));
 // const Campaigns = lazy(() => import('@/pages/Campaigns')); // hidden: campaigns disconnected
 const LlmCosts = lazy(() => import('@/pages/LlmCosts'));
@@ -73,6 +74,7 @@ export default function App() {
               <Route path="stix-export" element={<StixExport />} />
               <Route path="personas" element={<Personas />} />
               <Route path="personas/matrix" element={<PersonaMatrix />} />
+              <Route path="personas/mirror" element={<PersonaMirror />} />
               <Route path="convergence" element={<ConvergenceHistory />} />
               <Route path="llm-costs" element={<LlmCosts />} />
               <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
