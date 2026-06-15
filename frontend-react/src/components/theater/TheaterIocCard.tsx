@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TheaterIoc } from '@/hooks/useTheaterReplay';
+import { useUrgencyCorpusStats } from '@/hooks/useUrgencyCorpusStats';
 import { categoryColorClass } from '@/lib/iocCategory';
 import { MaskedValue } from './MaskedValue';
 
@@ -119,14 +120,32 @@ export function TheaterIocCard({ ioc }: TheaterIocCardProps) {
 
 function UrgencyBar({ value, label }: { value: number; label: string }) {
   const pct = Math.max(0, Math.min(100, value * 100));
+  const corpus = useUrgencyCorpusStats();
+  const medianPct =
+    corpus.data?.median !== null && corpus.data?.median !== undefined
+      ? Math.max(0, Math.min(100, corpus.data.median * 100))
+      : null;
+
   return (
     <div>
       <div className="flex justify-between items-baseline text-[10px] text-on-surface-dim">
         <span>{label}</span>
         <span className="font-mono">{Math.round(pct)}%</span>
       </div>
-      <div className="h-1 bg-surface-high rounded mt-0.5 overflow-hidden">
+      <div className="relative h-1 bg-surface-high rounded mt-0.5 overflow-hidden">
         <div className="h-full bg-amber-400" style={{ width: `${pct}%` }} />
+        {/* Spec 102 follow-up — corpus median tick. Lets the viewer
+            see at a glance whether this IOC is above or below the
+            typical urgency. Subtle so it doesn't compete with the
+            per-IOC bar; positioned by left/transform so it stays a
+            single pixel of contrast regardless of card width. */}
+        {medianPct !== null && (
+          <div
+            className="absolute top-0 h-full w-px bg-on-surface-dim/60"
+            style={{ left: `${medianPct}%` }}
+            data-testid="urgency-corpus-median-tick"
+          />
+        )}
       </div>
     </div>
   );

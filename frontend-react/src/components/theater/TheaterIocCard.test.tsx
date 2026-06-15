@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { TheaterIocCard } from './TheaterIocCard';
 import { MaskModeProvider } from '@/hooks/MaskModeProvider';
 import type { TheaterIoc } from '@/hooks/useTheaterReplay';
@@ -19,10 +20,21 @@ function baseIoc(overrides: Partial<TheaterIoc> = {}): TheaterIoc {
 }
 
 function renderCard(ioc: TheaterIoc) {
+  // Spec 102 follow-up — UrgencyBar now calls useUrgencyCorpusStats
+  // (react-query) so tests must provide a QueryClient. retry: false
+  // and a fresh client per render keep tests deterministic — the
+  // network call falls through to the queryFn, which throws on the
+  // mocked-absent endpoint, the hook returns { data: undefined }, and
+  // the bar renders without the corpus median tick (degraded but
+  // valid). That matches production behaviour when the stats endpoint
+  // is offline.
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MaskModeProvider>
-      <TheaterIocCard ioc={ioc} />
-    </MaskModeProvider>,
+    <QueryClientProvider client={client}>
+      <MaskModeProvider>
+        <TheaterIocCard ioc={ioc} />
+      </MaskModeProvider>
+    </QueryClientProvider>,
   );
 }
 
