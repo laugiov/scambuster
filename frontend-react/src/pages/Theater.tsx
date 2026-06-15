@@ -205,6 +205,9 @@ function TheaterContent({ data }: { data: NonNullable<ReturnType<typeof useTheat
           visibleStep={state.currentStep}
           iocsByMsg={data.iocs_by_msg}
           typingDirection={typingDirection}
+          extraMaskValues={[data.meta.scammer_address, data.meta.persona_address].filter(
+            (a): a is string => typeof a === 'string' && a.length > 0,
+          )}
         />
         <aside className="w-[440px] shrink-0 overflow-y-auto border-l border-outline-variant bg-surface-low/30">
           <TheaterIntelligencePanel

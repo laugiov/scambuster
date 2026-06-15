@@ -44,4 +44,16 @@ describe('maskPiiInBody — Spec 099 S7', () => {
     const out = maskPiiInBody('Go to acme.example.com here', ['acme.example', 'acme.example.com']);
     expect(out).toBe('Go to [•••] here');
   });
+
+  // Regression — body PII leaked when the body kept the display form
+  // (e.g. "+91-7906757261") while the IOC was indexed only via the
+  // normalized form (e.g. "+917906757261"). Caller is now expected to
+  // pass BOTH forms; this asserts the masker handles them in one pass.
+  it('masks both display and normalized forms when both are supplied', () => {
+    const out = maskPiiInBody(
+      'Reach me at +91-7906757261 or fallback +917906757261',
+      ['+917906757261', '+91-7906757261'],
+    );
+    expect(out).toBe('Reach me at [•••] or fallback [•••]');
+  });
 });

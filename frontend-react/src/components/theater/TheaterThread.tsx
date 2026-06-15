@@ -11,6 +11,13 @@ interface TheaterThreadProps {
   visibleStep: number;
   iocsByMsg: TheaterIoc[];
   typingDirection: 'in' | 'out' | null;
+  /**
+   * Additional plain strings that should be redacted from message bodies
+   * when masked. Used by the parent to pass the conv-level scammer +
+   * persona addresses so quoted-reply blocks (`<r.ashbrook@...> wrote:`)
+   * don't leak the participant emails alongside IOC values.
+   */
+  extraMaskValues?: readonly string[];
 }
 
 /**
@@ -24,19 +31,38 @@ interface TheaterThreadProps {
  * its `stimulus_msg_id`, renders a TheaterPressureBadge above it listing
  * the IOC types that came in the immediately following inbound reveal.
  */
-export function TheaterThread({ messages, visibleStep, iocsByMsg, typingDirection }: TheaterThreadProps) {
+export function TheaterThread({
+  messages,
+  visibleStep,
+  iocsByMsg,
+  typingDirection,
+  extraMaskValues,
+}: TheaterThreadProps) {
   const { t } = useTranslation();
   const { masked } = useMaskMode();
   const scrollerRef = useRef<HTMLDivElement>(null);
 
-  // Body PII masking is now driven by the unified `masked` state (the
-  // same flag that controls the right-panel catalog and the header
-  // addresses). When masked, build the IOC value-norm set once and
-  // pass it to the body masker for each message render.
-  const iocValueNorms = useMemo<string[]>(
-    () => (masked ? iocsByMsg.map((i) => i.value_norm) : []),
-    [iocsByMsg, masked],
-  );
+  // Body PII masking is now driven by the unified `masked` state.
+  // Pass BOTH the raw display value AND the normalized value to the
+  // masker — IOC extraction normalizes characters (a phone "+91-7906757261"
+  // becomes value_norm "+917906757261"), so matching only on value_norm
+  // missed the body's hyphenated form.
+  // Also seed with conv-level addresses (scammer + persona) so the
+  // quoted-reply lines "On Sun ... <addr@…> wrote:" inside bodies are
+  // also redacted.
+  const iocValueNorms = useMemo<string[]>(() => {
+    if (!masked) return [];
+    const set = new Set<string>();
+    for (const ioc of iocsByMsg) {
+      if (ioc.value_norm) set.add(ioc.value_norm);
+      if (ioc.value) set.add(ioc.value);
+    }
+    for (const addr of extraMaskValues ?? []) {
+      if (addr) set.add(addr);
+    }
+
+    return Array.from(set);
+  }, [iocsByMsg, masked, extraMaskValues]);
 
   useEffect(() => {
     if (scrollerRef.current) {
