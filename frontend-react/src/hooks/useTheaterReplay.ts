@@ -24,6 +24,11 @@ export interface TheaterMeta {
   ts_last: string;
   messages_count: number;
   iocs_count: number;
+  /** Spec 099 S6 — count of actionable IOCs (excludes header artifacts).
+   * Same number rendered as "N indicators extracted" in the Intelligence
+   * headline; used as the single denominator across Psychology panel
+   * signals so all fractions on screen reconcile. */
+  iocs_count_actionable: number;
   long_conversation_truncated: boolean;
   enrichment_coverage_pct: number;
 }

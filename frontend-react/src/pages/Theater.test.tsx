@@ -24,6 +24,7 @@ function fixture() {
       to_address: 'admin@example.com',
       truncated: false,
       iocs_count: 0,
+      iocs_count_actionable: 0,
       enrichment_coverage_pct: 100,
     },
     messages: [
