@@ -600,6 +600,8 @@
     "variants_count": "▸ {{count}} variante(s) de ce domaine",
     "typical_pattern": "pattern typique",
     "outlier_pattern": "plus tôt que la moyenne",
+    "early_pattern": "plus tôt que la moyenne (scammer pressé d'arriver à l'argent)",
+    "late_pattern": "plus tard que la moyenne (engagement lent avant l'argent)",
     "no_labelled_signals": "Aucun signal labellisé sur cette conversation. Les métriques déterministes ci-dessus sont suffisantes.",
     "context_section": "Contexte d'en-tête ({{count}}) — sujet, message-id, résultats auth",
     "spoiler_pending": "(révélé en cours de lecture)",

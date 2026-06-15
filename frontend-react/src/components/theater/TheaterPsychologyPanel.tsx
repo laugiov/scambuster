@@ -65,10 +65,24 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
   const corpusThisRatio = det.first_financial_ratio !== null
     ? Math.round(det.first_financial_ratio * 100)
     : 0;
-  const isTypicalReveal =
-    corpus?.median_ratio_pct !== undefined
-    && corpus?.median_ratio_pct !== null
-    && corpusThisRatio >= corpus.median_ratio_pct - 15;
+  // Spec 102 follow-up — three-way pattern classification, symmetric
+  // around the corpus median with a ±15 pp tolerance band:
+  //   - 'early':  ratio below median - 15  (scammer goes to money fast)
+  //   - 'typical': within median ±15        (calibrated, no surprise)
+  //   - 'late':  ratio above median + 15   (patient scammer, often
+  //              the more sophisticated invoice-fraud / BEC pattern)
+  // Previous logic was unilateral (typical if ratio >= median - 15)
+  // which incorrectly labelled a 91% reveal as "typical" against a
+  // 50% corpus median — the LATE case got swallowed by the typical
+  // bucket and the demo lost its punchline.
+  const revealPattern: 'early' | 'typical' | 'late' | null =
+    corpus?.median_ratio_pct === undefined || corpus?.median_ratio_pct === null
+      ? null
+      : corpusThisRatio < corpus.median_ratio_pct - 15
+        ? 'early'
+        : corpusThisRatio > corpus.median_ratio_pct + 15
+          ? 'late'
+          : 'typical';
 
   return (
     <section className="p-5 flex flex-col gap-4" data-testid="theater-psychology-panel">
@@ -116,10 +130,14 @@ export function TheaterPsychologyPanel({ hf, meta, finished, visibleStep }: Thea
               })}
             </span>
             {' — '}
-            {isTypicalReveal ? (
+            {revealPattern === 'typical' && (
               <span className="text-emerald-300">{t('theater.typical_pattern')}</span>
-            ) : (
-              <span className="text-amber-300">{t('theater.outlier_pattern')}</span>
+            )}
+            {revealPattern === 'late' && (
+              <span className="text-amber-300">{t('theater.late_pattern')}</span>
+            )}
+            {revealPattern === 'early' && (
+              <span className="text-amber-300">{t('theater.early_pattern')}</span>
             )}
           </p>
         )}

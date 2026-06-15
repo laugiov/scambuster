@@ -600,6 +600,8 @@
     "variants_count": "▸ {{count}} variant(s) of this domain",
     "typical_pattern": "typical pattern",
     "outlier_pattern": "earlier than typical",
+    "early_pattern": "earlier than typical (scammer rushed to money)",
+    "late_pattern": "later than typical (slow-burn engagement before money)",
     "no_labelled_signals": "No labelled signals on this conversation. The deterministic metrics above stand on their own.",
     "context_section": "Header context ({{count}}) — subject, message-id, auth results",
     "spoiler_pending": "(reveals as you play)",
