@@ -27,13 +27,22 @@ class IocQueryService
      */
     public function getConversationIocs(string $convId): array
     {
+        // ORDER BY message.ts_msg ASC, then ts_observed ASC, so the
+        // FIRST occurrence of an indicator in conversation-time wins
+        // on dedup. Spec 100 "money shot" displays the IOC reveal
+        // turn — must be the turn it first appeared, not the most
+        // recent repetition. Bug surfaced when a BIC code was quoted
+        // in two consecutive scammer messages: the panel showed the
+        // BIC at turn 10/13 (repetition) while the BANK_ACCOUNT it
+        // was alongside in the original message showed at turn 8/13.
         $qb = $this->em->createQueryBuilder();
         $qb->select('ioc')
             ->from(ObservedIoc::class, 'ioc')
             ->join('ioc.message', 'm')
             ->where('m.conversation = :convId')
             ->setParameter('convId', $convId)
-            ->orderBy('ioc.tsObserved', 'DESC');
+            ->orderBy('m.tsMsg', 'ASC')
+            ->addOrderBy('ioc.tsObserved', 'ASC');
 
         /** @var array<ObservedIoc> $allIocs */
         $allIocs = $qb->getQuery()->getResult();
