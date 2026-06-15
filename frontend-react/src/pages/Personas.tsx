@@ -33,8 +33,18 @@ export function Personas() {
   const activeCount = safePersonas.length;
   const epsilon = stats?.convergence.exploration_rate ?? 0.15;
   const totalSessions = safePersonas.reduce((sum, p) => sum + p.total_sessions, 0);
-  const bestPersona = safePersonas.length > 0
-    ? safePersonas.reduce((best, p) => p.global_avg_reward > best.global_avg_reward ? p : best)
+  // Spec 104 P0 — min-session gate on the headline KPI.
+  // The Performance matrix already dims rows with < 3 sessions (line ~125)
+  // and the footer caption tells users that those are "indicative only".
+  // The headline KPI used to ignore the same threshold, so a persona with
+  // 1 pull at 0.76 reward could dominate the screen — making a single
+  // sample look like the algorithm's verdict. Cold-start personas are
+  // now excluded from the KPI; the gate matches PersonaOptimizer's
+  // COLD_START_THRESHOLD = 3 on the backend.
+  const MIN_SESSIONS_FOR_HEADLINE = 3;
+  const qualifiedPersonas = safePersonas.filter((p) => p.total_sessions >= MIN_SESSIONS_FOR_HEADLINE);
+  const bestPersona = qualifiedPersonas.length > 0
+    ? qualifiedPersonas.reduce((best, p) => p.global_avg_reward > best.global_avg_reward ? p : best)
     : null;
 
   const selectedPersona = safePersonas.find((p) => p.persona_code === selectedCode) ?? null;
@@ -51,10 +61,14 @@ export function Personas() {
         <StatCard label={t('personas.explorationRate')} value={epsilon.toFixed(2)} subtitle={t('personas.epsilon')} />
         <StatCard label={t('personas.totalSessions')} value={totalSessions} />
         <StatCard
-          label="Best Avg Reward"
-          value={bestPersona?.global_avg_reward.toFixed(2) ?? '--'}
-          subtitle={bestPersona ? personaDisplayName(config, bestPersona.persona_code) : '--'}
-          subtitleColor="text-accent"
+          label={t('personas.bestAvgReward')}
+          value={bestPersona?.global_avg_reward.toFixed(2) ?? '—'}
+          subtitle={
+            bestPersona
+              ? personaDisplayName(config, bestPersona.persona_code)
+              : t('personas.kpi_no_qualified')
+          }
+          subtitleColor={bestPersona ? 'text-accent' : 'text-on-surface-dim'}
         />
       </div>
 

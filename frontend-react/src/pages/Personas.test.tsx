@@ -102,4 +102,79 @@ describe('Personas', () => {
       expect(screen.getAllByText(/epsilon-greedy/i).length).toBeGreaterThan(0);
     });
   });
+
+  // Spec 104 P0 — KPI gate. The previous reduce() walked all personas and
+  // picked the highest avg reward regardless of session count, so a 1-pull
+  // persona at 1.0 dominated the headline. Cold-start personas must now be
+  // excluded; the headline shows the qualified persona's score, not the
+  // cold-start one.
+  it('Spec 104 P0: KPI excludes cold-start personas from the headline', async () => {
+    server.use(
+      http.get(`${BASE}/meta/config`, () => HttpResponse.json(mockMetaConfig)),
+      // NB: the production hook unwraps `{success, data}`. Tests that mocked
+      // the bare object silently produced an empty personas list (so the
+      // KPI showed "—" and assertions on it were never written). The Spec
+      // 104 KPI gate needs real data to test, so we wrap properly here.
+      http.get(`${BASE}/scambaiting/persona/:code/performance`, ({ params }) => {
+        const overrides: Record<string, { reward: number; sessions: number }> = {
+          elderly_person: { reward: 0.6, sessions: 15 },
+          bank_customer: { reward: 0.95, sessions: 1 },
+        };
+        const cfg = overrides[params.code as string] ?? { reward: 0.5, sessions: 5 };
+
+        return HttpResponse.json({
+          success: true,
+          data: {
+            persona_code: params.code,
+            global_avg_reward: cfg.reward,
+            total_sessions: cfg.sessions,
+            performance_by_scam_type: [],
+          },
+        });
+      }),
+      http.get(`${BASE}/monitoring/autonomy`, () => HttpResponse.json(mockStats)),
+    );
+
+    render(<Personas />, { wrapper: createWrapper() });
+
+    // Re-query the KPI card on each retry so re-renders are picked up.
+    await waitFor(
+      () => {
+        const label = screen.getByText(/Best Avg Reward/i);
+        const card = label.closest('div');
+        expect(card?.textContent ?? '').toContain('0.60');
+      },
+      { timeout: 3000 },
+    );
+
+    // The cold-start persona's reward (0.95) appears in the matrix table
+    // but must NOT appear inside the KPI card.
+    const label = screen.getByText(/Best Avg Reward/i);
+    const card = label.closest('div');
+    expect(card?.textContent ?? '').not.toContain('0.95');
+  });
+
+  it('Spec 104 P0: KPI shows the no-qualified caption when every persona is cold-start', async () => {
+    server.use(
+      http.get(`${BASE}/meta/config`, () => HttpResponse.json(mockMetaConfig)),
+      http.get(`${BASE}/scambaiting/persona/:code/performance`, ({ params }) =>
+        HttpResponse.json({
+          success: true,
+          data: {
+            persona_code: params.code,
+            global_avg_reward: 0.8,
+            total_sessions: 2, // below min threshold
+            performance_by_scam_type: [],
+          },
+        }),
+      ),
+      http.get(`${BASE}/monitoring/autonomy`, () => HttpResponse.json(mockStats)),
+    );
+
+    render(<Personas />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText(/no persona reached/i)).toBeInTheDocument();
+    });
+  });
 });

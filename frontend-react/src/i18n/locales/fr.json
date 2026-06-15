@@ -262,6 +262,8 @@
     "explorationRate": "Taux d'exploration",
     "epsilon": "epsilon",
     "totalSessions": "Sessions totales",
+    "bestAvgReward": "Meilleure récompense moyenne",
+    "kpi_no_qualified": "aucune persona n'a atteint le seuil de sessions minimum",
     "convergenceRate": "Taux de convergence",
     "performanceMatrix": "Matrice de performance des personas",
     "liveFeed": "Flux en direct",

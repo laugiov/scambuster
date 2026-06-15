@@ -262,6 +262,8 @@
     "explorationRate": "Exploration Rate",
     "epsilon": "epsilon",
     "totalSessions": "Total Sessions",
+    "bestAvgReward": "Best Avg Reward",
+    "kpi_no_qualified": "no persona reached min-session threshold yet",
     "convergenceRate": "Convergence Rate",
     "performanceMatrix": "Persona Performance Matrix",
     "liveFeed": "Live Feed",
