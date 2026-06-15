@@ -13,6 +13,27 @@ import { scamTypeLabel, scamTypeColor, humanize } from '@/lib/scamTypeLabels';
 import { iocTypeLabel } from '@/lib/iocTypeLabels';
 import type { IocObservation, IocRelated, IocContextEntry } from '@/types/api';
 
+/**
+ * Engagement label for an IOC context row.
+ *
+ * `engagement_hours` is the elapsed time between the conversation's first
+ * message and the IOC reveal. It can legitimately be 0.0 when the IOC was
+ * extracted from the very first inbound (no prior history). In that case
+ * we say "Turn 1 · Initial email". For any other turn, 0.0h is a stale
+ * structural value — the row was created before engagement was tracked
+ * for that conversation — so we display "n/a" rather than the misleading
+ * "Initial email" hint.
+ */
+function engagementLabel(hours: number, turn: number | null): string {
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+  if (turn === 1 || turn === null) {
+    return 'Turn 1 · Initial email';
+  }
+  return 'n/a';
+}
+
 function formatNonAmbiguousDate(iso: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return '--';
@@ -503,7 +524,12 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
           {s.scam_type && <MetaField label={t('iocContext.scamType')} value={scamTypeLabel(s.scam_type)} />}
           {s.persona_code && <MetaField label={t('iocContext.persona')} value={s.persona_label ?? s.persona_code} />}
           {s.extraction_method && <MetaField label={t('iocContext.extraction')} value={s.extraction_method === 'llm' ? 'LLM' : s.extraction_method === 'regex' ? 'Regex' : s.extraction_method === 'header' ? 'Header' : s.extraction_method} />}
-          {s.engagement_hours != null && <MetaField label={t('iocContext.engagement')} value={s.engagement_hours === 0 ? 'Turn 1 · Initial email' : `${s.engagement_hours}h`} />}
+          {s.engagement_hours != null && (
+            <MetaField
+              label={t('iocContext.engagement')}
+              value={engagementLabel(s.engagement_hours, s.revelation_turn)}
+            />
+          )}
         </div>
 
         {/* CTI standards — surfaced for SOC/CERT consumers. Spec 102
