@@ -209,6 +209,21 @@ export interface IocContextResponse {
   contexts: IocContextEntry[];
 }
 
+// Spec 104 P1 — Persona × scam type matrix
+export interface PersonaMatrixCell {
+  persona_code: string;
+  persona_label: string;
+  scam_type_code: string;
+  scam_type_label: string;
+  sessions: number;
+  reward_avg: number | null;
+}
+
+export interface PersonaMatrixResponse {
+  success: boolean;
+  data: PersonaMatrixCell[];
+}
+
 // IOC Co-occurrence Graph
 export interface GraphNode {
   id: string;

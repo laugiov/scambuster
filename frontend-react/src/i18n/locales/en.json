@@ -35,6 +35,7 @@
     "stixExport": "STIX Export",
     "personasGroup": "Personas",
     "personas": "Performance",
+    "personaMatrix": "Matrix",
     "convergence": "Convergence",
     "settings": "Settings",
     "logout": "Logout",
@@ -254,6 +255,17 @@
     "attckTechnique": "MITRE ATT&CK",
     "mispTaxonomy": "MISP Taxonomy",
     "observation": "Observation"
+  },
+  "personaMatrix": {
+    "title": "Persona × Scam Type Matrix",
+    "subtitle": "Which persona keeps which attacker talking — empty cells are personas not yet sampled on that scam type",
+    "loading": "Loading matrix...",
+    "failedLoad": "Failed to load matrix data",
+    "noData": "No active personas or scam types yet.",
+    "persona": "Persona",
+    "gap": "best–worst gap {{gap}}",
+    "notEnoughData": "not enough data",
+    "footer": "Cells dimmed when fewer than {{threshold}} sessions — values shown are indicative only and never carry a winner highlight."
   },
   "personas": {
     "title": "Persona & Bandit Configuration",

@@ -35,6 +35,7 @@
     "stixExport": "Export STIX",
     "personasGroup": "Personas",
     "personas": "Performance",
+    "personaMatrix": "Matrice",
     "convergence": "Convergence",
     "settings": "Parametres",
     "logout": "Deconnexion",
@@ -254,6 +255,17 @@
     "viewInTheater": "Voir dans Live Bait Theater",
     "attckTechnique": "MITRE ATT&CK",
     "mispTaxonomy": "Taxonomie MISP"
+  },
+  "personaMatrix": {
+    "title": "Matrice Persona × Type d'arnaque",
+    "subtitle": "Quelle persona fait parler quel attaquant — cellules vides : personas pas encore échantillonnées sur ce type d'arnaque",
+    "loading": "Chargement de la matrice...",
+    "failedLoad": "Échec du chargement de la matrice",
+    "noData": "Aucune persona ou type d'arnaque actif.",
+    "persona": "Persona",
+    "gap": "écart meilleure–pire {{gap}}",
+    "notEnoughData": "données insuffisantes",
+    "footer": "Cellules grisées en dessous de {{threshold}} sessions — valeurs indicatives uniquement, jamais marquées gagnantes."
   },
   "personas": {
     "title": "Configuration Persona & Bandit",
