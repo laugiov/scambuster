@@ -82,12 +82,17 @@ describe('Impact page', () => {
     expect(screen.getByText(/Novel IOCs/i)).toBeInTheDocument();
   });
 
-  it('renders Actor Deduplication card (spec 065 / v2.14.0)', async () => {
+  it('renders Actor Deduplication card (spec 065 / v2.14.0, fixed spec 104)', async () => {
     render(<Impact />, { wrapper: createWrapper() });
 
-    // The Actor Dedup card shows "33 → 5" (total_conversations → total_clusters)
+    // The Actor Dedup card shows total_conversations → (total_clusters + singletons).
+    // Singletons (convs with no shared financial IOC) are each their
+    // own actor — leaving them out would imply a 93% collapse on the
+    // current corpus, which would not match the Clusters page.
+    // Fixture: total_conversations=33, total_clusters=5, singletons=5
+    // → 33 → 10.
     await screen.findByText(/Actor Deduplication/i);
-    expect(screen.getByText(/33 → 5/)).toBeInTheDocument();
+    expect(screen.getByText(/33 → 10/)).toBeInTheDocument();
   });
 
   it('renders IOCs by Type chart section', async () => {

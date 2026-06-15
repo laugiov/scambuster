@@ -179,7 +179,13 @@ export function Impact() {
         {clusterStats && clusterStats.total_conversations > 0 && (
           <StatCard
             label={t('impact.actor_dedup')}
-            value={`${clusterStats.total_conversations} \u2192 ${clusterStats.total_clusters}`}
+            // Deduplicated actor count = clusters (groups of related convs)
+            // + singletons (convs with no shared financial IOC, each
+            // still its own actor). The earlier formula dropped the
+            // singletons and showed "565 \u2192 37" which would imply a 93%
+            // collapse \u2014 wildly misleading. Matches the formula on the
+            // Clusters page (line 53) so both screens agree.
+            value={`${clusterStats.total_conversations} \u2192 ${clusterStats.total_clusters + clusterStats.singleton_conversations}`}
             subtitle={t('impact.actor_dedup_subtitle', { pct: clusterStats.taxii_noise_reduction_pct.toFixed(1) })}
           />
         )}
