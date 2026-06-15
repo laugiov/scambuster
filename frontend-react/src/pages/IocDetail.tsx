@@ -669,12 +669,9 @@ function ContextCard({ ctx }: { ctx: IocContextEntry }) {
         </div>
       )}
 
-      {/* Footer: enrichment status + computed_at + model (for audit) */}
-      <div className="border-t border-surface-high px-5 py-3 flex items-center gap-4 text-xs text-on-surface-dim flex-wrap">
+      {/* Footer: enrichment status + computed_at */}
+      <div className="border-t border-surface-high px-5 py-3 flex items-center gap-4 text-xs text-on-surface-dim">
         <span>{t('iocContext.enrichmentStatus')}: {statusStyle.label}</span>
-        {ctx.semantic?.enrichment_model && (
-          <span>{t('iocContext.model')}: <span className="font-mono">{ctx.semantic.enrichment_model}</span></span>
-        )}
         {ctx.computed_at && <span>{t('iocContext.computedAt')}: {formatNonAmbiguousDate(ctx.computed_at)}</span>}
       </div>
     </div>

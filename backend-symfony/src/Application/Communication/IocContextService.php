@@ -172,13 +172,28 @@ final readonly class IocContextService
         return $row ?: null;
     }
 
+    /**
+     * Position of the IOC's parent message in the conversation,
+     * counted across ALL messages (both inbound and outbound). This
+     * matches the chronological numbering used by the Live Bait
+     * Theater (`message.idx`) and by `conversation.turns_count`, so
+     * the ratio `revelation_turn / total_turns` is meaningful and
+     * matches the LBT money-shot ratio.
+     *
+     * Previous implementation counted only INBOUND messages while
+     * `total_turns` was the all-messages count from the conversation
+     * entity — numerator and denominator used different units, so an
+     * IBAN that revealed at message 10/11 (91%) displayed as
+     * "Turn 6/11" (55%) on the IOC detail page while the LBT
+     * showed "10/11 (91%)". Same row, two different turn numbers
+     * for the same event.
+     */
     private function computeTurnIndex(string $convId, string $msgTimestamp): int
     {
         $count = $this->connection->fetchOne(
             'SELECT COUNT(*) + 1'
             . ' FROM message m'
             . ' WHERE m.conv_id = :convId'
-            . ' AND m.direction = (SELECT dir_id FROM lkp_direction WHERE code = \'in\')'
             . ' AND m.ts_msg < :ts'
             . ' AND m.deleted_at IS NULL',
             ['convId' => $convId, 'ts' => $msgTimestamp]
