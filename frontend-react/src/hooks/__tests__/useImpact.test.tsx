@@ -32,6 +32,11 @@ const mockImpactSummary = {
     total_iocs: 500,
     novel_iocs: 300,
     novel_pct: 60,
+    // Spec 106 — Fresh IOCs tile fixture (period-aware window)
+    fresh_iocs_count: 80,
+    fresh_iocs_prev_count: 40,
+    fresh_iocs_delta_pct: 100.0,
+    fresh_iocs_window_days: 30,
     financial_iocs: 100,
     high_confidence_iocs: 200,
     by_type: [{ type: 'email', count: 50 }],

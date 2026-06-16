@@ -19,6 +19,11 @@ const mockImpactSummary = {
   ioc_value: {
     novel_pct: 68.8,
     novel_iocs: 198,
+    // Spec 106 — Fresh IOCs tile fixture (period-aware window)
+    fresh_iocs_count: 142,
+    fresh_iocs_prev_count: 89,
+    fresh_iocs_delta_pct: 59.6,
+    fresh_iocs_window_days: 30,
     by_type: [
       { type: 'email', count: 500 },
       { type: 'domain', count: 520 },
@@ -74,12 +79,38 @@ describe('Impact page', () => {
     );
   });
 
-  it('renders stat cards', async () => {
+  it('renders stat cards (Fresh IOCs face when window applies)', async () => {
     render(<Impact />, { wrapper: createWrapper() });
 
     await screen.findByText(/Impact & Intelligence/i);
     expect(screen.getByText(/Criminal Time Wasted/i)).toBeInTheDocument();
-    expect(screen.getByText(/Novel IOCs/i)).toBeInTheDocument();
+    // Spec 106 — Novel IOCs tile replaced by Fresh IOCs (last Nd)
+    expect(screen.getByText(/Fresh IOCs \(last 30d\)/i)).toBeInTheDocument();
+    expect(screen.getByText('142')).toBeInTheDocument();
+    expect(screen.getByText(/59\.6%/)).toBeInTheDocument();
+  });
+
+  it('renders Total IOCs face when window_days is null (period=all backend response)', async () => {
+    server.use(
+      http.get(`${BASE}/impact/summary`, () => HttpResponse.json({
+        ...mockImpactSummary,
+        ioc_value: {
+          ...mockImpactSummary.ioc_value,
+          total_iocs: 1846,
+          fresh_iocs_count: null,
+          fresh_iocs_prev_count: null,
+          fresh_iocs_delta_pct: null,
+          fresh_iocs_window_days: null,
+        },
+      })),
+    );
+
+    render(<Impact />, { wrapper: createWrapper() });
+
+    await screen.findByText(/Impact & Intelligence/i);
+    expect(screen.getByText(/Total IOCs/i)).toBeInTheDocument();
+    expect(screen.getByText('1,846')).toBeInTheDocument();
+    expect(screen.queryByText(/Fresh IOCs/i)).not.toBeInTheDocument();
   });
 
   it('renders Actor Deduplication card (spec 065 / v2.14.0, fixed spec 104)', async () => {

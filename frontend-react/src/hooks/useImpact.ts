@@ -25,6 +25,16 @@ interface IocValue {
   total_iocs: number;
   novel_iocs: number;
   novel_pct: number;
+  // Spec 106 — Fresh IOCs tile, replaces the misleading Novel % tile.
+  // When period is 7d/30d/90d the tile shows "Fresh IOCs (last Nd)" with
+  // delta vs the previous window. When period='all', all fresh_* fields
+  // are null and the tile switches to its "Total IOCs" face, rendering
+  // `total_iocs` instead — consistent with how the other tiles behave
+  // on All (cumulative state, no trend).
+  fresh_iocs_count: number | null;
+  fresh_iocs_prev_count: number | null;
+  fresh_iocs_delta_pct: number | null;
+  fresh_iocs_window_days: number | null;
   financial_iocs: number;
   high_confidence_iocs: number;
   by_type: IocTypeEntry[];

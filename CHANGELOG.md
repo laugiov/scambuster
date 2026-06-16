@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.21.0] - 2026-06-16
+
+### Changed — Spec 106 (Impact tile honesty fix: Novel IOCs → Fresh IOCs)
+
+User audit caught the Impact dashboard's "Novel IOCs" tile overclaiming
+hard: `95.3% novel` where the SQL computes "novel" as "VirusTotal didn't
+return ≥3 detections OR was never queried". Decomposition on dev DB
+(1846 actionable IOCs):
+
+- **3** truly unenriched
+- **1503** "novel" simply because VirusTotal isn't applicable to the IOC
+  type (email, phone, telegram, iban, crypto wallets — the pipeline only
+  ever queries VT on url/domain/ipv4/sha256)
+- **253** the only honest fraction — VT queried, < 3 detections
+- **87** flagged by VT ≥ 3
+
+85% of the headline number was "VT doesn't apply", not novelty. The
+label would not survive scrutiny from a CTI expert in the audience.
+
+### What replaces it
+
+A **dual-face tile** picked by the page-level period selector:
+
+- **Fresh IOCs (last Nd)** when period = `7d`/`30d`/`90d`: count of
+  indicators whose `first_seen` is within a rolling window of that
+  length, with `▲/▼ {delta}%` vs the previous window.
+- **Total IOCs** when period = `all`: cumulative count of all
+  actionable IOCs ever observed, no trend. Matches the cumulative-state
+  pattern of the other tiles on the page.
+
+Backend signals which face to render by populating or nulling four
+new fields on `ioc_value`:
+`fresh_iocs_count`, `fresh_iocs_prev_count`, `fresh_iocs_delta_pct`,
+`fresh_iocs_window_days`. All null on `period=all` → frontend renders
+the Total face using the existing `total_iocs` field.
+
+Windowed face example:
+```
+FRESH IOCS (LAST 30D)
+1,027   ▲ 97.9%
+vs previous 30 days
+```
+
+Total face example (period=All):
+```
+TOTAL IOCS
+1,847
+across all time
+```
+
+Design decisions:
+- **Window follows the page-level period selector** (7d/30d/90d). On
+  "All", the tile changes identity rather than picking an arbitrary
+  fallback window — coherent with how Criminal Time Wasted, Cost per
+  IOC, and Actor Dedup all behave on All.
+- Respects the page-level `scam_type` filter on both faces.
+- `fresh_iocs_delta_pct` is `null` (not 0 or ∞) when prev window is empty.
+- Tooltip explicit about which face is rendered and why.
+- Excludes header-metadata types (message_id, subject, SPF/DKIM/DMARC,
+  x-mailer, return-path) consistent with the rest of the dashboard.
+- No mention of external lookups (VirusTotal etc.) anywhere on the tile.
+
+### What's left untouched (out of scope, deferred)
+
+- The Impact page's bottom chart "IOCs per Day (novel vs known)" still
+  uses the same flawed VirusTotal-based novelty classification.
+- The IOC Explorer page (`/iocs`) also computes `novel_iocs/novel_pct`
+  using the same SQL.
+
+Both kept working to avoid scope creep. The legacy `novel_iocs` /
+`novel_pct` / `novel_pct_delta` fields are still in the API for those
+consumers. A follow-up spec will address them together.
+
+---
+
 ## [2.20.0] - 2026-06-16
 
 ### Added — Spec 105 (STIX export coverage for human-factor data)

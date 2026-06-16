@@ -55,6 +55,75 @@ final class ImpactControllerTest extends WebTestCase
         $this->assertArrayHasKey('novel_pct', $ioc);
         $this->assertArrayHasKey('financial_iocs', $ioc);
         $this->assertArrayHasKey('by_type', $ioc);
+        // Spec 106 — Fresh IOCs tile keys (window follows period selector)
+        $this->assertArrayHasKey('fresh_iocs_count', $ioc);
+        $this->assertArrayHasKey('fresh_iocs_prev_count', $ioc);
+        $this->assertArrayHasKey('fresh_iocs_delta_pct', $ioc);
+        $this->assertArrayHasKey('fresh_iocs_window_days', $ioc);
+    }
+
+    /**
+     * Spec 106 — when a window applies (period != all), all fresh fields
+     * are populated with the expected types.
+     */
+    public function testSummaryFreshIocsFieldsHaveCorrectTypesForWindowedPeriod(): void
+    {
+        $data = $this->authenticatedGet('/api/v1/impact/summary?period=30d');
+        $ioc = $data['ioc_value'];
+
+        $this->assertSame(30, $ioc['fresh_iocs_window_days']);
+        $this->assertIsInt($ioc['fresh_iocs_count']);
+        $this->assertGreaterThanOrEqual(0, $ioc['fresh_iocs_count']);
+        $this->assertIsInt($ioc['fresh_iocs_prev_count']);
+        $this->assertGreaterThanOrEqual(0, $ioc['fresh_iocs_prev_count']);
+
+        // null is allowed (and expected) when prev window is empty
+        if ($ioc['fresh_iocs_delta_pct'] !== null) {
+            $this->assertIsNumeric($ioc['fresh_iocs_delta_pct']);
+        }
+    }
+
+    /**
+     * Spec 106 — on period=all, the tile switches to its cumulative
+     * "Total IOCs" face. Backend signals this by nulling all fresh_*
+     * fields; total_iocs still carries the cumulative count.
+     */
+    public function testSummaryFreshIocsFieldsAreNullOnPeriodAll(): void
+    {
+        $data = $this->authenticatedGet('/api/v1/impact/summary?period=all');
+        $ioc = $data['ioc_value'];
+
+        $this->assertNull($ioc['fresh_iocs_window_days']);
+        $this->assertNull($ioc['fresh_iocs_count']);
+        $this->assertNull($ioc['fresh_iocs_prev_count']);
+        $this->assertNull($ioc['fresh_iocs_delta_pct']);
+
+        // total_iocs is still the cumulative count, used by the
+        // "Total IOCs" face of the tile.
+        $this->assertIsInt($ioc['total_iocs']);
+        $this->assertGreaterThanOrEqual(0, $ioc['total_iocs']);
+    }
+
+    /**
+     * Spec 106 — period selector drives the window.
+     *
+     * @dataProvider periodWindowProvider
+     */
+    public function testFreshIocsWindowFollowsPeriodSelector(string $period, ?int $expectedDays): void
+    {
+        $data = $this->authenticatedGet('/api/v1/impact/summary?period=' . $period);
+        $this->assertSame($expectedDays, $data['ioc_value']['fresh_iocs_window_days']);
+    }
+
+    /**
+     * @return iterable<string, array{string, int|null}>
+     */
+    public static function periodWindowProvider(): iterable
+    {
+        yield '7d period → 7-day window' => ['7d', 7];
+        yield '30d period → 30-day window' => ['30d', 30];
+        yield '90d period → 90-day window' => ['90d', 90];
+        yield 'all period → null (Total IOCs face)' => ['all', null];
     }
 
     public function testSummaryCostHasCorrectKeys(): void

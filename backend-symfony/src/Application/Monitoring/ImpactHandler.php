@@ -49,7 +49,10 @@ final readonly class ImpactHandler
 
         return [
             'wasted_time' => $this->getWastedTime($threshold, $scamType),
-            'ioc_value' => $this->getIocValue($threshold, $scamType),
+            // Spec 106 — fresh_iocs window inside ioc_value follows the
+            // page-level period selector (7d/30d/90d), falling back to 30d
+            // for 'all' so the tile stays a meaningful velocity signal.
+            'ioc_value' => $this->getIocValue($threshold, $scamType, $period),
             'cost_efficiency' => $this->getCostEfficiency($threshold, $scamType),
             'campaigns' => $this->getCampaigns($scamType),
             'trends' => $this->computeTrends($period, $scamType),
@@ -256,7 +259,7 @@ final readonly class ImpactHandler
     /**
      * @return array<string, mixed>
      */
-    private function getIocValue(?string $threshold, ?string $scamType = null): array
+    private function getIocValue(?string $threshold, ?string $scamType = null, string $period = 'all'): array
     {
         $headerExclude = $this->headerExcludeClause();
         $dateFilter = null !== $threshold ? " AND created_at >= {$threshold}" : '';
@@ -318,10 +321,54 @@ final readonly class ImpactHandler
 
         $novelPct = $totalIocs > 0 ? round($novelIocs * 100.0 / $totalIocs, 1) : 0.0;
 
+        // Spec 106 — "Fresh IOCs" honest replacement for the misleading
+        // "Novel IOCs %". Window tracks the page-level period selector
+        // (7d/30d/90d). When period='all', NO window applies —
+        // window_days=null signals the frontend to render the cumulative
+        // "Total IOCs" face of the tile instead (consistent with how
+        // Criminal Time Wasted, Cost, and Actor Dedup behave on All).
+        // Scam-type filter respected in both modes.
+        $freshWindowDays = match ($period) {
+            '7d' => 7,
+            '30d' => 30,
+            '90d' => 90,
+            default => null,
+        };
+
+        if ($freshWindowDays !== null) {
+            $prevWindowDays = $freshWindowDays * 2;
+            $freshIocs = $this->fetchInt(
+                "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}"
+                . " AND first_seen >= NOW() - INTERVAL '{$freshWindowDays} days'"
+                . $scamIdSubquery,
+                $params,
+            );
+            $freshIocsPrev = $this->fetchInt(
+                "SELECT COUNT(*) FROM indicator WHERE {$headerExclude}"
+                . " AND first_seen >= NOW() - INTERVAL '{$prevWindowDays} days'"
+                . " AND first_seen < NOW() - INTERVAL '{$freshWindowDays} days'"
+                . $scamIdSubquery,
+                $params,
+            );
+            // Null (not 0) when prev window is empty — avoids falsely
+            // claiming "▲ ∞%" or "▲ 100%" on a cold start.
+            $freshIocsDeltaPct = $freshIocsPrev > 0
+                ? round(($freshIocs - $freshIocsPrev) / $freshIocsPrev * 100.0, 1)
+                : null;
+        } else {
+            $freshIocs = null;
+            $freshIocsPrev = null;
+            $freshIocsDeltaPct = null;
+        }
+
         return [
             'total_iocs' => $totalIocs,
             'novel_iocs' => $novelIocs,
             'novel_pct' => $novelPct,
+            'fresh_iocs_count' => $freshIocs,
+            'fresh_iocs_prev_count' => $freshIocsPrev,
+            'fresh_iocs_delta_pct' => $freshIocsDeltaPct,
+            'fresh_iocs_window_days' => $freshWindowDays,
             'financial_iocs' => $financialIocs,
             'high_confidence' => $highConfidence,
             'by_type' => $byType,

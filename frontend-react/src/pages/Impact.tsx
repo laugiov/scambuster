@@ -146,22 +146,32 @@ export function Impact() {
             </>
           }
         />
-        <div title="IOCs with zero malicious detections in VirusTotal — novel or early-stage indicators not yet indexed by threat intelligence feeds.">
-        <StatCard
-          label={t('impact.novel_iocs')}
-          value={`${ioc_value.novel_pct}%`}
-          subtitle={
-            <>
-              {`${ioc_value.novel_iocs} ${t('impact.exclusive')}`}
-              {data.trends?.novel_pct_delta != null && (
-                <span className={`ml-2 ${data.trends.novel_pct_delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.trends.novel_pct_delta >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.novel_pct_delta).toFixed(1)}pp
-                </span>
-              )}
-            </>
-          }
-        />
-        </div>
+        {ioc_value.fresh_iocs_window_days != null && ioc_value.fresh_iocs_count != null ? (
+          <div title="Indicators observed by the platform for the first time within the rolling window driven by the page-level period selector (7d / 30d / 90d). Counted on actionable IOC types only (excludes header metadata: message_id, subject, SPF/DKIM/DMARC results, x-mailer, return-path). Delta compares against the previous window of the same length. Respects the scam-type filter. When the page period is 'All', this tile switches to its cumulative 'Total IOCs' face instead.">
+            <StatCard
+              label={t('impact.fresh_iocs', { days: ioc_value.fresh_iocs_window_days })}
+              value={ioc_value.fresh_iocs_count.toLocaleString()}
+              subtitle={
+                <>
+                  {t('impact.fresh_iocs_subtitle', { days: ioc_value.fresh_iocs_window_days })}
+                  {ioc_value.fresh_iocs_delta_pct != null && (
+                    <span className={`ml-2 ${ioc_value.fresh_iocs_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {ioc_value.fresh_iocs_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(ioc_value.fresh_iocs_delta_pct).toFixed(1)}%
+                    </span>
+                  )}
+                </>
+              }
+            />
+          </div>
+        ) : (
+          <div title="Cumulative count of all actionable IOCs observed by the platform across its entire history. Shown in place of the rolling 'Fresh IOCs' tile when the page period is 'All' \u2014 same pattern as the other tiles, which show cumulative state instead of a windowed delta. Excludes header-metadata IOC types (message_id, subject, SPF/DKIM/DMARC results, x-mailer, return-path). Respects the scam-type filter.">
+            <StatCard
+              label={t('impact.total_iocs')}
+              value={ioc_value.total_iocs.toLocaleString()}
+              subtitle={t('impact.total_iocs_subtitle')}
+            />
+          </div>
+        )}
         <StatCard
           label={t('impact.cost_per_ioc')}
           value={`$${cost_efficiency.cost_per_ioc_usd.toFixed(4)}`}
