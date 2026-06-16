@@ -46,6 +46,75 @@ final class ImpactControllerTest extends WebTestCase
         $this->assertArrayHasKey('weekly_trend', $wt);
     }
 
+    /**
+     * Spec 107 — qualified-conversation filter: only convs where the
+     * scammer actually replied (turns_count >= 2) feed the headline.
+     * Seeds one 1-turn (excluded) and one 3-turn (included) conv inside
+     * a DAMA-wrapped transaction so the asserted deltas are deterministic.
+     */
+    public function testWastedTimeExcludesSingleTurnConversations(): void
+    {
+        /** @var \Doctrine\DBAL\Connection $conn */
+        $conn = static::getContainer()->get('doctrine.dbal.default_connection');
+
+        $baseline = $this->authenticatedGet('/api/v1/impact/summary')['wasted_time'];
+        $baselineConvs = (int) $baseline['total_conversations'];
+        $baselineHours = (float) $baseline['total_hours'];
+
+        $scamTypeId = $conn->fetchOne('SELECT scam_type_id FROM lkp_scam_type ORDER BY scam_type_id LIMIT 1');
+        $channelId = $conn->fetchOne('SELECT channel_id FROM lkp_channel ORDER BY channel_id LIMIT 1');
+        $accountId = $conn->fetchOne('SELECT account_id FROM mail_account ORDER BY created_at LIMIT 1');
+
+        if ($scamTypeId === false || $channelId === false || $accountId === false) {
+            self::markTestSkipped('Missing scam_type/channel/mail_account fixture.');
+        }
+
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+        // 1-turn conv (scammer's first email only, no reply) — must be excluded.
+        $conn->insert('conversation', [
+            'conv_id' => '11111111-1111-4111-8111-aaaaaaaaaaaa',
+            'primary_channel_id' => $channelId,
+            'scam_type_id' => $scamTypeId,
+            'account_id' => $accountId,
+            'status' => 'closed',
+            'score_risk' => 50,
+            'engagement_duration_sec' => 0,
+            'turns_count' => 1,
+            'ts_first' => $now,
+            'ts_last' => $now,
+            'tlp' => 'AMBER',
+            'delivery' => 'api',
+            'stix_id' => 'demo-spec107-onturn',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        // 3-turn conv with 1h engagement — must be included.
+        $conn->insert('conversation', [
+            'conv_id' => '11111111-1111-4111-8111-bbbbbbbbbbbb',
+            'primary_channel_id' => $channelId,
+            'scam_type_id' => $scamTypeId,
+            'account_id' => $accountId,
+            'status' => 'closed',
+            'score_risk' => 50,
+            'engagement_duration_sec' => 3600,
+            'turns_count' => 3,
+            'ts_first' => $now,
+            'ts_last' => $now,
+            'tlp' => 'AMBER',
+            'delivery' => 'api',
+            'stix_id' => 'demo-spec107-threeturn',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $after = $this->authenticatedGet('/api/v1/impact/summary')['wasted_time'];
+
+        self::assertSame($baselineConvs + 1, (int) $after['total_conversations'], 'Only the multi-turn conv must enter total_conversations.');
+        self::assertEqualsWithDelta($baselineHours + 1.0, (float) $after['total_hours'], 0.01, 'The 1h multi-turn conv adds 1h; the 1-turn conv contributes 0.');
+    }
+
     public function testSummaryIocValueHasCorrectKeys(): void
     {
         $data = $this->authenticatedGet('/api/v1/impact/summary');

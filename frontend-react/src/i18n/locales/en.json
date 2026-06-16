@@ -514,7 +514,7 @@
   },
   "impact": {
     "title": "Impact & Intelligence",
-    "wasted_time": "Criminal Time Wasted",
+    "wasted_time": "Engagement Time",
     "fresh_iocs": "Fresh IOCs (last {{days}}d)",
     "total_iocs": "Total IOCs",
     "total_iocs_subtitle": "across all time",

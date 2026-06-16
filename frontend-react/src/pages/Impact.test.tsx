@@ -83,7 +83,8 @@ describe('Impact page', () => {
     render(<Impact />, { wrapper: createWrapper() });
 
     await screen.findByText(/Impact & Intelligence/i);
-    expect(screen.getByText(/Criminal Time Wasted/i)).toBeInTheDocument();
+    // Spec 107 — relabeled from "Criminal Time Wasted" → "Engagement Time"
+    expect(screen.getByText(/Engagement Time/i)).toBeInTheDocument();
     // Spec 106 — Novel IOCs tile replaced by Fresh IOCs (last Nd)
     expect(screen.getByText(/Fresh IOCs \(last 30d\)/i)).toBeInTheDocument();
     expect(screen.getByText('142')).toBeInTheDocument();

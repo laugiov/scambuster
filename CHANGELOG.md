@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.22.0] - 2026-06-16
+
+### Changed — Spec 107 (Impact tile honesty fix: Criminal Time Wasted → Engagement Time, phase 1)
+
+Follow-up to spec 106's honesty audit. The "Criminal Time Wasted" tile
+on the Impact dashboard had two related problems:
+
+1. The label "Criminal Time Wasted" implies measured scammer attention,
+   but the SQL is just
+   `SUM(engagement_duration_sec)` with `engagement_duration_sec` = wall-clock
+   from `MAX(ts_msg) - MIN(ts_msg)` per conversation. Wall-clock duration
+   ≠ active scammer effort.
+2. The denominator counted ALL closed/open/abandoned conversations,
+   including 57 1-turn conversations on dev where the scammer's first
+   email arrived but no reply was ever exchanged. They contribute 0h to
+   the sum, but pollute the "across N conversations" subtitle and skew
+   `avg_hours`.
+
+Distribution on dev DB (528 closed convs, 6254h headline) showed 96.6%
+of the time came from 109 multi-turn conversations (turns_count >= 4);
+the 57 1-turn convs contributed 0% but inflated the conv count.
+
+### What changed (phase 1, this commit)
+
+- **Backend filter**: `getWastedTime()` + weekly trend + `computeTrends`
+  current/prev hours queries all gain `AND turns_count >= 2`. A
+  qualified conversation is one where the scammer actually replied at
+  least once. The 1-turn rows already summed to 0h, so the headline
+  number barely shifts (e.g. dev: total_hours unchanged at 6278.59).
+- **Conversation denominator** correctly drops to qualified count
+  (dev: 576 → 473). `avg_hours` also rises because we no longer divide
+  by 0-hour rows.
+- **Label rename**: `Criminal Time Wasted` → `Engagement Time` (EN) /
+  `Temps d'engagement` (FR). Factual framing of what is actually
+  measured.
+- **Tooltip rewritten**: explicit about wall-clock methodology,
+  qualified-conv filter, and that this is NOT a measure of active
+  scammer typing effort.
+- API field names unchanged (`wasted_time.total_hours` etc.) — no
+  breaking change for other consumers.
+
+### Out of scope (phase 2, deferred)
+
+- **Active wait time** measurement (sum of
+  `scammer_reply.ts − our_prev_reply.ts` per conversation) — the true
+  "time the scammer spent waiting on us" signal. Heavier SQL via
+  `LAG`/window functions, bigger semantic shift, scoped separately.
+- **Reply-gaps subtitle** — exposing avg active time per turn.
+
+---
+
 ## [2.21.0] - 2026-06-16
 
 ### Changed — Spec 106 (Impact tile honesty fix: Novel IOCs → Fresh IOCs)

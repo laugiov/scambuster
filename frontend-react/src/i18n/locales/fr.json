@@ -514,7 +514,7 @@
   },
   "impact": {
     "title": "Impact & Intelligence",
-    "wasted_time": "Temps criminel gaspille",
+    "wasted_time": "Temps d'engagement",
     "fresh_iocs": "IOCs récents ({{days}} derniers jours)",
     "total_iocs": "IOCs total",
     "total_iocs_subtitle": "sur toute la période",

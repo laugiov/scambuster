@@ -196,6 +196,13 @@ final readonly class ImpactHandler
         $scamFilter = null !== $scamType ? ' AND scam_type_id = ' . $this->scamTypeIdLookupSubquery() : '';
         $params = null !== $scamType ? ['scam_type' => $scamType] : [];
 
+        // Spec 107 — qualified conversations only: turns_count >= 2 means
+        // the scammer actually replied at least once. The 1-turn convs
+        // (first email, no reply) contribute 0h to the sum but inflate
+        // the denominator and avg_hours, making the headline framing
+        // misleading. The filter does NOT change `total_hours` materially
+        // (1-turn rows already sum to 0), but cleans up the conversation
+        // count surfaced as the tile's subtitle.
         $row = $this->connection->fetchAssociative(
             'SELECT'
             . ' COALESCE(SUM(engagement_duration_sec), 0) / 3600.0 AS total_hours,'
@@ -205,6 +212,7 @@ final readonly class ImpactHandler
             . ' FROM conversation'
             . " WHERE status IN ('closed', 'open', 'abandoned')"
             . ' AND deleted_at IS NULL'
+            . ' AND turns_count >= 2'
             . $dateFilter
             . $scamFilter,
             $params,
@@ -229,11 +237,13 @@ final readonly class ImpactHandler
         // falls back to 12 weeks when period='all'. Ensures the chart at the
         // bottom of the Impact page actually narrows when the user picks 7d/30d/90d.
         $trendWindow = null !== $threshold ? "ts_last >= {$threshold}" : "ts_last > NOW() - INTERVAL '12 weeks'";
+        // Spec 107 — same qualified-conversation filter as the headline.
         $trendRows = $this->connection->fetchAllAssociative(
             "SELECT DATE_TRUNC('week', ts_last)::date AS week,"
             . ' SUM(engagement_duration_sec) / 3600.0 AS hours'
             . ' FROM conversation'
             . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
+            . ' AND turns_count >= 2'
             . " AND {$trendWindow}"
             . $scamFilter
             . " GROUP BY DATE_TRUNC('week', ts_last)"
@@ -598,21 +608,24 @@ final readonly class ImpactHandler
             . ' AND m.deleted_at IS NULL AND c.deleted_at IS NULL)'
             : '';
 
-        // Current wasted hours
+        // Current wasted hours (spec 107 — qualified convs only, must match
+        // the headline filter so the delta % stays internally consistent).
         $currHours = $this->fetchFloat(
             'SELECT COALESCE(SUM(engagement_duration_sec), 0) / 3600.0'
             . ' FROM conversation'
             . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
+            . ' AND turns_count >= 2'
             . " AND ts_last >= {$currStart}"
             . $convScamFilter,
             $params,
         );
 
-        // Previous wasted hours
+        // Previous wasted hours (same filter, same reason).
         $prevHours = $this->fetchFloat(
             'SELECT COALESCE(SUM(engagement_duration_sec), 0) / 3600.0'
             . ' FROM conversation'
             . " WHERE status IN ('closed','open','abandoned') AND deleted_at IS NULL"
+            . ' AND turns_count >= 2'
             . " AND ts_last >= {$prevStart} AND ts_last < {$prevEnd}"
             . $convScamFilter,
             $params,

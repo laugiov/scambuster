@@ -132,20 +132,22 @@ export function Impact() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label={t('impact.wasted_time')}
-          value={`${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`}
-          subtitle={
-            <>
-              {t('impact.across_conversations', { count: wasted_time.total_conversations })}
-              {data.trends?.wasted_hours_delta_pct != null && (
-                <span className={`ml-2 ${data.trends.wasted_hours_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                  {data.trends.wasted_hours_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.wasted_hours_delta_pct).toFixed(1)}%
-                </span>
-              )}
-            </>
-          }
-        />
+        <div title="Sum of wall-clock duration between the first and last message of each qualified conversation (those where the scammer actually replied at least once, i.e. turns_count >= 2). Conversations with a single inbound and no reply are excluded from both the headline and the conversation count. Does NOT measure active scammer typing effort \u2014 that requires per-turn message-gap analysis (planned in a follow-up spec). Respects the page-level period + scam-type filters.">
+          <StatCard
+            label={t('impact.wasted_time')}
+            value={`${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`}
+            subtitle={
+              <>
+                {t('impact.across_conversations', { count: wasted_time.total_conversations })}
+                {data.trends?.wasted_hours_delta_pct != null && (
+                  <span className={`ml-2 ${data.trends.wasted_hours_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {data.trends.wasted_hours_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.wasted_hours_delta_pct).toFixed(1)}%
+                  </span>
+                )}
+              </>
+            }
+          />
+        </div>
         {ioc_value.fresh_iocs_window_days != null && ioc_value.fresh_iocs_count != null ? (
           <div title="Indicators observed by the platform for the first time within the rolling window driven by the page-level period selector (7d / 30d / 90d). Counted on actionable IOC types only (excludes header metadata: message_id, subject, SPF/DKIM/DMARC results, x-mailer, return-path). Delta compares against the previous window of the same length. Respects the scam-type filter. When the page period is 'All', this tile switches to its cumulative 'Total IOCs' face instead.">
             <StatCard
