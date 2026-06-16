@@ -43,12 +43,18 @@ final readonly class ScammerEngagementCalculator
     public const int CENSORING_HOURS_DEFAULT = 96;
 
     /**
-     * @param list<string> $honeypotEmailAddresses comma-decoded from env (Spec 061)
+     * @param list<string>|null $honeypotEmailAddresses comma-decoded from env (Spec 061).
+     *                                                  Null when the env var is unset
+     *                                                  (Symfony's `csv:` processor returns null,
+     *                                                  not []) — treated as a no-op honeypot
+     *                                                  filter. Matches the tolerant signature
+     *                                                  already used by IocUpsertService and
+     *                                                  CleanupPlatformContaminationCommand.
      */
     public function __construct(
         private Connection $connection,
         private ScammerEngagementNoiseConfig $noiseConfig,
-        private array $honeypotEmailAddresses = [],
+        private ?array $honeypotEmailAddresses = null,
     ) {
     }
 
@@ -86,7 +92,7 @@ final readonly class ScammerEngagementCalculator
         // build a `'' != ALL(...)` clause that excludes empty-string counterparts
         // unintentionally.
         $honeypots = array_values(array_filter(
-            array_map(static fn (string $e): string => strtolower(trim($e)), $this->honeypotEmailAddresses),
+            array_map(static fn (string $e): string => strtolower(trim($e)), $this->honeypotEmailAddresses ?? []),
             static fn (string $e): bool => $e !== '',
         ));
 

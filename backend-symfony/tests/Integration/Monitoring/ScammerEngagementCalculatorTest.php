@@ -186,6 +186,32 @@ final class ScammerEngagementCalculatorTest extends KernelTestCase
     /**
      * Sanity — counterparts equal to a honeypot address are excluded.
      */
+    /**
+     * Regression — demo deploy bug 2026-06-16:
+     * `'%env(default::csv:HONEYPOT_EMAIL_ADDRESSES)%'` returns NULL (not [])
+     * when the env var is unset, because Symfony's csv: processor on an empty
+     * default produces null. The previous constructor signature
+     * (`private array $honeypotEmailAddresses = []`) rejected the null at
+     * autowire time with a fatal TypeError, breaking the Impact dashboard.
+     *
+     * Contract: a null honeypot list must behave as "no honeypot filter",
+     * not crash. Mirrors the tolerance already present in IocUpsertService
+     * and CleanupPlatformContaminationCommand.
+     */
+    public function testNullHoneypotListIsTreatedAsEmptyFilter(): void
+    {
+        $calc = new ScammerEngagementCalculator(
+            connection: $this->connection,
+            noiseConfig: new ScammerEngagementNoiseConfig(),
+            honeypotEmailAddresses: null,
+        );
+
+        $result = $calc->calculate();
+
+        $this->assertSame(0, $result['params']['honeypot_addresses'], 'Null honeypot list must report 0 configured addresses.');
+        $this->assertArrayHasKey('global', $result);
+    }
+
     public function testExcludesHoneypotCounterpart_096C1(): void
     {
         $baselineObservable = $this->calculator->calculate()['global']['observable'];
