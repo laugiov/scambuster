@@ -163,6 +163,15 @@ final readonly class TaxiiService
                 'ic.urgency_score AS ctx_urgency_score',
                 'ic.context_excerpt AS ctx_context_excerpt',
                 'ic.enrichment_confidence AS ctx_enrichment_confidence',
+                'ic.enrichment_model AS ctx_enrichment_model',
+                'ic.hesitation_detected AS ctx_hesitation_detected',
+                'ic.language_switch AS ctx_language_switch',
+                'ic.scam_type_misp AS ctx_scam_type_misp',
+                'ic.persona_label AS ctx_persona_label',
+                'ic.stimulus_msg_id AS ctx_stimulus_msg_id',
+                'ic.co_revealed_count AS ctx_co_revealed_count',
+                'ic.reward_value AS ctx_reward_value',
+                'ic.campaign_id AS ctx_campaign_id',
             )
             ->from('indicator', 'i')
             ->leftJoin('i', 'ioc_context', 'ic', 'i.indicator_id = ic.indicator_id')
@@ -680,18 +689,27 @@ final readonly class TaxiiService
             'enrichment_status' => $status,
             'scam_type_code' => $row['ctx_scam_type_code'] ?? null,
             'scam_type_attck' => $row['ctx_scam_type_attck'] ?? null,
+            'scam_type_misp' => $row['ctx_scam_type_misp'] ?? null,
             'persona_code' => $row['ctx_persona_code'] ?? null,
+            'persona_label' => $row['ctx_persona_label'] ?? null,
             'extraction_method' => $row['ctx_extraction_method'] ?? null,
             'revelation_turn' => $row['ctx_revelation_turn'] ?? null,
             'revelation_turn_ratio' => $row['ctx_revelation_turn_ratio'] ?? null,
             'total_turns' => $row['ctx_total_turns'] ?? null,
             'engagement_hours' => $row['ctx_engagement_hours'] ?? null,
             'co_revealed_types' => $row['ctx_co_revealed_types'] ?? null,
+            'co_revealed_count' => $row['ctx_co_revealed_count'] ?? null,
+            'stimulus_msg_id' => $row['ctx_stimulus_msg_id'] ?? null,
+            'reward_value' => $row['ctx_reward_value'] ?? null,
+            'campaign_id' => $row['ctx_campaign_id'] ?? null,
             'semantic_role' => $row['ctx_semantic_role'] ?? null,
             'stimulus_type' => $row['ctx_stimulus_type'] ?? null,
             'urgency_score' => $row['ctx_urgency_score'] ?? null,
             'context_excerpt' => $row['ctx_context_excerpt'] ?? null,
             'enrichment_confidence' => $row['ctx_enrichment_confidence'] ?? null,
+            'enrichment_model' => $row['ctx_enrichment_model'] ?? null,
+            'hesitation_detected' => $row['ctx_hesitation_detected'] ?? null,
+            'language_switch' => $row['ctx_language_switch'] ?? null,
         ];
     }
 }
