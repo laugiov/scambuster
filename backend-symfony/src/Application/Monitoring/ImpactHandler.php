@@ -48,7 +48,10 @@ final readonly class ImpactHandler
         $scamType = $this->normalizeScamType($scamType);
 
         return [
-            'wasted_time' => $this->getWastedTime($threshold, $scamType),
+            // Spec 108 — getWastedTime now also derives a period-aware
+            // delta for the new "Scammer Replies Elicited" tile, needs
+            // the raw $period string to compute the prev-period window.
+            'wasted_time' => $this->getWastedTime($threshold, $scamType, $period),
             // Spec 106 — fresh_iocs window inside ioc_value follows the
             // page-level period selector (7d/30d/90d), falling back to 30d
             // for 'all' so the tile stays a meaningful velocity signal.
@@ -190,11 +193,20 @@ final readonly class ImpactHandler
     /**
      * @return array<string, mixed>
      */
-    private function getWastedTime(?string $threshold, ?string $scamType = null): array
+    private function getWastedTime(?string $threshold, ?string $scamType = null, string $period = 'all'): array
     {
         $dateFilter = null !== $threshold ? " AND ts_last >= {$threshold}" : '';
         $scamFilter = null !== $scamType ? ' AND scam_type_id = ' . $this->scamTypeIdLookupSubquery() : '';
         $params = null !== $scamType ? ['scam_type' => $scamType] : [];
+
+        // Spec 108 — resolve the inbound direction id once. dir_id varies
+        // per DB (1/2 in prod, auto-incremented in fresh fixtures), same
+        // pattern as ScammerEngagementCalculator::calculate.
+        /** @var int|string|false $directionInRaw */
+        $directionInRaw = $this->connection->fetchOne(
+            "SELECT dir_id FROM lkp_direction WHERE code = 'in'",
+        );
+        $directionInId = $directionInRaw !== false ? (int) $directionInRaw : 1;
 
         // Spec 107 — qualified conversations only: turns_count >= 2 means
         // the scammer actually replied at least once. The 1-turn convs
@@ -256,6 +268,51 @@ final readonly class ImpactHandler
             'hours' => round(self::rowFloat($r, 'hours'), 2),
         ], $trendRows);
 
+        // Spec 108 — "Scammer Replies Elicited" tile: direct count of
+        // inbound messages (direction='in') in qualified conversations.
+        // Reframed from the previous time-based metric — see spec 108 for
+        // the methodology audit that led to the switch from time → count.
+        $scammerRepliesSqlBase = 'SELECT COUNT(m.msg_id) FROM message m'
+            . ' JOIN conversation c ON m.conv_id = c.conv_id'
+            . ' WHERE m.deleted_at IS NULL AND c.deleted_at IS NULL'
+            . " AND c.status IN ('closed','open','abandoned')"
+            . ' AND c.turns_count >= 2'
+            . " AND m.direction = {$directionInId}";
+
+        $scammerRepliesCount = $this->fetchInt(
+            $scammerRepliesSqlBase
+            . (null !== $threshold ? " AND c.ts_last >= {$threshold}" : '')
+            . (null !== $scamType ? ' AND c.scam_type_id = ' . $this->scamTypeIdLookupSubquery() : ''),
+            $params,
+        );
+
+        // Previous-period count: only meaningful for windowed periods;
+        // for 'all' the delta concept doesn't apply, so prev=null and
+        // the frontend hides the trend chip.
+        $prevWindowDays = match ($period) {
+            '7d' => 7,
+            '30d' => 30,
+            '90d' => 90,
+            default => null,
+        };
+
+        if ($prevWindowDays !== null) {
+            $doubleDays = $prevWindowDays * 2;
+            $scammerRepliesPrevCount = $this->fetchInt(
+                $scammerRepliesSqlBase
+                . " AND c.ts_last >= NOW() - INTERVAL '{$doubleDays} days'"
+                . " AND c.ts_last < NOW() - INTERVAL '{$prevWindowDays} days'"
+                . (null !== $scamType ? ' AND c.scam_type_id = ' . $this->scamTypeIdLookupSubquery() : ''),
+                $params,
+            );
+            $scammerRepliesDeltaPct = $scammerRepliesPrevCount > 0
+                ? round(($scammerRepliesCount - $scammerRepliesPrevCount) / $scammerRepliesPrevCount * 100.0, 1)
+                : null;
+        } else {
+            $scammerRepliesPrevCount = null;
+            $scammerRepliesDeltaPct = null;
+        }
+
         return [
             'total_hours' => round(self::rowFloat($row, 'total_hours'), 2),
             'total_conversations' => self::rowInt($row, 'total_conversations'),
@@ -263,6 +320,9 @@ final readonly class ImpactHandler
             'max_hours' => round(self::rowFloat($row, 'max_hours'), 2),
             'longest_scam_type' => \is_string($longestScamType) ? $longestScamType : null,
             'weekly_trend' => $weeklyTrend,
+            'scammer_replies_count' => $scammerRepliesCount,
+            'scammer_replies_prev_count' => $scammerRepliesPrevCount,
+            'scammer_replies_delta_pct' => $scammerRepliesDeltaPct,
         ];
     }
 

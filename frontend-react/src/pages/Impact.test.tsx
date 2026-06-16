@@ -15,6 +15,10 @@ const mockImpactSummary = {
       { week: '2026-03-02', hours: 64 },
       { week: '2026-03-09', hours: 50 },
     ],
+    // Spec 108 — Scammer Replies Elicited tile (windowed period fixture)
+    scammer_replies_count: 117,
+    scammer_replies_prev_count: 80,
+    scammer_replies_delta_pct: 46.3,
   },
   ioc_value: {
     novel_pct: 68.8,
@@ -83,8 +87,10 @@ describe('Impact page', () => {
     render(<Impact />, { wrapper: createWrapper() });
 
     await screen.findByText(/Impact & Intelligence/i);
-    // Spec 107 — relabeled from "Criminal Time Wasted" → "Engagement Time"
-    expect(screen.getByText(/Engagement Time/i)).toBeInTheDocument();
+    // Spec 108 — Engagement Time → Scammer Replies Elicited
+    expect(screen.getByText(/Scammer Replies Elicited/i)).toBeInTheDocument();
+    expect(screen.getByText('117')).toBeInTheDocument();
+    expect(screen.getByText(/46\.3%/)).toBeInTheDocument();
     // Spec 106 — Novel IOCs tile replaced by Fresh IOCs (last Nd)
     expect(screen.getByText(/Fresh IOCs \(last 30d\)/i)).toBeInTheDocument();
     expect(screen.getByText('142')).toBeInTheDocument();

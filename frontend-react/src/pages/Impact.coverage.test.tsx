@@ -17,6 +17,12 @@ const mockImpactWithTrends = {
       { week: '2026-03-02', hours: 64 },
       { week: '2026-03-09', hours: 50 },
     ],
+    // Spec 108 — Scammer Replies Elicited tile fixture.
+    // 12.5% delta kept (was the old wasted_hours_delta_pct, now drives
+    // the new tile's chip — the trend-deltas test below asserts /12\.5%/).
+    scammer_replies_count: 92,
+    scammer_replies_prev_count: 82,
+    scammer_replies_delta_pct: 12.5,
   },
   ioc_value: {
     novel_pct: 68.8,
@@ -159,7 +165,15 @@ describe('Impact — coverage gaps', () => {
   it('renders weekly wasted chart with empty data', async () => {
     setupHandlers({
       ...mockImpactWithTrends,
-      wasted_time: { total_hours: 10, total_conversations: 5, weekly_trend: [] },
+      wasted_time: {
+        total_hours: 10,
+        total_conversations: 5,
+        weekly_trend: [],
+        // Spec 108 — Scammer Replies tile fields required even when chart is empty
+        scammer_replies_count: 8,
+        scammer_replies_prev_count: null,
+        scammer_replies_delta_pct: null,
+      },
     });
     render(<Impact />, { wrapper: createWrapper() });
     await waitFor(() => {

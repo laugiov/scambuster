@@ -515,6 +515,7 @@
   "impact": {
     "title": "Impact & Intelligence",
     "wasted_time": "Temps d'engagement",
+    "scammer_replies": "Réponses de scammers obtenues",
     "fresh_iocs": "IOCs récents ({{days}} derniers jours)",
     "total_iocs": "IOCs total",
     "total_iocs_subtitle": "sur toute la période",

@@ -27,6 +27,10 @@ const mockImpactSummary = {
     max_hours: 10,
     longest_scam_type: 'ROMANCE',
     weekly_trend: [{ week: '2026-W12', hours: 15 }],
+    // Spec 108 — Scammer Replies Elicited tile fields
+    scammer_replies_count: 75,
+    scammer_replies_prev_count: 50,
+    scammer_replies_delta_pct: 50.0,
   },
   ioc_value: {
     total_iocs: 500,

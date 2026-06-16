@@ -90,7 +90,6 @@ export function Impact() {
   }
 
   const { wasted_time, ioc_value, cost_efficiency } = data;
-  const hours = wasted_time.total_hours;
   const pieData = buildPieData(ioc_value.by_type);
 
   return (
@@ -132,16 +131,16 @@ export function Impact() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div title="Sum of wall-clock duration between the first and last message of each qualified conversation (those where the scammer actually replied at least once, i.e. turns_count >= 2). Conversations with a single inbound and no reply are excluded from both the headline and the conversation count. Does NOT measure active scammer typing effort \u2014 that requires per-turn message-gap analysis (planned in a follow-up spec). Respects the page-level period + scam-type filters.">
+        <div title="Direct count of inbound messages received from scammers in qualified conversations (turns_count >= 2 \u2014 i.e. where the scammer actually replied at least once). No time inference. Replaced the previous time-based 'Engagement Time' tile because any time-from-timestamps metric is structurally inflated by overnight + weekend gaps. Respects the page-level period + scam-type filters. The 'vs previous period' trend is shown only on 7d/30d/90d; on 'All' no comparison applies.">
           <StatCard
-            label={t('impact.wasted_time')}
-            value={`${Math.floor(hours)}h ${Math.round((hours % 1) * 60)}m`}
+            label={t('impact.scammer_replies')}
+            value={wasted_time.scammer_replies_count.toLocaleString()}
             subtitle={
               <>
                 {t('impact.across_conversations', { count: wasted_time.total_conversations })}
-                {data.trends?.wasted_hours_delta_pct != null && (
-                  <span className={`ml-2 ${data.trends.wasted_hours_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                    {data.trends.wasted_hours_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(data.trends.wasted_hours_delta_pct).toFixed(1)}%
+                {wasted_time.scammer_replies_delta_pct != null && (
+                  <span className={`ml-2 ${wasted_time.scammer_replies_delta_pct >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {wasted_time.scammer_replies_delta_pct >= 0 ? '\u25B2' : '\u25BC'} {Math.abs(wasted_time.scammer_replies_delta_pct).toFixed(1)}%
                   </span>
                 )}
               </>

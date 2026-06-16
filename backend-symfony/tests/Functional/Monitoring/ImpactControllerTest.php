@@ -44,6 +44,38 @@ final class ImpactControllerTest extends WebTestCase
         $this->assertArrayHasKey('total_conversations', $wt);
         $this->assertArrayHasKey('avg_hours', $wt);
         $this->assertArrayHasKey('weekly_trend', $wt);
+        // Spec 108 — Scammer Replies Elicited tile keys
+        $this->assertArrayHasKey('scammer_replies_count', $wt);
+        $this->assertArrayHasKey('scammer_replies_prev_count', $wt);
+        $this->assertArrayHasKey('scammer_replies_delta_pct', $wt);
+    }
+
+    /**
+     * Spec 108 — scammer_replies_count is null-safe per period, has
+     * the right type, and prev/delta nullify on period=all.
+     */
+    public function testScammerRepliesFieldsHaveCorrectTypesAndPeriodSemantics(): void
+    {
+        // Windowed period: all 3 fields populated (delta may still be
+        // null if prev window is empty on the seed data — but the
+        // structure must be int/int|null/float|null).
+        $windowed = $this->authenticatedGet('/api/v1/impact/summary?period=30d')['wasted_time'];
+        $this->assertIsInt($windowed['scammer_replies_count']);
+        $this->assertGreaterThanOrEqual(0, $windowed['scammer_replies_count']);
+
+        if ($windowed['scammer_replies_prev_count'] !== null) {
+            $this->assertIsInt($windowed['scammer_replies_prev_count']);
+        }
+        if ($windowed['scammer_replies_delta_pct'] !== null) {
+            $this->assertIsNumeric($windowed['scammer_replies_delta_pct']);
+        }
+
+        // period=all: count populated, prev + delta are null (the
+        // "vs previous period" framing doesn't apply on All).
+        $all = $this->authenticatedGet('/api/v1/impact/summary?period=all')['wasted_time'];
+        $this->assertIsInt($all['scammer_replies_count']);
+        $this->assertNull($all['scammer_replies_prev_count']);
+        $this->assertNull($all['scammer_replies_delta_pct']);
     }
 
     /**
@@ -60,20 +92,24 @@ final class ImpactControllerTest extends WebTestCase
         $baseline = $this->authenticatedGet('/api/v1/impact/summary')['wasted_time'];
         $baselineConvs = (int) $baseline['total_conversations'];
         $baselineHours = (float) $baseline['total_hours'];
+        $baselineReplies = (int) $baseline['scammer_replies_count'];
 
         $scamTypeId = $conn->fetchOne('SELECT scam_type_id FROM lkp_scam_type ORDER BY scam_type_id LIMIT 1');
         $channelId = $conn->fetchOne('SELECT channel_id FROM lkp_channel ORDER BY channel_id LIMIT 1');
         $accountId = $conn->fetchOne('SELECT account_id FROM mail_account ORDER BY created_at LIMIT 1');
+        $dirInId = $conn->fetchOne("SELECT dir_id FROM lkp_direction WHERE code = 'in'");
+        $dirOutId = $conn->fetchOne("SELECT dir_id FROM lkp_direction WHERE code = 'out'");
 
-        if ($scamTypeId === false || $channelId === false || $accountId === false) {
-            self::markTestSkipped('Missing scam_type/channel/mail_account fixture.');
+        if ($scamTypeId === false || $channelId === false || $accountId === false || $dirInId === false || $dirOutId === false) {
+            self::markTestSkipped('Missing fixture (scam_type/channel/mail_account/direction).');
         }
 
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
 
         // 1-turn conv (scammer's first email only, no reply) — must be excluded.
+        $oneTurnId = '11111111-1111-4111-8111-aaaaaaaaaaaa';
         $conn->insert('conversation', [
-            'conv_id' => '11111111-1111-4111-8111-aaaaaaaaaaaa',
+            'conv_id' => $oneTurnId,
             'primary_channel_id' => $channelId,
             'scam_type_id' => $scamTypeId,
             'account_id' => $accountId,
@@ -89,10 +125,27 @@ final class ImpactControllerTest extends WebTestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        // The 1-turn conv has 1 inbound msg — must NOT be counted because
+        // the conversation is below the turns_count >= 2 filter.
+        $conn->insert('message', [
+            'msg_id' => '22222222-1111-4111-8111-aaaaaaaaaaaa',
+            'conv_id' => $oneTurnId,
+            'channel_id' => $channelId,
+            'direction' => $dirInId,
+            'lang_detect' => 'en',
+            'subject' => 'spec108 ignore me',
+            'body_text' => 'inbound-ignored',
+            'headers' => '{}',
+            'composite_hash' => hash('sha256', $oneTurnId . ':0'),
+            'ts_msg' => $now,
+            'ts_ingest' => $now,
+        ]);
 
-        // 3-turn conv with 1h engagement — must be included.
+        // 3-turn conv with 1h engagement — must be included; scammer
+        // sent 2 inbound msgs, we sent 1 outbound (turns_count = 3).
+        $threeTurnId = '11111111-1111-4111-8111-bbbbbbbbbbbb';
         $conn->insert('conversation', [
-            'conv_id' => '11111111-1111-4111-8111-bbbbbbbbbbbb',
+            'conv_id' => $threeTurnId,
             'primary_channel_id' => $channelId,
             'scam_type_id' => $scamTypeId,
             'account_id' => $accountId,
@@ -108,11 +161,27 @@ final class ImpactControllerTest extends WebTestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
+        foreach ([['1', $dirInId], ['2', $dirOutId], ['3', $dirInId]] as [$seq, $dir]) {
+            $conn->insert('message', [
+                'msg_id' => '22222222-2222-4222-8222-bbbbbbbbbbb' . $seq,
+                'conv_id' => $threeTurnId,
+                'channel_id' => $channelId,
+                'direction' => $dir,
+                'lang_detect' => 'en',
+                'subject' => 'spec108 turn ' . $seq,
+                'body_text' => 'multi-turn',
+                'headers' => '{}',
+                'composite_hash' => hash('sha256', $threeTurnId . ':' . $seq),
+                'ts_msg' => $now,
+                'ts_ingest' => $now,
+            ]);
+        }
 
         $after = $this->authenticatedGet('/api/v1/impact/summary')['wasted_time'];
 
         self::assertSame($baselineConvs + 1, (int) $after['total_conversations'], 'Only the multi-turn conv must enter total_conversations.');
         self::assertEqualsWithDelta($baselineHours + 1.0, (float) $after['total_hours'], 0.01, 'The 1h multi-turn conv adds 1h; the 1-turn conv contributes 0.');
+        self::assertSame($baselineReplies + 2, (int) $after['scammer_replies_count'], 'Two inbound msgs from the 3-turn conv must count; the 1-turn conv inbound msg must NOT (below turns_count >= 2 filter).');
     }
 
     public function testSummaryIocValueHasCorrectKeys(): void

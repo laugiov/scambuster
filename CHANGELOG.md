@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.23.0] - 2026-06-16
+
+### Changed — Spec 108 (Impact tile reframe: Engagement Time → Scammer Replies Elicited)
+
+Final iteration on the leftmost Impact tile. After spec 107 phase 1
+relabeled "Criminal Time Wasted" → "Engagement Time" with a
+qualified-conv filter, user audit pushed further: any time-from-
+timestamps metric is structurally inflated by overnight + weekend
+gaps. Four methodologies were debated:
+
+| Methodology              | Headline on dev | Issue |
+| ------------------------ | --------------: | ----- |
+| Wall-clock (spec 107)    | 6278h           | Overclaim, includes idle time |
+| Session-based (30min)    | 21h             | Too small for any demo punch |
+| Cap each gap at 6h       | ~2200h          | 6h is arbitrary, indefensible |
+| Effort estimate (5min/reply) | 70h         | Defensible but rests on per-message-time assumption |
+
+Conclusion: **the time concept itself doesn't map cleanly to
+measurable data**. Switching to a direct count of inbound messages
+("scammer replies") removes the inference layer and the overclaim
+risk entirely.
+
+### What replaces it
+
+```
+SCAMMER REPLIES ELICITED
+836                    ▲ 12% vs prev. period
+across 473 conversations
+```
+
+- Direct count of inbound messages (`direction = 'in'`) in qualified
+  conversations (`turns_count >= 2` filter from spec 107 phase 1
+  preserved).
+- 100% measured, 0% inferred — no methodology debate available.
+- Respects page-level period + scam_type filters.
+- Trend chip ▲/▼ shown on 7d/30d/90d; hidden on `All` (no comparison
+  applies on cumulative).
+- New API fields on `wasted_time` payload:
+  `scammer_replies_count`, `scammer_replies_prev_count` (null on All),
+  `scammer_replies_delta_pct` (null on All or cold start).
+
+### What's untouched (out of scope)
+
+- The "Hours Wasted per Week" chart at the bottom of Impact still shows
+  wall-clock hours — same overclaim issue, deferred to a future spec
+  (likely will be reframed as "Scammer Replies per Week" for
+  consistency).
+- Legacy `wasted_time.total_hours`, `avg_hours`, `max_hours`,
+  `longest_scam_type`, `weekly_trend` fields untouched (chart consumer +
+  backwards compat). `trends.wasted_hours_delta_pct` still computed but
+  unused — both deferred.
+
+### Process note
+
+Frontend test gates (`npm test`, `npm run build`) run as part of the
+pre-commit checks in addition to the backend 8-gate preflight, per the
+lesson learned from spec 106 CI red. The local `preflight-check.sh`
+script only covers backend.
+
+---
+
 ## [2.22.0] - 2026-06-16
 
 ### Changed — Spec 107 (Impact tile honesty fix: Criminal Time Wasted → Engagement Time, phase 1)

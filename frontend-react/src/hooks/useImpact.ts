@@ -14,6 +14,14 @@ interface WastedTime {
   max_hours: number;
   longest_scam_type: string | null;
   weekly_trend: WeeklyPoint[];
+  // Spec 108 — Scammer Replies Elicited tile. Count of inbound messages
+  // (direction='in') in qualified conversations (turns_count >= 2).
+  // Replaces the time-based Engagement Time headline with a direct,
+  // uninferred count. prev/delta are null on period=all (no "vs previous
+  // period" framing on cumulative All), same pattern as fresh_iocs_*.
+  scammer_replies_count: number;
+  scammer_replies_prev_count: number | null;
+  scammer_replies_delta_pct: number | null;
 }
 
 interface IocTypeEntry {
