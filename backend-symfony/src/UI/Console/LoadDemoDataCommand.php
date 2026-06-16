@@ -138,6 +138,21 @@ class LoadDemoDataCommand extends Command
                 $lastMsg = end($convMessages);
                 $tsLast = $lastMsg !== false ? (string) ($lastMsg['timestamp'] ?? $tsFirst) : $tsFirst;
 
+                // Synthetic email identities so the Impact dashboard's
+                // "Scammer engagement (real rate)" metric — which keys off
+                // `message.headers->>'from'/'to'` — has something to count.
+                // Deterministic per conversation_id so re-seeding produces the
+                // same identities; one scammer per conv yields ~N unique
+                // senders, most with inbound replies (responded rate > 0).
+                $convHash = substr(hash('sha256', $convId), 0, 8);
+                $scammerDomains = ['mail-services.net', 'secure-notify.com', 'corp-alerts.org', 'support-desk.io'];
+                $scammerEmail = sprintf(
+                    'scammer-%s@%s',
+                    $convHash,
+                    $scammerDomains[hexdec(substr($convHash, 0, 2)) % count($scammerDomains)],
+                );
+                $honeypotEmail = 'baiter@scambuster.demo';
+
                 $this->connection->insert('conversation', [
                     'conv_id' => $convId,
                     'primary_channel_id' => $channelId,
@@ -168,8 +183,12 @@ class LoadDemoDataCommand extends Command
                     $isInbound = ((string) ($msg['direction'] ?? 'inbound')) === 'inbound';
                     $direction = $isInbound ? $dirIn : $dirOut;
 
-                    // Build headers JSON (with pipeline_trace for outbound)
-                    $headers = [];
+                    // Build headers JSON. The from/to pair is what the
+                    // Impact dashboard's scammer-engagement metric reads to
+                    // identify real senders — must be set on every message.
+                    $headers = $isInbound
+                        ? ['from' => sprintf('"Sender" <%s>', $scammerEmail), 'to' => $honeypotEmail]
+                        : ['from' => $honeypotEmail, 'to' => sprintf('"Target" <%s>', $scammerEmail)];
 
                     if (!$isInbound && isset($msg['pipeline_trace'])) {
                         $headers['pipeline_trace'] = $msg['pipeline_trace'];
