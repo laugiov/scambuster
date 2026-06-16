@@ -7,6 +7,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.20.0] - 2026-06-16
+
+### Added — Spec 105 (STIX export coverage for human-factor data)
+
+Closes the gap between what ScamBuster captures internally (LLM
+enrichment from spec 102, Cognitive Mirror from spec 104) and what a
+downstream OpenCTI / MISP / SOC consumer actually receives via the
+STIX export surface. An audit on 2026-06-15 found that the export
+pipeline had drifted behind two preceding specs: 4 LLM-derived fields
+were missing, 5 structural fields were never serialized, the
+Cognitive Mirror narrative had no STIX surface at all, and the TAXII
+path had its own SQL extractor that risked diverging from the HTTP
+one over time.
+
+Four atomic slices, each behind an 8-gate preflight, shipped to main +
+demo:
+
+#### Slice 1 — `x_scambuster_context` extension field coverage (P1+P2)
+
+`schema_version` bumped from 1.0 → 1.1. Nine new keys, all additive:
+
+- **LLM fields** (only when `enrichment_status = enriched`):
+  `hesitation_detected`, `language_switch`, `enrichment_model`
+- **Structural fields** (surfaced when present): `misp_taxonomy`,
+  `persona_label`, `stimulus_msg_id`, `reward_value`, `campaign_id`,
+  `co_revealed_count`
+
+Affects both HTTP (`POST /api/v1/iocs/export/stix`,
+`GET /api/v1/conversations/{id}/export/stix`,
+`GET /api/v1/clusters/{id}/export/stix`) and TAXII
+(`/api/v1/taxii2/.../objects/`). Builder's null-filter intentionally
+keeps boolean `false` so "we looked, the answer is no" reaches the
+consumer.
+
+#### Slice 2 — TAXII vs HTTP equivalence regression guard (P4)
+
+New integration test seeds an enriched ioc_context row, runs the same
+indicator through both export paths, asserts the
+`extensions.x_scambuster_context` blocks are byte-equal after canonical
+sort. Future SQL refactors that touch only one extractor now break the
+gate.
+
+#### Slice 3 — Cognitive Mirror as STIX 2.1 Note SDO (P3)
+
+`CognitiveMirrorNoteBuilder` emits an OASIS §4.13 Note SDO carrying:
+- `content`: human-readable analyst framing (hunted victim profile +
+  cognitive lever + mirror analysis)
+- `abstract`: short label ("ScamBuster Cognitive Mirror — persona X
+  against Y")
+- `object_refs`: `[threat-actor-id]`
+- `x_scambuster_mirror`: structured property block with generation
+  provenance (`generated_by_model`, `prompt_version`, `generated_at`)
+
+Note id is deterministic UUIDv4-shape over `(threat-actor-id,
+scam-type-code)` so re-exports yield stable ids consumers can dedup.
+Wired into `ConversationStixExportHandler` (singleton + cluster
+branches) and `TaxiiService::enrichIocsWithThreatActors`. Silent skip
+when no mirror is cached — no error, just no Note.
+
+`PersonaMirrorReaderInterface` extracted from `PersonaMirrorQueryService`
+as a test seam (the concrete service is final readonly).
+
+#### Slice 4 — JSON Schema validation for the custom extensions (P6)
+
+Two schemas (`config/stix-schemas/x_scambuster_context.schema.json`,
+`config/stix-schemas/x_scambuster_mirror.schema.json`) +
+`ExtensionSchemaValidator` (~200 LOC, hand-rolled JSON Schema subset:
+type, required, properties, enum, additionalProperties — no
+third-party dep). Bundle-level test pulls a real export response and
+asserts it validates clean. A future spec that adds a field without
+updating its schema fails the gate.
+
+Validator is `public: true` in `services.yaml` but **not** wired into
+production export paths — validation runs in the test gate, prod
+skips the parse cost.
+
+### Out of scope
+
+- **P5 — Campaign STIXExporter** explicitly dropped per user direction
+  (the campaign export path is not used in production).
+
+### Honest limits accepted
+
+- Cluster threat-actors exported via different conversations may carry
+  different Notes (keyed on each export's persona+scam_type). Consumers
+  dedup via the deterministic note id.
+- Custom `x_scambuster_*` extensions are namespaced; consumers that
+  strictly enforce the official STIX 2.1 schema with no custom
+  extensions will silently drop these fields.
+- The Note `content` is editorial framing inferred by an LLM, not
+  measured. `x_scambuster_mirror.generated_by_model` surfaces this.
+
+---
+
 ## [2.19.0] - 2026-06-15
 
 ### Added — Spec 104 (Persona analytics for Black Hat USA)
