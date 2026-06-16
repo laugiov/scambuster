@@ -57,10 +57,16 @@ final class SmtpDsnEncryptorTest extends TestCase
         $encryptor = new SmtpDsnEncryptor(self::APP_SECRET);
         $ciphertext = $encryptor->encrypt('smtps://user:pass@smtp.example.com:465');
 
-        // Flip a bit in the middle of the ciphertext
+        // Flip every bit of the middle byte (XOR 0xff). Overwriting with
+        // a constant like "\x00" is flaky in CI — if the random MAC byte
+        // already happened to be 0x00 the "tamper" was a no-op and the
+        // decryption succeeded. XOR guarantees the byte changes regardless
+        // of its current value.
         $decoded = base64_decode($ciphertext, true);
         self::assertNotFalse($decoded);
-        $tampered = substr_replace($decoded, "\x00", \intdiv(\strlen($decoded), 2), 1);
+        $middle = \intdiv(\strlen($decoded), 2);
+        $tampered = substr_replace($decoded, \chr(\ord($decoded[$middle]) ^ 0xFF), $middle, 1);
+        self::assertNotSame($decoded, $tampered, 'XOR with 0xff must always change the byte');
         $tamperedB64 = base64_encode($tampered);
 
         $this->expectException(\RuntimeException::class);
