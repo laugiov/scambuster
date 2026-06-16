@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Taxii;
 
 use App\Application\Stix\ClusteredThreatActorStixBuilder;
+use App\Application\Stix\CognitiveMirrorNoteBuilder;
 use App\Application\Stix\IocContextStixExtensionBuilder;
 use App\Application\Stix\ThreatActorStixBuilder;
 use Doctrine\ORM\EntityManagerInterface;
@@ -24,6 +25,7 @@ final readonly class TaxiiService
     public function __construct(
         private EntityManagerInterface $em,
         private ?ThreatActorStixBuilder $threatActorBuilder = null,
+        private ?CognitiveMirrorNoteBuilder $cognitiveMirrorNoteBuilder = null,
     ) {
     }
 
@@ -376,6 +378,17 @@ final readonly class TaxiiService
 
             $threatActor = $this->threatActorBuilder->buildThreatActor($campaignData, $actorProfile, $metrics);
             $objects[] = $threatActor;
+
+            // Spec 105 P3 — attach Cognitive Mirror Note SDO if one is
+            // cached for (persona, scam type). Silent skip when absent.
+            if ($this->cognitiveMirrorNoteBuilder instanceof CognitiveMirrorNoteBuilder) {
+                $threatActorId = \is_string($threatActor['id'] ?? null) ? $threatActor['id'] : '';
+                $note = $this->cognitiveMirrorNoteBuilder->build($threatActorId, $personaCode, $scamType);
+
+                if ($note !== null) {
+                    $objects[] = $note;
+                }
+            }
 
             $attackPatterns = $this->threatActorBuilder->buildAttackPatterns($attckTechnique);
 

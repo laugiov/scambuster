@@ -18,6 +18,7 @@ final readonly class ConversationStixExportHandler
         private ?ThreatActorStixBuilder $threatActorBuilder = null,
         private ?ClusterQueryService $clusterQueryService = null,
         private ?ClusteredThreatActorStixBuilder $clusteredActorBuilder = null,
+        private ?CognitiveMirrorNoteBuilder $cognitiveMirrorNoteBuilder = null,
     ) {
     }
 
@@ -131,12 +132,44 @@ final readonly class ConversationStixExportHandler
                 $attackPatterns = $clusterObjects['attack_patterns'];
                 $relationships = $clusterObjects['relationships'];
 
-                return $this->mergeActorIntoBundle($bundle, $objects, $reportId, $threatActor, $attackPatterns, $relationships);
+                // Spec 105 P3 — attach Cognitive Mirror Note keyed on THIS
+                // conversation's persona + scam type. A cluster threat-actor
+                // exported via different conversations may carry different
+                // notes; consumers dedup on the deterministic note id.
+                $note = $this->buildCognitiveMirrorNote($bundle_conversation, $threatActor);
+
+                return $this->mergeActorIntoBundle($bundle, $objects, $reportId, $threatActor, $attackPatterns, $relationships, $note);
             }
         }
 
         // Fallback: singleton threat-actor (conversation not clustered or cluster lookup failed)
         return $this->buildAndMergeSingletonActor($bundle_conversation, $bundle, $objects, $reportId, $indicatorIds);
+    }
+
+    /**
+     * Spec 105 P3 — look up the Cognitive Mirror SDO for (conversation's
+     * persona, conversation's scam type) and the given threat-actor id.
+     * Returns null when no mirror was cached (silent skip, not an error).
+     *
+     * @param array<string, mixed> $threatActor
+     *
+     * @return array<string, mixed>|null
+     */
+    private function buildCognitiveMirrorNote(Conversation $conversation, array $threatActor): ?array
+    {
+        if (!$this->cognitiveMirrorNoteBuilder instanceof CognitiveMirrorNoteBuilder) {
+            return null;
+        }
+
+        $threatActorId = \is_string($threatActor['id'] ?? null) ? $threatActor['id'] : '';
+        $persona = $conversation->getPersona();
+        // Same fallback as buildAndMergeSingletonActor: a conversation with
+        // no persona row is treated as 'generic_user' so the mirror lookup
+        // can hit the seeded generic_user/<scam-type> pairing.
+        $personaCode = $persona instanceof \App\Domain\Communication\Persona ? $persona->getPersonaCode() : 'generic_user';
+        $scamTypeCode = $conversation->getScamType()->getCode();
+
+        return $this->cognitiveMirrorNoteBuilder->build($threatActorId, $personaCode, $scamTypeCode);
     }
 
     /**
@@ -262,18 +295,22 @@ final readonly class ConversationStixExportHandler
             $attackPatternIds,
         );
 
-        return $this->mergeActorIntoBundle($bundle, $objects, $reportId, $threatActor, $attackPatterns, $relationships);
+        $note = $this->buildCognitiveMirrorNote($conversation, $threatActor);
+
+        return $this->mergeActorIntoBundle($bundle, $objects, $reportId, $threatActor, $attackPatterns, $relationships, $note);
     }
 
     /**
-     * Append the threat-actor, attack-patterns, and relationships into the
-     * bundle and update the report's object_refs.
+     * Append the threat-actor, attack-patterns, relationships, and (when
+     * present) the spec-105 Cognitive Mirror Note SDO into the bundle and
+     * update the report's object_refs.
      *
      * @param array<string, mixed>       $bundle
      * @param list<array<string, mixed>> $objects
      * @param array<string, mixed>       $threatActor
      * @param list<array<string, mixed>> $attackPatterns
      * @param list<array<string, mixed>> $relationships
+     * @param array<string, mixed>|null  $note           Cognitive Mirror Note SDO or null
      *
      * @return array<string, mixed>
      */
@@ -284,8 +321,9 @@ final readonly class ConversationStixExportHandler
         array $threatActor,
         array $attackPatterns,
         array $relationships,
+        ?array $note = null,
     ): array {
-        // Update report.object_refs with the threat-actor + attack-patterns
+        // Update report.object_refs with the threat-actor + attack-patterns + note
         if ($reportId !== null) {
             foreach ($objects as &$obj) {
                 if (($obj['type'] ?? '') === 'report' && ($obj['id'] ?? '') === $reportId) {
@@ -301,6 +339,11 @@ final readonly class ConversationStixExportHandler
                             $refs[] = $ap['id'];
                         }
                     }
+
+                    if ($note !== null && \is_string($note['id'] ?? null)) {
+                        $refs[] = $note['id'];
+                    }
+
                     $obj['object_refs'] = $refs;
 
                     break;
@@ -317,6 +360,10 @@ final readonly class ConversationStixExportHandler
 
         foreach ($relationships as $rel) {
             $objects[] = $rel;
+        }
+
+        if ($note !== null) {
+            $objects[] = $note;
         }
 
         $bundle['objects'] = $objects;
