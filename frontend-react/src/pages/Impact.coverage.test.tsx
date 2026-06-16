@@ -21,6 +21,12 @@ const mockImpactWithTrends = {
   ioc_value: {
     novel_pct: 68.8,
     novel_iocs: 198,
+    // Spec 106 — dual-face tile fields (Total face when window_days=null)
+    total_iocs: 1700,
+    fresh_iocs_count: null,
+    fresh_iocs_prev_count: null,
+    fresh_iocs_delta_pct: null,
+    fresh_iocs_window_days: null,
     by_type: [
       { type: 'email', count: 500 },
       { type: 'domain', count: 520 },
@@ -109,10 +115,12 @@ describe('Impact — coverage gaps', () => {
       // wasted_hours_delta_pct 12.5% up
       expect(screen.getByText(/12\.5%/)).toBeInTheDocument();
     });
-    // novel_pct_delta -3.2pp down
-    expect(screen.getByText(/3\.2pp/)).toBeInTheDocument();
     // cost_per_ioc_delta_pct -8.1% down (green because lower cost is good)
     expect(screen.getByText(/8\.1%/)).toBeInTheDocument();
+    // Spec 106 — the old novel_pct_delta "pp" chip was retired when the
+    // tile pivoted from "Novel IOCs %" to "Fresh IOCs / Total IOCs".
+    // This fixture has fresh_iocs_window_days=null → Total face → no trend
+    // chip on this tile by design.
   });
 
   it('switches period buttons', async () => {
