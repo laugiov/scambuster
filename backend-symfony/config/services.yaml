@@ -54,6 +54,14 @@ services:
         resource: '../src/Security'
         tags: ['controller.service_arguments']
 
+    # Spec 105 P6 — STIX extension schema validator
+    # Marked public so the test harness can pull it via the container without
+    # injecting it into every STIX builder. The validator is intentionally
+    # NOT wired into the production export path: validation runs in the
+    # test gate, the prod export skips it to keep per-bundle latency clean.
+    App\Application\Stix\ExtensionSchemaValidator:
+        public: true
+
     # Spec 066c — UserTotpChecker port binding
     App\Application\Auth\Port\UserTotpCheckerInterface:
         class: App\Infrastructure\Auth\DoctrineUserTotpChecker

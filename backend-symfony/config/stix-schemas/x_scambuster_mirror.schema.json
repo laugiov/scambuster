@@ -1,0 +1,28 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ScamBuster STIX extension — x_scambuster_mirror",
+    "description": "Custom property block on the STIX Note SDO that carries the structured Cognitive Mirror (spec 104) analysis with generation provenance. Spec 105 schema_version 1.0.",
+    "type": "object",
+    "required": [
+        "schema_version",
+        "persona_code",
+        "scam_type_code",
+        "hunted_victim_profile",
+        "cognitive_lever",
+        "mirror_explanation",
+        "generated_by_model",
+        "prompt_version"
+    ],
+    "properties": {
+        "schema_version": {"type": "string"},
+        "persona_code": {"type": "string"},
+        "scam_type_code": {"type": "string"},
+        "hunted_victim_profile": {"type": "string"},
+        "cognitive_lever": {"type": "string"},
+        "mirror_explanation": {"type": "string"},
+        "generated_at": {"type": "string"},
+        "generated_by_model": {"type": "string"},
+        "prompt_version": {"type": "string"}
+    },
+    "additionalProperties": false
+}

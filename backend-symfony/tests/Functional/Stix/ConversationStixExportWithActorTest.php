@@ -347,6 +347,67 @@ final class ConversationStixExportWithActorTest extends WebTestCase
         $this->assertContains('threat-actor', $types, 'Threat-actor must still be exported even without a mirror.');
     }
 
+    // ------------------------------------------------------------------ //
+    //  Spec 105 P6 — JSON schema validation on the live export response
+    // ------------------------------------------------------------------ //
+
+    public function testExportedBundleValidatesAgainstStixExtensionSchemas(): void
+    {
+        $container = static::getContainer();
+        /** @var \Doctrine\DBAL\Connection $conn */
+        $conn = $container->get('doctrine.dbal.default_connection');
+
+        // Same setup as the cognitive-mirror happy-path test: pick a conv
+        // with IOCs, seed a mirror, hit the endpoint. The bundle we get
+        // back must validate clean against both custom schemas.
+        $row = $conn->fetchAssociative(
+            'SELECT c.conv_id::text AS conv_id,'
+            . ' COALESCE(c.persona_id, (SELECT persona_id FROM persona WHERE persona_code = \'generic_user\')) AS persona_id,'
+            . ' c.scam_type_id'
+            . ' FROM conversation c'
+            . ' JOIN message m ON c.conv_id = m.conv_id'
+            . ' JOIN observed_ioc oi ON m.msg_id = oi.msg_id'
+            . ' GROUP BY c.conv_id, c.persona_id, c.scam_type_id LIMIT 1'
+        );
+
+        if ($row === false) {
+            $this->markTestSkipped('No conversation with IOCs in fixtures.');
+        }
+
+        $conn->executeStatement(
+            'INSERT INTO persona_scam_mirror'
+            . ' (persona_id, scam_type_id, hunted_victim_profile, cognitive_lever, mirror_explanation, generated_at, generated_by_model, prompt_version)'
+            . ' VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            . ' ON CONFLICT (persona_id, scam_type_id) DO NOTHING',
+            [
+                $row['persona_id'],
+                $row['scam_type_id'],
+                'Test profile for spec 105 P6',
+                'Trust + urgency lever (P6 test)',
+                'Spec 105 P6 fixture mirror explanation.',
+                '2026-06-15 12:00:00+00',
+                'gpt-4o-mini',
+                'v1',
+            ]
+        );
+
+        $this->client->request('GET', '/api/v1/conversations/' . (string) $row['conv_id'] . '/export/stix', [], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+        $bundle = $this->decodeResponse();
+
+        $validator = $container->get(\App\Application\Stix\ExtensionSchemaValidator::class);
+        $errors = $validator->validateBundle($bundle);
+
+        $this->assertSame([], $errors, sprintf(
+            "Bundle failed schema validation:\n%s\nBundle objects (types): %s",
+            implode("\n", $errors),
+            json_encode(array_column($bundle['objects'] ?? [], 'type')),
+        ));
+    }
+
     /**
      * @return array<string, mixed>
      */
