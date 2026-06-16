@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Taxii;
 
+use App\Application\Stix\IocStixExportHandler;
 use App\Application\Taxii\TaxiiService;
+use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Types\Types;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -516,5 +520,142 @@ class TaxiiServiceTest extends KernelTestCase
         $a1 = $this->taxiiService->getApiRoot();
         $a2 = $this->taxiiService->getApiRoot();
         $this->assertSame($a1, $a2);
+    }
+
+    // ------------------------------------------------------------------ //
+    //  Spec 105 P4 — TAXII vs HTTP equivalence on x_scambuster_context
+    // ------------------------------------------------------------------ //
+
+    /**
+     * Regression guard: TAXII and HTTP must produce the same
+     * x_scambuster_context block for the same indicator. Both paths feed the
+     * row through IocContextStixExtensionBuilder today; this test pins that
+     * contract so a future SQL refactor cannot silently drift the two
+     * extractor shapes apart.
+     *
+     * Inserts a deterministic ioc_context row tied to an existing observed_ioc
+     * so the assertion has all 9 spec-105 fields populated. DAMA wraps this
+     * test in a transaction that rolls back, so the insert is non-persistent.
+     */
+    public function testTaxiiAndHttpExportProduceIdenticalContextExtensionForSameIndicator(): void
+    {
+        $container = static::getContainer();
+        $em = $container->get(EntityManagerInterface::class);
+        \assert($em instanceof EntityManagerInterface);
+        $conn = $em->getConnection();
+        \assert($conn instanceof Connection);
+
+        // Pick an indicator that has at least one observed_ioc and no
+        // existing ioc_context (so we can deterministically insert one).
+        $row = $conn->executeQuery(
+            'SELECT i.indicator_id::text AS indicator_id, oi.obs_id::text AS obs_id
+             FROM indicator i
+             INNER JOIN observed_ioc oi ON oi.indicator_id = i.indicator_id
+             LEFT JOIN ioc_context ic ON ic.obs_id = oi.obs_id
+             WHERE ic.obs_id IS NULL
+             LIMIT 1'
+        )->fetchAssociative();
+
+        if ($row === false) {
+            self::markTestSkipped('No indicator/observed_ioc pair without ioc_context in fixtures.');
+        }
+
+        $indicatorId = (string) $row['indicator_id'];
+        $obsId = (string) $row['obs_id'];
+
+        // Insert a fully-populated ioc_context row (status=enriched so all
+        // 9 spec-105 fields surface in the extension).
+        $conn->insert(
+            'ioc_context',
+            [
+                'indicator_id' => $indicatorId,
+                'obs_id' => $obsId,
+                'enrichment_status' => 'enriched',
+                'scam_type_code' => 'ROMANCE',
+                'scam_type_attck' => 'T1566.003',
+                'scam_type_misp' => 'misp-galaxy:scam-type="romance"',
+                'persona_code' => 'lonely_person',
+                'persona_label' => 'Lonely retiree, single, online dating user',
+                'extraction_method' => 'llm',
+                'revelation_turn' => 4,
+                'total_turns' => 11,
+                'revelation_turn_ratio' => '0.364',
+                'engagement_hours' => '25.50',
+                'reward_value' => '0.7000',
+                'stimulus_msg_id' => '33333333-3333-4333-8333-333333333333',
+                'co_revealed_types' => '{iban,phone}',
+                'co_revealed_count' => 2,
+                'campaign_id' => '44444444-4444-4444-8444-444444444444',
+                'semantic_role' => 'PAYMENT_DESTINATION',
+                'stimulus_type' => 'TRUST_BUILDING',
+                'urgency_score' => '0.875',
+                'language_switch' => true,
+                'hesitation_detected' => false,
+                'context_excerpt' => 'Scammer requested IBAN after building emotional trust',
+                'enrichment_confidence' => '0.910',
+                'enrichment_model' => 'gpt-4o-mini',
+                'computed_at' => '2026-06-15 12:00:00+00',
+            ],
+            [
+                'language_switch' => Types::BOOLEAN,
+                'hesitation_detected' => Types::BOOLEAN,
+            ]
+        );
+
+        // Sanity check — the INSERT must be visible inside the same
+        // transaction the handlers will read from.
+        $countAfter = $conn->fetchOne('SELECT COUNT(*) FROM ioc_context WHERE obs_id = ?', [$obsId]);
+        self::assertSame(1, (int) $countAfter, 'Seeded ioc_context row not visible after insert.');
+
+        // Discriminant: HTTP and TAXII use different STIX indicator ids
+        // (HTTP derives UUIDv5 from value, TAXII uses the raw DB UUID), so
+        // we match each side by the indicator that carries our seeded
+        // x_scambuster_context — easy because only one was inserted.
+        $extractFirstContext = static function (array $objects): ?array {
+            foreach ($objects as $obj) {
+                if (!\is_array($obj) || ($obj['type'] ?? '') !== 'indicator') {
+                    continue;
+                }
+                $ext = $obj['extensions']['x_scambuster_context'] ?? null;
+                if (\is_array($ext)) {
+                    return $ext;
+                }
+            }
+
+            return null;
+        };
+
+        // --- HTTP path ---
+        $httpHandler = $container->get(IocStixExportHandler::class);
+        \assert($httpHandler instanceof IocStixExportHandler);
+        $httpBundle = $httpHandler->export([$indicatorId]);
+        $httpExt = $extractFirstContext($httpBundle['objects'] ?? []);
+        self::assertIsArray($httpExt, 'HTTP export must produce x_scambuster_context for the seeded indicator.');
+
+        // --- TAXII path ---
+        $taxiiResult = $this->taxiiService->getCollectionObjects(
+            'a1b2c3d4-0001-4000-8000-000000000001',
+            null,
+            100
+        );
+        $taxiiExt = $extractFirstContext($taxiiResult['envelope']['objects'] ?? []);
+        self::assertIsArray($taxiiExt, 'TAXII export must produce x_scambuster_context for the seeded indicator.');
+
+        // Canonical sort then compare — order of keys is not part of the
+        // STIX contract, but key/value pairs must be identical.
+        ksort($httpExt);
+        ksort($taxiiExt);
+
+        self::assertSame(
+            $httpExt,
+            $taxiiExt,
+            'TAXII and HTTP must emit byte-equal x_scambuster_context for the same indicator (spec 105 P4 regression guard).'
+        );
+
+        // Sanity: the 9 spec-105 fields actually landed in the output, not
+        // just an empty array on both sides giving false equivalence.
+        foreach (['misp_taxonomy', 'persona_label', 'stimulus_msg_id', 'reward_value', 'campaign_id', 'co_revealed_count', 'enrichment_model', 'hesitation_detected', 'language_switch'] as $key) {
+            self::assertArrayHasKey($key, $taxiiExt, "Expected spec-105 field '{$key}' to be present in the equivalence assertion.");
+        }
     }
 }
