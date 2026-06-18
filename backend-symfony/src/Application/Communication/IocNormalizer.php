@@ -80,6 +80,12 @@ final class IocNormalizer
             'bank_account' => $value,  // Keep as-is
             'credit_card' => $this->normalizeCreditCard($value),
 
+            // Spec 109 — Identity / Location.
+            // Lowercase + collapse internal whitespace + strip trailing
+            // ponctuation so "Plot No 1 & 2, ... 110096." and
+            // "plot no 1 & 2,  ... 110096" dedup to the same canonical.
+            'postal_address' => $this->normalizePostalAddress($value),
+
             // Default: keep as-is
             default => $value,
         };
@@ -193,6 +199,25 @@ final class IocNormalizer
     private function normalizeCreditCard(string $card): string
     {
         return preg_replace('/[\s\-]/', '', $card) ?? $card;
+    }
+
+    /**
+     * Spec 109 — Normalize a postal address for the dedup key:
+     *  1. Lowercase
+     *  2. Collapse any run of whitespace (spaces, tabs, newlines) to a
+     *     single space
+     *  3. Strip trailing punctuation (`.,;`) and surrounding whitespace
+     *
+     * Intentionally NOT structural — we do not try to canonicalize
+     * street / city / zip. Goal is exact-string dedup; fuzzy matching
+     * is left to a follow-up enrichment spec.
+     */
+    private function normalizePostalAddress(string $address): string
+    {
+        $lowered = mb_strtolower($address);
+        $collapsed = preg_replace('/\s+/u', ' ', $lowered) ?? $lowered;
+
+        return trim($collapsed, " \t\n\r\0\x0B.,;");
     }
 
     /**

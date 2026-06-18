@@ -26,6 +26,7 @@ const IOC_TYPE_MAP: Record<string, string> = {
   filename: 'Filename',
   subject: 'Subject',
   registrar: 'Registrar',
+  postal_address: 'Postal Address',
 };
 
 export function iocTypeLabel(type: string): string {

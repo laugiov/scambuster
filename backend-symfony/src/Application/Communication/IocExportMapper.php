@@ -76,6 +76,11 @@ final class IocExportMapper
 
         // Logistics
         'tracking_number' => ['category' => 'External analysis', 'type' => 'other', 'to_ids' => false],
+
+        // Spec 109 — Identity / Location. Person/other is the closest
+        // generic MISP attribute; to_ids=false because addresses are
+        // pivots, not blocklist entries (no automated detection signal).
+        'postal_address' => ['category' => 'Person', 'type' => 'other', 'to_ids' => false],
     ];
 
     /**
@@ -137,6 +142,11 @@ final class IocExportMapper
 
         // Logistics
         'tracking_number' => 'x-scambuster-tracking-number',
+
+        // Spec 109 — Identity / Location.
+        // Custom SCO, consistent with x-scambuster-phone / -iban / etc.
+        // Pattern emitted: [x-scambuster-postal-address:value = '...'].
+        'postal_address' => 'x-scambuster-postal-address',
     ];
 
     /**

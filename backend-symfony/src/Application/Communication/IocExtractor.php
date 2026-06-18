@@ -52,6 +52,9 @@ final readonly class IocExtractor
 
         // Logistics
         'tracking_number',
+
+        // Identity / Location (spec 109)
+        'postal_address',
     ];
 
     public function __construct(
@@ -238,6 +241,23 @@ EXTRACTION RULES:
    - Financial data vs random numbers
    - Telegram handles vs email local parts (@ in emails vs standalone @username)
 
+10. **Postal Addresses** (type: `postal_address`):
+    - Extract full postal / street addresses appearing in message bodies
+      (signatures, "registered office" mentions, shipping addresses,
+      "based at" claims, sender footers).
+    - Emit the FULL address as a SINGLE string value — do NOT decompose
+      into street / city / state / zip. Preserve line breaks if any.
+    - Length floor: skip if shorter than ~10 chars or clearly not an
+      address (a lone city name, a country, "USA", "France"). A real
+      address usually has a number + a street + a city.
+    - Length ceiling: cap at ~500 chars (a full address rarely exceeds).
+    - Skip the operator-side honeypot address if it appears in our own
+      outbound signatures.
+    - Examples to extract:
+      * "Plot No 1 & 2, Mamram Towers, Mayur Vihar, New Delhi 110096"
+      * "123 Main Street, Suite 400, Springfield, IL 62701, USA"
+      * "Unit 7, Building 3, Lagos Free Zone, Lagos, Nigeria"
+
 OUTPUT FORMAT:
 Return a JSON array of objects with "type" and "value" fields:
 [
@@ -246,7 +266,8 @@ Return a JSON array of objects with "type" and "value" fields:
   {"type": "email", "value": "scammer@example.com"},
   {"type": "iban", "value": "FR7612345678901234567890185"},
   {"type": "telegram_username", "value": "@crypto_support42"},
-  {"type": "cve", "value": "CVE-2024-12345"}
+  {"type": "cve", "value": "CVE-2024-12345"},
+  {"type": "postal_address", "value": "Plot No 1 & 2, Mamram Towers, New Delhi 110096"}
 ]
 
 IMPORTANT: Extract URLs and domains in their ORIGINAL format (NOT defanged).

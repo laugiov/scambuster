@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.24.0] - 2026-06-19
+
+### Added — Spec 109 (`postal_address` IOC type, first-class)
+
+User audit on the conversation detail view spotted a clear scammer
+postal address ("Plot No 1 & 2, Mamram Towers, ... Delhi 110096") that
+was never extracted as an IOC. Investigation confirmed: 33 IOC types
+covered (email, infra, hashes, finance, contact channels, files,
+security identifiers, logistics) — none for postal/street addresses.
+
+Postal addresses are a meaningful threat-actor pivot:
+- Scammers re-use the same fake "registered office" addresses across
+  campaigns; same operator → same pivot
+- MISP `address` and STIX 2.1 `location` are native concepts —
+  downstream consumers (OpenCTI, MISP, SOC) ingest them natively
+
+### What ships (full stack)
+
+- **Extraction**: `postal_address` added to `IocExtractor::ALL_IOC_TYPES`.
+  LLM system prompt extended with a new section instructing extraction
+  of full postal addresses as single-string blobs (no decomposition into
+  street/city/zip). Examples included in the prompt for shape.
+- **Normalization** (`IocNormalizer`): lowercase + collapse internal
+  whitespace + strip trailing `.,;`. Two messy variants of the same
+  address dedup to one canonical via the `(type, value_norm)` unique
+  constraint on `indicator`.
+- **Validation** (`IocValidator`): length-bounded 10..500, multiline
+  allowed (`s` modifier). No structural regex — addresses too varied
+  internationally.
+- **MISP export** (`IocExportMapper`): `category='Person', type='other',
+  to_ids=false`. Soft attribute / pivot, not a blocklist entry.
+- **STIX 2.1 export**: custom SCO `x-scambuster-postal-address`,
+  consistent with existing `x-scambuster-phone`/`-iban`/etc. Pattern:
+  `[x-scambuster-postal-address:value = '...']`.
+- **Frontend label**: `'Postal Address'` in `iocTypeLabels.ts`.
+
+### Clustering anchor — opt-in only, default OFF
+
+`IocConfidenceCalculator` left **unchanged**: postal_address falls
+through to the LOW catch-all, which means
+`IocClusteringService::resolveAnchorTypes()` does NOT pick it up.
+Default behaviour: postal addresses are NOT used as clustering anchors.
+
+To promote to anchor (opt-in), add ONE line to
+`IocConfidenceCalculator::HIGH_VALUE_TYPES`:
+```php
+'postal_address' => 'HIGH',
+```
+Recommended only after observing dedup quality in production for a
+few weeks.
+
+### Honest limits (in the spec, the tooltip, and this entry)
+
+- Postal address ≠ verified location. It is the textual address
+  observed in the conversation.
+- Risk of innocent-party defamation if a scammer uses a real
+  third-party address. Treat as PIVOT, not blocklist.
+- No automatic dedup beyond exact normalized-string match. Fuzzy
+  matching deferred to a future spec.
+- No automated existence check (no OpenStreetMap / Google Maps API
+  call). Deferred.
+
+### Acceptance verification
+
+- Backend tests: 92 unit tests across 4 touched files passed —
+  IocExtractor (whitelist + round-trip), IocNormalizer (canonicalization
+  + multiline), IocValidator (length bounds + isSupportedType), and
+  IocExportMapper (MISP + STIX provider).
+- No DB migration needed: `indicator.type` is a plain text column with
+  no FK on the lkp table.
+
+---
+
 ## [2.23.0] - 2026-06-16
 
 ### Changed — Spec 108 (Impact tile reframe: Engagement Time → Scammer Replies Elicited)

@@ -77,6 +77,12 @@ final class IocValidator
 
         // Logistics
         'tracking_number' => '/^(?:DHL|UPS|FedEx|USPS|TNT|EMS|Royal Mail|Colissimo)[-\s]?\d{6,15}[-\s]?[A-Z]{0,2}$/i',
+
+        // Spec 109 — Identity / Location.
+        // Length-bounded only (10..500). No structural regex — postal
+        // addresses are too varied internationally. The `s` modifier
+        // lets `.` match newlines so multiline addresses pass.
+        'postal_address' => '/^.{10,500}$/s',
     ];
 
     /**

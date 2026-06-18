@@ -297,4 +297,39 @@ class IocValidatorTest extends TestCase
     {
         $this->assertFalse($this->validator->validate('credit_card', 'abcdefghijklm'));
     }
+
+    /**
+     * Spec 109 — postal address validation: length-bounded only
+     * (10..500), no structural regex. Multiline allowed (addresses
+     * wrap). Trivial values rejected.
+     */
+    public function testValidatePostalAddressAcceptsRealAddress(): void
+    {
+        $this->assertTrue($this->validator->validate(
+            'postal_address',
+            'Plot No 1 & 2, Mamram Towers, New Delhi 110096',
+        ));
+        $this->assertTrue($this->validator->validate(
+            'postal_address',
+            "123 Main Street\nSuite 400\nSpringfield, IL 62701",
+        ));
+    }
+
+    public function testValidatePostalAddressRejectsTooShort(): void
+    {
+        $this->assertFalse($this->validator->validate('postal_address', 'USA'));
+        $this->assertFalse($this->validator->validate('postal_address', 'Paris, FR'));
+    }
+
+    public function testValidatePostalAddressRejectsTooLong(): void
+    {
+        $tooLong = str_repeat('a', 501);
+        $this->assertFalse($this->validator->validate('postal_address', $tooLong));
+    }
+
+    public function testPostalAddressIsRegisteredAsSupportedType(): void
+    {
+        $this->assertTrue($this->validator->isSupportedType('postal_address'));
+        $this->assertContains('postal_address', $this->validator->getSupportedTypes());
+    }
 }

@@ -197,6 +197,16 @@ final class IocExportMapperTest extends TestCase
                 false,
                 'email-message',
             ],
+            // Spec 109 — postal_address: Person/other (MISP soft attr),
+            // x-scambuster-postal-address (STIX custom SCO), to_ids=false
+            // (pivot, not blocklist).
+            'postal_address' => [
+                'postal_address',
+                'other',
+                'Person',
+                false,
+                'x-scambuster-postal-address',
+            ],
         ];
     }
 }

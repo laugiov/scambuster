@@ -57,6 +57,30 @@ class IocExtractorTest extends TestCase
         $this->assertSame('+33612345678', $iocs[2]['value']);
     }
 
+    /**
+     * Spec 109 — postal_address survives the whitelist filter and
+     * round-trips through extraction. Reads the LLM response, sees
+     * the type is whitelisted, returns the IOC unchanged.
+     */
+    public function testExtractIocsWithLLMReturnsPostalAddress(): void
+    {
+        $llmResponse = json_encode([
+            ['type' => 'postal_address', 'value' => 'Plot No 1 & 2, Mamram Towers, New Delhi 110096'],
+        ]);
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->willReturn($llmResponse);
+
+        $text = 'Our registered office: Plot No 1 & 2, Mamram Towers, New Delhi 110096.';
+        $iocs = $this->extractor->extractIocsWithLLM($text);
+
+        $this->assertCount(1, $iocs);
+        $this->assertSame('postal_address', $iocs[0]['type']);
+        $this->assertSame('Plot No 1 & 2, Mamram Towers, New Delhi 110096', $iocs[0]['value']);
+    }
+
     public function testExtractIocsWithLLMFiltersDisallowedTypes(): void
     {
         // Mock LLM response with mixed types
@@ -271,6 +295,8 @@ class IocExtractorTest extends TestCase
         $this->assertContains('wallet_btc', $types);
         $this->assertContains('md5', $types);
         $this->assertContains('cve', $types);
+        // Spec 109 — postal_address added to the whitelist
+        $this->assertContains('postal_address', $types);
     }
 
     public function testExtractIocsWithLLMLogsResponsePreview(): void

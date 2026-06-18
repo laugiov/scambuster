@@ -249,4 +249,32 @@ class IocNormalizerTest extends TestCase
         $this->assertSame('example[.]com', $this->normalizer->normalize('domain', '  example.com  '));
         $this->assertSame('CVE-2021-44228', $this->normalizer->normalize('cve', '  CVE-2021-44228  '));
     }
+
+    /**
+     * Spec 109 — postal address normalization: lowercase + collapse
+     * whitespace + strip trailing punctuation. Two messy variants of
+     * the same address must dedup to the same canonical string.
+     */
+    public function testNormalizePostalAddress(): void
+    {
+        $a = $this->normalizer->normalize(
+            'postal_address',
+            "Plot No 1 & 2, Mamram Towers,  New Delhi 110096.",
+        );
+        $b = $this->normalizer->normalize(
+            'postal_address',
+            "plot no 1 & 2,  Mamram Towers,\tNew Delhi 110096",
+        );
+
+        $this->assertSame('plot no 1 & 2, mamram towers, new delhi 110096', $a);
+        $this->assertSame($a, $b, 'Variants of the same address must dedup to one canonical form.');
+    }
+
+    public function testNormalizePostalAddressHandlesMultiline(): void
+    {
+        $multiline = "123 Main Street\nSpringfield, IL 62701\nUSA";
+        $normalized = $this->normalizer->normalize('postal_address', $multiline);
+
+        $this->assertSame('123 main street springfield, il 62701 usa', $normalized);
+    }
 }
