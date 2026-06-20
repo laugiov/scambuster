@@ -11,6 +11,7 @@ import { useThreatActorProfile } from '@/hooks/useThreatActor';
 import { ThreatActorCard } from '@/components/conversation/ThreatActorCard';
 import type { Message, Ioc } from '@/types/api';
 import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
+import { isActionableIocType } from '@/lib/iocActionable';
 
 function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -48,10 +49,15 @@ export function ConversationDetail() {
 
   const c = conv.data;
 
-  const INFRA_TYPES = new Set(['dmarc_result', 'spf_result', 'dkim_result']);
-  const INFRA_DOMAINS = ['@scambuster.local'];
+  // Spec 111 — Actionable IOCs are now filtered server-side by the
+  // /iocs endpoint (ListConversationIocsController passes
+  // actionableOnly=true). The frontend just counts what it received,
+  // no local exclusion needed. The defensive client-side filter below
+  // is a no-op on current server responses but kept as defence-in-depth
+  // in case a future API consumer (e.g. mobile app) calls a non-actionable
+  // surface and shares this component.
   const filteredIocCount = (iocs.data ?? []).filter(
-    (ioc) => !INFRA_TYPES.has(ioc.type.toLowerCase()) && !INFRA_DOMAINS.some((d) => ioc.value.toLowerCase().includes(d)),
+    (ioc) => isActionableIocType(ioc.type),
   ).length;
 
   return (
@@ -205,10 +211,17 @@ function SessionMetadata({ conv, messageCount, iocCount, config }: {
         <MetaRow label={t('conversationDetail.started')} value={startDate ? formatDate(startDate) : '--'} />
         <div className="grid grid-cols-2 gap-3">
           <MetaRow label={t('conversationDetail.duration')} value={duration} />
-          <MetaRow label={t('conversations.messages')} value={`${messageCount} (${Math.floor(messageCount / 2)} exch.)`} />
+          <MetaRow
+            label={t('conversationDetail.totalMessages')}
+            value={t('conversationDetail.messagesValue', { count: messageCount, turns: Math.ceil(messageCount / 2) })}
+          />
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <MetaRow label={t('conversationDetail.iocFound')} value={String(iocCount)} />
+          <MetaRow
+            label={t('conversationDetail.iocActionable')}
+            value={String(iocCount)}
+            tooltip={t('conversationDetail.iocActionableTooltip')}
+          />
           <MetaRow label={t('conversationDetail.riskScore')} value={String(conv.score_risk)} highlight />
         </div>
       </div>
@@ -216,10 +229,13 @@ function SessionMetadata({ conv, messageCount, iocCount, config }: {
   );
 }
 
-function MetaRow({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function MetaRow({ label, value, highlight, tooltip }: { label: string; value: string; highlight?: boolean; tooltip?: string }) {
   return (
-    <div className="flex flex-col">
-      <span className="text-[0.625rem] text-accent-muted uppercase font-bold tracking-tight">{label}</span>
+    <div className="flex flex-col" title={tooltip}>
+      <span className="text-[0.625rem] text-accent-muted uppercase font-bold tracking-tight flex items-center gap-1">
+        {label}
+        {tooltip && <span className="text-accent-muted opacity-70 cursor-help" aria-label={tooltip}>ⓘ</span>}
+      </span>
       <span className={`text-sm font-medium ${highlight ? 'text-accent' : 'text-on-surface'}`}>{value}</span>
     </div>
   );

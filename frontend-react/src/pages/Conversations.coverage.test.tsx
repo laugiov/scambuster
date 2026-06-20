@@ -182,7 +182,8 @@ describe('Conversations page — coverage gaps', () => {
     await waitFor(() => {
       expect(screen.getByText('aaaa-bbb')).toBeInTheDocument();
     });
-    const iocHeader = screen.getByText('IOCs').closest('th');
+    // Spec 111 — column header renamed "IOCs" → "Actionable IOCs"
+    const iocHeader = screen.getByText('Actionable IOCs').closest('th');
     fireEvent.click(iocHeader!);
     await waitFor(() => {
       const rows = screen.getAllByRole('link');

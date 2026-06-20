@@ -236,21 +236,14 @@ final readonly class TheaterAssemblyService
      */
     private function countActionableIocs(array $iocsByMsg): int
     {
-        $contextTypes = [
-            'subject', 'message_id', 'x_mailer', 'return_path',
-            'spf_result', 'dkim_result', 'dmarc_result',
-            'whois_email', 'whois_registrar_name', 'registrar',
-            'filename', 'mimetype',
-            'cve', 'malware_family', 'mitre_attack_id', 'tracking_number',
-            'md5', 'sha1', 'sha256',
-        ];
-        $contextSet = array_fill_keys($contextTypes, true);
+        // Spec 111 — delegate to the shared policy so the List + Detail
+        // + Theater views all use the same definition of "actionable".
         $count = 0;
 
         foreach ($iocsByMsg as $ioc) {
             $type = \is_string($ioc['type'] ?? null) ? $ioc['type'] : null;
 
-            if ($type !== null && !isset($contextSet[$type])) {
+            if ($type !== null && \App\Domain\Communication\Policy\IocActionablePolicy::isActionable($type)) {
                 $count++;
             }
         }

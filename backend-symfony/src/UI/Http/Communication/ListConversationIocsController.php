@@ -62,8 +62,12 @@ final readonly class ListConversationIocsController
             return new JsonResponse(['error' => 'Conversation not found'], Response::HTTP_NOT_FOUND);
         }
 
-        // Delegate to IocHandler for deduplicated IOC list
-        $iocs = $this->iocHandler->getConversationIocs($convId);
+        // Spec 111 — actionable-only filter applied server-side so the
+        // detail page's "Actionable IOCs" count reconciles with the
+        // list-view column and the Theater headline. Non-actionable
+        // types (header metadata, file hashes, auth results, ref ids)
+        // are dropped by IocActionablePolicy.
+        $iocs = $this->iocHandler->getConversationIocs($convId, true);
 
         $result = array_map(function ($ioc): array {
             $confidenceData = $this->iocHandler->computeConfidenceData(

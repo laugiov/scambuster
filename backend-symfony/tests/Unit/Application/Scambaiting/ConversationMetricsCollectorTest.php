@@ -33,8 +33,11 @@ class IocHandlerStub extends IocHandler
     }
 
     /** @return array<ObservedIoc> */
-    public function getConversationIocs(string $convId): array
+    public function getConversationIocs(string $convId, bool $actionableOnly = false): array
     {
+        // Spec 111 — stub mirrors the new IocHandler signature.
+        // The metrics collector still requests the full IOC set
+        // (actionableOnly=false), so this stub ignores the flag.
         return $this->iocs;
     }
 }

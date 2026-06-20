@@ -241,11 +241,29 @@ class ConversationHandler
             return [];
         }
 
+        // Spec 111 — unified "actionable IOC count" semantics across
+        // List + Detail + Theater views:
+        //   - COUNT(DISTINCT indicator_id) so the same IOC observed in
+        //     N messages of one conv counts ONCE (not N times).
+        //   - Exclude IocActionablePolicy::NON_ACTIONABLE_TYPES (header
+        //     metadata, file hashes, auth results, reference identifiers)
+        //     since they're not actionable threat intel under the
+        //     scam-baiting model.
+        //   - Drop the legacy `@scambuster.local` filter (the honeypot
+        //     filter happens upstream in IocUpsertService since spec 061;
+        //     this WHERE clause was defense-in-depth that no longer
+        //     matches actual data on production).
         /** @var list<array{conv_id: string, cnt: string}> $rows */
         $rows = $this->em->getConnection()->fetchAllAssociative(
-            "SELECT m.conv_id, COUNT(DISTINCT oi.obs_id) as cnt FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id JOIN indicator i ON oi.indicator_id = i.indicator_id WHERE m.conv_id IN (?) AND i.type NOT IN ('dmarc_result', 'spf_result', 'dkim_result') AND i.value NOT LIKE '%@scambuster.local' GROUP BY m.conv_id",
-            [$convIds],
-            [\Doctrine\DBAL\ArrayParameterType::STRING]
+            'SELECT m.conv_id, COUNT(DISTINCT i.indicator_id) as cnt'
+            . ' FROM observed_ioc oi'
+            . ' JOIN message m ON oi.msg_id = m.msg_id'
+            . ' JOIN indicator i ON oi.indicator_id = i.indicator_id'
+            . ' WHERE m.conv_id IN (?)'
+            . '   AND i.type NOT IN (?)'
+            . ' GROUP BY m.conv_id',
+            [$convIds, \App\Domain\Communication\Policy\IocActionablePolicy::NON_ACTIONABLE_TYPES],
+            [\Doctrine\DBAL\ArrayParameterType::STRING, \Doctrine\DBAL\ArrayParameterType::STRING],
         );
 
         $counts = [];

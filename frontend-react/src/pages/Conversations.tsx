@@ -167,7 +167,7 @@ export function Conversations() {
               <th className="text-left px-5 py-3 font-medium">{t('conversations.persona')}</th>
               <th className="text-left px-5 py-3 font-medium">{t('conversations.mailbox')}</th>
               <SortHeader label={t('conversations.risk')} sortKey="score_risk" current={sortKey} dir={sortDir} onSort={toggleSort} />
-              <SortHeader label="IOCs" sortKey="ioc_count" current={sortKey} dir={sortDir} onSort={toggleSort} />
+              <SortHeader label={t('conversations.iocActionable')} sortKey="ioc_count" current={sortKey} dir={sortDir} onSort={toggleSort} tooltip={t('conversations.iocActionableTooltip')} />
               <SortHeader label={t('conversations.messages')} sortKey="message_count" current={sortKey} dir={sortDir} onSort={toggleSort} />
               <SortHeader label={t('conversations.lastActivity')} sortKey="ts_last" current={sortKey} dir={sortDir} onSort={toggleSort} />
               <th className="text-left px-5 py-3 font-medium">{t('common.status.open')}</th>
@@ -244,20 +244,23 @@ export function Conversations() {
   );
 }
 
-function SortHeader({ label, sortKey: key, current, dir, onSort }: {
+function SortHeader({ label, sortKey: key, current, dir, onSort, tooltip }: {
   label: string;
   sortKey: 'ts_last' | 'score_risk' | 'ioc_count' | 'message_count';
   current: string;
   dir: 'asc' | 'desc';
   onSort: (key: 'ts_last' | 'score_risk' | 'ioc_count' | 'message_count') => void;
+  tooltip?: string;
 }) {
   const isActive = current === key;
   return (
     <th
       className="text-left px-5 py-3 font-medium cursor-pointer select-none hover:text-on-surface transition-colors"
       onClick={() => onSort(key)}
+      title={tooltip}
     >
       {label}
+      {tooltip && <span className="ml-1 text-accent-muted opacity-70 cursor-help text-[0.65rem]" aria-label={tooltip}>ⓘ</span>}
       <span className={`ml-1.5 inline-block text-[0.6rem] ${isActive ? 'text-accent' : 'text-on-surface-dim'}`}>
         {isActive ? (dir === 'desc' ? '▼' : '▲') : '⇅'}
       </span>

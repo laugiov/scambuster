@@ -48,7 +48,16 @@ export function useConversationMessages(conversationId: string) {
   return useQuery<Message[]>({
     queryKey: ['conversation-messages', conversationId],
     queryFn: async () => {
-      const { data } = await client.get<Message[]>(ENDPOINTS.conversations.messages(conversationId));
+      // Spec 111 — pass limit=1000 so the detail page receives the full
+      // conversation thread. Without the param, the backend defaults
+      // to limit=20 (page 1), and the SessionMetadata header silently
+      // truncates "Messages" to 20 for any conv with N > 20. 1000 is
+      // a pragmatic cap; real pagination is a future spec if any
+      // conversation grows beyond.
+      const { data } = await client.get<Message[]>(
+        ENDPOINTS.conversations.messages(conversationId),
+        { params: { limit: 1000 } },
+      );
       return data;
     },
     enabled: !!conversationId,

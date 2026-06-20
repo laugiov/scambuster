@@ -70,9 +70,9 @@ class IocHandler
     /**
      * @return array<ObservedIoc>
      */
-    public function getConversationIocs(string $convId): array
+    public function getConversationIocs(string $convId, bool $actionableOnly = false): array
     {
-        return $this->queryService->getConversationIocs($convId);
+        return $this->queryService->getConversationIocs($convId, $actionableOnly);
     }
 
     public function extractAndUpsertHeaderIocs(Message $message): int

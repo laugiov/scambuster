@@ -25,7 +25,7 @@ class IocQueryService
      *
      * @return array<ObservedIoc>
      */
-    public function getConversationIocs(string $convId): array
+    public function getConversationIocs(string $convId, bool $actionableOnly = false): array
     {
         // ORDER BY message.ts_msg ASC, then ts_observed ASC, so the
         // FIRST occurrence of an indicator in conversation-time wins
@@ -59,6 +59,25 @@ class IocQueryService
                 $seenIds[$iocId] = true;
                 $unique[] = $ioc;
             }
+        }
+
+        // Spec 111 — optional actionable-only filter. When true, drop
+        // every indicator whose type is in the IocActionablePolicy's
+        // non-actionable set (header metadata, file hashes, auth
+        // results, reference identifiers). When false (default),
+        // preserve legacy behaviour so existing callers that need the
+        // full picture (Theater enrichment overlays, audit) are
+        // unaffected.
+        if ($actionableOnly) {
+            $unique = array_values(array_filter(
+                $unique,
+                static function (ObservedIoc $ioc): bool {
+                    $type = $ioc->getContext()['type'] ?? null;
+
+                    return \is_string($type)
+                        && \App\Domain\Communication\Policy\IocActionablePolicy::isActionable($type);
+                },
+            ));
         }
 
         return $unique;

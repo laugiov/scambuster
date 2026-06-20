@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.26.0] - 2026-06-20
+
+### Fixed — Spec 111 (Unified conversation counts + explicit labels)
+
+User audit on conv `ab075b53-6715-4118-8c0b-1b21eacf67e4` surfaced
+three different counts for the same conversation depending on the view:
+
+| View    | Showed       | Actual DB state for this conv |
+| ------- | ------------ | ----------------------------- |
+| List    | 50 msgs, 171 IOCs | 50 messages, 57 distinct indicators, 192 observations |
+| Detail  | 20 msgs, 54 IOCs  | (truncated by limit=20, different exclusion list) |
+| Theater | 25 indicators extracted | (correct under the "actionable" definition) |
+
+Two distinct root causes:
+
+#### A — Messages count truncated to first 20
+
+Frontend hook `useConversationMessages` didn't pass `?limit=` to the
+backend, which defaults to `limit=20` (page 1). The Detail page then
+displayed `messages.data.length` = 20 instead of the real count.
+Affected 177 of 640 conversations on dev.
+
+**Fix**: hook passes `?limit=1000` (pragmatic cap, real pagination
+deferred until any conv grows beyond).
+
+#### B — Three different "IOCs" semantics, one label
+
+List counted observations (`obs_id`), Detail counted distinct
+indicators with a narrow exclusion (dmarc/spf/dkim only), Theater
+counted distinct indicators with a wider "actionable" exclusion.
+All mathematically consistent with their own definition, but
+indistinguishable from the UI.
+
+**Fix**: new
+`App\Domain\Communication\Policy\IocActionablePolicy` as the single
+source of truth for "non-actionable" types (header metadata,
+auth results, WHOIS, file metadata, ref identifiers, file hashes).
+All three count surfaces refactored to use it:
+- `ConversationHandler::getIocCountsForConversations` — now
+  `COUNT(DISTINCT indicator_id)` excluding the policy list (was
+  `COUNT(DISTINCT obs_id)` with narrow exclusion).
+- `IocQueryService::getConversationIocs` — new
+  `bool $actionableOnly = false` parameter. Detail controller passes
+  `true`. Other consumers (Theater, MISP export, reply pipeline,
+  metrics) keep `false` (full set).
+- `TheaterAssemblyService::countActionableIocs` — refactored to call
+  the policy (no behaviour change since the policy mirrors its
+  existing hardcoded list).
+
+Frontend mirrors the list at
+`frontend-react/src/lib/iocActionable.ts` with a parity test (sibling
+to the PHP `IocActionablePolicyTest`) — any drift fails both suites.
+
+#### Explicit labels (user-requested)
+
+- Conversations list column: "IOCs" → **"Actionable IOCs"** / **"IOCs actionnables"** with `ⓘ` tooltip explaining the exclusion list.
+- Conversation detail field: "IOCs Found" → **"Actionable IOCs"** with the same tooltip.
+- Detail messages format: `"50 (10 exch.)"` → `"50 messages (25 turns)"`
+  — clearer label and `Math.ceil(N/2)` instead of `Math.floor(N/2)`
+  so a 51-message conv reads 26 turns instead of 25.
+- Theater "indicators extracted" stays unchanged (already accurate).
+
+After fix on `ab075b53`: all three views show **25 actionable IOCs**.
+Detail shows **50 messages (25 turns)**.
+
+### Honest limits
+
+- "Actionable" is a value judgement biased toward the scam-baiting
+  threat model. File hashes (md5/sha1/sha256) ARE actionable for
+  malware-delivery IOCs; we exclude them because the platform doesn't
+  do payload analysis today and including them inflates counts with
+  hashes of legitimate attachments scammers copy-pasted from real
+  corporate emails. Revisit if attachment analysis is added.
+- The list-view `ioc_count` API field keeps its name but its
+  **semantic shifts** from "observations" to "actionable distinct
+  indicators". Only frontend consumer; no external breakage.
+- Conversations beyond 1000 messages will be truncated silently in
+  the detail view. None exist today; if they appear, follow-up spec.
+
+---
+
 ## [2.25.0] - 2026-06-20
 
 ### Fixed — Spec 110 (`/risk` endpoint waits 30s for parallel IOC extraction)
