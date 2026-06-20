@@ -11,7 +11,7 @@
         "doctrine/doctrine-bundle": "^2.18.2",
         "doctrine/doctrine-migrations-bundle": "^3.7.0",
         "doctrine/orm": "^3.6.7",
-        "guzzlehttp/guzzle": "^7.10.5",
+        "guzzlehttp/guzzle": "^7.12.1",
         "lexik/jwt-authentication-bundle": "^3.2",
         "nelmio/cors-bundle": "^2.6.1",
         "php-mime-mail-parser/php-mime-mail-parser": "^1.7.4",
