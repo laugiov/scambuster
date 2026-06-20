@@ -7,6 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.25.0] - 2026-06-20
+
+### Fixed — Spec 110 (`/risk` endpoint waits 30s for parallel IOC extraction)
+
+User audit on 2026-06-19 root-caused 14 stuck open conversations where
+ScamBuster never replied to the scammer's follow-up. The cause is a
+race in the n8n `WF-INTAKE-EMAIL-V2` workflow:
+
+After `Ingest Email`, two branches run in parallel:
+- `WF-EXTRACT-AND-ENRICH-IOC` (LLM body-IOC extraction, ~5–10s)
+- `Get Risk Assessment` → `Decision Gate` → reply trigger / skip
+
+The Decision Gate route calls `GET /api/v1/communication/message/{msgId}/risk`
+within the first ~5s of the parallel race, before body IOCs land in
+`observed_ioc`. At that moment the risk endpoint sees ONLY header IOCs
+(3 types: `message_id`, `email`, `subject`). The intrinsic score
+formula for an `UNKNOWN` scam_type with 3 IOC types yields:
+
+  30 (UNKNOWN baseline) + 0 (no financial/phone/url) + 9 (3×3 diversity, no >=4 bonus) = 39
+
+39 falls **one point** below the medium threshold of 40 → `level=low` →
+`should_reply=false` → n8n routes to `Skip Reply` → conversation stuck.
+
+9 seconds later, body extraction adds `url`/`domain` (4 types), the
+intrinsic score would be 52 → `medium` → `should_reply=true`. But by
+then the Decision Gate has already routed past the choice point.
+
+### Fix (per user direction: do not touch n8n workflows)
+
+`GetMessageRiskController` now sleeps `app.risk_extraction_wait_sec`
+seconds at the start of `__invoke()` before delegating to the handler.
+This lets the parallel extraction branch finish populating body IOCs
+before the score is computed.
+
+- Production / dev: **30s** (cap; covers the observed ~10s worst case
+  with 3x safety margin).
+- Test / e2e environments: **0s** (otherwise every PHPUnit test
+  hitting the route would block 30s).
+
+The override lives in `config/services_test.yaml` and
+`config/services_e2e.yaml` (NOT `config/packages/{env}/services.yaml`,
+because `services_{env}.yaml` loads AFTER `services.yaml` and actually
+wins the override — the `packages/{env}` path loads before and is
+silently shadowed).
+
+### Honest limits
+
+- Pure `sleep()` blocks an FPM worker for ~30s per inbound. At current
+  traffic (~5–20 emails/min) this is fine. Under sustained burst
+  > ~10/s, workers would saturate; in that case either expand the FPM
+  pool or move to a polling-based wait (option B from the audit
+  conversation).
+- 30s is a coarse cap. If extraction takes longer than 30s (e.g. LLM
+  provider hiccup), the race re-emerges. Operator can raise the
+  parameter via service config.
+- The only HTTP caller of `/risk` is n8n's `WF-INTAKE-EMAIL-V2`
+  (verified via grep on `frontend-react/src` — frontend never reads
+  this endpoint). No UI latency impact.
+
+### Defensive test coverage
+
+`MessageRiskControllerTest` gained two assertions:
+- The bound `app.risk_extraction_wait_sec` parameter MUST be 0 in the
+  test/e2e container.
+- An actual request to `/risk` in the test env MUST complete in under
+  2 seconds (defensive timing check, catches the case where the
+  parameter is correctly 0 but the controller doesn't read it).
+
+---
+
 ## [2.24.0] - 2026-06-19
 
 ### Added — Spec 109 (`postal_address` IOC type, first-class)

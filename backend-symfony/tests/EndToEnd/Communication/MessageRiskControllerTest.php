@@ -259,4 +259,47 @@ class MessageRiskControllerTest extends WebTestCase
 
         $this->assertResponseStatusCodeSame(401);
     }
+
+    /**
+     * Spec 110 — the 30s extraction-wait sleep MUST be disabled in
+     * test/e2e environments via the `app.risk_extraction_wait_sec`
+     * parameter override (config/services_test.yaml and
+     * config/packages/e2e/services.yaml both set it to 0). Otherwise
+     * every test hitting this route would block 30s and the suite
+     * would become un-runnable.
+     */
+    public function testRiskExtractionWaitIsDisabledInTestEnv(): void
+    {
+        $client = static::createClient();
+        $waitSec = $client->getContainer()->getParameter('app.risk_extraction_wait_sec');
+
+        self::assertSame(0, $waitSec, 'app.risk_extraction_wait_sec MUST be 0 in test/e2e environments to keep the suite fast.');
+    }
+
+    /**
+     * Spec 110 — defensive timing assertion: even if the previous test
+     * fails to detect a mis-configured wait, an actual request hitting
+     * the route must return in under 2 seconds in the test/e2e env.
+     */
+    public function testGetMessageRiskRespondsQuicklyInTestEnv(): void
+    {
+        $client = static::createClient();
+        $jwt = $this->getValidJwt($client);
+
+        $start = microtime(true);
+        $client->request(
+            'GET',
+            '/api/v1/communication/message/dddddddd-dddd-dddd-dddd-dddddddddddd/risk',
+            [],
+            [],
+            ['HTTP_AUTHORIZATION' => 'Bearer ' . $jwt]
+        );
+        $elapsed = microtime(true) - $start;
+
+        // 404 is fine — we just need the route to NOT block 30s on the wait.
+        self::assertLessThan(2.0, $elapsed, sprintf(
+            'GET /risk in test env returned in %.2fs — spec-110 wait override is broken.',
+            $elapsed,
+        ));
+    }
 }

@@ -37,13 +37,33 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 final readonly class GetMessageRiskController
 {
     public function __construct(
-        private IocHandler $iocHandler
+        private IocHandler $iocHandler,
+        // Spec 110 — see services.yaml `app.risk_extraction_wait_sec`.
+        // Prod/dev: 30s, test/e2e: 0s. Defaulting to 0 makes the wait a
+        // strict opt-in behaviour for anyone constructing this controller
+        // without DI.
+        private int $riskExtractionWaitSec = 0,
     ) {
     }
+
     #[Route('/api/v1/communication/message/{msgId}/risk', name: 'get_message_risk', methods: ['GET'])]
     #[IsGranted('conversation:read')]
     public function __invoke(string $msgId): JsonResponse
     {
+        // Spec 110 — race-condition mitigation. n8n's WF-INTAKE-EMAIL-V2
+        // runs `Get Risk Assessment` (this endpoint) and
+        // `WF-EXTRACT-AND-ENRICH-IOC` in parallel after ingest. The
+        // extraction branch needs ~5–10s to populate body IOCs (url,
+        // domain) into observed_ioc. Without this sleep, /risk computes
+        // the intrinsic score on header IOCs only, which can fall below
+        // the reply threshold (medium: >= 40) and cause n8n to silently
+        // skip reply on legitimate scammer responses. 30s is the
+        // configured cap; if extraction is faster the worker simply
+        // sleeps the remainder. See spec 110 for the full audit.
+        if ($this->riskExtractionWaitSec > 0) {
+            sleep($this->riskExtractionWaitSec);
+        }
+
         try {
             $risk = $this->iocHandler->calculateMessageRisk($msgId);
 

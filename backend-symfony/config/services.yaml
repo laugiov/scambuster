@@ -13,6 +13,14 @@ parameters:
     # or email (domain-part match) under one of these domains is rejected.
     app.honeypot_domains: '%env(default::csv:HONEYPOT_DOMAINS)%'
 
+    # Spec 110: how long the GET /risk endpoint sleeps before computing the
+    # risk score, to let the n8n parallel WF-EXTRACT-AND-ENRICH-IOC branch
+    # finish persisting body IOCs (otherwise /risk runs on header IOCs only
+    # and the score can fall below the reply threshold — race condition
+    # root-caused on 2026-06-19). Default 30s in prod/dev; overridden to 0
+    # in config/services_test.yaml so PHPUnit doesn't block per request.
+    app.risk_extraction_wait_sec: 30
+
 services:
     _defaults:
         autowire: true
@@ -31,6 +39,8 @@ services:
             $generatorNoSignatureInstruction:  '%reply.generator.no_signature_instruction%'
             # Spec 083 — operator-test sender CSV (consumed by IngestPostProcessor::matchPreFilter)
             $operatorTestSenders:              '%env(string:default::SCAMBUSTER_OPERATOR_TEST_SENDERS)%'
+            # Spec 110 — extraction-wait param injected into GetMessageRiskController
+            $riskExtractionWaitSec:            '%app.risk_extraction_wait_sec%'
 
     App\:
         resource: '../src/'

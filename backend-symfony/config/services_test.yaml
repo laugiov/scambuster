@@ -1,3 +1,8 @@
+parameters:
+    # Spec 110 — disable the GET /risk 30s wait in the test environment so
+    # PHPUnit functional tests don't block 30s per request hitting that route.
+    app.risk_extraction_wait_sec: 0
+
 services:
     App\Security\TestCsrfTokenManager:
         class: App\Security\TestCsrfTokenManager
