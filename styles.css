@@ -176,6 +176,11 @@ a:focus-visible,
   display:grid;
   place-items:center;
   pointer-events:none;
+  border-radius:50%;
+  /* clip-path reliably contains the animated sweep beam; plain overflow:hidden
+     fails because the animated layer is composited separately in Chrome */
+  clip-path:circle(50%);
+  overflow:hidden;
 }
 .radar__ring{
   position:absolute;
