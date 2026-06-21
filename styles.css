@@ -394,6 +394,19 @@ a:focus-visible,
 }
 .btn__prompt{ color:var(--green); }
 
+/* Primary CTA: same square terminal button, slightly stronger (faint fill, brighter border) */
+.btn--primary{
+  background:rgba(61,240,138,.10);
+  border-color:var(--green-bright);
+  color:var(--green-bright);
+}
+.btn--primary:hover{
+  background:rgba(61,240,138,.22);
+  border-color:var(--green-bright);
+  color:var(--white);
+  box-shadow:var(--glow);
+}
+
 /* ---------- Footer ---------- */
 .footer{
   max-width:var(--maxw);
