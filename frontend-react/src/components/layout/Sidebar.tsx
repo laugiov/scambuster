@@ -114,12 +114,10 @@ export function Sidebar() {
 
   return (
     <aside className="fixed top-0 left-0 h-screen w-[var(--spacing-sidebar)] bg-sidebar flex flex-col z-50" role="navigation" aria-label="Main navigation">
-      <div className="px-5 py-6 flex items-center gap-3">
-        <img src="/scambuster_icon.svg" alt="ScamBuster" className="w-9 h-9" />
-        <div>
-          <h1 className="text-lg font-semibold text-on-surface tracking-wide">ScamBuster</h1>
-          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-0.5">{t('nav.subtitle')}</p>
-        </div>
+      <div className="px-5 py-6 flex flex-col gap-1.5">
+        <img src="/scambuster_logo_horizontal.svg" alt="ScamBuster" className="h-11 w-auto" />
+        <h1 className="sr-only">ScamBuster</h1>
+        <p className="text-[10px] text-on-surface-dim uppercase tracking-widest pl-0.5">{t('nav.subtitle')}</p>
       </div>
 
       <nav className="flex-1 px-3 space-y-0.5 overflow-y-auto" aria-label="Pages">

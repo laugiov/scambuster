@@ -28,9 +28,9 @@ export function Login() {
     <div className="min-h-screen bg-surface-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/scambuster_icon.svg" alt="ScamBuster" className="w-16 h-16 mx-auto mb-4" />
-          <h1 className="text-2xl font-semibold text-on-surface tracking-wide">ScamBuster</h1>
-          <p className="text-xs text-on-surface-dim uppercase tracking-widest mt-1">{t('auth.title')}</p>
+          <img src="/scambuster_mark.svg" alt="ScamBuster" className="w-44 h-44 mx-auto mb-3" />
+          <h1 className="sr-only">ScamBuster</h1>
+          <p className="text-xs text-on-surface-dim uppercase tracking-widest">{t('auth.title')}</p>
         </div>
 
         <form onSubmit={(e) => void handleSubmit(e)} className="bg-surface-low rounded-lg p-6 space-y-5">
