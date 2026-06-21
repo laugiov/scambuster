@@ -11,7 +11,8 @@
   --line:        #163020; /* borders, dividers */
   --green:       #3df08a; /* primary green: body text, accents */
   --green-bright:#8dffbe; /* bright green: headings, the SCAM wordmark, emphasis */
-  --green-dim:   #2f7a4f; /* dim green: eyebrows, labels, captions */
+  --green-dim:   #2f7a4f; /* dim green: decorative borders, dividers, radar */
+  --label:       #3a8f5d; /* muted green for small label TEXT, kept >=4.5:1 on --bg for WCAG AA */
   --green-faint: #13301d;
   --red:         #ff5563; /* the attacker: the hook, danger accents */
   --red-dim:     #8a2f38;
@@ -64,7 +65,7 @@ a:focus-visible,
   font-size:11px;
   text-transform:uppercase;
   letter-spacing:.34em;
-  color:var(--green-dim);
+  color:var(--label);
   font-weight:500;
   margin:0 0 1.4rem;
 }
@@ -84,7 +85,7 @@ a:focus-visible,
   max-width:62ch;
   margin:0 0 1.2rem;
 }
-.prose--muted{ color:var(--green-dim); max-width:74ch; margin-top:1.8rem; }
+.prose--muted{ color:var(--label); max-width:74ch; margin-top:1.8rem; }
 
 .divider{
   display:block;
@@ -116,7 +117,7 @@ a:focus-visible,
   letter-spacing:.04em;
   flex-wrap:wrap;
 }
-.topbar__nav a{ color:var(--green-dim); }
+.topbar__nav a{ color:var(--label); }
 .topbar__nav a:hover{ color:var(--green-bright); }
 
 /* ---------- Hero ---------- */
@@ -251,7 +252,7 @@ a:focus-visible,
 .badge{
   font-size:11px;
   letter-spacing:.18em;
-  color:var(--green-dim);
+  color:var(--label);
   border:1px solid var(--line);
   background:var(--panel);
   padding:.5rem .85rem;
@@ -265,7 +266,7 @@ a:focus-visible,
   gap:.4rem;
   font-size:10px;
   letter-spacing:.3em;
-  color:var(--green-dim);
+  color:var(--label);
 }
 .scrollcue__arrow{
   width:8px;
@@ -329,7 +330,7 @@ a:focus-visible,
   flex-direction:column;
   transition:border-color .2s ease, transform .2s ease;
 }
-.card:hover{ border-color:var(--green-dim); transform:translateY(-2px); }
+.card:hover{ border-color:var(--label); transform:translateY(-2px); }
 .card__title{
   margin:0 0 .8rem;
   font-size:1.05rem;
@@ -343,7 +344,7 @@ a:focus-visible,
   font-size:10px;
   letter-spacing:.2em;
   text-transform:uppercase;
-  color:var(--green-dim);
+  color:var(--label);
   border:1px solid var(--line);
   padding:.35rem .6rem;
 }
@@ -369,7 +370,7 @@ a:focus-visible,
   margin-top:.7rem;
   font-size:12px;
   letter-spacing:.08em;
-  color:var(--green-dim);
+  color:var(--label);
 }
 
 /* ---------- Terminal button ---------- */
@@ -415,9 +416,9 @@ a:focus-visible,
   font-size:13px;
   margin-bottom:1.2rem;
 }
-.footer__links a{ color:var(--green-dim); }
+.footer__links a{ color:var(--label); }
 .footer__links a:hover{ color:var(--green-bright); }
-.footer__credit{ color:var(--green-dim); font-size:13px; margin:.4rem 0; }
+.footer__credit{ color:var(--label); font-size:13px; margin:.4rem 0; }
 .footer__sign{
   color:var(--green);
   font-size:14px;
