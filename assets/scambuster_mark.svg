@@ -66,43 +66,47 @@
     <line x1="78"   y1="-78"  x2="-78"  y2="78"   stroke="#00ff41" stroke-width="0.7" opacity="0.35"/>
   </g>
 
-  <!-- Spider body -->
-  <g transform="translate(150, 148)" filter="url(#strongGlow)">
-    <ellipse cx="0" cy="-9"  rx="16" ry="11" fill="#00ff41"/>
-    <ellipse cx="0" cy="12"  rx="21" ry="18" fill="#00ff41"/>
-    <circle  cx="0" cy="-25" r="10"          fill="#00ff41"/>
-    <!-- Eyes -->
-    <circle cx="-4"  cy="-26" r="3.2" fill="#ff0000" filter="url(#redGlow)"/>
-    <circle cx=" 4"  cy="-26" r="3.2" fill="#ff0000" filter="url(#redGlow)"/>
-    <!-- Hourglass -->
-    <path d="M-6,5 L0,14 L6,5 L0,10 Z" fill="#ff2222" opacity="0.95"/>
-    <!-- Legs L -->
-    <path d="M-15,-7  C-35,-15 -60,-32 -82,-26" fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-    <path d="M-15, 0  C-35, -4 -64, -7 -88, 5"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-    <path d="M-16, 8  C-35, 10 -60, 18 -80,36"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-    <path d="M-16, 16 C-34, 24 -56, 36 -70,58"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-    <!-- Legs R -->
-    <path d="M15,-7   C35,-15  60,-32  82,-26" fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-    <path d="M15, 0   C35, -4  64, -7  88, 5"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-    <path d="M16, 8   C35, 10  60, 18  80,36"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-    <path d="M16, 16  C34, 24  56, 36  70,58"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
-  </g>
-
-  <!-- Hook (upper right quadrant of web) -->
-  <g transform="translate(174, 94)" filter="url(#redGlow)">
-    <path d="M0,0 L0,30 Q0,46 13,46 Q26,46 26,34 Q26,23 16,23"
-          fill="none" stroke="#ff3333" stroke-width="4.5" stroke-linecap="round"/>
-    <path d="M16,23 L10,33" fill="none" stroke="#ff3333" stroke-width="4" stroke-linecap="round"/>
-    <line x1="0" y1="0" x2="0" y2="-22" stroke="#ff3333" stroke-width="2" stroke-dasharray="4,3" opacity="0.6"/>
-    <!-- X mark -->
-    <line x1="-6" y1="-5" x2="6" y2="7"  stroke="#ff1111" stroke-width="3.5" stroke-linecap="round"/>
-    <line x1=" 6" y1="-5" x2="-6" y2="7" stroke="#ff1111" stroke-width="3.5" stroke-linecap="round"/>
-  </g>
-
-  <!-- Silk to hook -->
-  <g opacity="0.4" filter="url(#glow)">
-    <line x1="174" y1="94"  x2="158" y2="90"  stroke="#00ff41" stroke-width="1.2"/>
-    <line x1="200" y1="116" x2="208" y2="100" stroke="#00ff41" stroke-width="1.2"/>
+  <!-- Spider + hook mark, scaled (512 art) and centred on the scope at (150,148) -->
+  <radialGradient id="body" cx="42%" cy="34%" r="75%">
+    <stop offset="0%" stop-color="#6dffab"/><stop offset="55%" stop-color="#2bcf78"/><stop offset="100%" stop-color="#0f6e40"/>
+  </radialGradient>
+  <g transform="translate(47,52) scale(0.402)">
+    <g transform="translate(0,40) translate(256,256) scale(1.06) translate(-256,-256)">
+      <path d="M286,190 L340,146 L388,132" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M388.8,134.9 L400.5,128.4 L387.2,129.1 Z" fill="#2fce79"/>
+      <path d="M226,190 L172,146 L124,132" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M124.8,129.1 L111.5,128.4 L123.2,134.9 Z" fill="#2fce79"/>
+      <path d="M292,206 L358,194 L414,206" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M413.4,208.9 L426.7,208.7 L414.6,203.1 Z" fill="#2fce79"/>
+      <path d="M220,206 L154,194 L98,206" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M97.4,203.1 L85.3,208.7 L98.6,208.9 Z" fill="#2fce79"/>
+      <path d="M292,224 L352,238 L406,262" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M404.8,264.7 L417.9,267.3 L407.2,259.3 Z" fill="#2fce79"/>
+      <path d="M220,224 L160,238 L106,262" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M104.8,259.3 L94.1,267.3 L107.2,264.7 Z" fill="#2fce79"/>
+      <path d="M286,240 L330,272 L370,304" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M368.1,306.3 L380.2,312.1 L371.9,301.7 Z" fill="#2fce79"/>
+      <path d="M226,240 L182,272 L142,304" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M140.1,301.7 L131.8,312.1 L143.9,306.3 Z" fill="#2fce79"/>
+      <ellipse cx="256" cy="288" rx="56" ry="74" fill="url(#body)" stroke="#0a4226" stroke-width="2.5"/>
+      <path d="M214,266 Q256,250 298,266" fill="none" stroke="#0f6e40" stroke-width="2.5" opacity="0.6"/>
+      <path d="M210,300 Q256,288 302,300" fill="none" stroke="#0f6e40" stroke-width="2.5" opacity="0.5"/>
+      <ellipse cx="256" cy="204" rx="40" ry="37" fill="url(#body)" stroke="#0a4226" stroke-width="2.5"/>
+      <ellipse cx="240" cy="190" rx="11" ry="7" fill="#6dffab" opacity="0.30"/>
+      <circle cx="244" cy="194" r="5" fill="#eafff4"/><circle cx="268" cy="194" r="5" fill="#eafff4"/><circle cx="250" cy="182" r="3.2" fill="#eafff4"/><circle cx="262" cy="182" r="3.2" fill="#eafff4"/>
+      <path d="M248,238 L252,252 L256,240 Z" fill="#0f6e40"/>
+      <path d="M264,238 L260,252 L256,240 Z" fill="#0f6e40"/>
+      <g transform="translate(6,-14)">
+        <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M324,58 C316,66 338,72 330,82" stroke="#ff5563" stroke-width="3.4"/>
+          <circle cx="330" cy="96" r="7.5" stroke="#ff5563" stroke-width="5.5"/>
+          <path d="M330,107 L330,178" stroke="#ff5563" stroke-width="10"/>
+          <path d="M330,178 C330,212 302,216 292,192 C286,178 294,166 308,167" stroke="#ff5563" stroke-width="10"/>
+        </g>
+        <path d="M308,167 L299,149 L317,160 Z" fill="#ff5563"/>
+        <path d="M306,171 L291,170 L304,181 Z" fill="#ff5563"/>
+      </g>
+    </g>
   </g>
 
   <!-- Bottom text -->

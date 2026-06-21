@@ -1,82 +1,72 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 392 140" width="392" height="140">
   <!-- ScamBuster horizontal lockup. Transparent background, brand colours. -->
   <defs>
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="strongGlow" x="-30%" y="-30%" width="160%" height="160%">
+    <filter id="textGlow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="6" result="b"/>
-      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <filter id="redGlow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="3" result="b"/>
       <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 
-  <!-- Spider web (left) -->
-  <g transform="translate(70,70)" filter="url(#glow)">
-    <circle cx="0" cy="0" r="18" fill="none" stroke="#3df08a" stroke-width="0.9" opacity="0.5"/>
-    <circle cx="0" cy="0" r="36" fill="none" stroke="#3df08a" stroke-width="0.8" opacity="0.38"/>
-    <circle cx="0" cy="0" r="54" fill="none" stroke="#3df08a" stroke-width="0.7" opacity="0.25"/>
-    <line x1="0" y1="-56" x2="0"   y2="56"  stroke="#3df08a" stroke-width="0.6" opacity="0.4"/>
-    <line x1="-56" y1="0" x2="56"  y2="0"   stroke="#3df08a" stroke-width="0.6" opacity="0.4"/>
-    <line x1="-40" y1="-40" x2="40" y2="40" stroke="#3df08a" stroke-width="0.5" opacity="0.3"/>
-    <line x1="40"  y1="-40" x2="-40" y2="40" stroke="#3df08a" stroke-width="0.5" opacity="0.3"/>
-  </g>
-
-  <!-- Spider -->
-  <g transform="translate(70,70)" filter="url(#strongGlow)">
-    <ellipse cx="0" cy="-5"  rx="8"  ry="6"  fill="#3df08a"/>
-    <ellipse cx="0" cy="7"   rx="11" ry="9"  fill="#3df08a"/>
-    <circle  cx="0" cy="-13" r="5"           fill="#3df08a"/>
-    <circle cx="-2" cy="-14" r="1.5" fill="#ff5563" filter="url(#redGlow)"/>
-    <circle cx=" 2" cy="-14" r="1.5" fill="#ff5563" filter="url(#redGlow)"/>
-    <path d="M-3,3 L0,8 L3,3 L0,5 Z" fill="#ff5563"/>
-    <!-- Legs L -->
-    <path d="M-8,-4  C-18,-8  -32,-18 -44,-14" fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-    <path d="M-8, 0  C-18,-2  -34, -4 -46,3"   fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-    <path d="M-8, 5  C-18, 6  -32,10 -42,20"   fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-    <path d="M-8, 10 C-18,14  -30,20 -38,32"   fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-    <!-- Legs R -->
-    <path d="M8,-4   C18,-8   32,-18  44,-14" fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-    <path d="M8, 0   C18,-2   34, -4  46,3"   fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-    <path d="M8, 5   C18, 6   32,10   42,20"  fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-    <path d="M8, 10  C18,14   30,20   38,32"  fill="none" stroke="#3df08a" stroke-width="1.8" stroke-linecap="round"/>
-  </g>
-
-  <!-- Hook caught -->
-  <g transform="translate(82,38)" filter="url(#redGlow)">
-    <path d="M0,0 L0,24 Q0,36 10,36 Q20,36 20,27 Q20,19 13,19"
-          fill="none" stroke="#ff5563" stroke-width="2.8" stroke-linecap="round"/>
-    <path d="M13,19 L8,26" fill="none" stroke="#ff5563" stroke-width="2.5" stroke-linecap="round"/>
-    <line x1="0" y1="0" x2="0" y2="-14" stroke="#ff5563" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.6"/>
-    <line x1="-4" y1="-3" x2="4" y2="5"  stroke="#ff5563" stroke-width="2" stroke-linecap="round"/>
-    <line x1=" 4" y1="-3" x2="-4" y2="5" stroke="#ff5563" stroke-width="2" stroke-linecap="round"/>
-  </g>
-
-  <!-- Silk threads -->
-  <g opacity="0.4" filter="url(#glow)">
-    <line x1="82" y1="38" x2="73" y2="35" stroke="#3df08a" stroke-width="0.9"/>
-    <line x1="95" y1="55" x2="100" y2="44" stroke="#3df08a" stroke-width="0.9"/>
-  </g>
+  <!-- Spider + hook mark (nested SVG, auto-scaled to fit the left block) -->
+  <svg x="0" y="6" width="128" height="128" viewBox="0 0 512 512" overflow="visible">
+    <defs>
+      <radialGradient id="body" cx="42%" cy="34%" r="75%">
+        <stop offset="0%" stop-color="#6dffab"/><stop offset="55%" stop-color="#2bcf78"/><stop offset="100%" stop-color="#0f6e40"/>
+      </radialGradient>
+    </defs>
+    <g transform="translate(0,40) translate(256,256) scale(1.06) translate(-256,-256)">
+      <path d="M286,190 L340,146 L388,132" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M388.8,134.9 L400.5,128.4 L387.2,129.1 Z" fill="#2fce79"/>
+      <path d="M226,190 L172,146 L124,132" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M124.8,129.1 L111.5,128.4 L123.2,134.9 Z" fill="#2fce79"/>
+      <path d="M292,206 L358,194 L414,206" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M413.4,208.9 L426.7,208.7 L414.6,203.1 Z" fill="#2fce79"/>
+      <path d="M220,206 L154,194 L98,206" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M97.4,203.1 L85.3,208.7 L98.6,208.9 Z" fill="#2fce79"/>
+      <path d="M292,224 L352,238 L406,262" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M404.8,264.7 L417.9,267.3 L407.2,259.3 Z" fill="#2fce79"/>
+      <path d="M220,224 L160,238 L106,262" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M104.8,259.3 L94.1,267.3 L107.2,264.7 Z" fill="#2fce79"/>
+      <path d="M286,240 L330,272 L370,304" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M368.1,306.3 L380.2,312.1 L371.9,301.7 Z" fill="#2fce79"/>
+      <path d="M226,240 L182,272 L142,304" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M140.1,301.7 L131.8,312.1 L143.9,306.3 Z" fill="#2fce79"/>
+      <ellipse cx="256" cy="288" rx="56" ry="74" fill="url(#body)" stroke="#0a4226" stroke-width="2.5"/>
+      <path d="M214,266 Q256,250 298,266" fill="none" stroke="#0f6e40" stroke-width="2.5" opacity="0.6"/>
+      <path d="M210,300 Q256,288 302,300" fill="none" stroke="#0f6e40" stroke-width="2.5" opacity="0.5"/>
+      <ellipse cx="256" cy="204" rx="40" ry="37" fill="url(#body)" stroke="#0a4226" stroke-width="2.5"/>
+      <ellipse cx="240" cy="190" rx="11" ry="7" fill="#6dffab" opacity="0.30"/>
+      <circle cx="244" cy="194" r="5" fill="#eafff4"/><circle cx="268" cy="194" r="5" fill="#eafff4"/><circle cx="250" cy="182" r="3.2" fill="#eafff4"/><circle cx="262" cy="182" r="3.2" fill="#eafff4"/>
+      <path d="M248,238 L252,252 L256,240 Z" fill="#0f6e40"/>
+      <path d="M264,238 L260,252 L256,240 Z" fill="#0f6e40"/>
+      <g transform="translate(6,-14)">
+        <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M324,58 C316,66 338,72 330,82" stroke="#ff5563" stroke-width="3.4"/>
+          <circle cx="330" cy="96" r="7.5" stroke="#ff5563" stroke-width="5.5"/>
+          <path d="M330,107 L330,178" stroke="#ff5563" stroke-width="10"/>
+          <path d="M330,178 C330,212 302,216 292,192 C286,178 294,166 308,167" stroke="#ff5563" stroke-width="10"/>
+        </g>
+        <path d="M308,167 L299,149 L317,160 Z" fill="#ff5563"/>
+        <path d="M306,171 L291,170 L304,181 Z" fill="#ff5563"/>
+      </g>
+    </g>
+  </svg>
 
   <!-- Vertical separator -->
-  <line x1="135" y1="24" x2="135" y2="116" stroke="#2f7a4f" stroke-width="1.2" opacity="0.5"/>
+  <line x1="140" y1="24" x2="140" y2="116" stroke="#2f7a4f" stroke-width="1.2" opacity="0.5"/>
 
   <!-- WORDMARK -->
-  <text x="162" y="62"
+  <text x="160" y="62"
         font-family="'JetBrains Mono','Courier New', monospace"
         font-size="62" font-weight="700" letter-spacing="-1"
         fill="#8dffbe" text-anchor="start"
-        filter="url(#strongGlow)">SCAM</text>
+        filter="url(#textGlow)">SCAM</text>
 
-  <text x="162" y="118"
+  <text x="160" y="118"
         font-family="'JetBrains Mono','Courier New', monospace"
         font-size="62" font-weight="700" letter-spacing="-1"
         fill="#ffffff" text-anchor="start">BUSTER</text>
 
   <!-- Thin rule between the two words -->
-  <line x1="162" y1="74" x2="382" y2="74" stroke="#2f7a4f" stroke-width="1.5" opacity="0.5"/>
+  <line x1="160" y1="74" x2="380" y2="74" stroke="#2f7a4f" stroke-width="1.5" opacity="0.5"/>
 </svg>
