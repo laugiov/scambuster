@@ -400,6 +400,12 @@ a:focus-visible,
   text-align:center;
 }
 .footer__logo{ height:28px; width:auto; margin:0 auto 1.4rem; opacity:.9; }
+.footer__bio{
+  max-width:54ch;
+  margin:0 auto 1.6rem;
+  font-size:14px;
+  color:var(--green);
+}
 .footer__links{
   display:flex;
   gap:1.4rem;
