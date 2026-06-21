@@ -199,13 +199,14 @@ a:focus-visible,
 .radar__cross--v{ width:1px; height:230px; }
 .radar__cross--h{ width:230px; height:1px; }
 .radar__sweep{
+  /* A full circular disc the size of the scope, painted with a conic gradient
+     beam. Because the element is itself a circle, it can never poke outside the
+     scope at any rotation, on any browser, with no reliance on parent clipping. */
   position:absolute;
-  width:115px; height:115px;
-  top:calc(50% - 115px);
-  left:50%;
-  transform-origin:bottom left;
-  background:conic-gradient(from 0deg, rgba(61,240,138,.28), transparent 32%);
-  clip-path:polygon(0 0, 100% 0, 0 100%);
+  inset:0;
+  border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(61,240,138,.30), transparent 22%);
+  transform-origin:center;
   animation:sweep 4.5s linear infinite;
 }
 @keyframes sweep{ to{ transform:rotate(360deg); } }
