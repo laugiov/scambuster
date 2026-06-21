@@ -7,6 +7,108 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.27.0] - 2026-06-21
+
+### Fixed — Spec 112 (No out-of-band channel in outbound replies)
+
+User audit on conv `ab075b53-...` caught a reply where the bait
+shared a WhatsApp number `"0612345678"` — sequentially-numbered
+fake (FR mobile prefix `06` + `12345678`) that any half-attentive
+scammer would spot as automation.
+
+Root cause: PolicyGuard had a deliberate carve-out for phone numbers
+(`"Phone numbers are ALLOWED (we provide fake ones to attackers)"`)
+and the runtime persona rules in `BasePromptRules::getRules()`
+contained no prohibition on out-of-band channels at all. Combined
+effect: the bait was free to invent fake phones, and the validator
+approved them on the way out.
+
+### Why this is wrong even with FAKE values
+
+1. **Tell-tale of automation** — a human doesn't share `0612345678`.
+   The LLM has no rule about plausible digit distributions and emits
+   trivially-fake sequences. A scammer spotting this drops the conv.
+2. **Breaks the bait container** — replies asking the scammer to
+   WhatsApp/Telegram pull the conversation outside our IMAP honeypot;
+   we lose attribution, observability, and the recording.
+3. **Hallucination risk** — an LLM can generate a number / handle
+   that happens to belong to a real third party. Sending a scammer
+   toward an innocent person's contact is harm we should not risk.
+4. **Zero defensive value** — providing a contact channel does not
+   advance bait goals. The scammer asking for our number is HIS
+   social engineering; refusing is exactly the right move.
+
+### What ships
+
+**Backend `PolicyGuard.php`** — new `OUT_OF_BAND_CHANNEL_PATTERNS`
+constant + sibling validation loop. Patterns:
+- Phone-shaped sequences (E.164 or freeform with separators)
+- Telegram-style `@username` handles
+- Skype `live:` / `skype:` URIs
+- Signal.me / Discord invite links
+- Crypto wallets: BTC (bech32 `bc1…` + base58 `1…`/`3…`), ETH
+  (`0x…40hex`), XMR (`4…`/`8…` 95 chars)
+
+New audit flag string `out_of_band_channel:<kind>` (distinct from
+`pii_detected` so audit consumers tell at a glance which category
+triggered the rejection). IBAN + postal address keep their existing
+`pii_detected` flag for backwards compatibility.
+
+Pattern order: crypto/handles FIRST, phone catch-all LAST — otherwise
+the broad phone regex shadows ETH addresses (`0x…0123456789…`).
+
+**Runtime prompt rule (`BasePromptRules::getRules()`)** — new
+sentence appended to every persona's system prompt at runtime
+(via `PromptBuilder`), so the fix applies to all 27 seeded personas
+without a Doctrine migration:
+
+> *Keep everything on this email thread. Never give a phone,
+> WhatsApp, Telegram, Skype, Signal, Discord, crypto wallet, IBAN
+> or postal address — even fictional ones reveal automation. If
+> asked, politely decline and ask to stay on email.*
+
+The rule rides alongside the existing payment-cue / no-honeypot /
+greeting-format rules in the same shared block. Word-count cap
+in `BasePromptRulesTest` raised from 120 to 170 to fit it.
+
+Persona DB seeds (`PersonaFixtures.php`) are NOT modified — the
+runtime injection means no DB write is required on existing
+deployments, and the rule is guaranteed identical across personas.
+
+### Tests
+
+`PolicyGuardTest`:
+- Reversed the existing `it_allows_fake_phone_numbers` test —
+  becomes `it_rejects_phone_numbers_as_out_of_band_channel`.
+- New parametrised `it_rejects_each_out_of_band_channel_kind` with
+  8 data sets covering each pattern (phone variants, Telegram,
+  Skype, Discord, BTC, ETH).
+- New `it_approves_reply_without_any_out_of_band_channel` negative
+  test confirms clean replies pass.
+- Total: 49 PolicyGuard tests, 106 assertions, all green.
+
+`BasePromptRulesTest`:
+- New `testRulesBanOutOfBandChannels_Spec112` asserts the runtime
+  rule mentions phone / WhatsApp / crypto wallet / IBAN / fictional.
+- `testRulesAreUnder120Words` renamed to `testRulesAreUnder170Words`
+  to reflect the new cap.
+- 8 tests, 22 assertions, all green.
+
+### Honest limits
+
+- Aggressive phone regex produces false positives on long order or
+  invoice numbers ("Invoice #1234567"). Accepted trade-off: a false
+  rejection costs ONE orchestrator retry (already capped at 3); a
+  leaked channel costs permanent damage to the bait.
+- Crypto wallet patterns cover BTC/ETH/XMR (95%+ of scam traffic on
+  the platform today). Solana, Cardano, etc. not yet blocked.
+- Runtime rule is in English (matches the rest of
+  `BasePromptRules`). Personas seeded by `PersonaFixtures.php` are
+  unmodified — the rule is appended at prompt-build time, so all
+  27 personas inherit it without DB migration.
+
+---
+
 ## [2.26.0] - 2026-06-20
 
 ### Fixed — Spec 111 (Unified conversation counts + explicit labels)

@@ -81,14 +81,67 @@ final readonly class PolicyGuard
         '/\bmandat d\'arrêt\b/i',
     ];
 
-    /** @var array<string> PII patterns to detect and reject
+    /** @var array<string> PII patterns to detect and reject.
      *
-     * Note: Phone numbers are ALLOWED (we provide fake ones to attackers)
-     * Only IBAN and full addresses are blocked as they're too sensitive
+     * Limited to IBAN + postal address: both could be real, both are
+     * sensitive when emitted by the bait. (Phone, messaging handles,
+     * crypto wallets — historically grouped here — moved to the
+     * dedicated `OUT_OF_BAND_CHANNEL_PATTERNS` set below, per spec 112.)
      */
     private const PII_PATTERNS = [
         '/\b[A-Z]{2}\d{2}[A-Z0-9]{11,30}\b/', // IBAN (real bank account)
         '/\b\d{1,3}\s+(?:rue|avenue|boulevard|impasse)\s+[A-Z]/i', // Full address with street name
+    ];
+
+    /** @var array<string> Out-of-band-channel patterns — spec 112.
+     *
+     * The bait MUST stay within the email thread it owns. Emitting any
+     * non-email contact channel:
+     *   - Tells the scammer they're talking to automation when the
+     *     channel value is a trivial fake (e.g. "0612345678").
+     *   - Pulls the conversation outside our IMAP honeypot — we lose
+     *     attribution, observability, and the recording.
+     *   - Risks LLM-hallucinated handles that happen to belong to a
+     *     real third party (real-world harm).
+     *   - Adds zero defensive value: the scammer asking for our
+     *     contact details is HIS social-engineering; refusing is the
+     *     correct behaviour.
+     *
+     * Patterns:
+     *   - Phone-shaped sequences (E.164 or freeform with separators)
+     *   - Telegram-style `@username` handles
+     *   - Skype `live:` / `skype:` URIs
+     *   - Signal.me / Discord invite links
+     *   - Crypto wallets: BTC (bc1/1/3), ETH (0x…40hex), XMR (4/8…95)
+     */
+    private const OUT_OF_BAND_CHANNEL_PATTERNS = [
+        // Crypto wallets — three most common chains in scam traffic.
+        // Listed FIRST so the broad `phone` catch-all below doesn't
+        // shadow them (e.g. an ETH address contains the substring
+        // "0123456789" which the phone regex would otherwise grab).
+        // BTC supports both base58 legacy (1.../3...) and bech32
+        // (bc1q...); the two alphabets differ — bech32 includes `0`
+        // and excludes `1bio`.
+        'crypto_btc' => '/\b(?:bc1[02-9ac-hj-np-z]{7,87}|[13][1-9A-HJ-NP-Za-km-z]{25,34})\b/',
+        'crypto_eth' => '/\b0x[a-fA-F0-9]{40}\b/',
+        'crypto_xmr' => '/\b[48][0-9AB][1-9A-HJ-NP-Za-km-z]{93}\b/',
+
+        // Telegram-style handle. Leading boundary is a non-word char
+        // OR start-of-string so we don't match in-word `@`. Handle
+        // must start with a letter, 5–32 chars total.
+        'telegram_handle' => '/(?:^|[^A-Za-z0-9_])@[A-Za-z][A-Za-z0-9_]{4,31}\b/',
+
+        // Skype contact URIs.
+        'skype_uri' => '/\b(?:skype|live):\S+/i',
+
+        // Signal personal link or Discord invite.
+        'signal_discord' => '/\b(?:signal\.me\/\S+|discord(?:\.gg|app\.com)?\/[A-Za-z0-9]+)/i',
+
+        // Phone: catch-all, last. 7+ digits with optional country
+        // prefix and separators, ending on a digit so we don't match
+        // trailing punctuation. The `[\d\s().-]{6,}` middle absorbs
+        // spaces, dots, dashes, parens.
+        'phone' => '/(?:\+?\d[\d\s().-]{6,})\d/',
     ];
 
     public function __construct(
@@ -224,6 +277,22 @@ final readonly class PolicyGuard
                 ]);
 
                 break; // One flag is enough
+            }
+        }
+
+        // Spec 112 — Out-of-band channel patterns. Distinct flag from
+        // `pii_detected` so audit consumers can tell at a glance which
+        // category of leak triggered the rejection.
+        foreach (self::OUT_OF_BAND_CHANNEL_PATTERNS as $kind => $pattern) {
+            if (preg_match($pattern, $text, $matches)) {
+                $flags[] = 'out_of_band_channel:' . $kind;
+                $this->logger->warning('[PolicyGuard] ❌ Out-of-band channel detected', [
+                    'kind' => $kind,
+                    'pattern' => $pattern,
+                    'matched' => $matches[0],
+                ]);
+
+                break; // One flag is enough — orchestrator retries
             }
         }
 

@@ -157,17 +157,70 @@ class PolicyGuardTest extends TestCase
     }
 
     /**
+     * Spec 112 — phone numbers are now REJECTED (previous policy
+     * allowed them, the audit on conv ab075b53-... showed that
+     * permitting "fake" numbers leaks tell-tales of automation and
+     * pulls the bait out of the email thread).
+     *
      * @test
      */
-    public function it_allows_fake_phone_numbers(): void
+    public function it_rejects_phone_numbers_as_out_of_band_channel(): void
     {
-        // Fake phone numbers are now ALLOWED (needed for honeypot reciprocity)
         $text = str_repeat('Appelez-moi au 0612345678 pour discuter rapidement de votre situation. ', 10);
 
         $result = $this->guard->validate($text);
 
-        $this->assertTrue($result['approved']);
-        $this->assertEmpty($result['flags']); // No PII flag for phone numbers
+        $this->assertFalse($result['approved']);
+        $this->assertContains('out_of_band_channel:phone', $result['flags']);
+    }
+
+    /**
+     * Spec 112 — parametrised across the six new out-of-band channel
+     * categories. Each sample is a realistic-shaped leak; each MUST
+     * be rejected with the matching flag suffix.
+     *
+     * @dataProvider provideOutOfBandSamples
+     * @test
+     */
+    public function it_rejects_each_out_of_band_channel_kind(string $sample, string $expectedFlag): void
+    {
+        // Pad to clear the min-words gate so we isolate the channel detection.
+        $text = $sample . ' ' . str_repeat('Merci pour votre patience, je reviens vers vous dès que possible avec les détails du dossier. ', 5);
+
+        $result = $this->guard->validate($text);
+
+        $this->assertFalse($result['approved'], sprintf('Expected rejection for: "%s"', $sample));
+        $this->assertContains($expectedFlag, $result['flags'], sprintf('Expected flag "%s" for: "%s"', $expectedFlag, $sample));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideOutOfBandSamples(): iterable
+    {
+        yield 'french mobile sequential' => ['Tu peux me joindre au 0612345678', 'out_of_band_channel:phone'];
+        yield 'e164 international'        => ['Call me at +33 6 12 34 56 78 to discuss', 'out_of_band_channel:phone'];
+        yield 'us format with parens'     => ['WhatsApp me at (555) 123-4567', 'out_of_band_channel:phone'];
+        yield 'telegram handle'           => ['Reach me on Telegram: @scambaiter_xx', 'out_of_band_channel:telegram_handle'];
+        yield 'skype live uri'            => ['Add me on Skype live:my.handle', 'out_of_band_channel:skype_uri'];
+        yield 'discord invite'            => ['Join the chat at discord.gg/abc123', 'out_of_band_channel:signal_discord'];
+        yield 'btc wallet'                => ['Send to my wallet bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', 'out_of_band_channel:crypto_btc'];
+        yield 'eth wallet'                => ['Or my ETH 0xabcdef0123456789abcdef0123456789abcdef01', 'out_of_band_channel:crypto_eth'];
+    }
+
+    /**
+     * Spec 112 — clean reply with no contact channel passes.
+     *
+     * @test
+     */
+    public function it_approves_reply_without_any_out_of_band_channel(): void
+    {
+        $text = str_repeat('Bonjour Anshu, merci pour les informations. Pouvez-vous me confirmer la référence de dossier avant que je valide le transfert ? ', 4);
+
+        $result = $this->guard->validate($text);
+
+        $this->assertTrue($result['approved'], sprintf('Expected approval; flags: %s', implode(', ', $result['flags'])));
+        $this->assertEmpty($result['flags']);
     }
 
     /**

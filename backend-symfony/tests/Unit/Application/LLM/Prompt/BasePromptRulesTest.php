@@ -33,12 +33,15 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('Every single word', $rules);
     }
 
-    public function testRulesAreUnder120Words(): void
+    public function testRulesAreUnder170Words(): void
     {
+        // Spec 112 raised the ceiling from 120 to 170 to fit the
+        // no-out-of-band-channel rule. Keep the cap close to actual
+        // size so future drift is caught early.
         $rules = BasePromptRules::getRules('en');
         $wordCount = str_word_count($rules);
 
-        $this->assertLessThan(120, $wordCount, "BasePromptRules should be under 120 words, got {$wordCount}");
+        $this->assertLessThan(170, $wordCount, "BasePromptRules should be under 170 words, got {$wordCount}");
     }
 
     public function testRulesUsePositiveDescriptions(): void
@@ -79,5 +82,25 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('payment', $rules, 'Rule must reference payment cue');
         $this->assertStringContainsString('how to send', $rules, 'Rule must mention how to send (the IOC-pull behavior)');
         $this->assertStringContainsString('offer', $rules, 'Rule must reference the fallback: ask about the offer when payment not mentioned');
+    }
+
+    /**
+     * Spec 112 — BasePromptRules must instruct the persona never to share an
+     * out-of-band contact channel (phone, messaging handle, crypto wallet,
+     * IBAN, postal address), even a fictional one. The prompt-side rule
+     * pairs with PolicyGuard's server-side regex block so the model does
+     * not even attempt a leak (saves validator retries).
+     *
+     * See: specs/112-no-out-of-band-channel/spec.md
+     */
+    public function testRulesBanOutOfBandChannels_Spec112(): void
+    {
+        $rules = BasePromptRules::getRules('en');
+
+        $this->assertStringContainsString('phone', $rules, 'Rule must call out phone numbers');
+        $this->assertStringContainsString('WhatsApp', $rules, 'Rule must call out WhatsApp');
+        $this->assertStringContainsString('crypto wallet', $rules, 'Rule must call out crypto wallets');
+        $this->assertStringContainsString('IBAN', $rules, 'Rule must call out IBAN');
+        $this->assertStringContainsString('fictional', $rules, 'Rule must explicitly ban fictional channels too');
     }
 }

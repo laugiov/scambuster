@@ -33,6 +33,12 @@ final class BasePromptRules
             // Descriptive (not prescriptive) so persona character controls HOW
             // the question is asked. Pairs with Fix #6 stage-aware OBJECTIVE.
             'When the attacker mentions payment, you ask how to send it. Otherwise you ask about the offer.',
+            // Spec 112 — never give the attacker an out-of-band channel,
+            // even a fictional one. Fake phones (sequential digits) and
+            // invented handles read as automation, and any channel switch
+            // breaks the email-thread honeypot. The PolicyGuard rejects
+            // leaks server-side; this rule stops the model from trying.
+            'Keep everything on this email thread. Never give a phone, WhatsApp, Telegram, Skype, Signal, Discord, crypto wallet, IBAN or postal address — even fictional ones reveal automation. If asked, politely decline and ask to stay on email.',
         ]);
     }
 }
