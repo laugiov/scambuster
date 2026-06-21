@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>404 — ScamBuster</title>
+  <meta name="robots" content="noindex" />
+  <meta name="theme-color" content="#060a07" />
+  <link rel="icon" type="image/png" href="/assets/favicon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .notfound{
+      min-height:100vh;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      text-align:center;
+      padding:2rem 1.4rem;
+      gap:1rem;
+    }
+    .notfound img{ width:120px; height:120px; filter:drop-shadow(0 0 24px rgba(61,240,138,.35)); }
+    .notfound .code{
+      font-size:clamp(3rem,14vw,6rem);
+      font-weight:700;
+      color:var(--green-bright);
+      text-shadow:var(--glow);
+      line-height:1;
+      margin:.4rem 0 0;
+    }
+  </style>
+</head>
+<body>
+  <main class="notfound">
+    <img src="/assets/scambuster_mark.svg" alt="ScamBuster" width="120" height="120" />
+    <p class="eyebrow">// SIGNAL LOST //</p>
+    <p class="code">404</p>
+    <p class="prose" style="max-width:46ch;">This page slipped the net. The page you are looking for is not here.</p>
+    <a class="btn" href="/"><span class="btn__prompt">&gt;</span> Back to base</a>
+  </main>
+</body>
+</html>

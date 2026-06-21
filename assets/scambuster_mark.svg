@@ -1,0 +1,111 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <defs>
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="strongGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="redGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   style="stop-color:#071a07"/>
+      <stop offset="100%" style="stop-color:#000000"/>
+    </radialGradient>
+    <radialGradient id="rimGrad" cx="50%" cy="0%" r="100%">
+      <stop offset="0%"   style="stop-color:#00ff41;stop-opacity:0.7"/>
+      <stop offset="100%" style="stop-color:#004010;stop-opacity:0.3"/>
+    </radialGradient>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#0a2a0a" stroke-width="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- Outer circle rim -->
+  <circle cx="150" cy="150" r="148" fill="url(#bg)"/>
+  <circle cx="150" cy="150" r="148" fill="url(#grid)"/>
+  <!-- Glowing outer ring -->
+  <circle cx="150" cy="150" r="144" fill="none" stroke="#00ff41" stroke-width="3" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="150" cy="150" r="140" fill="none" stroke="#00ff41" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Tick marks around the rim (like a targeting reticle) -->
+  <g stroke="#00ff41" stroke-width="2" opacity="0.5">
+    <!-- 12 o'clock -->
+    <line x1="150" y1="6"  x2="150" y2="20"/>
+    <!-- 3 o'clock -->
+    <line x1="294" y1="150" x2="280" y2="150"/>
+    <!-- 6 o'clock -->
+    <line x1="150" y1="294" x2="150" y2="280"/>
+    <!-- 9 o'clock -->
+    <line x1="6"   y1="150" x2="20"  y2="150"/>
+    <!-- diagonals shorter -->
+    <line x1="253" y1="47"  x2="244" y2="56"/>
+    <line x1="253" y1="253" x2="244" y2="244"/>
+    <line x1="47"  y1="253" x2="56"  y2="244"/>
+    <line x1="47"  y1="47"  x2="56"  y2="56"/>
+  </g>
+
+  <!-- Small SB text top arc (optional flavor) -->
+  <text x="150" y="35" font-family="'Courier New', monospace" font-size="10" fill="#1e4a1e"
+        text-anchor="middle" letter-spacing="8">S C A M B U S T E R</text>
+
+  <!-- Spider web -->
+  <g transform="translate(150, 148)" filter="url(#glow)">
+    <circle cx="0" cy="0" r="25"  fill="none" stroke="#00ff41" stroke-width="1.1" opacity="0.6"/>
+    <circle cx="0" cy="0" r="52"  fill="none" stroke="#00ff41" stroke-width="1"   opacity="0.5"/>
+    <circle cx="0" cy="0" r="79"  fill="none" stroke="#00ff41" stroke-width="0.9" opacity="0.38"/>
+    <circle cx="0" cy="0" r="106" fill="none" stroke="#00ff41" stroke-width="0.7" opacity="0.22"/>
+    <!-- Spokes -->
+    <line x1="0"    y1="-110" x2="0"    y2="110"  stroke="#00ff41" stroke-width="0.8" opacity="0.45"/>
+    <line x1="-110" y1="0"    x2="110"  y2="0"    stroke="#00ff41" stroke-width="0.8" opacity="0.45"/>
+    <line x1="-78"  y1="-78"  x2="78"   y2="78"   stroke="#00ff41" stroke-width="0.7" opacity="0.35"/>
+    <line x1="78"   y1="-78"  x2="-78"  y2="78"   stroke="#00ff41" stroke-width="0.7" opacity="0.35"/>
+  </g>
+
+  <!-- Spider body -->
+  <g transform="translate(150, 148)" filter="url(#strongGlow)">
+    <ellipse cx="0" cy="-9"  rx="16" ry="11" fill="#00ff41"/>
+    <ellipse cx="0" cy="12"  rx="21" ry="18" fill="#00ff41"/>
+    <circle  cx="0" cy="-25" r="10"          fill="#00ff41"/>
+    <!-- Eyes -->
+    <circle cx="-4"  cy="-26" r="3.2" fill="#ff0000" filter="url(#redGlow)"/>
+    <circle cx=" 4"  cy="-26" r="3.2" fill="#ff0000" filter="url(#redGlow)"/>
+    <!-- Hourglass -->
+    <path d="M-6,5 L0,14 L6,5 L0,10 Z" fill="#ff2222" opacity="0.95"/>
+    <!-- Legs L -->
+    <path d="M-15,-7  C-35,-15 -60,-32 -82,-26" fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+    <path d="M-15, 0  C-35, -4 -64, -7 -88, 5"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+    <path d="M-16, 8  C-35, 10 -60, 18 -80,36"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+    <path d="M-16, 16 C-34, 24 -56, 36 -70,58"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+    <!-- Legs R -->
+    <path d="M15,-7   C35,-15  60,-32  82,-26" fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+    <path d="M15, 0   C35, -4  64, -7  88, 5"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+    <path d="M16, 8   C35, 10  60, 18  80,36"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+    <path d="M16, 16  C34, 24  56, 36  70,58"  fill="none" stroke="#00ff41" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Hook (upper right quadrant of web) -->
+  <g transform="translate(174, 94)" filter="url(#redGlow)">
+    <path d="M0,0 L0,30 Q0,46 13,46 Q26,46 26,34 Q26,23 16,23"
+          fill="none" stroke="#ff3333" stroke-width="4.5" stroke-linecap="round"/>
+    <path d="M16,23 L10,33" fill="none" stroke="#ff3333" stroke-width="4" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="0" y2="-22" stroke="#ff3333" stroke-width="2" stroke-dasharray="4,3" opacity="0.6"/>
+    <!-- X mark -->
+    <line x1="-6" y1="-5" x2="6" y2="7"  stroke="#ff1111" stroke-width="3.5" stroke-linecap="round"/>
+    <line x1=" 6" y1="-5" x2="-6" y2="7" stroke="#ff1111" stroke-width="3.5" stroke-linecap="round"/>
+  </g>
+
+  <!-- Silk to hook -->
+  <g opacity="0.4" filter="url(#glow)">
+    <line x1="174" y1="94"  x2="158" y2="90"  stroke="#00ff41" stroke-width="1.2"/>
+    <line x1="200" y1="116" x2="208" y2="100" stroke="#00ff41" stroke-width="1.2"/>
+  </g>
+
+  <!-- Bottom text -->
+  <text x="150" y="272" font-family="'Courier New', monospace" font-size="10" fill="#1e4a1e"
+        text-anchor="middle" letter-spacing="5">WE HUNT THE HUNTERS</text>
+</svg>

@@ -1,0 +1,497 @@
+/* =========================================================
+   ScamBuster — styles.css
+   Dark terminal / radar-scope aesthetic.
+   Green = the system & the defense. Red = the attacker.
+   White = the BUSTER half and key emphasis. All monospace.
+   ========================================================= */
+
+:root{
+  --bg:          #060a07; /* page background, near-black green-tinted */
+  --panel:       #0b110d; /* cards / panels */
+  --line:        #163020; /* borders, dividers */
+  --green:       #3df08a; /* primary green: body text, accents */
+  --green-bright:#8dffbe; /* bright green: headings, the SCAM wordmark, emphasis */
+  --green-dim:   #2f7a4f; /* dim green: eyebrows, labels, captions */
+  --green-faint: #13301d;
+  --red:         #ff5563; /* the attacker: the hook, danger accents */
+  --red-dim:     #8a2f38;
+  --amber:       #ffc24d; /* sparing use only */
+  --paper:       #d8f6e4; /* off-white for the BUSTER wordmark and high-contrast text */
+  --white:       #ffffff;
+
+  --maxw: 1080px;
+  --glow: 0 0 34px rgba(61,240,138,.35);
+}
+
+/* ---------- Reset ---------- */
+*,*::before,*::after{ box-sizing:border-box; }
+html{
+  scroll-behavior:smooth;
+  scroll-padding-top:5.5rem; /* keep anchored sections clear of the sticky top bar */
+}
+body{
+  margin:0;
+  overflow-x:hidden; /* guard against any accidental horizontal scroll on mobile */
+  -webkit-text-size-adjust:100%; /* stop iOS from auto-inflating text */
+  font-family:"JetBrains Mono", ui-monospace, "Courier New", monospace;
+  font-weight:300;
+  font-size:17px;
+  line-height:1.6;
+  color:var(--green);
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(61,240,138,.06), transparent 60%),
+    radial-gradient(100% 80% at 50% 120%, rgba(0,0,0,.6), transparent 50%),
+    repeating-linear-gradient(0deg, rgba(61,240,138,.022) 0 1px, transparent 1px 3px),
+    var(--bg);
+  background-attachment:fixed;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+img{ max-width:100%; display:block; }
+a{ color:var(--green); text-decoration:none; }
+a:hover{ color:var(--green-bright); }
+
+/* Visible focus states for keyboard users */
+a:focus-visible,
+.btn:focus-visible{
+  outline:2px solid var(--green-bright);
+  outline-offset:3px;
+  border-radius:1px;
+}
+
+/* ---------- Shared building blocks ---------- */
+.eyebrow{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:.34em;
+  color:var(--green-dim);
+  font-weight:500;
+  margin:0 0 1.4rem;
+}
+
+.display{
+  font-weight:700;
+  font-size:clamp(1.7rem, 4.2vw, 3rem);
+  line-height:1.12;
+  color:var(--green-bright);
+  text-shadow:var(--glow);
+  margin:2.4rem 0 1rem;
+  letter-spacing:-.01em;
+}
+.display--sm{ font-size:clamp(1.4rem, 3vw, 2.1rem); }
+
+.prose{
+  max-width:62ch;
+  margin:0 0 1.2rem;
+}
+.prose--muted{ color:var(--green-dim); max-width:74ch; margin-top:1.8rem; }
+
+.divider{
+  display:block;
+  height:1px;
+  width:100%;
+  background:linear-gradient(90deg, var(--green-dim), transparent);
+}
+.divider--full{ margin-bottom:2.6rem; opacity:.7; }
+
+/* ---------- Top bar ---------- */
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:50;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1.5rem;
+  padding:.85rem clamp(1rem, 4vw, 2.4rem);
+  background:rgba(6,10,7,.82);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+}
+.topbar__brand img{ height:34px; width:auto; }
+.topbar__nav{
+  display:flex;
+  gap:clamp(.8rem, 2.2vw, 1.8rem);
+  font-size:13px;
+  letter-spacing:.04em;
+  flex-wrap:wrap;
+}
+.topbar__nav a{ color:var(--green-dim); }
+.topbar__nav a:hover{ color:var(--green-bright); }
+
+/* ---------- Hero ---------- */
+.hero{
+  position:relative;
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:clamp(3.5rem, 9vw, 7rem) clamp(1.2rem, 5vw, 2.4rem) clamp(3rem, 7vw, 5rem);
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+
+/* In a centred flex column, text children take their content width and would
+   overflow instead of wrapping. Constrain every direct child to the container. */
+.hero > *,
+.section--center > *{
+  max-width:100%;
+  min-width:0; /* flex items default to min-width:auto and refuse to shrink; this lets text wrap */
+}
+
+/* Corner brackets framing the hero */
+.bracket{
+  position:absolute;
+  width:34px;
+  height:34px;
+  border:2px solid var(--green-dim);
+  opacity:.6;
+}
+.bracket--tl{ top:18px;  left:14px;  border-right:0; border-bottom:0; }
+.bracket--tr{ top:18px;  right:14px; border-left:0;  border-bottom:0; }
+.bracket--bl{ bottom:18px;left:14px;  border-right:0; border-top:0; }
+.bracket--br{ bottom:18px;right:14px; border-left:0;  border-top:0; }
+
+.hero__mark{
+  position:relative;
+  width:230px;
+  height:230px;
+  display:grid;
+  place-items:center;
+  margin:.5rem 0 1.6rem;
+}
+.hero__mark img{
+  position:relative;
+  z-index:2;
+  width:180px;
+  height:180px;
+  filter:drop-shadow(0 0 26px rgba(61,240,138,.35));
+}
+
+/* Radar scope behind the mark */
+.radar{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  display:grid;
+  place-items:center;
+  pointer-events:none;
+}
+.radar__ring{
+  position:absolute;
+  border:1px solid var(--green-dim);
+  border-radius:50%;
+  width:230px; height:230px;
+  opacity:.30;
+}
+.radar__ring--2{ width:160px; height:160px; opacity:.22; }
+.radar__ring--3{ width:90px;  height:90px;  opacity:.16; }
+.radar__cross{
+  position:absolute;
+  background:var(--green-dim);
+  opacity:.20;
+}
+.radar__cross--v{ width:1px; height:230px; }
+.radar__cross--h{ width:230px; height:1px; }
+.radar__sweep{
+  position:absolute;
+  width:115px; height:115px;
+  top:calc(50% - 115px);
+  left:50%;
+  transform-origin:bottom left;
+  background:conic-gradient(from 0deg, rgba(61,240,138,.28), transparent 32%);
+  clip-path:polygon(0 0, 100% 0, 0 100%);
+  animation:sweep 4.5s linear infinite;
+}
+@keyframes sweep{ to{ transform:rotate(360deg); } }
+
+.wordmark{
+  margin:0;
+  font-weight:700;
+  font-size:clamp(2.6rem, 12vw, 6rem);
+  line-height:.95;
+  letter-spacing:-.02em;
+}
+.wordmark__scam{
+  color:var(--green-bright);
+  text-shadow:var(--glow);
+}
+.wordmark__buster{
+  color:var(--paper);
+  text-shadow:0 0 18px rgba(216,246,228,.18);
+}
+
+.hero__tagline{
+  margin:1.6rem 0 .8rem;
+  font-weight:700;
+  font-size:clamp(1.1rem, 4vw, 1.9rem);
+  letter-spacing:.16em;
+  color:var(--green-bright);
+  text-shadow:var(--glow);
+}
+.hero__lede{
+  max-width:56ch;
+  margin:0 auto;
+  color:var(--green);
+}
+
+.badges{
+  display:flex;
+  gap:.8rem;
+  flex-wrap:wrap;
+  justify-content:center;
+  margin:2.2rem 0 0;
+}
+.badge{
+  font-size:11px;
+  letter-spacing:.18em;
+  color:var(--green-dim);
+  border:1px solid var(--line);
+  background:var(--panel);
+  padding:.5rem .85rem;
+}
+
+.scrollcue{
+  margin-top:3rem;
+  display:inline-flex;
+  flex-direction:column;
+  align-items:center;
+  gap:.4rem;
+  font-size:10px;
+  letter-spacing:.3em;
+  color:var(--green-dim);
+}
+.scrollcue__arrow{
+  width:8px;
+  height:8px;
+  border-right:1.5px solid var(--green-dim);
+  border-bottom:1.5px solid var(--green-dim);
+  transform:rotate(45deg);
+  animation:bob 1.8s ease-in-out infinite;
+}
+@keyframes bob{ 0%,100%{ transform:rotate(45deg) translate(0,0); } 50%{ transform:rotate(45deg) translate(3px,3px); } }
+
+/* ---------- Generic section ---------- */
+.section{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:clamp(3rem, 7vw, 5.5rem) clamp(1.2rem, 5vw, 2.4rem);
+  border-top:1px solid var(--line);
+}
+
+/* Centered, compact section (e.g. the Open block) */
+.section--center{
+  text-align:center;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+}
+.open__line{
+  max-width:46ch;
+  margin:.4rem 0 .4rem;
+  font-size:clamp(1.05rem, 2.4vw, 1.35rem);
+  color:var(--green);
+}
+
+/* ---------- Pull quote ---------- */
+.pullquote{
+  margin:3.6rem auto;
+  max-width:42rem; /* sized on rem, not ch, so the large quote wraps to ~2 lines */
+  text-align:center;
+}
+.pullquote blockquote{
+  margin:1.8rem 0;
+  font-weight:700;
+  font-size:clamp(1.4rem, 4.5vw, 2.4rem);
+  line-height:1.3;
+  color:var(--green-bright);
+  text-shadow:var(--glow);
+}
+.pullquote .divider{
+  background:linear-gradient(90deg, transparent, var(--green-dim), transparent);
+}
+
+/* ---------- Cards grid ---------- */
+.grid{ display:grid; gap:1rem; margin-top:2.4rem; }
+.grid--cards{ grid-template-columns:repeat(3, 1fr); }
+
+.card{
+  border:1px solid var(--line);
+  background:var(--panel);
+  padding:1.6rem 1.5rem;
+  display:flex;
+  flex-direction:column;
+  transition:border-color .2s ease, transform .2s ease;
+}
+.card:hover{ border-color:var(--green-dim); transform:translateY(-2px); }
+.card__title{
+  margin:0 0 .8rem;
+  font-size:1.05rem;
+  font-weight:700;
+  color:var(--green-bright);
+}
+.card p{ margin:0; font-size:15px; }
+.tag{
+  align-self:flex-start;
+  margin-top:1rem;
+  font-size:10px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--green-dim);
+  border:1px solid var(--line);
+  padding:.35rem .6rem;
+}
+
+/* ---------- Stats grid ---------- */
+.grid--stats{ grid-template-columns:repeat(3, 1fr); }
+.stat{
+  border:1px solid var(--line);
+  background:var(--panel);
+  padding:1.8rem 1.4rem;
+  text-align:left;
+}
+.stat__num{
+  display:block;
+  font-size:clamp(1.8rem, 5vw, 2.6rem);
+  font-weight:700;
+  color:var(--green-bright);
+  text-shadow:var(--glow);
+  line-height:1;
+}
+.stat__label{
+  display:block;
+  margin-top:.7rem;
+  font-size:12px;
+  letter-spacing:.08em;
+  color:var(--green-dim);
+}
+
+/* ---------- Terminal button ---------- */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  gap:.6rem;
+  margin-top:1.8rem;
+  padding:.8rem 1.3rem;
+  border:1px solid var(--green-dim);
+  background:var(--panel);
+  color:var(--green-bright);
+  font-size:14px;
+  letter-spacing:.06em;
+  transition:border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.btn:hover{
+  border-color:var(--green-bright);
+  box-shadow:var(--glow);
+  background:#0e1712;
+}
+.btn__prompt{ color:var(--green); }
+
+/* ---------- Footer ---------- */
+.footer{
+  max-width:var(--maxw);
+  margin:0 auto;
+  padding:clamp(2.5rem, 6vw, 4rem) clamp(1.2rem, 5vw, 2.4rem) 3rem;
+  text-align:center;
+}
+.footer__logo{ height:28px; width:auto; margin:0 auto 1.4rem; opacity:.9; }
+.footer__links{
+  display:flex;
+  gap:1.4rem;
+  justify-content:center;
+  flex-wrap:wrap;
+  font-size:13px;
+  margin-bottom:1.2rem;
+}
+.footer__links a{ color:var(--green-dim); }
+.footer__links a:hover{ color:var(--green-bright); }
+.footer__credit{ color:var(--green-dim); font-size:13px; margin:.4rem 0; }
+.footer__sign{
+  color:var(--green);
+  font-size:14px;
+  letter-spacing:.12em;
+  margin:.8rem 0 0;
+}
+
+/* ---------- Scroll reveal (progressive enhancement) ---------- */
+.reveal{ opacity:0; transform:translateY(18px); }
+.reveal.is-visible{
+  opacity:1;
+  transform:none;
+  transition:opacity .6s ease, transform .6s ease;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Tablet: two columns */
+@media (max-width:860px){
+  .grid--cards{ grid-template-columns:repeat(2, 1fr); }
+  .grid--stats{ grid-template-columns:repeat(2, 1fr); }
+}
+
+/* Phone */
+@media (max-width:600px){
+  body{
+    font-size:16px;
+    background-attachment:scroll; /* fixed backgrounds are janky / unsupported on mobile */
+  }
+  html{ scroll-padding-top:7rem; }
+
+  /* Top bar: logo above, nav as a tidy wrapping row */
+  .topbar{
+    flex-direction:column;
+    align-items:center;
+    gap:.6rem;
+    padding:.7rem 1rem;
+  }
+  .topbar__brand img{ height:30px; }
+  .topbar__nav{
+    width:100%;
+    justify-content:center;
+    gap:.5rem 1.1rem;
+    font-size:12px;
+  }
+  .topbar__nav a{ padding:.25rem 0; } /* taller tap targets */
+
+  /* One column for cards (stats section is gone) */
+  .grid--cards,
+  .grid--stats{ grid-template-columns:1fr; }
+
+  /* Hero mark + radar scaled down, kept centred */
+  .hero{ padding-top:clamp(2.5rem, 8vw, 4rem); }
+  .hero__mark{ width:188px; height:188px; }
+  .hero__mark img{ width:138px; height:138px; }
+  .radar__ring{ width:188px; height:188px; }
+  .radar__cross--v{ height:188px; }
+  .radar__cross--h{ width:188px; }
+  .bracket{ width:22px; height:22px; }
+
+  /* Wordmark sized to always fit a phone, even with a fallback mono font */
+  .wordmark{ font-size:clamp(2rem, 11vw, 3.2rem); }
+
+  /* Eyebrows: tighten tracking so long labels read well when they wrap */
+  .eyebrow{ letter-spacing:.2em; }
+  .hero__tagline{ letter-spacing:.1em; }
+
+  /* Buttons easier to tap */
+  .btn{ padding:.85rem 1.2rem; }
+}
+
+/* Very small phones */
+@media (max-width:380px){
+  .wordmark{ font-size:clamp(1.8rem, 10.5vw, 2.6rem); }
+  .hero__mark{ width:160px; height:160px; }
+  .hero__mark img{ width:118px; height:118px; }
+  .radar__ring{ width:160px; height:160px; }
+  .radar__cross--v{ height:160px; }
+  .radar__cross--h{ width:160px; }
+}
+
+/* ---------- Reduced motion ---------- */
+@media (prefers-reduced-motion:reduce){
+  html{ scroll-behavior:auto; }
+  .radar__sweep{ display:none; }
+  .scrollcue__arrow{ animation:none; }
+  .reveal{ opacity:1; transform:none; transition:none; }
+  *{ animation-duration:.001ms !important; animation-iteration-count:1 !important; }
+}
