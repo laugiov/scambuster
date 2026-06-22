@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [2.28.0] - 2026-06-21
+
+### Fixed — Spec 113 (List endpoint hides soft-deleted conversations)
+
+`GET /api/v1/communication/conversation` was returning rows with
+`deleted_at IS NOT NULL`, while detail and child endpoints
+(`/messages`, `/iocs`) correctly 404'd on them. The UI rendered
+those zombies and crashed with "Failed to load conversation" on
+click. State on 2026-06-21: 46 zombies leaking (26 open +
+20 closed, all soft-deleted via the UI's DELETE button on
+2026-06-01).
+
+Root cause: `ConversationHandler::getFilteredConversations` built
+its QueryBuilder without `->andWhere('c.deletedAt IS NULL')`.
+DELETE soft-deletes correctly (`ConversationService::softDelete
+Conversation`), but the list query never honoured it.
+
+What ships
+- Add the one-line filter to the QueryBuilder.
+- New integration test
+  `ConversationServiceTest::testFilteredConversationsExcludesSoftDeleted`
+  seeds a conv, asserts it appears, soft-deletes it, asserts it
+  disappears.
+
+Cleanup of the 46 existing zombies: skipped per user. PurgeService
+hard-deletes them after 12 months per RGPD policy. Other list /
+analytics queries are out of scope — each has its own retention
+contract (e.g. WeeklyCleanupCommand intentionally counts only
+non-deleted; PurgeService manages deleted_at lifecycle directly).
+
+---
+
 ## [2.27.0] - 2026-06-21
 
 ### Fixed — Spec 112 (No out-of-band channel in outbound replies)

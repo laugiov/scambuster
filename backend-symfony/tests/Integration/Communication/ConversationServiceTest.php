@@ -596,4 +596,51 @@ class ConversationServiceTest extends KernelTestCase
             'scam_type_id' => 99999
         ]);
     }
+
+    /**
+     * Spec 113 — soft-deleted conversations must not leak into the list endpoint.
+     * Before the fix, DELETE /conversation/{id} flipped deleted_at but
+     * GET /conversation still returned the row (and the detail endpoint
+     * 404'd), producing "Failed to load conversation" rows in the UI.
+     */
+    public function testFilteredConversationsExcludesSoftDeleted(): void
+    {
+        $channel = $this->em->getRepository(Channel::class)->findOneBy([]);
+        $scamType = $this->em->getRepository(ScamType::class)->findOneBy([]);
+        $account = $this->em->getRepository(MailAccount::class)->findOneBy([]);
+        $this->assertNotNull($channel);
+        $this->assertNotNull($scamType);
+        $this->assertNotNull($account);
+
+        $tsFirst = new \DateTimeImmutable('-1 hour');
+        $tsLast = new \DateTimeImmutable();
+        $conv = $this->service->createConversation(
+            $channel,
+            $scamType,
+            $account,
+            ConversationStatus::OPEN,
+            42,
+            $tsFirst,
+            $tsLast,
+            'stix-spec113-soft-deleted'
+        );
+        $convId = $conv->getConvId();
+
+        $listBefore = $this->service->getFilteredConversations(1, 1000);
+        $idsBefore = array_map(static fn ($c) => $c->getConvId(), $listBefore);
+        $this->assertContains($convId, $idsBefore, 'sanity: the new conversation must appear in the list');
+
+        // Soft-delete via the same path as PurgeService (reflection bypasses
+        // the absence of a public setter — kept identical for parity).
+        $reflection = new \ReflectionObject($conv);
+        $prop = $reflection->getProperty('deletedAt');
+        $prop->setAccessible(true);
+        $prop->setValue($conv, new \DateTimeImmutable());
+        $this->em->flush();
+        $this->em->clear();
+
+        $listAfter = $this->service->getFilteredConversations(1, 1000);
+        $idsAfter = array_map(static fn ($c) => $c->getConvId(), $listAfter);
+        $this->assertNotContains($convId, $idsAfter, 'soft-deleted conversation must be filtered out of the list');
+    }
 } 

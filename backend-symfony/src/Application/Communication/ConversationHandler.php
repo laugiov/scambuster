@@ -180,6 +180,7 @@ class ConversationHandler
         $qb = $this->em->createQueryBuilder();
         $qb->select('c')
             ->from(Conversation::class, 'c')
+            ->where('c.deletedAt IS NULL')
             ->setFirstResult($offset)
             ->setMaxResults($limit)
             ->orderBy('c.tsLast', 'DESC');
