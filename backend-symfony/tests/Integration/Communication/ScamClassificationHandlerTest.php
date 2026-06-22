@@ -56,7 +56,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
     public function testItClassifiesExistingScamType(): void
     {
         // Create a test conversation with messages
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation, 'No conversation found in fixtures');
 
         $convId = $conversation->getConvId();
@@ -92,7 +92,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
     public function testItCreatesNewScamTypeWithPersona(): void
     {
         // Create a test conversation
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -167,7 +167,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
      */
     public function testItThrowsExceptionWhenConfidenceTooLow(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -202,7 +202,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
      */
     public function testItAcceptsConfidence065_Fix02_PreviouslyRejected(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -233,7 +233,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testItReusesExistingPersonaWhenCreatingNewScamType(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -282,7 +282,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testItThrowsExceptionWhenClassificationReturnsNull(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -299,7 +299,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testItHandlesTransactionRollbackOnError(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -348,7 +348,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testManualClassifyConversationWithExistingScamType(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -365,7 +365,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testManualClassifyConversationWithPersonaCode(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
@@ -394,7 +394,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testManualClassifyConversationThrowsForNonexistentScamType(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
 
         $this->expectException(\RuntimeException::class);
@@ -405,7 +405,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testManualClassifyConversationThrowsForNonexistentPersona(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
 
         $scamType = $this->em->getRepository(ScamType::class)->findOneBy([]);
@@ -490,8 +490,8 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testAutoClassifyConversationThrowsWhenLlmReturnsNull(): void
     {
-        // Find UNKNOWN conversation
-        $conversations = $this->em->getRepository(Conversation::class)->findAll();
+        // Find UNKNOWN conversation (must skip soft-deleted fixture 000006)
+        $conversations = $this->em->getRepository(Conversation::class)->findBy(['deletedAt' => null]);
         $unknownConv = null;
 
         foreach ($conversations as $conv) {
@@ -518,7 +518,7 @@ final class ScamClassificationHandlerTest extends KernelTestCase
 
     public function testClassifyConversationCreatesNewTypeWithoutPersona(): void
     {
-        $conversation = $this->em->getRepository(Conversation::class)->findOneBy([]);
+        $conversation = $this->em->getRepository(Conversation::class)->findOneBy(['deletedAt' => null]);
         $this->assertNotNull($conversation);
         $convId = $conversation->getConvId();
 
