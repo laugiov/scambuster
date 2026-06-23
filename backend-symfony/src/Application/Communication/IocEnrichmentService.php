@@ -152,6 +152,28 @@ class IocEnrichmentService
         }, $iocs);
         $shouldReply = $this->riskScorer->shouldReply($maxScore, $level, $iocTypes);
 
+        // Spec 115 — conversation-continuity override.
+        // Per-message scoring is the cold-start anti-noise filter (DMARC
+        // reports, noreply autoresponders, bounces). On follow-up pings in
+        // an already-engaged conversation, the per-message intrinsic score
+        // regularly lands 1-5 points below the medium threshold — either
+        // because the body is bare ("are you still interested?") or because
+        // the spec-110 race on body-IOC extraction recurs intermittently.
+        // The conv-level score_risk is a monotonic max maintained by
+        // IngestPostProcessor; it is the engagement-continuity signal.
+        // When the conv has been seen at medium+ at any earlier point,
+        // honour that signal and keep the bot replying. Downstream guards
+        // (ReplyHandler cadence/rate-limits/PolicyGuard/kill switch) stay
+        // intact and continue to gate any abuse.
+        if (!$shouldReply && $message->getConversation()->getScoreRisk() >= 40) {
+            $shouldReply = true;
+            $reasons[] = sprintf(
+                'continuity_override: per-msg=%d below threshold but conv=%d (already engaged)',
+                $maxScore,
+                $message->getConversation()->getScoreRisk()
+            );
+        }
+
         return [
             'score_agg' => $maxScore,
             'level' => $level,

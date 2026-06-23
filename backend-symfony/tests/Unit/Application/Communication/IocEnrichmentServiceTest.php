@@ -80,7 +80,7 @@ final class IocEnrichmentServiceTest extends TestCase
         });
     }
 
-    private function mockMessageWithScamType(string $scamCode, ConversationStatus $status = ConversationStatus::OPEN): Message
+    private function mockMessageWithScamType(string $scamCode, ConversationStatus $status = ConversationStatus::OPEN, int $convScoreRisk = 0): Message
     {
         $scamType = $this->createMock(ScamType::class);
         $scamType->method('getCode')->willReturn($scamCode);
@@ -91,6 +91,10 @@ final class IocEnrichmentServiceTest extends TestCase
         // on closed/abandoned/mistake. Existing tests default to OPEN (preserves
         // their assumed path); new closed-conv tests pass non-OPEN explicitly.
         $conversation->method('getStatus')->willReturn($status);
+        // Spec 115 — conv-level score_risk is the engagement-continuity signal.
+        // Default 0 keeps the existing tests' cold-start semantics unchanged;
+        // continuity-override tests pass >= 40 explicitly.
+        $conversation->method('getScoreRisk')->willReturn($convScoreRisk);
 
         $message = $this->createMock(Message::class);
         $message->method('getConversation')->willReturn($conversation);
@@ -441,5 +445,93 @@ final class IocEnrichmentServiceTest extends TestCase
 
         $this->assertFalse($result['should_reply']);
         $this->assertStringContainsString('conversation_closed: abandoned', $result['reason']);
+    }
+
+    // ─── Spec 115 — conversation-continuity override ─────────────────────
+
+    public function test_spec115_continuity_override_fires_on_engaged_conv(): void
+    {
+        // Setup: conv was previously scored medium (score_risk=55, e.g. from
+        // a rich first inbound), but the current follow-up has only 3 header
+        // IOCs (email, message_id, subject) → intrinsic for UNKNOWN with 3
+        // types = 30 + 0 + 0 + 0 + 0 + min(3*3,15)=9 = 39 → level=low.
+        // Expected: continuity override fires, should_reply=true.
+        $message = $this->mockMessageWithScamType('UNKNOWN', ConversationStatus::OPEN, convScoreRisk: 55);
+        $iocs = [
+            $this->mockIoc('email', 0),
+            $this->mockIoc('message_id', 0),
+            $this->mockIoc('subject', 0),
+        ];
+
+        $this->wireEm($message, $iocs);
+
+        $result = $this->createService()->calculateMessageRisk('msg-followup-engaged');
+
+        $this->assertSame(39, $result['score_agg'], 'sanity: this is the exact race score from n8n exec 9592');
+        $this->assertSame('low', $result['level']);
+        $this->assertTrue($result['should_reply'], 'continuity override must rescue engaged conv');
+        $this->assertStringContainsString('continuity_override', $result['reason']);
+    }
+
+    public function test_spec115_continuity_override_does_not_fire_on_cold_start(): void
+    {
+        // Setup: conv never scored medium (score_risk=30, e.g. brand-new
+        // inbound from a never-engaged sender). Current message scores low.
+        // Expected: should_reply=false (cold-start anti-noise filter
+        // preserved — exactly the behaviour spec-110 protected against).
+        $message = $this->mockMessageWithScamType('UNKNOWN', ConversationStatus::OPEN, convScoreRisk: 30);
+        $iocs = [
+            $this->mockIoc('email', 0),
+            $this->mockIoc('message_id', 0),
+            $this->mockIoc('subject', 0),
+        ];
+
+        $this->wireEm($message, $iocs);
+
+        $result = $this->createService()->calculateMessageRisk('msg-cold-start-low');
+
+        $this->assertSame(39, $result['score_agg']);
+        $this->assertSame('low', $result['level']);
+        $this->assertFalse($result['should_reply'], 'cold-start filter must NOT be bypassed');
+        $this->assertStringNotContainsString('continuity_override', $result['reason']);
+    }
+
+    public function test_spec115_continuity_override_does_not_touch_high_paths(): void
+    {
+        // Setup: rich message that already scores medium/high on its own.
+        // Override condition is "if !shouldReply" so it never fires here.
+        $message = $this->mockMessageWithScamType('INVOICE_FRAUD', ConversationStatus::OPEN, convScoreRisk: 60);
+        $iocs = [$this->mockIoc('iban', 0)];
+
+        $this->wireEm($message, $iocs);
+
+        $result = $this->createService()->calculateMessageRisk('msg-high-no-override');
+
+        $this->assertTrue($result['should_reply'], 'high-path remains true');
+        $this->assertStringNotContainsString('continuity_override', $result['reason'], 'no override label on already-passing path');
+    }
+
+    public function test_spec115_continuity_override_respects_closed_conv_short_circuit(): void
+    {
+        // Setup: closed conv with high score_risk (would otherwise satisfy
+        // override). The line 50-57 early return must still win.
+        // Expected: should_reply=false with conversation_closed reason, NO
+        // continuity_override (we never reach line 153+).
+        $message = $this->mockMessageWithScamType('UNKNOWN', ConversationStatus::CLOSED, convScoreRisk: 80);
+
+        // Closed-conv short-circuit returns BEFORE findBy is called.
+        $messageRepo = $this->createMock(EntityRepository::class);
+        $messageRepo->method('find')->willReturn($message);
+        $iocRepo = $this->createMock(EntityRepository::class);
+        $iocRepo->expects($this->never())->method('findBy');
+        $this->em->method('getRepository')->willReturnCallback(
+            fn (string $class) => $class === Message::class ? $messageRepo : $iocRepo
+        );
+
+        $result = $this->createService()->calculateMessageRisk('msg-closed-high-score');
+
+        $this->assertFalse($result['should_reply']);
+        $this->assertStringContainsString('conversation_closed: closed', $result['reason']);
+        $this->assertStringNotContainsString('continuity_override', $result['reason']);
     }
 }
