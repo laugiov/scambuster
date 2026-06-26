@@ -33,15 +33,17 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('Every single word', $rules);
     }
 
-    public function testRulesAreUnder170Words(): void
+    public function testRulesAreUnder250Words(): void
     {
-        // Spec 112 raised the ceiling from 120 to 170 to fit the
-        // no-out-of-band-channel rule. Keep the cap close to actual
-        // size so future drift is caught early.
+        // Cap history:
+        //   - Spec 095/112 raised cap to 170 to fit no-out-of-band-channel rule.
+        //   - Spec 117 (careful-buyer pushback) + headroom for spec 122
+        //     (anti-repetition rule) → cap set at 250.
+        // Keep the cap close to actual size so future drift is caught early.
         $rules = BasePromptRules::getRules('en');
         $wordCount = str_word_count($rules);
 
-        $this->assertLessThan(170, $wordCount, "BasePromptRules should be under 170 words, got {$wordCount}");
+        $this->assertLessThan(250, $wordCount, "BasePromptRules should be under 250 words, got {$wordCount}");
     }
 
     public function testRulesUsePositiveDescriptions(): void
@@ -102,5 +104,33 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('crypto wallet', $rules, 'Rule must call out crypto wallets');
         $this->assertStringContainsString('IBAN', $rules, 'Rule must call out IBAN');
         $this->assertStringContainsString('fictional', $rules, 'Rule must explicitly ban fictional channels too');
+    }
+
+    /**
+     * Spec 117 — BasePromptRules must instruct the persona to behave like a
+     * careful buyer when the attacker pushes for upfront payment before any
+     * contract or scope of work: ask for SoW / invoice / company verification
+     * first, defer rather than refuse, stay calm if the attacker escalates
+     * or pivots to out-of-band channels.
+     *
+     * The discriminator between a legitimate vendor and a scammer is the
+     * reaction to this paperwork ask: a real vendor calmly produces it;
+     * a scammer escalates pressure, pivots channels, or offers a personal
+     * account. The persona's restraint becomes the test.
+     *
+     * See: specs/117-legitimate-buyer-pushback/spec.md
+     */
+    public function testRulesIncludeBuyerPushbackRule_Spec117(): void
+    {
+        $rules = BasePromptRules::getRules('en');
+
+        // The rule must reference each anchor concept so the LLM understands
+        // the full discriminator pattern: paperwork ask + polite firmness +
+        // defer-not-refuse + stay-calm-on-escalation.
+        $this->assertStringContainsString('Statement of Work', $rules, 'Rule must explicitly call out SoW as a paperwork ask');
+        $this->assertStringContainsString('company registration', $rules, 'Rule must include company verification ask');
+        $this->assertStringContainsString('defer', $rules, 'Rule must instruct to defer rather than refuse');
+        $this->assertStringContainsString('upfront payment', $rules, 'Rule must scope to upfront-payment pressure');
+        $this->assertStringContainsString('personal-looking bank account', $rules, 'Rule must call out the personal-account escalation pattern');
     }
 }
