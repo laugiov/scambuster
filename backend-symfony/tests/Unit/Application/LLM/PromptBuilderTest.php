@@ -578,4 +578,142 @@ class PromptBuilderTest extends TestCase
         $this->assertStringContainsString('Prior exchanges', $result['user']);
         $this->assertStringContainsString('3 prior conversations', $result['user']);
     }
+
+    // ─── Spec 122 — anti-repetition prompt enrichment ───────────────────
+
+    /**
+     * Helper: call the private extractPriorPersonaQuestions via reflection.
+     *
+     * @param array<int, array{direction: string, body_text: string}> $lastMessages
+     *
+     * @return list<string>
+     */
+    private function callExtractPriorPersonaQuestions(array $lastMessages): array
+    {
+        $reflection = new \ReflectionClass($this->builder);
+        $method = $reflection->getMethod('extractPriorPersonaQuestions');
+        $method->setAccessible(true);
+
+        /** @var list<string> $result */
+        $result = $method->invoke($this->builder, $lastMessages);
+
+        return $result;
+    }
+
+    public function test_spec122_extracts_questions_from_prior_out_messages(): void
+    {
+        $messages = [
+            ['direction' => 'in', 'body_text' => 'Hi, we offer mobile app development.'],
+            ['direction' => 'out', 'body_text' => 'Sounds interesting. What is your timeline? How big is your team?'],
+            ['direction' => 'in', 'body_text' => 'Timeline 2 weeks, team of 8.'],
+            ['direction' => 'out', 'body_text' => 'Could you share your portfolio?'],
+        ];
+
+        $questions = $this->callExtractPriorPersonaQuestions($messages);
+
+        // Most-recent first → "Could you share your portfolio?" appears before
+        // the earlier "What is your timeline?" and "How big is your team?".
+        $this->assertSame('Could you share your portfolio?', $questions[0]);
+        $this->assertContains('What is your timeline?', $questions);
+        $this->assertContains('How big is your team?', $questions);
+    }
+
+    public function test_spec122_skips_inbound_messages(): void
+    {
+        // Operator questions must NOT be in the list — we only block re-asking
+        // OUR OWN prior questions.
+        $messages = [
+            ['direction' => 'in', 'body_text' => 'Hi, do you accept wire transfers? What is your tax ID?'],
+            ['direction' => 'out', 'body_text' => 'We can discuss that. Where are you based?'],
+        ];
+
+        $questions = $this->callExtractPriorPersonaQuestions($messages);
+
+        $this->assertSame(['Where are you based?'], $questions);
+    }
+
+    public function test_spec122_deduplicates(): void
+    {
+        $messages = [
+            ['direction' => 'out', 'body_text' => 'Could you share your SWIFT?'],
+            ['direction' => 'in', 'body_text' => 'Not yet.'],
+            ['direction' => 'out', 'body_text' => 'Could you share your SWIFT?'],
+        ];
+
+        $questions = $this->callExtractPriorPersonaQuestions($messages);
+
+        $this->assertCount(1, $questions);
+        $this->assertSame(['Could you share your SWIFT?'], $questions);
+    }
+
+    public function test_spec122_caps_at_10_questions(): void
+    {
+        // Build 15 distinct out messages with 1 question each. Extractor
+        // should cap output at 10.
+        $messages = [];
+
+        for ($i = 1; $i <= 15; $i++) {
+            $messages[] = ['direction' => 'out', 'body_text' => "Question number {$i}?"];
+        }
+
+        $questions = $this->callExtractPriorPersonaQuestions($messages);
+
+        $this->assertCount(10, $questions);
+    }
+
+    public function test_spec122_returns_empty_when_no_out_messages(): void
+    {
+        $messages = [
+            ['direction' => 'in', 'body_text' => 'Hello, are you there?'],
+        ];
+
+        $questions = $this->callExtractPriorPersonaQuestions($messages);
+
+        $this->assertSame([], $questions);
+    }
+
+    public function test_spec122_returns_empty_when_no_out_message_contains_a_question(): void
+    {
+        $messages = [
+            ['direction' => 'out', 'body_text' => 'Thanks for your message.'],
+            ['direction' => 'out', 'body_text' => 'Looking forward to your reply.'],
+        ];
+
+        $questions = $this->callExtractPriorPersonaQuestions($messages);
+
+        $this->assertSame([], $questions);
+    }
+
+    public function test_spec122_injects_dont_repeat_section_when_prior_questions_exist(): void
+    {
+        $context = [
+            'scam_type' => ['label_fr' => 'Phishing test'],
+            'last_messages' => [
+                ['direction' => 'in', 'headers' => ['from' => 'op@evil.test'], 'body_text' => 'We have a great offer.', 'ts_msg' => '2026-01-01T00:00:00+00:00'],
+                ['direction' => 'out', 'headers' => [], 'body_text' => 'Sounds great. Can you tell me more about your company?', 'ts_msg' => '2026-01-01T01:00:00+00:00'],
+                ['direction' => 'in', 'headers' => ['from' => 'op@evil.test'], 'body_text' => 'We are based in India.', 'ts_msg' => '2026-01-02T00:00:00+00:00'],
+            ],
+        ];
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringContainsString('Questions you have ALREADY asked', $prompts['user']);
+        $this->assertStringContainsString('Can you tell me more about your company?', $prompts['user']);
+        $this->assertStringContainsString('Do NOT repeat', $prompts['user']);
+    }
+
+    public function test_spec122_skips_dont_repeat_section_on_first_reply(): void
+    {
+        // No prior OUT messages → no enumerable questions → section omitted.
+        $context = [
+            'scam_type' => ['label_fr' => 'Phishing test'],
+            'last_messages' => [
+                ['direction' => 'in', 'headers' => ['from' => 'op@evil.test'], 'body_text' => 'Hello, would you be interested?', 'ts_msg' => '2026-01-01T00:00:00+00:00'],
+            ],
+        ];
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringNotContainsString('Questions you have ALREADY asked', $prompts['user']);
+    }
 }

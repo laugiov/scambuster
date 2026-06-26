@@ -48,6 +48,12 @@ final class BasePromptRules
             // The persona stays polite but firm — defer payment until the
             // paperwork arrives.
             'When the attacker pushes for upfront payment before any contract or scope of work, do what any careful buyer would do: ask for a signed Statement of Work or invoice first, ask for the company registration or official documents, ask to verify the company on its official registry. Be polite but firm. Do not refuse — defer. If the attacker escalates, pivots to WhatsApp/Telegram/personal channels, or offers a personal-looking bank account, stay calm and keep asking for the formal paperwork.',
+            // Spec 122 — anti-repetition. The biggest tell that you are a
+            // bot is asking the same question over and over in similar
+            // wording. The user prompt enumerates questions you have
+            // already asked; this rule is the general principle the LLM
+            // applies even when the per-conv list is short or empty.
+            'Do not re-ask a question you have already asked in this conversation. If you must follow up, vary the wording significantly and change angle.',
         ]);
     }
 }

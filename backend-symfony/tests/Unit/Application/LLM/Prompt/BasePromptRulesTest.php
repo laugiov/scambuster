@@ -33,17 +33,17 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('Every single word', $rules);
     }
 
-    public function testRulesAreUnder250Words(): void
+    public function testRulesAreUnder270Words(): void
     {
         // Cap history:
         //   - Spec 095/112 raised cap to 170 to fit no-out-of-band-channel rule.
-        //   - Spec 117 (careful-buyer pushback) + headroom for spec 122
-        //     (anti-repetition rule) → cap set at 250.
+        //   - Spec 117 (careful-buyer pushback) raised to 250.
+        //   - Spec 122 (anti-repetition rule) raised to 270.
         // Keep the cap close to actual size so future drift is caught early.
         $rules = BasePromptRules::getRules('en');
         $wordCount = str_word_count($rules);
 
-        $this->assertLessThan(250, $wordCount, "BasePromptRules should be under 250 words, got {$wordCount}");
+        $this->assertLessThan(270, $wordCount, "BasePromptRules should be under 270 words, got {$wordCount}");
     }
 
     public function testRulesUsePositiveDescriptions(): void
@@ -132,5 +132,23 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('defer', $rules, 'Rule must instruct to defer rather than refuse');
         $this->assertStringContainsString('upfront payment', $rules, 'Rule must scope to upfront-payment pressure');
         $this->assertStringContainsString('personal-looking bank account', $rules, 'Rule must call out the personal-account escalation pattern');
+    }
+
+    /**
+     * Spec 122 — BasePromptRules must instruct the persona not to re-ask
+     * the same question, and to vary wording / change angle when a
+     * follow-up is genuinely needed. Pairs with the PromptBuilder
+     * enrichment (slice 2) that lists the actual prior questions in
+     * the user prompt — this rule is the general principle.
+     *
+     * See: specs/122-anti-repetition-prompt-fix/spec.md
+     */
+    public function testRulesIncludeAntiRepetitionRule_Spec122(): void
+    {
+        $rules = BasePromptRules::getRules('en');
+
+        $this->assertStringContainsString('re-ask', $rules, 'Rule must explicitly mention re-asking');
+        $this->assertStringContainsString('vary the wording', $rules, 'Rule must instruct to vary the wording');
+        $this->assertStringContainsString('change angle', $rules, 'Rule must instruct to change angle on follow-up');
     }
 }

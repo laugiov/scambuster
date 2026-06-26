@@ -351,20 +351,94 @@ PROMPT;
 
         if ($analysis !== null) {
             $result = $this->formatInstructions($analysis['instructions_for_llm']);
+            $baseVariety = $result === '' || $result === '0' ? "Vary your opening and phrasing from previous messages.\n\n" : $result . "\n";
+        } else {
+            // Fallback: VariationProvider (basic, PHP-only)
+            /** @var array<int, array{direction: string, body_text: string}> $lastMsgsVariation */
+            $lastMsgsVariation = $context['last_messages'] ?? [];
+            $variationInstructions = $this->variationProvider->generateInstructions($lastMsgsVariation);
 
-            return $result === '' || $result === '0' ? "Vary your opening and phrasing from previous messages.\n\n" : $result . "\n";
+            $baseVariety = ($variationInstructions !== '' && $variationInstructions !== '0')
+                ? $variationInstructions . "\n\n"
+                : "Vary your opening and phrasing from previous messages.\n\n";
         }
 
-        // Fallback: VariationProvider (basic, PHP-only)
-        /** @var array<int, array{direction: string, body_text: string}> $lastMsgsVariation */
-        $lastMsgsVariation = $context['last_messages'] ?? [];
-        $variationInstructions = $this->variationProvider->generateInstructions($lastMsgsVariation);
+        // Spec 122 — append the explicit list of questions the persona has
+        // already asked in this conversation. The LLM cannot reliably
+        // self-track this across turns; surfacing the list inside the prompt
+        // is a cheap, deterministic anti-repetition mechanism. Skipped on
+        // the first reply (nothing to enumerate yet — keeps the prompt
+        // clean of noise).
+        /** @var array<int, array{direction: string, body_text: string}> $lastMessagesForQuestions */
+        $lastMessagesForQuestions = $context['last_messages'] ?? [];
+        $priorQuestions = $this->extractPriorPersonaQuestions($lastMessagesForQuestions);
 
-        if ($variationInstructions !== '' && $variationInstructions !== '0') {
-            return $variationInstructions . "\n\n";
+        if ($priorQuestions !== []) {
+            $list = '';
+
+            foreach ($priorQuestions as $q) {
+                $list .= "  - {$q}\n";
+            }
+
+            $baseVariety .= "Questions you have ALREADY asked the operator in this conversation:\n"
+                . $list
+                . "Do NOT repeat any of these verbatim. If you still need a follow-up on the same topic, use a clearly different phrasing AND a different angle (justify why you're asking, propose an alternative way to get the info, or change the framing entirely).\n\n";
         }
 
-        return "Vary your opening and phrasing from previous messages.\n\n";
+        return $baseVariety;
+    }
+
+    /**
+     * Spec 122 — extract questions the persona has already asked in this
+     * conversation, so the generator prompt can explicitly instruct the LLM
+     * not to repeat them. Heuristic-based (sentences ending in `?`), no LLM
+     * call. Most-recent first, deduplicated, capped at 10 entries to keep
+     * prompt size sane.
+     *
+     * @param array<int, array{direction: string, body_text: string}> $lastMessages
+     *
+     * @return list<string>
+     */
+    private function extractPriorPersonaQuestions(array $lastMessages): array
+    {
+        $questions = [];
+
+        // Iterate in reverse so the most-recent persona messages come first
+        // (recency matters more than older asks for the LLM to avoid).
+        foreach (array_reverse($lastMessages) as $msg) {
+            if ($msg['direction'] !== 'out') {
+                continue;
+            }
+
+            $body = $msg['body_text'];
+
+            if ($body === '') {
+                continue;
+            }
+
+            // Match question-shaped sentences: any run of non-sentence-end
+            // chars followed by a `?`. Stop at . ! ? or newline.
+            if (preg_match_all('/[^.!?\n]+\?/u', $body, $matches) === false) {
+                continue;
+            }
+
+            foreach ($matches[0] as $sentence) {
+                $clean = trim((string) $sentence);
+                $clean = mb_substr($clean, 0, 200);  // cap each question at 200 chars
+
+                if ($clean === '' || in_array($clean, $questions, true)) {
+                    continue;
+                }
+
+                $questions[] = $clean;
+
+                if (count($questions) >= 10) {
+                    return $questions;
+                }
+            }
+        }
+
+        return $questions;
     }
 
     /**
