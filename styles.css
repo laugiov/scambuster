@@ -407,6 +407,34 @@ a:focus-visible,
   box-shadow:var(--glow);
 }
 
+/* Embargoed button: same terminal button, dimmed and locked, with a red seal over it */
+.embargo{ position:relative; display:inline-block; margin-top:1.8rem; }
+.btn--locked{
+  margin-top:0;
+  opacity:.45;
+  cursor:not-allowed;
+  pointer-events:none;
+  user-select:none;
+}
+.embargo__seal{
+  position:absolute;
+  top:-11px;
+  right:-14px;
+  transform:rotate(5deg);
+  background:rgba(255,85,99,.12);
+  border:1px solid var(--red);
+  color:var(--red);
+  font-size:10px;
+  letter-spacing:.22em;
+  padding:.25rem .5rem;
+}
+.embargo__note{
+  max-width:48ch;
+  margin:1rem auto 0;
+  color:var(--red);
+  font-size:13px;
+}
+
 /* ---------- Footer ---------- */
 .footer{
   max-width:var(--maxw);
