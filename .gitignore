@@ -40,6 +40,7 @@ backend-symfony/var/cache/
 backend-symfony/var/log/
 backend-symfony/var/test/
 backend-symfony/var/uploads/
+backend-symfony/var/smoke/
 backend-symfony/vendor/
 
 # PHP tools

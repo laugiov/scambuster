@@ -1,0 +1,14 @@
+From: PayPal Security <security@paypal-verification-services.com>
+To: target@victim.test
+Subject: Action required — your PayPal account has unusual activity
+Date: Sat, 27 Jun 2026 10:00:00 +0000
+Message-ID: <phish-39@evil.test>
+Content-Type: text/plain; charset=UTF-8
+
+Hello,
+
+We have detected unusual activity on your PayPal account. To prevent your account from being limited, please confirm your identity by replying to this email with the details we will request in our next message.
+
+You have 48 hours to respond before automatic limitations apply.
+
+PayPal Security Team

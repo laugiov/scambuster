@@ -290,7 +290,16 @@ final class PromptBuilderMutationTest extends TestCase
 
     /**
      * Spec 095 Fix #6 — payment_push stage (any message with payment keyword OR 6+ messages).
-     * The OBJECTIVE must explicitly request a concrete IOC question (IBAN/wallet/beneficiary/phone).
+     * The OBJECTIVE must explicitly request a concrete IOC question.
+     *
+     * Spec 118 update: the concrete-IOC anchors are now scam-type-aware.
+     * `baseContext` uses scam_type=PHISHING, which routes to the phishing_pull
+     * bucket — the bucket asks about "exact site", "credential", "attachment",
+     * "card details" instead of IBAN/wallet. We assert the phishing_pull-
+     * specific anchors here. The Fix06 invariant (no weak directive +
+     * concrete IOC at payment_push) is preserved through different wording.
+     * The banking bucket continues to list IBAN/SWIFT/wallet — covered by
+     * `PromptBuilderTest::test_spec118_uses_banking_template_for_*`.
      */
     public function test_objective_payment_push_directive_Fix06(): void
     {
@@ -302,8 +311,9 @@ final class PromptBuilderMutationTest extends TestCase
         ]);
         $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
         $this->assertStringContainsString('payment push', $prompts['user'], 'OBJECTIVE must mention payment push stage');
-        $this->assertStringContainsString('IBAN', $prompts['user'], 'OBJECTIVE must list IBAN among target IOCs');
-        $this->assertStringContainsString('wallet', $prompts['user'], 'OBJECTIVE must list wallet among target IOCs');
+        $this->assertStringContainsString('phishing-style request', $prompts['user'], 'OBJECTIVE must announce the phishing_pull bucket for PHISHING scam_type (spec 118)');
+        $this->assertStringContainsString('exact site', $prompts['user'], 'OBJECTIVE must list exact-site IOC anchor for phishing_pull (spec 118)');
+        $this->assertStringContainsString('credential', $prompts['user'], 'OBJECTIVE must list credential IOC anchor for phishing_pull (spec 118)');
     }
 
     /**

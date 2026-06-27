@@ -190,6 +190,10 @@ coverage:      ##@test Generate code coverage report
 mutation:      ##@test Run Infection mutation testing (unit tests only)
 	$(DC) exec $(PHP_CONTAINER_DEV) vendor/bin/infection --threads=4 --show-mutations --min-msi=70 --min-covered-msi=80
 
+smoke-spec-118:    ##@test Spec 118 smoke harness — drive reply pipeline on .eml fixtures (~$0.05 in real LLM calls)
+	@chmod -R 777 backend-symfony/var/smoke 2>/dev/null || mkdir -p backend-symfony/var/smoke && chmod -R 777 backend-symfony/var/smoke
+	$(DC) exec $(PHP_CONTAINER_DEV) php bin/console scambuster:smoke:spec118
+
 # ======================================================================
 #  FIXTURES
 # ======================================================================

@@ -716,4 +716,277 @@ class PromptBuilderTest extends TestCase
 
         $this->assertStringNotContainsString('Questions you have ALREADY asked', $prompts['user']);
     }
+
+    // -----------------------------------------------------------------------
+    // Spec 118 — scam-type-aware OBJECTIVE templates (per-bucket at payment_push)
+    //
+    // Stage detection in ContextAnalyzer falls back to a count heuristic:
+    // ≤2 messages = first_contact, ≤5 = follow_up, >5 = payment_push.
+    // The helpers below build contexts at each stage and feed a given scam code.
+    // -----------------------------------------------------------------------
+
+    /**
+     * Build a payment_push-stage context (≥6 messages) carrying a specific scam_type code.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildPaymentPushContext(string $scamCode): array
+    {
+        $messages = [];
+        for ($i = 0; $i < 6; $i++) {
+            $messages[] = [
+                'direction' => $i % 2 === 0 ? 'in' : 'out',
+                'headers' => ['from' => $i % 2 === 0 ? 'scammer@evil.test' : 'victim@example.com'],
+                'body_text' => "Message {$i}",
+                'ts_msg' => '2026-01-01T10:0' . $i . ':00+00:00',
+            ];
+        }
+
+        return [
+            'scam_type' => ['code' => $scamCode, 'label_fr' => "Test {$scamCode}"],
+            'last_messages' => $messages,
+        ];
+    }
+
+    /**
+     * Build a first_contact-stage context (≤2 messages) carrying a specific scam_type code.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildFirstContactContext(string $scamCode): array
+    {
+        return [
+            'scam_type' => ['code' => $scamCode, 'label_fr' => "Test {$scamCode}"],
+            'last_messages' => [
+                ['direction' => 'in', 'headers' => ['from' => 'scammer@evil.test'], 'body_text' => 'Hello', 'ts_msg' => '2026-01-01T10:00:00+00:00'],
+            ],
+        ];
+    }
+
+    /**
+     * Build a follow_up-stage context (3-5 messages) carrying a specific scam_type code.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildFollowUpContext(string $scamCode): array
+    {
+        $messages = [];
+        for ($i = 0; $i < 4; $i++) {
+            $messages[] = [
+                'direction' => $i % 2 === 0 ? 'in' : 'out',
+                'headers' => ['from' => $i % 2 === 0 ? 'scammer@evil.test' : 'victim@example.com'],
+                'body_text' => "Message {$i}",
+                'ts_msg' => '2026-01-01T10:0' . $i . ':00+00:00',
+            ];
+        }
+
+        return [
+            'scam_type' => ['code' => $scamCode, 'label_fr' => "Test {$scamCode}"],
+            'last_messages' => $messages,
+        ];
+    }
+
+    /**
+     * Spec 118 — banking bucket: ADVANCE_FEE_419, CEO_FRAUD, INVOICE_FRAUD,
+     * INVESTMENT, JOB_OFFER all route to the banking template at payment_push,
+     * which mentions IBAN / SWIFT-BIC / wallet for crypto / phone.
+     *
+     * @dataProvider bankingBucketCodesProvider
+     */
+    public function test_spec118_uses_banking_template_for_banking_codes_at_payment_push(string $scamCode): void
+    {
+        $context = $this->buildPaymentPushContext($scamCode);
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringContainsString('payment push', $prompts['user']);
+        $this->assertStringContainsString('IBAN', $prompts['user']);
+        $this->assertStringContainsString('SWIFT/BIC', $prompts['user']);
+        $this->assertStringNotContainsString('Western Union', $prompts['user'], "Banking template must not reference Western Union for code {$scamCode}");
+        $this->assertStringNotContainsString('gift card', $prompts['user'], "Banking template must not reference gift card for code {$scamCode}");
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function bankingBucketCodesProvider(): array
+    {
+        return [
+            'ADVANCE_FEE_419' => ['ADVANCE_FEE_419'],
+            'CEO_FRAUD' => ['CEO_FRAUD'],
+            'INVOICE_FRAUD' => ['INVOICE_FRAUD'],
+            'INVESTMENT' => ['INVESTMENT'],
+            'JOB_OFFER' => ['JOB_OFFER'],
+        ];
+    }
+
+    public function test_spec118_uses_romance_template_for_ROMANCE_at_payment_push(): void
+    {
+        $context = $this->buildPaymentPushContext('ROMANCE');
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'lonely_person');
+
+        $this->assertStringContainsString('romance-context', $prompts['user']);
+        $this->assertStringContainsString('Western Union', $prompts['user']);
+        $this->assertStringContainsString('MoneyGram', $prompts['user']);
+        $this->assertStringContainsString('gift cards', $prompts['user']);
+        $this->assertStringContainsString('wallet address', $prompts['user']);
+    }
+
+    public function test_spec118_uses_lottery_template_for_LOTTERY_at_payment_push(): void
+    {
+        $context = $this->buildPaymentPushContext('LOTTERY');
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringContainsString('fee released before the prize', $prompts['user']);
+        $this->assertStringContainsString('fee processing method', $prompts['user']);
+        $this->assertStringContainsString('gift card', $prompts['user']);
+        $this->assertStringContainsString('prepaid card', $prompts['user']);
+    }
+
+    public function test_spec118_uses_charity_template_for_CHARITY_at_payment_push(): void
+    {
+        $context = $this->buildPaymentPushContext('CHARITY');
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringContainsString('charity', $prompts['user']);
+        $this->assertStringContainsString('registration number', $prompts['user']);
+        $this->assertStringContainsString('donation page URL', $prompts['user']);
+    }
+
+    public function test_spec118_uses_tech_support_template_for_TECH_SUPPORT_at_payment_push(): void
+    {
+        $context = $this->buildPaymentPushContext('TECH_SUPPORT');
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'confused_user');
+
+        $this->assertStringContainsString('tech-support context', $prompts['user']);
+        $this->assertStringContainsString('company name on the invoice', $prompts['user']);
+        $this->assertStringContainsString('callback phone number', $prompts['user']);
+        $this->assertStringContainsString('remote-access tool', $prompts['user']);
+    }
+
+    /**
+     * @dataProvider phishingBucketCodesProvider
+     */
+    public function test_spec118_uses_phishing_template_for_PHISH_codes_at_payment_push(string $scamCode): void
+    {
+        $context = $this->buildPaymentPushContext($scamCode);
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringContainsString('phishing-style request', $prompts['user'], "Phishing template missing for {$scamCode}");
+        $this->assertStringContainsString('which exact site', $prompts['user']);
+        $this->assertStringContainsString('who hosts it', $prompts['user']);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function phishingBucketCodesProvider(): array
+    {
+        return [
+            'PHISH_CREDENTIALS' => ['PHISH_CREDENTIALS'],
+            'PHISH_MALWARE' => ['PHISH_MALWARE'],
+            'PHISHING' => ['PHISHING'],
+        ];
+    }
+
+    public function test_spec118_falls_back_to_banking_for_UNKNOWN_at_payment_push(): void
+    {
+        $context = $this->buildPaymentPushContext('UNKNOWN');
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringContainsString('IBAN', $prompts['user']);
+        $this->assertStringContainsString('SWIFT/BIC', $prompts['user']);
+        $this->assertStringNotContainsString('Western Union', $prompts['user']);
+    }
+
+    public function test_spec118_falls_back_to_banking_for_unmapped_new_code_at_payment_push(): void
+    {
+        $context = $this->buildPaymentPushContext('NEW_SCAM_TYPE_XYZ');
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $this->assertStringContainsString('IBAN', $prompts['user']);
+        $this->assertStringContainsString('SWIFT/BIC', $prompts['user']);
+    }
+
+    public function test_spec118_keeps_first_contact_template_unchanged_regardless_of_scam_type(): void
+    {
+        $expected = "Stage: first contact. Express plausible interest. Ask ONE specific question about the offer itself (timeline, who you are dealing with, why you were chosen). Hold off on payment specifics until the attacker raises them.\n";
+
+        foreach (['ROMANCE', 'CHARITY', 'CEO_FRAUD', 'PHISH_MALWARE'] as $code) {
+            $context = $this->buildFirstContactContext($code);
+            $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+            $this->assertStringContainsString($expected, $prompts['user'], "first_contact template must not vary by scam_type (failed for {$code})");
+            $this->assertStringNotContainsString('Western Union', $prompts['user']);
+            $this->assertStringNotContainsString('payment push', $prompts['user']);
+        }
+    }
+
+    public function test_spec118_keeps_follow_up_template_unchanged_regardless_of_scam_type(): void
+    {
+        $expected = "Stage: follow-up. The relationship is forming. Ask ONE practical question (when you need to act, the best way to contact you, where exactly the money will go).\n";
+
+        foreach (['ROMANCE', 'CHARITY', 'CEO_FRAUD', 'TECH_SUPPORT'] as $code) {
+            $context = $this->buildFollowUpContext($code);
+            $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+            $this->assertStringContainsString($expected, $prompts['user'], "follow_up template must not vary by scam_type (failed for {$code})");
+            $this->assertStringNotContainsString('Western Union', $prompts['user']);
+            $this->assertStringNotContainsString('payment push', $prompts['user']);
+        }
+    }
+
+    /**
+     * The coherence guardrail: every payment_push template MUST end with an
+     * "ask HOW" or "ask WHAT" fallback that explicitly tells the persona not
+     * to pre-suppose a payment method. This is the hard regression guard
+     * preventing future contributors from removing the open-fallback line.
+     *
+     * @dataProvider allBucketScamCodesProvider
+     */
+    public function test_spec118_every_payment_push_template_contains_coherence_fallback(string $scamCode): void
+    {
+        $context = $this->buildPaymentPushContext($scamCode);
+
+        $prompts = $this->builder->buildGeneratorPrompts($context, 'generic_user');
+
+        $hasAskHow = str_contains($prompts['user'], 'ask HOW');
+        $hasAskWhat = str_contains($prompts['user'], 'ask WHAT');
+
+        $this->assertTrue(
+            $hasAskHow || $hasAskWhat,
+            "Coherence fallback (ask HOW / ask WHAT) missing in payment_push template for {$scamCode}"
+        );
+        $this->assertStringContainsString(
+            'do not pre-suppose any method',
+            $prompts['user'],
+            "Coherence fallback wording 'do not pre-suppose any method' missing for {$scamCode}"
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function allBucketScamCodesProvider(): array
+    {
+        return [
+            'ROMANCE (romance)' => ['ROMANCE'],
+            'LOTTERY (lottery_fee)' => ['LOTTERY'],
+            'CHARITY (charity)' => ['CHARITY'],
+            'TECH_SUPPORT (tech_support)' => ['TECH_SUPPORT'],
+            'PHISH_CREDENTIALS (phishing_pull)' => ['PHISH_CREDENTIALS'],
+            'PHISH_MALWARE (phishing_pull)' => ['PHISH_MALWARE'],
+            'PHISHING (phishing_pull)' => ['PHISHING'],
+            'CEO_FRAUD (banking)' => ['CEO_FRAUD'],
+            'UNKNOWN (banking default)' => ['UNKNOWN'],
+            'NEW_UNMAPPED_CODE (banking default)' => ['NEW_UNMAPPED_CODE'],
+        ];
+    }
 }

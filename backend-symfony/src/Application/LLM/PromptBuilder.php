@@ -149,15 +149,81 @@ final readonly class PromptBuilder
         // turn 1 (bot tell) but does push for specifics during payment_push.
         // Pairs with BasePromptRules Fix #5 (behavioral rule on payment cues).
         // See: specs/095-pipeline-audit/fix-05-06-coherent-ioc-directive/spec.md
+        //
+        // Spec 118 — at `payment_push` only, pick a scam-type-aware OBJECTIVE
+        // template. Buckets are resolved from `$context['scam_type']['code']`
+        // (DB-classified at intake, never derived from message text — keeps
+        // the LLM-only constraint of spec 116). Every payment_push template
+        // is CONDITIONAL on what the attacker actually said and ends with an
+        // explicit "ask HOW (open, do not pre-suppose any method)" fallback,
+        // so the persona never introduces a payment method the scammer
+        // never raised. `first_contact` and `follow_up` are untouched.
+        // See: specs/118-scam-aware-objective/spec.md
         /** @var string $stage */
         $stage = $stateSlots['stage'];
+        /** @var array<string, string> $scamTypeData */
+        $scamTypeData = $context['scam_type'] ?? [];
+        $scamCode = $scamTypeData['code'] ?? 'UNKNOWN';
+        $bucket = match ($scamCode) {
+            'ROMANCE' => 'romance',
+            'LOTTERY' => 'lottery_fee',
+            'CHARITY' => 'charity',
+            'TECH_SUPPORT' => 'tech_support',
+            'PHISH_CREDENTIALS', 'PHISH_MALWARE', 'PHISHING' => 'phishing_pull',
+            default => 'banking',
+        };
+
+        $this->logger->debug('[PromptBuilder] Spec 118 bucket resolved', [
+            'conv_id' => $context['conv_id'] ?? 'unknown',
+            'scam_code' => $scamCode,
+            'bucket' => $bucket,
+            'stage' => $stage,
+        ]);
+
         $userPrompt .= match ($stage) {
             'first_contact' =>
                 "Stage: first contact. Express plausible interest. Ask ONE specific question about the offer itself (timeline, who you are dealing with, why you were chosen). Hold off on payment specifics until the attacker raises them.\n",
             'follow_up' =>
                 "Stage: follow-up. The relationship is forming. Ask ONE practical question (when you need to act, the best way to contact you, where exactly the money will go).\n",
-            'payment_push' =>
-                "Stage: payment push. Money is on the table. Ask ONE concrete question to extract a specific IOC: IBAN if bank transfer, wallet address if crypto, full beneficiary name, phone number for verification.\n",
+            'payment_push' => match ($bucket) {
+                'romance' =>
+                    "Stage: payment push for a romance-context request. Money is being discussed. Ask ONE concrete question that follows directly from what the attacker just said.\n"
+                    . "  - IF they mentioned Western Union or MoneyGram, ask for the pickup name and city (or the MTCN if MoneyGram).\n"
+                    . "  - IF they mentioned gift cards (Amazon, Apple, Steam, Google Play), ask for the brand and amount they need.\n"
+                    . "  - IF they mentioned crypto or a wallet, ask for the wallet address.\n"
+                    . "  - IF they mentioned a bank wire, ask for the IBAN, SWIFT/BIC, or beneficiary name.\n"
+                    . "  - IF they have not yet specified HOW you should send the money, ask HOW (open question, do not pre-suppose any method).\n",
+                'lottery_fee' =>
+                    "Stage: payment push. The attacker wants a fee released before the prize. Ask ONE concrete question that follows directly from what the attacker just said.\n"
+                    . "  - IF they mentioned a fee processing method (gift card, prepaid card, wire), ask for the exact brand, amount, or reference number.\n"
+                    . "  - IF they mentioned a bank wire, ask for the IBAN, SWIFT/BIC, or beneficiary.\n"
+                    . "  - IF they have not yet specified HOW the fee should be paid, ask HOW (open question, do not pre-suppose any method).\n",
+                'charity' =>
+                    "Stage: payment push for a charity or donation request. Money is being asked. Ask ONE concrete question that follows directly from what the attacker just said.\n"
+                    . "  - IF they named a charity or organization, ask for its registration number or official donation page URL.\n"
+                    . "  - IF they asked for a wire, ask for the IBAN, SWIFT/BIC, or beneficiary name.\n"
+                    . "  - IF they mentioned a crypto donation, ask for the wallet address.\n"
+                    . "  - IF they have not yet specified HOW the donation should be sent, ask HOW (open question, do not pre-suppose any method).\n",
+                'tech_support' =>
+                    "Stage: payment push from a tech-support context. A charge is being applied. Ask ONE concrete question that follows directly from what the attacker just said.\n"
+                    . "  - IF they asked for credit card details, ask for the company name on the invoice and the exact amount being charged.\n"
+                    . "  - IF they offered a callback, ask for the callback phone number.\n"
+                    . "  - IF they pushed a remote-access tool, ask which tool and what permissions it will request.\n"
+                    . "  - IF they have not yet specified the payment method, ask HOW (open question, do not pre-suppose any method).\n",
+                'phishing_pull' =>
+                    "Stage: payment push from a phishing-style request. They want credentials, card details, an attachment opened, or a link clicked. Ask ONE concrete question that follows directly from what the attacker just said.\n"
+                    . "  - IF they sent a link, ask which exact site, who hosts it, and what will be displayed when you arrive.\n"
+                    . "  - IF they asked for card details, ask for the company name on the receipt and the exact charge that will appear.\n"
+                    . "  - IF they asked for a credential or password, ask which exact account and why they need it from you (instead of resetting on their side).\n"
+                    . "  - IF they sent an attachment, ask what the attachment does, who built it, and what authorization it will request.\n"
+                    . "  - IF they have not yet specified WHAT exactly you should provide, ask WHAT (open question, do not pre-suppose any method).\n",
+                default =>
+                    "Stage: payment push. Money is on the table. Ask ONE concrete question that follows directly from what the attacker just said.\n"
+                    . "  - IF they mentioned a bank wire, ask for the IBAN, SWIFT/BIC, or full beneficiary name (whichever they have not yet provided).\n"
+                    . "  - IF they mentioned crypto, ask for the wallet address.\n"
+                    . "  - IF they mentioned a phone verification step, ask for the phone number.\n"
+                    . "  - IF they have not yet specified HOW you should send the money, ask HOW (open question, do not pre-suppose any method).\n",
+            },
             default =>
                 "Ask ONE concrete question to advance the conversation toward payment details.\n",
         };
