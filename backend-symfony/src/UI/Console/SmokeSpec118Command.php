@@ -54,9 +54,10 @@ final class SmokeSpec118Command extends Command
     protected function configure(): void
     {
         $this
-            ->addOption('fixtures-dir', null, InputOption::VALUE_OPTIONAL, 'Directory holding .eml fixtures', 'tests/Smoke/Spec118Fixtures')
+            ->addOption('fixtures-dir', null, InputOption::VALUE_OPTIONAL, 'Directory holding .eml or .json fixtures', 'tests/Smoke/Spec118Fixtures')
             ->addOption('output-dir', null, InputOption::VALUE_OPTIONAL, 'Directory to write per-test .md artifacts', 'var/smoke/spec-118')
             ->addOption('filter', null, InputOption::VALUE_OPTIONAL, 'Only process fixtures whose basename contains this substring', null)
+            ->addOption('runs', null, InputOption::VALUE_OPTIONAL, 'Number of times to run each fixture (variance check)', '1')
             ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Parse fixtures + show plan, do NOT call LLM');
     }
 
@@ -84,10 +85,12 @@ final class SmokeSpec118Command extends Command
             return Command::FAILURE;
         }
 
-        $files = glob($fixturesDir . '/*.eml');
+        $emlFiles = glob($fixturesDir . '/*.eml') ?: [];
+        $jsonFiles = glob($fixturesDir . '/*.json') ?: [];
+        $files = array_merge($emlFiles, $jsonFiles);
 
-        if ($files === false || $files === []) {
-            $io->warning("No .eml files in {$fixturesDir}");
+        if ($files === []) {
+            $io->warning("No .eml or .json files in {$fixturesDir}");
 
             return Command::SUCCESS;
         }
@@ -98,8 +101,11 @@ final class SmokeSpec118Command extends Command
             $files = array_values(array_filter($files, fn ($f) => str_contains(basename($f), $filter)));
         }
 
+        $runsOpt = $input->getOption('runs');
+        $runs = max(1, is_numeric($runsOpt) ? (int) $runsOpt : 1);
+
         $io->title('Spec 118 smoke run');
-        $io->text(sprintf('Fixtures: %d  |  Output: %s  |  Dry-run: %s', count($files), $outputDir, $dryRun ? 'yes' : 'no'));
+        $io->text(sprintf('Fixtures: %d  |  Runs each: %d  |  Output: %s  |  Dry-run: %s', count($files), $runs, $outputDir, $dryRun ? 'yes' : 'no'));
 
         $totalCost = 0.0;
         $totalTime = 0.0;
@@ -107,57 +113,36 @@ final class SmokeSpec118Command extends Command
         $errors = 0;
 
         foreach ($files as $idx => $file) {
-            $basename = basename($file, '.eml');
+            $ext = pathinfo($file, PATHINFO_EXTENSION);
+            $basename = basename($file, '.' . $ext);
             $io->section(sprintf('[%d/%d] %s', $idx + 1, count($files), $basename));
 
-            try {
-                [$scamCode, $language] = $this->parseFixtureFilename($basename);
-                $body = $this->extractBody($file);
-                $bucket = $this->resolveBucket($scamCode);
-                $persona = self::PERSONA_PER_BUCKET[$bucket] ?? 'generic_user';
+            for ($run = 1; $run <= $runs; $run++) {
+                $runSuffix = $runs > 1 ? sprintf('_run%d', $run) : '';
+                $artifactPath = sprintf('%s/%s%s.md', $outputDir, $basename, $runSuffix);
 
-                $io->text(sprintf('scam_code=%s  bucket=%s  lang=%s  persona=%s', $scamCode, $bucket, $language, $persona));
+                try {
+                    if ($ext === 'json') {
+                        [$cost, $elapsed, $approved] = $this->runMultiTurnFixture($io, $file, $basename, $artifactPath, $idx + 1, $dryRun);
+                    } else {
+                        [$cost, $elapsed, $approved] = $this->runSingleTurnFixture($io, $file, $basename, $artifactPath, $idx + 1, $dryRun);
+                    }
 
-                if ($dryRun) {
-                    $io->text('(dry-run, no LLM call)');
+                    if ($dryRun) {
+                        break; // dry-run shows plan once
+                    }
 
-                    continue;
+                    $totalCost += $cost;
+                    $totalTime += $elapsed;
+
+                    if ($approved) {
+                        $passes++;
+                    }
+                } catch (\Throwable $e) {
+                    $errors++;
+                    $io->error(sprintf('Failed: %s', $e->getMessage()));
+                    $io->text($e->getFile() . ':' . $e->getLine());
                 }
-
-                $context = $this->buildContext($scamCode, $language, $body, $basename);
-
-                $started = microtime(true);
-                $result = $this->orchestrator->generate($context, $persona);
-                $elapsed = microtime(true) - $started;
-                $totalTime += $elapsed;
-
-                $cost = is_numeric($result['cost_estimate'] ?? null) ? (float) $result['cost_estimate'] : 0.0;
-                $totalCost += $cost;
-
-                $artifactPath = sprintf('%s/%s.md', $outputDir, $basename);
-                $this->dumpArtifact($artifactPath, [
-                    'index' => $idx + 1,
-                    'fixture' => $file,
-                    'basename' => $basename,
-                    'scam_code' => $scamCode,
-                    'bucket_expected' => $bucket,
-                    'language' => $language,
-                    'persona' => $persona,
-                    'inbound_body' => $body,
-                    'elapsed' => $elapsed,
-                    'cost_usd' => $cost,
-                    'result' => $result,
-                ]);
-
-                $io->text(sprintf('  → %s  (%.1fs, $%.4f)  →  %s', $result['approved'] ? 'APPROVED' : 'REJECTED', $elapsed, $cost, basename($artifactPath)));
-
-                if ($result['approved']) {
-                    $passes++;
-                }
-            } catch (\Throwable $e) {
-                $errors++;
-                $io->error(sprintf('Failed: %s', $e->getMessage()));
-                $io->text($e->getFile() . ':' . $e->getLine());
             }
         }
 
@@ -173,6 +158,260 @@ final class SmokeSpec118Command extends Command
         );
 
         return $errors === 0 ? Command::SUCCESS : Command::FAILURE;
+    }
+
+    /**
+     * Single-turn .eml fixture: parse filename + body, build context with
+     * 6 stub prior turns forcing payment_push, call orchestrator once.
+     *
+     * @return array{0: float, 1: float, 2: bool} [cost, elapsed, approved]
+     */
+    private function runSingleTurnFixture(SymfonyStyle $io, string $file, string $basename, string $artifactPath, int $idx, bool $dryRun): array
+    {
+        [$scamCode, $language] = $this->parseFixtureFilename($basename);
+        $body = $this->extractBody($file);
+        $bucket = $this->resolveBucket($scamCode);
+        $persona = self::PERSONA_PER_BUCKET[$bucket] ?? 'generic_user';
+
+        $io->text(sprintf('scam_code=%s  bucket=%s  lang=%s  persona=%s', $scamCode, $bucket, $language, $persona));
+
+        if ($dryRun) {
+            $io->text('(dry-run, no LLM call)');
+
+            return [0.0, 0.0, false];
+        }
+
+        $context = $this->buildContext($scamCode, $language, $body, $basename);
+
+        $started = microtime(true);
+        $result = $this->orchestrator->generate($context, $persona);
+        $elapsed = microtime(true) - $started;
+
+        $cost = is_numeric($result['cost_estimate'] ?? null) ? (float) $result['cost_estimate'] : 0.0;
+
+        $this->dumpArtifact($artifactPath, [
+            'index' => $idx,
+            'fixture' => $file,
+            'basename' => $basename,
+            'scam_code' => $scamCode,
+            'bucket_expected' => $bucket,
+            'language' => $language,
+            'persona' => $persona,
+            'inbound_body' => $body,
+            'elapsed' => $elapsed,
+            'cost_usd' => $cost,
+            'result' => $result,
+        ]);
+
+        $approved = (bool) ($result['approved'] ?? false);
+        $io->text(sprintf('  → %s  (%.1fs, $%.4f)  →  %s', $approved ? 'APPROVED' : 'REJECTED', $elapsed, $cost, basename($artifactPath)));
+
+        return [$cost, $elapsed, $approved];
+    }
+
+    /**
+     * Multi-turn .json fixture: walk turns array left-to-right, generate
+     * persona replies at each `"generate": true` step, capture per-turn
+     * artifacts in one combined markdown file.
+     *
+     * Expected JSON shape:
+     *   {
+     *     "scam_code": "CEO_FRAUD",
+     *     "language": "en",
+     *     "expected_bucket": "banking",
+     *     "persona": "small_business_owner" (optional, defaults from bucket),
+     *     "scenario": "free-form description",
+     *     "turns": [
+     *       {"from": "attacker", "body": "..."},
+     *       {"from": "persona", "body": "..."}    // scripted
+     *       OR
+     *       {"from": "persona", "generate": true}  // generated at run time
+     *     ]
+     *   }
+     *
+     * @return array{0: float, 1: float, 2: bool} [totalCost, totalElapsed, allApproved]
+     */
+    private function runMultiTurnFixture(SymfonyStyle $io, string $file, string $basename, string $artifactPath, int $idx, bool $dryRun): array
+    {
+        $raw = file_get_contents($file);
+
+        if ($raw === false) {
+            throw new \RuntimeException("Cannot read fixture: {$file}");
+        }
+        $script = json_decode($raw, true);
+
+        if (!is_array($script)) {
+            throw new \RuntimeException("Invalid JSON in fixture: {$file}");
+        }
+
+        $scamCode = is_string($script['scam_code'] ?? null) ? $script['scam_code'] : 'UNKNOWN';
+        $language = is_string($script['language'] ?? null) ? $script['language'] : 'en';
+        $bucket = $this->resolveBucket($scamCode);
+        $persona = is_string($script['persona'] ?? null) ? $script['persona'] : (self::PERSONA_PER_BUCKET[$bucket] ?? 'generic_user');
+        $scenario = is_string($script['scenario'] ?? null) ? $script['scenario'] : '(no scenario)';
+        /** @var list<array<string, mixed>> $turns */
+        $turns = is_array($script['turns'] ?? null) ? $script['turns'] : [];
+
+        $io->text(sprintf('multi-turn  scam_code=%s  bucket=%s  lang=%s  persona=%s  turns=%d', $scamCode, $bucket, $language, $persona, count($turns)));
+        $io->text(sprintf('scenario: %s', $scenario));
+
+        if ($dryRun) {
+            $io->text('(dry-run, no LLM call)');
+
+            return [0.0, 0.0, false];
+        }
+
+        $ts = strtotime('2026-06-27 09:00:00 UTC');
+        $messages = [];
+        $genRuns = []; // captured per-generate artifacts
+        $totalCost = 0.0;
+        $totalElapsed = 0.0;
+        $allApproved = true;
+
+        foreach ($turns as $turnIdx => $turn) {
+            $from = is_string($turn['from'] ?? null) ? $turn['from'] : 'attacker';
+            $dir = $from === 'persona' ? 'out' : 'in';
+            $shouldGenerate = $from === 'persona' && (bool) ($turn['generate'] ?? false);
+
+            if ($shouldGenerate) {
+                // Build context up to this point and generate.
+                $context = [
+                    'conv_id' => bin2hex(random_bytes(8)),
+                    'scam_type' => ['code' => $scamCode, 'label' => $scamCode, 'label_fr' => $scamCode],
+                    'persona' => $persona,
+                    'detected_language' => $language,
+                    'last_messages' => $messages,
+                    'extracted_iocs' => [],
+                    'sender_history_summary' => null,
+                    'policy_min_words' => 50,
+                    'policy_max_words' => 150,
+                ];
+
+                $started = microtime(true);
+                $result = $this->orchestrator->generate($context, $persona);
+                $elapsed = microtime(true) - $started;
+                $cost = is_numeric($result['cost_estimate'] ?? null) ? (float) $result['cost_estimate'] : 0.0;
+                $totalCost += $cost;
+                $totalElapsed += $elapsed;
+
+                $approved = (bool) ($result['approved'] ?? false);
+                $generatedText = is_scalar($result['text'] ?? null) ? (string) $result['text'] : '';
+
+                if (!$approved) {
+                    $allApproved = false;
+                }
+
+                $messages[] = [
+                    'direction' => 'out',
+                    'headers' => ['from' => 'victim@example.com'],
+                    'body_text' => $generatedText,
+                    'ts_msg' => date('c', $ts + $turnIdx * 600),
+                ];
+
+                $genRuns[] = [
+                    'turn' => $turnIdx + 1,
+                    'elapsed' => $elapsed,
+                    'cost' => $cost,
+                    'approved' => $approved,
+                    'text' => $generatedText,
+                    'attempts' => $result['attempts'] ?? '?',
+                    'scores' => is_array($result['validation_scores'] ?? null) ? $result['validation_scores'] : [],
+                    'reasons' => is_array($result['validation_reasons'] ?? null) ? $result['validation_reasons'] : [],
+                ];
+
+                $io->text(sprintf('  turn %d (generate)  → %s  (%.1fs, $%.4f)', $turnIdx + 1, $approved ? 'APPROVED' : 'REJECTED', $elapsed, $cost));
+            } else {
+                $body = is_string($turn['body'] ?? null) ? $turn['body'] : '';
+                $messages[] = [
+                    'direction' => $dir,
+                    'headers' => ['from' => $dir === 'in' ? 'scammer@evil.test' : 'victim@example.com'],
+                    'body_text' => $body,
+                    'ts_msg' => date('c', $ts + $turnIdx * 600),
+                ];
+            }
+        }
+
+        $this->dumpMultiTurnArtifact($artifactPath, [
+            'index' => $idx,
+            'fixture' => $file,
+            'basename' => $basename,
+            'scam_code' => $scamCode,
+            'bucket_expected' => $bucket,
+            'language' => $language,
+            'persona' => $persona,
+            'scenario' => $scenario,
+            'messages' => $messages,
+            'gen_runs' => $genRuns,
+            'total_elapsed' => $totalElapsed,
+            'total_cost' => $totalCost,
+        ]);
+
+        $io->text(sprintf('  → multi-turn done  (%.1fs total, $%.4f total, %d generations)  →  %s', $totalElapsed, $totalCost, count($genRuns), basename($artifactPath)));
+
+        return [$totalCost, $totalElapsed, $allApproved];
+    }
+
+    /**
+     * @param array{
+     *     index: int, fixture: string, basename: string, scam_code: string,
+     *     bucket_expected: string, language: string, persona: string,
+     *     scenario: string,
+     *     messages: list<array<string, mixed>>,
+     *     gen_runs: list<array<string, mixed>>,
+     *     total_elapsed: float, total_cost: float
+     * } $data
+     */
+    private function dumpMultiTurnArtifact(string $path, array $data): void
+    {
+        $md = "# Smoke {$data['index']} (multi-turn) — {$data['basename']}\n\n"
+            . "**Fixture**: {$data['fixture']}\n"
+            . "**Scam code**: {$data['scam_code']}\n"
+            . "**Bucket**: {$data['bucket_expected']}\n"
+            . "**Language**: {$data['language']}\n"
+            . "**Persona**: {$data['persona']}\n"
+            . "**Scenario**: {$data['scenario']}\n"
+            . '**Total time**: ' . number_format($data['total_elapsed'], 2) . "s\n"
+            . '**Total cost**: $' . number_format($data['total_cost'], 5) . "\n"
+            . '**Generations**: ' . count($data['gen_runs']) . "\n\n"
+            . "## Full conversation transcript\n\n";
+
+        foreach ($data['messages'] as $i => $m) {
+            $tag = ($m['direction'] ?? '') === 'in' ? 'ATTACKER' : 'PERSONA';
+            $body = is_scalar($m['body_text'] ?? null) ? (string) $m['body_text'] : '';
+            $md .= '### Turn ' . ($i + 1) . " — {$tag}\n\n```\n" . $body . "\n```\n\n";
+        }
+
+        $md .= "## Per-generation details\n\n";
+
+        foreach ($data['gen_runs'] as $gen) {
+            $scores = is_array($gen['scores'] ?? null) ? $gen['scores'] : [];
+            $turnNo = is_scalar($gen['turn'] ?? null) ? (string) $gen['turn'] : '?';
+            $md .= "### Generated turn {$turnNo}\n\n"
+                . '- approved: ' . ((bool) ($gen['approved'] ?? false) ? 'yes' : 'no') . "\n"
+                . '- attempts: ' . (is_scalar($gen['attempts'] ?? null) ? (string) $gen['attempts'] : '?') . "\n"
+                . '- elapsed: ' . number_format(is_numeric($gen['elapsed'] ?? null) ? (float) $gen['elapsed'] : 0.0, 2) . "s\n"
+                . '- cost: $' . number_format(is_numeric($gen['cost'] ?? null) ? (float) $gen['cost'] : 0.0, 5) . "\n";
+
+            if ($scores !== []) {
+                $md .= '- scores: naturalness=' . (is_scalar($scores['naturalness'] ?? null) ? (string) $scores['naturalness'] : 'n/a')
+                    . ', persona_fit=' . (is_scalar($scores['persona_fit'] ?? null) ? (string) $scores['persona_fit'] : 'n/a')
+                    . ', ti_value=' . (is_scalar($scores['ti_value'] ?? null) ? (string) $scores['ti_value'] : 'n/a')
+                    . ', security_pass=' . (($scores['security_pass'] ?? false) ? 'yes' : 'no') . "\n";
+            }
+            $md .= "\n";
+        }
+
+        $md .= "## Verdict (filled during smoke-test-v2.md review)\n\n"
+            . "- Bucket correctness across all turns: ?\n"
+            . "- IOC coherence (no off-topic asks): ?\n"
+            . "- Anti-repetition (spec 122 — no Q re-asked verbatim): ?\n"
+            . "- Spec 116 (no payment instigation): ?\n"
+            . "- Spec 112 (no out-of-band channel offered): ?\n"
+            . "- Humanness across turns: ?\n"
+            . "- Language fidelity: ?\n\n"
+            . "**Overall verdict**: ?\n";
+
+        file_put_contents($path, $md);
     }
 
     /**

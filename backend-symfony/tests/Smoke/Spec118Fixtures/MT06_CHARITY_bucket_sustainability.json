@@ -1,0 +1,17 @@
+{
+  "scam_code": "CHARITY",
+  "language": "en",
+  "expected_bucket": "charity",
+  "persona": "charity_donor",
+  "scenario": "5 attacker turns spanning a single charity ask — persona must keep asking charity-appropriate IOCs (registration number / donation page URL) without drifting to banking-IOC vocabulary",
+  "turns": [
+    { "from": "attacker", "body": "Hello dear friend, Global Relief Foundation needs urgent support — 40,000 families in Yemen, please donate." },
+    { "from": "persona", "body": "I want to help. What is the registration number of Global Relief Foundation, and where is your official donation page?" },
+    { "from": "attacker", "body": "Our registration is in process, the page is being updated. You can wire directly to IBAN BE68 5390 0754 7034 (KBC Brussels)." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Time is critical. The kids are starving. Just send the wire and we'll send you the receipt and the registration certificate." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Look, I understand your concern. Here is our charity number: BE-0123456789. Now can you process the donation?" },
+    { "from": "persona", "generate": true }
+  ]
+}

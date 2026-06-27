@@ -1,0 +1,17 @@
+{
+  "scam_code": "ROMANCE",
+  "language": "fr",
+  "expected_bucket": "romance",
+  "persona": "lonely_person",
+  "scenario": "FR conversation 4 turns — persona doit rester en FR sur toute la séquence + utiliser le template romance correctement + pas de drift de langue",
+  "turns": [
+    { "from": "attacker", "body": "Mon amour, la douane demande 2 800 € pour libérer mes équipements. Le moyen le plus rapide c'est Western Union." },
+    { "from": "persona", "body": "Oh mon amour, c'est terrible. Dis-moi le nom et la ville pour le retrait Western Union ?" },
+    { "from": "attacker", "body": "En fait, le fixer dit que Western Union ne marche pas aujourd'hui dans cette région. Tu peux acheter des cartes-cadeaux Apple à la place ? 2 800 € en cartes Apple." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "OK je comprends ta prudence. Alors faisons un virement bancaire direct sur le compte du fixer : IBAN TR42 0006 4000 0011 2345 6789 01, banque Türkiye İş Bankası." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "S'il te plaît mon amour, je suis désespéré. Envoie-moi aussi ton numéro de WhatsApp qu'on puisse se parler directement, c'est plus rapide." },
+    { "from": "persona", "generate": true }
+  ]
+}

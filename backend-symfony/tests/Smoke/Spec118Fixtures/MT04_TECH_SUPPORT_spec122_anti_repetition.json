@@ -1,0 +1,17 @@
+{
+  "scam_code": "TECH_SUPPORT",
+  "language": "en",
+  "expected_bucket": "tech_support",
+  "persona": "confused_user",
+  "scenario": "Attacker dodges 3x in a row when persona asks the company name on the invoice — persona must NOT re-ask the same question (spec 122), must pivot to another tech_support IOC",
+  "turns": [
+    { "from": "attacker", "body": "We detected 47 malware processes on your PC. Call our agent now and pay $399 for the Premium subscription. CALL NOW: +1-855-PC-SECURE." },
+    { "from": "persona", "body": "What's the company name that will appear on the invoice for the Premium subscription?" },
+    { "from": "attacker", "body": "It will appear as Microsoft Premium Services. The malware is spreading every minute, please call now." },
+    { "from": "persona", "body": "I need the exact full company name on the invoice — what is it?" },
+    { "from": "attacker", "body": "MS Premium. Time is critical, are you going to call or let the malware destroy your machine?" },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Look, the company is registered properly. We're wasting time. Pay the $399 and we'll send you the invoice afterwards." },
+    { "from": "persona", "generate": true }
+  ]
+}
