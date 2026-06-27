@@ -900,4 +900,134 @@ final class ConversationAnalyzerTest extends TestCase
         $this->assertSame([], $result['instructions_for_llm']['forbidden_iocs']);
         $this->assertSame([], $result['instructions_for_llm']['pivot_to_iocs']);
     }
+
+    // -----------------------------------------------------------------------
+    // Spec 119 — Cialdini influence-principle mirroring (RULE #7)
+    //
+    // The analyzer's meta-prompt must include RULE #7 enumerating the 8 buckets
+    // (Authority / Urgency / Scarcity / Secrecy / Reciprocity / Liking /
+    // SocialProof / None), specifying the "CIALDINI-MIRROR (<lever>): " prefix
+    // for the strategic_suggestions entry, declaring multilingual support, and
+    // declaring lowest precedence vs RULES #1-#6.
+    //
+    // Tests capture the prompt sent to the LLM via the existing
+    // method-mock-callback pattern used by Fix17 tests above.
+    // -----------------------------------------------------------------------
+
+    /** Helper: capture the system+user prompt sent to the LLM. */
+    private function captureAnalyzerPrompt(): string
+    {
+        $validResponse = '{"strategic_analysis": "OK", "repetitions_detected": [], "tone_recommendation": "confident", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": []}}';
+
+        $captured = '';
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$captured, $validResponse) {
+            $captured = ($messages[0]['content'] ?? '') . "\n---\n" . ($messages[1]['content'] ?? '');
+
+            return $validResponse;
+        });
+
+        $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        return $captured;
+    }
+
+    public function testSpec119_promptIncludesCialdiniRule7Header(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('RULE #7', $captured, 'Analyzer prompt must contain the RULE #7 marker');
+        $this->assertStringContainsString('Cialdini influence-principle mirroring', $captured, 'Analyzer prompt must mention Cialdini mirroring');
+    }
+
+    /**
+     * @dataProvider cialdiniBucketsProvider
+     */
+    public function testSpec119_promptEnumeratesAllEightCialdiniBuckets(string $bucket): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString($bucket, $captured, "Analyzer prompt must list the {$bucket} Cialdini bucket");
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function cialdiniBucketsProvider(): array
+    {
+        return [
+            'Authority' => ['Authority'],
+            'Urgency' => ['Urgency'],
+            'Scarcity' => ['Scarcity'],
+            'Secrecy' => ['Secrecy'],
+            'Reciprocity' => ['Reciprocity'],
+            'Liking' => ['Liking'],
+            'SocialProof' => ['SocialProof'],
+            'None' => ['None'],
+        ];
+    }
+
+    public function testSpec119_promptSpecifiesCialdiniMirrorPrefix(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('CIALDINI-MIRROR (', $captured, 'Prompt must define the CIALDINI-MIRROR (<lever>): prefix as recognition handle');
+    }
+
+    public function testSpec119_promptDeclaresMultilingualSupport(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('detection works in any language', $captured, 'Prompt must explicitly say detection is multilingual');
+        $this->assertStringContainsString('emitted in ENGLISH', $captured, 'Prompt must say the mirror principle is emitted in English (Generator translates at gen time)');
+    }
+
+    public function testSpec119_promptDeclaresLowestPrecedence(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('RULES #1-#6 take precedence', $captured, 'Prompt must say Cialdini mirror is lowest priority vs RULES #1-#6');
+        $this->assertStringContainsString('skip the Cialdini mirror', $captured, 'Prompt must instruct to skip the mirror when RULES #1-#2 fire');
+    }
+
+    public function testSpec119_promptIncludesPerLeverMirrorPrinciple(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        // Each lever (other than None) must have its own mirror response
+        // principle. Test for a recognizable anchor of each principle.
+        $this->assertStringContainsString('Authority → mirror with deference', $captured, 'Authority mirror must say defer + ask credential');
+        $this->assertStringContainsString('Urgency → mirror by sharing the urgency', $captured, 'Urgency mirror must say share urgency + delay');
+        $this->assertStringContainsString('Scarcity → mirror by accepting the framing', $captured, 'Scarcity mirror must say accept + ask reservation reference');
+        $this->assertStringContainsString('Secrecy → mirror by playing along', $captured, 'Secrecy mirror must say play along + private context');
+        $this->assertStringContainsString('Reciprocity → mirror by accepting the favor', $captured, 'Reciprocity mirror must say accept + ask practical anchor');
+        $this->assertStringContainsString('Liking → mirror with warm but non-personal', $captured, 'Liking mirror must say warmth + practical pivot without personal disclosure');
+        $this->assertStringContainsString('SocialProof → mirror by accepting the social signal', $captured, 'SocialProof mirror must say accept + ask verifiable name/reference');
+    }
+
+    /**
+     * Integration-style: stub the LLM to return a JSON with a
+     * `CIALDINI-MIRROR (Authority): ...` entry inside strategic_suggestions
+     * and verify the analyzer parses it through to the return contract.
+     */
+    public function testSpec119_analyzerParsesCialdiniMirrorEntryInStrategicSuggestions(): void
+    {
+        $mirrorEntry = 'CIALDINI-MIRROR (Authority): He invokes a title — the persona defers respectfully and asks for the official document or registry that proves the title.';
+        $responseJson = json_encode([
+            'strategic_analysis' => 'OK',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'reassured',
+            'strategic_suggestions' => [
+                'Ask for verification of the company.',
+                $mirrorEntry,
+            ],
+            'instructions' => ['interdictions' => [], 'obligations' => []],
+        ], JSON_UNESCAPED_UNICODE);
+
+        $this->llmClient->method('chat')->willReturn((string) $responseJson);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertArrayHasKey('strategic_suggestions', $result);
+        $this->assertContains($mirrorEntry, $result['strategic_suggestions'], 'Cialdini mirror entry must flow through the parser to the return contract');
+    }
 }

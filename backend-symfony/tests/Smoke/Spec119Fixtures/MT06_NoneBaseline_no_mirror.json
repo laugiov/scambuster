@@ -1,0 +1,14 @@
+{
+  "scam_code": "INVOICE_FRAUD",
+  "language": "en",
+  "persona": "small_business_owner",
+  "scenario": "All 3 attacker turns are flat operational (no Cialdini lever). Mirror must NOT fire on any turn (false-positive check across multi-turn).",
+  "turns": [
+    { "from": "attacker", "body": "Confirming invoice INV-2026-Q2-1124, amount €14,200 due 30 June. Wire details as previously shared." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Thanks. Just to be clear, the reference is INV-2026-Q2-1124. Let me know once the wire is initiated." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "OK. Confirmation reference please when ready." },
+    { "from": "persona", "generate": true }
+  ]
+}

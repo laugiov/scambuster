@@ -194,6 +194,10 @@ smoke-spec-118:    ##@test Spec 118 smoke harness — drive reply pipeline on .e
 	@chmod -R 777 backend-symfony/var/smoke 2>/dev/null || mkdir -p backend-symfony/var/smoke && chmod -R 777 backend-symfony/var/smoke
 	$(DC) exec $(PHP_CONTAINER_DEV) php bin/console scambuster:smoke:spec118
 
+smoke-spec-119:    ##@test Spec 119 smoke harness — drive reply pipeline + capture Cialdini mirror detection (~$0.15 in real LLM calls)
+	@chmod -R 777 backend-symfony/var/smoke 2>/dev/null || mkdir -p backend-symfony/var/smoke && chmod -R 777 backend-symfony/var/smoke
+	$(DC) exec $(PHP_CONTAINER_DEV) php bin/console scambuster:smoke:spec119
+
 # ======================================================================
 #  FIXTURES
 # ======================================================================

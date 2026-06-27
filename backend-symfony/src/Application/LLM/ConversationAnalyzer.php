@@ -474,6 +474,123 @@ ANALYSIS RULES:
    it requires an EXPLICIT deferral phrase. When in doubt, fall back to the
    standard cadence rules (section 3 below).
 
+   🚨 RULE #7 — Cialdini influence-principle mirroring (HIGH PRIORITY):
+
+   Spec 119 — supports the BH USA narrative "every button he presses, I press
+   one back". When the attacker uses a classic influence principle, the
+   persona should mirror it: give the attacker what he expects emotionally
+   while extracting one more IOC.
+
+   SCAN the scammer's LAST message and identify which Cialdini influence
+   principle is dominant. Pick exactly ONE from this closed list, or pick
+   "None" if no principle clearly applies:
+
+   - Authority: scammer leans on a title, rank, institution, regulator,
+     boss, CEO, lawyer, "officer", "director", "Dr.", "Prof.", or any
+     uniform / hierarchy cue ("as the appointed agent", "by order of the
+     bank", "I am the director of …").
+   - Urgency: scammer pushes a tight deadline, last-chance framing,
+     time-running-out wording ("today only", "before Friday", "the window
+     closes in 2 hours", "act now or lose it").
+   - Scarcity: scammer emphasizes rarity, limited slots, one-of-a-kind
+     opportunity ("only 3 spots left", "first come first served",
+     "exclusive to a few selected clients").
+   - Secrecy: scammer demands the conversation stay private, that you do
+     not tell colleagues / bank / family / lawyer, that this be kept
+     "between us", "confidential", "off the record".
+   - Reciprocity: scammer presents a "favor" or "gift" first to create
+     obligation ("I am doing you a favor", "I am personally helping you",
+     "as a special arrangement just for you", "I waived the fee").
+   - Liking: scammer uses excessive flattery, personal warmth, or fake
+     intimacy ("my dear friend", "I trust only you", "you are special",
+     "I feel a real connection with you").
+   - SocialProof: scammer cites other people who already complied, names
+     other "clients", or invokes a group consensus ("many of our customers
+     already did this", "everyone in your position has accepted", "your
+     colleagues have already signed").
+   - None: no clear influence principle in the last message — skip the
+     mirror.
+
+   If a principle was detected (NOT "None"):
+
+   → ADD ONE entry to the "strategic_suggestions" array describing the
+     MATCHED mirror response (the persona "presses one button back").
+
+     - Authority → mirror with deference. The persona acknowledges the
+       title/rank and asks for the formal credential that goes with it
+       (registration number, official letter, badge ID, registry URL).
+       Example principle (DO NOT quote verbatim, adapt to language): "He
+       invokes a title — the persona defers respectfully and asks for the
+       official document or registry that proves the title."
+
+     - Urgency → mirror by sharing the urgency, then introducing a delay
+       OUTSIDE the persona's control. The persona accepts that the
+       situation is urgent on its side too, then names an obstacle it
+       cannot remove (boss to consult, bank end-of-day cutoff, system
+       maintenance, partner signature needed). The delay is real-sounding,
+       not a refusal.
+       Example principle: "He pushes a deadline — the persona agrees the
+       deadline matters and proposes a near-term action, while naming one
+       obstacle outside its control that pushes completion by a day."
+
+     - Scarcity → mirror by accepting the framing, then asking for ONE
+       concrete fact that locks the persona's slot (reservation reference,
+       a number to verify the slot, a written confirmation of allocation).
+       Example principle: "He cites limited slots — the persona accepts
+       eagerly and asks for the reference number that confirms the slot
+       is reserved for them specifically."
+
+     - Secrecy → mirror by playing along. The persona agrees to keep it
+       discreet, references a small change in personal context that
+       supports the secrecy (working from home today, the office is empty),
+       and then asks for the next concrete step.
+       Example principle: "He demands secrecy — the persona agrees to keep
+       it private and asks for the next step without naming anyone else."
+
+     - Reciprocity → mirror by accepting the favor warmly, then asking for
+       the matching practical detail that turns the favor into a concrete
+       action (where to send the form, who signs off, what reference the
+       persona should use).
+       Example principle: "He offers a favor — the persona accepts the
+       favor and asks for the practical anchor (reference, contact, next
+       step) that makes the favor real."
+
+     - Liking → mirror with warm but non-personal interest. The persona
+       returns the warmth without disclosing private details, and pivots
+       to a practical question.
+       Example principle: "He uses flattery — the persona returns the
+       warmth politely without disclosing personal facts, and asks one
+       practical question that moves the conversation forward."
+
+     - SocialProof → mirror by accepting the social signal, then asking
+       for ONE concrete name or reference the persona can verify
+       independently (a client name, a public review, a registry).
+       Example principle: "He cites other clients — the persona accepts
+       the social proof and asks for ONE name or public reference they
+       can verify themselves."
+
+   → FORMAT requirement: the mirror entry in "strategic_suggestions" MUST
+     start with the prefix "CIALDINI-MIRROR (<lever>): " followed by the
+     principle wording. Example: "CIALDINI-MIRROR (Authority): He invokes
+     a title — the persona defers respectfully and asks for the official
+     document or registry that proves the title." This prefix is the
+     recognition handle for downstream tooling and tests.
+
+   → DO NOT add the entry when the detected principle is "None".
+
+   → The Cialdini mirror is ONE entry in strategic_suggestions, alongside
+     the existing suggestions. Do NOT replace existing suggestions — add
+     to the list.
+
+   ⚠️ PRECEDENCE: RULES #1-#6 take precedence. If RULE #1 (bot accusation)
+   or RULE #2 (aggression) fires, skip the Cialdini mirror — humanizing
+   the reply matters more than mirroring the influence lever.
+
+   ⚠️ MULTILINGUAL: detection works in any language. The mirror principle
+   in strategic_suggestions is emitted in ENGLISH (matching the rest of
+   the analyzer output convention) — the Generator LLM translates the
+   principle into the conversation's target language at generation time.
+
 3. TONE RECOMMENDATIONS (if no mandatory rule applies):
    - worried (1-2 messages): Victim discovers the message, asks basic questions
    - suspicious (3-4 messages): Victim has doubts, asks for proof
