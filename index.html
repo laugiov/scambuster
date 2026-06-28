@@ -46,8 +46,6 @@
       <a href="#idea">The idea</a>
       <a href="#how">How it works</a>
       <a href="#talk">The talk</a>
-      <!-- DEMO URL: demo.scambuster.ai (CNAME to the Railway frontend) -->
-      <a href="https://demo.scambuster.ai/login" target="_blank" rel="noopener noreferrer">Demo</a>
       <a href="mailto:contact@scambuster.ai">Contact</a>
       <a href="https://github.com/laugiov" rel="noopener" target="_blank">GitHub</a>
     </nav>
@@ -89,10 +87,14 @@
         <span class="badge">HUMAN FACTORS TRACK</span>
       </div>
 
-      <!-- DEMO URL: demo.scambuster.ai (CNAME to the Railway frontend) -->
-      <a class="btn btn--primary" href="https://demo.scambuster.ai/login" target="_blank" rel="noopener noreferrer">
-        <span class="btn__prompt">&gt;</span> OPEN THE LIVE DEMO
-      </a>
+      <!-- Demo under embargo for Black Hat exclusivity until the talk. Re-enable the link (btn btn--primary, href to demo.scambuster.ai) after the conference. -->
+      <div class="embargo">
+        <span class="btn btn--locked" aria-disabled="true">
+          <span class="btn__prompt">&gt;</span> OPEN THE LIVE DEMO
+        </span>
+        <span class="embargo__seal">EMBARGOED</span>
+      </div>
+      <p class="embargo__note">The live demo opens at Black Hat USA 2026.</p>
 
       <a class="scrollcue" href="#idea" aria-label="Scroll to the idea">
         <span>SCROLL</span>
@@ -170,10 +172,13 @@
       <a class="btn" href="https://blackhat.com/us-26/briefings/schedule/index.html?track[]=human-factors#scambuster-social-engineering-scammers-at-scale-52575" rel="noopener" target="_blank">
         <span class="btn__prompt">&gt;</span> Session page
       </a>
-      <!-- DEMO URL: demo.scambuster.ai (CNAME to the Railway frontend) -->
-      <a class="btn" href="https://demo.scambuster.ai/login" target="_blank" rel="noopener noreferrer">
-        <span class="btn__prompt">&gt;</span> Live demo
-      </a>
+      <!-- Demo under embargo until Black Hat. Re-enable the link (btn, href to demo.scambuster.ai) after the conference. -->
+      <span class="embargo">
+        <span class="btn btn--locked" aria-disabled="true">
+          <span class="btn__prompt">&gt;</span> Live demo
+        </span>
+        <span class="embargo__seal">EMBARGOED</span>
+      </span>
     </section>
 
     <!-- ============ OPEN ============ -->
@@ -188,8 +193,7 @@
         </span>
         <span class="embargo__seal">EMBARGOED</span>
       </div>
-      <!-- DEMO URL: demo.scambuster.ai (CNAME to the Railway frontend) -->
-      <p class="embargo__note">Under embargo for Black Hat exclusivity. The code opens at Black Hat USA 2026. In the meantime, explore the <a href="https://demo.scambuster.ai/login" target="_blank" rel="noopener noreferrer">live demo</a>.</p>
+      <p class="embargo__note">Under embargo for Black Hat exclusivity. The code opens at Black Hat USA 2026.</p>
     </section>
 
   </main>
