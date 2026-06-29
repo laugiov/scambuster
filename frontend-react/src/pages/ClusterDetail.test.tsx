@@ -347,6 +347,30 @@ describe('ClusterDetail — Verdict + SignalTiles (spec 121)', () => {
     const header = container.querySelector('header');
     expect(header?.textContent ?? '').not.toMatch(/Minimal/i);
   });
+
+  it('renders a reach bar for each anchor IOC (spec 121 C4)', async () => {
+    server.use(detailHandler);
+    const { container } = render(<ClusterDetail />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
+    });
+    const bars = container.querySelectorAll('[data-testid="anchor-reach-bar"]');
+    expect(bars.length).toBe(mockClusterDetail.anchor_iocs.length);
+  });
+
+  it('renders the campaign excerpts panel when sample_excerpts is non-empty', async () => {
+    server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
+      ...mockClusterDetail,
+      sample_excerpts: [
+        { text: 'scammer dropped a bank account', occurrence_count: 1, source_conv_id: 'aaaaaaaa-1111-2222-3333-444444444444' },
+      ],
+    })));
+    const { container } = render(<ClusterDetail />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
+    });
+    expect(container.querySelector('[data-testid="campaign-excerpts"]')).not.toBeNull();
+  });
 });
 
 describe('ClusterDetail — anchor IOC behavioral pills (Sprint 2)', () => {
