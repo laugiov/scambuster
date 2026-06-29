@@ -143,13 +143,24 @@ describe('Clusters', () => {
     expect(pos & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('does not render a Sophistication column header', async () => {
-    setupHandlers();
-    render(<Clusters />, { wrapper: createWrapper() });
+  it('renders the Sophistication column with a tone per tier (C6 re-enabled)', async () => {
+    server.use(
+      http.get(`${BASE}/clusters`, () => HttpResponse.json([
+        { ...mockClusters[0], sophistication: 'intermediate' },
+        { ...mockClusters[1], sophistication: 'advanced' },
+      ])),
+      http.get(`${BASE}/clusters/stats`, () => HttpResponse.json(mockClusterStats)),
+    );
+    const { container } = render(<Clusters />, { wrapper: createWrapper() });
     await waitFor(() => {
       expect(screen.getByText(/ScamBuster Cluster #ABCD/)).toBeInTheDocument();
     });
-    expect(screen.queryByText(/Sophistication/i)).toBeNull();
+    expect(screen.getByText(/Sophistication/i)).toBeDefined();
+    const cells = container.querySelectorAll('[data-sophistication]');
+    expect(cells.length).toBe(2);
+    const tiers = Array.from(cells).map((el) => el.getAttribute('data-sophistication'));
+    expect(tiers).toContain('intermediate');
+    expect(tiers).toContain('advanced');
   });
 
   it('renders a freshness dot per cluster row', async () => {

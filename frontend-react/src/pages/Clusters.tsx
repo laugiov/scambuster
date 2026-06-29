@@ -28,6 +28,13 @@ function isFinancialAnchor(anchorTypes: string[]): boolean {
   return anchorTypes.some((t) => FINANCIAL_ANCHOR_TYPES.has(t));
 }
 
+const SOPHISTICATION_STYLE: Record<string, { label: string; cls: string }> = {
+  none: { label: 'None', cls: 'bg-surface-dim text-on-surface-dim' },
+  minimal: { label: 'Minimal', cls: 'bg-surface-dim text-on-surface-variant' },
+  intermediate: { label: 'Intermediate', cls: 'bg-warning/20 text-warning' },
+  advanced: { label: 'Advanced', cls: 'bg-error/20 text-error font-medium' },
+};
+
 function compareClusters(a: Cluster & { _bucket: RecencyBucket }, b: Cluster & { _bucket: RecencyBucket }) {
   const r = recencyRank(b._bucket) - recencyRank(a._bucket);
   if (r !== 0) return r;
@@ -93,6 +100,7 @@ export function Clusters() {
                 <th className="px-4 py-3 font-medium">Cluster</th>
                 <th className="px-4 py-3 font-medium">Scam Types</th>
                 <th className="px-4 py-3 font-medium text-right">Conversations</th>
+                <th className="px-4 py-3 font-medium">Sophistication</th>
                 <th className="px-4 py-3 font-medium">Anchor IOCs</th>
                 <th className="px-4 py-3 font-medium">Period</th>
               </tr>
@@ -145,6 +153,19 @@ export function Clusters() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-mono">{c.conversation_count}</td>
+                    <td className="px-4 py-3">
+                      {(() => {
+                        const s = SOPHISTICATION_STYLE[c.sophistication] ?? SOPHISTICATION_STYLE.minimal;
+                        return (
+                          <span
+                            className={`px-1.5 py-0.5 text-xs rounded ${s.cls}`}
+                            data-sophistication={c.sophistication}
+                          >
+                            {s.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1" data-anchor-kind={isFinancial ? 'financial' : 'phone'}>
                         {c.anchor_ioc_types.map((t) => {
