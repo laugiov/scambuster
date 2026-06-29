@@ -255,8 +255,21 @@ describe('ClusterDetail — Campaign Excerpts (Task 1.3 + audit fixes)', () => {
   });
 });
 
-describe('ClusterDetail — Threat Profile section (Sprint 2)', () => {
-  it('renders Threat Profile section when behavioral_profile present', async () => {
+describe('ClusterDetail — Verdict + SignalTiles (spec 121)', () => {
+  it('renders the verdict banner above the STIX ID', async () => {
+    server.use(detailHandler);
+    const { container } = render(<ClusterDetail />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
+    });
+
+    const verdict = container.querySelector('[data-testid="cluster-verdict"]');
+    expect(verdict).not.toBeNull();
+    expect(verdict?.textContent ?? '').not.toBe('');
+  });
+
+  it('renders SignalTiles when behavioral_profile is present', async () => {
     server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
       ...mockClusterDetail,
       behavioral_profile: {
@@ -274,15 +287,15 @@ describe('ClusterDetail — Threat Profile section (Sprint 2)', () => {
     render(<ClusterDetail />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(screen.getByText(/Threat Profile/i)).toBeDefined();
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
     });
 
-    expect(screen.getByText(/Urgency Pressure/i)).toBeDefined();
-    expect(screen.getByText(/76%/)).toBeDefined();
-    expect(screen.getByText(/Turn 1/)).toBeDefined();
+    expect(screen.getByTestId('signal-tiles')).toBeDefined();
+    expect(screen.getByTestId('signal-tile-tactic')).toBeDefined();
+    expect(screen.getByTestId('signal-tile-reveal')).toBeDefined();
   });
 
-  it('hides Threat Profile when no enriched IOCs', async () => {
+  it('hides SignalTiles when there are no enriched IOCs', async () => {
     server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
       ...mockClusterDetail,
       behavioral_profile: null,
@@ -294,10 +307,10 @@ describe('ClusterDetail — Threat Profile section (Sprint 2)', () => {
       expect(screen.getByText('DE89370400440532013000')).toBeDefined();
     });
 
-    expect(screen.queryByText(/Threat Profile/i)).toBeNull();
+    expect(screen.queryByTestId('signal-tiles')).toBeNull();
   });
 
-  it('shows templated excerpt count when > 0', async () => {
+  it('shows the Automation tile when templated_excerpt_count > 1', async () => {
     server.use(http.get(`${BASE}/clusters/:id`, () => HttpResponse.json({
       ...mockClusterDetail,
       behavioral_profile: {
@@ -307,18 +320,32 @@ describe('ClusterDetail — Threat Profile section (Sprint 2)', () => {
         dominant_revelation_turn: 1,
         hesitation_count: 0,
         language_switch_count: 0,
-        templated_excerpt_count: 3,
-        total_enriched_iocs: 10,
+        templated_excerpt_count: 58,
+        total_excerpt_variant_count: 5,
+        total_enriched_iocs: 60,
       },
     })));
 
     render(<ClusterDetail />, { wrapper: createWrapper() });
 
     await waitFor(() => {
-      expect(screen.getByText(/Threat Profile/i)).toBeDefined();
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
     });
 
-    expect(screen.getByText(/3 IOCs share identical/i)).toBeDefined();
+    const tile = screen.getByTestId('signal-tile-automation');
+    expect(tile.textContent).toMatch(/Templated/);
+  });
+
+  it('hides the sophistication subtitle in the header when value is "minimal"', async () => {
+    server.use(detailHandler);
+    const { container } = render(<ClusterDetail />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('DE89370400440532013000')).toBeDefined();
+    });
+
+    const header = container.querySelector('header');
+    expect(header?.textContent ?? '').not.toMatch(/Minimal/i);
   });
 });
 

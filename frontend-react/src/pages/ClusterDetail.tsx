@@ -13,6 +13,8 @@ import {
   urgencyColorClass,
   urgencyTextClass,
 } from '@/lib/iocContextLabels';
+import { VerdictBanner } from '@/components/clusters/VerdictBanner';
+import { SignalTiles } from '@/components/clusters/SignalTiles';
 import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
 
@@ -106,8 +108,12 @@ export function ClusterDetail() {
           </Link>
           <h1 className="text-xl font-semibold text-on-surface mt-1">{cluster.name}</h1>
           <div className="flex items-center gap-3 mt-1 text-xs text-on-surface-dim">
-            <span className="capitalize">{cluster.sophistication}</span>
-            <span>&middot;</span>
+            {cluster.sophistication && cluster.sophistication !== 'minimal' && (
+              <>
+                <span className="capitalize">{cluster.sophistication}</span>
+                <span>&middot;</span>
+              </>
+            )}
             <span>{formatDate(cluster.first_seen)} – {formatDate(cluster.last_seen)}</span>
             <span>&middot;</span>
             <span>v{cluster.algorithm_version}</span>
@@ -124,6 +130,8 @@ export function ClusterDetail() {
         </button>
       </header>
 
+      <VerdictBanner cluster={cluster} />
+
       <div className="flex items-center gap-2 text-xs">
         <span className="text-on-surface-dim">STIX ID:</span>
         <code className="bg-surface-dim px-2 py-0.5 rounded text-on-surface font-mono text-xs select-all">
@@ -132,74 +140,24 @@ export function ClusterDetail() {
       </div>
 
       {cluster.behavioral_profile && cluster.behavioral_profile.total_enriched_iocs > 0 && (
-        <section className="rounded-lg border border-border bg-surface-low/30">
-          <div className="px-4 py-2 border-b border-border">
-            <h2 className="text-xs uppercase tracking-widest text-on-surface-dim">Threat Profile</h2>
-          </div>
-          <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-xs">
-            {cluster.behavioral_profile.dominant_stimulus && (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-on-surface-dim">Primary tactic</span>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded font-medium ${STIMULUS_COLORS[normalizeContextKey(cluster.behavioral_profile.dominant_stimulus)] ?? 'bg-on-surface-dim/20 text-on-surface-dim'}`}>
-                    {humanizeContext(cluster.behavioral_profile.dominant_stimulus)}
-                  </span>
-                  <span className="text-on-surface-dim">
-                    {cluster.behavioral_profile.dominant_stimulus_count}/{cluster.conversation_count}
-                  </span>
-                </div>
-              </div>
-            )}
-            {cluster.behavioral_profile.dominant_revelation_turn !== null && (
-              <div className="flex items-center justify-between">
-                <span className="text-on-surface-dim">IOC revelation</span>
-                <span className="text-on-surface font-medium">
-                  Turn {cluster.behavioral_profile.dominant_revelation_turn}
-                  {cluster.behavioral_profile.dominant_revelation_turn === 1 && (
-                    <span className="text-on-surface-dim ml-1">· Initial email</span>
-                  )}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-on-surface-dim">Avg scammer urgency</span>
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-16 h-1.5 bg-surface-dim rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${urgencyColorClass(cluster.behavioral_profile.avg_urgency_score)}`}
-                    style={{ width: `${Math.round(cluster.behavioral_profile.avg_urgency_score * 100)}%` }}
-                  />
-                </div>
-                <span className={`font-medium ${urgencyTextClass(cluster.behavioral_profile.avg_urgency_score)}`}>
-                  {Math.round(cluster.behavioral_profile.avg_urgency_score * 100)}%
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-on-surface-dim">Hesitation detected</span>
-              <span className={cluster.behavioral_profile.hesitation_count > 0 ? 'text-warning font-medium' : 'text-on-surface-dim'}>
-                {cluster.behavioral_profile.hesitation_count} conversation{cluster.behavioral_profile.hesitation_count !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-on-surface-dim">Language switches</span>
-              <span className={cluster.behavioral_profile.language_switch_count > 0 ? 'text-warning font-medium' : 'text-on-surface-dim'}>
-                {cluster.behavioral_profile.language_switch_count} conversation{cluster.behavioral_profile.language_switch_count !== 1 ? 's' : ''}
-              </span>
-            </div>
-            {cluster.behavioral_profile.templated_excerpt_count > 0 && (
-              <div className="md:col-span-2 flex items-center justify-between gap-3 mt-1 pt-2 border-t border-border/50">
-                <span className="text-on-surface-dim">Template signal</span>
-                <span className="px-2 py-0.5 rounded bg-warning/20 text-warning font-medium flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  {cluster.behavioral_profile.templated_excerpt_count} IOCs share identical excerpt
-                </span>
-              </div>
-            )}
-          </div>
-        </section>
+        <SignalTiles
+          profile={cluster.behavioral_profile}
+          anchors={cluster.anchor_iocs}
+          conversationCount={cluster.conversation_count}
+        />
+      )}
+
+      {cluster.behavioral_profile && cluster.behavioral_profile.total_enriched_iocs > 0 &&
+       (cluster.behavioral_profile.hesitation_count > 0 || cluster.behavioral_profile.language_switch_count > 0) && (
+        <div className="flex items-center gap-4 text-xs text-on-surface-dim">
+          <span className={cluster.behavioral_profile.hesitation_count > 0 ? 'text-warning font-medium' : ''}>
+            Hesitation: {cluster.behavioral_profile.hesitation_count} conversation{cluster.behavioral_profile.hesitation_count !== 1 ? 's' : ''}
+          </span>
+          <span>&middot;</span>
+          <span className={cluster.behavioral_profile.language_switch_count > 0 ? 'text-warning font-medium' : ''}>
+            Language switches: {cluster.behavioral_profile.language_switch_count}
+          </span>
+        </div>
       )}
 
       {cluster.sample_excerpts && cluster.sample_excerpts.length > 0 && (
