@@ -274,7 +274,11 @@ final readonly class IocClusteringService
                 'name' => $name,
                 'convCount' => $count,
                 'anchorCount' => \count($anchorIocs),
-                'sophistication' => $meta['sophistication'],
+                'sophistication' => self::computeSophistication(
+                    $count,
+                    \count($meta['scam_types']),
+                    \count($anchorIocs)
+                ),
                 'scamTypes' => '{' . implode(',', $meta['scam_types']) . '}',
                 'goals' => '{financial-theft}',
                 'firstSeen' => $meta['first_seen'],
@@ -471,7 +475,11 @@ final readonly class IocClusteringService
                 'status' => $status,
                 'convCount' => $convCount,
                 'anchorCount' => $anchorCount,
-                'sophistication' => $meta['sophistication'],
+                'sophistication' => self::computeSophistication(
+                    $convCount,
+                    \count($meta['scam_types']),
+                    $anchorCount
+                ),
                 'scamTypes' => '{' . implode(',', $meta['scam_types']) . '}',
                 'lastSeen' => $meta['last_seen'],
                 'now' => $now,
@@ -613,11 +621,92 @@ final readonly class IocClusteringService
         }
 
         return [
-            'sophistication' => 'minimal', // Simplified — full calculation in STIX builder
+            // Sophistication is now computed by computeSophistication() at the
+            // call site, where anchor_ioc_count is also known. Kept as
+            // 'minimal' here as a defensive default for callers that read the
+            // metadata array directly without going through the insert/update
+            // path. The value WILL be overwritten in computeSophistication().
+            'sophistication' => 'minimal',
             'scam_types' => array_unique($scamTypes),
             'first_seen' => $firstSeen ?? (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
             'last_seen' => $lastSeen ?? (new \DateTimeImmutable())->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Compute the cluster sophistication tier from cluster-level facts known
+     * at insert / update time. Pure deterministic function — testable in
+     * isolation without a DB. Output is one of: 'none' | 'minimal' |
+     * 'intermediate' | 'advanced' (matches the existing enum in
+     * threat_actor_cluster.sophistication).
+     *
+     * Scoring rationale: each axis below adds 1 point. The tiers reflect
+     * what a SOC analyst reading the cluster card cares about — how many
+     * victims, how many distinct scam types, how broad is the
+     * infrastructure surface. Template signal is captured separately by
+     * behavioural_profile.templated_excerpt_count and is not folded in here
+     * to keep the function callable at insert time, before any ioc_context
+     * row has been enriched.
+     *
+     *   conv_count >= 4          → +1
+     *   conv_count >= 10         → +1
+     *   conv_count >= 20         → +1
+     *   distinct_scam_types >= 2 → +1
+     *   anchor_ioc_count >= 2    → +1
+     *   anchor_ioc_count >= 4    → +1
+     *
+     *   score >= 4 → advanced
+     *   score >= 2 → intermediate
+     *   score >= 1 → minimal
+     *
+     * Hard floor: a cluster with < 2 conversations OR no anchor IOC is
+     * 'none' regardless of the other axes (defensive — the clustering
+     * service should never insert such a row, but we guard anyway).
+     */
+    public static function computeSophistication(
+        int $convCount,
+        int $distinctScamTypeCount,
+        int $anchorIocCount
+    ): string {
+        if ($convCount < 2 || $anchorIocCount < 1) {
+            return 'none';
+        }
+
+        $score = 0;
+
+        if ($convCount >= 4) {
+            $score++;
+        }
+
+        if ($convCount >= 10) {
+            $score++;
+        }
+
+        if ($convCount >= 20) {
+            $score++;
+        }
+
+        if ($distinctScamTypeCount >= 2) {
+            $score++;
+        }
+
+        if ($anchorIocCount >= 2) {
+            $score++;
+        }
+
+        if ($anchorIocCount >= 4) {
+            $score++;
+        }
+
+        if ($score >= 4) {
+            return 'advanced';
+        }
+
+        if ($score >= 2) {
+            return 'intermediate';
+        }
+
+        return 'minimal';
     }
 
     /**

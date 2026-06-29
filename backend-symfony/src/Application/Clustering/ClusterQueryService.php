@@ -353,6 +353,7 @@ final readonly class ClusterQueryService
      *     hesitation_count: int,
      *     language_switch_count: int,
      *     templated_excerpt_count: int,
+     *     total_excerpt_variant_count: int,
      *     total_enriched_iocs: int
      * }|null Null if no enriched ioc_context rows for the cluster
      */
@@ -365,7 +366,8 @@ final readonly class ClusterQueryService
                 MODE() WITHIN GROUP (ORDER BY ic.revelation_turn) AS dominant_revelation_turn,
                 COUNT(DISTINCT m.conv_id) FILTER (WHERE ic.hesitation_detected = TRUE) AS hesitation_count,
                 COUNT(DISTINCT m.conv_id) FILTER (WHERE ic.language_switch = TRUE) AS language_switch_count,
-                COUNT(*) AS total_enriched_iocs
+                COUNT(*) AS total_enriched_iocs,
+                COUNT(DISTINCT ic.context_excerpt) FILTER (WHERE ic.context_excerpt IS NOT NULL AND ic.context_excerpt != '') AS total_excerpt_variant_count
              FROM ioc_context ic
              JOIN observed_ioc oi ON ic.obs_id = oi.obs_id
              JOIN message m ON oi.msg_id = m.msg_id
@@ -433,6 +435,7 @@ final readonly class ClusterQueryService
             'hesitation_count' => \is_numeric($row['hesitation_count'] ?? null) ? (int) $row['hesitation_count'] : 0,
             'language_switch_count' => \is_numeric($row['language_switch_count'] ?? null) ? (int) $row['language_switch_count'] : 0,
             'templated_excerpt_count' => (int) $templatedRow,
+            'total_excerpt_variant_count' => \is_numeric($row['total_excerpt_variant_count'] ?? null) ? (int) $row['total_excerpt_variant_count'] : 0,
             'total_enriched_iocs' => $totalEnriched,
         ];
     }
