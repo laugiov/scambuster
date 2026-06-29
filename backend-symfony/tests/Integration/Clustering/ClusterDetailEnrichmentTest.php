@@ -215,6 +215,21 @@ class ClusterDetailEnrichmentTest extends KernelTestCase
         $this->assertSame(1, $profile['templated_excerpt_count']);
     }
 
+    public function testBehavioralProfileTotalExcerptVariantCount(): void
+    {
+        $detail = $this->queryService->getDetail($this->getClusterAId());
+
+        $this->assertNotNull($detail);
+        $profile = $detail['behavioral_profile'];
+
+        // Cluster A fixtures: 5 IBAN ioc_context rows (3 share one excerpt,
+        // the other 2 each have a unique excerpt) + 2 domain ioc_context rows
+        // (both share one excerpt). Distinct context_excerpt values across
+        // the cluster: 4 (1 repeated IBAN + 2 unique IBAN + 1 repeated domain).
+        $this->assertArrayHasKey('total_excerpt_variant_count', $profile);
+        $this->assertSame(4, $profile['total_excerpt_variant_count']);
+    }
+
     public function testAnchorIocsHaveDominantSemanticRole(): void
     {
         $detail = $this->queryService->getDetail($this->getClusterAId());
