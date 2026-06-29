@@ -41,6 +41,8 @@ final readonly class RetryCoordinator
         private ReplyValidator $replyValidator,
         private IOCLikelihoodScorer $iocScorer,
         private LoggerInterface $logger,
+        // Required: nullable silent-noop'd in prod for ~3 days (2026-06-29 fix).
+        private PaymentInstigationGuard $paymentInstigationGuard,
         private int $iocThreshold = 60,
         private ?FallbackProvider $fallbackProvider = null,
         private ?CostEstimator $costEstimator = null,
@@ -52,11 +54,6 @@ final readonly class RetryCoordinator
         // backward compat with legacy callers / unit tests; auto-wired in
         // production by Symfony's DI.
         private ?SignatureStripper $signatureStripper = null,
-        // Spec 116 — block persona outbounds that introduce payment-
-        // infrastructure topics (SWIFT/BIC/IBAN/bank account/wire transfer)
-        // before the operator has mentioned them. Optional for unit tests
-        // that don't exercise the contextual check; production DI wires it.
-        private ?PaymentInstigationGuard $paymentInstigationGuard = null,
     ) {
     }
 
@@ -175,35 +172,33 @@ final readonly class RetryCoordinator
             // transfer/bank account vocabulary BEFORE the operator has, reject
             // and retry. Preserves full extraction power once the operator has
             // mentioned payment-infrastructure (gate opens permanently per conv).
-            if ($this->paymentInstigationGuard instanceof PaymentInstigationGuard) {
-                $instigationResult = $this->paymentInstigationGuard->check($generatedText, $convId);
+            $instigationResult = $this->paymentInstigationGuard->check($generatedText, $convId);
 
-                if (!$instigationResult['approved']) {
-                    $reason = $instigationResult['reason'] ?? 'payment_instigation_blocked';
-                    $dialogue[] = ['role' => 'payment_instigation_guard', 'attempt' => $attempt, 'approved' => false, 'reason' => $reason];
+            if (!$instigationResult['approved']) {
+                $reason = $instigationResult['reason'] ?? 'payment_instigation_blocked';
+                $dialogue[] = ['role' => 'payment_instigation_guard', 'attempt' => $attempt, 'approved' => false, 'reason' => $reason];
 
-                    if ($attempt === self::MAX_ATTEMPTS) {
-                        $trace->attempts = $attempt;
-                        $trace->fallbackUsed = true;
-                        $this->emitReplyRejected($convId, 'payment_instigation_guard', $attempt, $personaCode, [$reason]);
-                        $result = $this->buildFallbackResponse(
-                            [$reason],
-                            ['Payment instigation guard failed after ' . self::MAX_ATTEMPTS . ' attempts'],
-                            $personaCode,
-                            $attempt,
-                            $dialogue,
-                            $detectedLanguage,
-                            $messageCount,
-                        );
-                        $result['pipeline_trace'] = $trace->toArray();
+                if ($attempt === self::MAX_ATTEMPTS) {
+                    $trace->attempts = $attempt;
+                    $trace->fallbackUsed = true;
+                    $this->emitReplyRejected($convId, 'payment_instigation_guard', $attempt, $personaCode, [$reason]);
+                    $result = $this->buildFallbackResponse(
+                        [$reason],
+                        ['Payment instigation guard failed after ' . self::MAX_ATTEMPTS . ' attempts'],
+                        $personaCode,
+                        $attempt,
+                        $dialogue,
+                        $detectedLanguage,
+                        $messageCount,
+                    );
+                    $result['pipeline_trace'] = $trace->toArray();
 
-                        return $result;
-                    }
-
-                    $this->emitReplyRetry($convId, 'payment_instigation_guard', $attempt, $personaCode, ['reason' => $reason]);
-
-                    continue;
+                    return $result;
                 }
+
+                $this->emitReplyRetry($convId, 'payment_instigation_guard', $attempt, $personaCode, ['reason' => $reason]);
+
+                continue;
             }
 
             $bestPolicyApprovedText = $generatedText;

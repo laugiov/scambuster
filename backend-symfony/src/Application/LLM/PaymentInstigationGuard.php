@@ -38,7 +38,8 @@ use Psr\Log\LoggerInterface;
  * OperationalLeakageDetector spec 065d) — we'd rather miss an instigation
  * than stall the entire reply pipeline on infra outages.
  */
-final readonly class PaymentInstigationGuard
+// Non-final so unit tests can stub ::check() without a DB or LLM call.
+readonly class PaymentInstigationGuard
 {
     private const MODEL = 'gpt-4o-mini';
     private const TEMPERATURE = 0.0;

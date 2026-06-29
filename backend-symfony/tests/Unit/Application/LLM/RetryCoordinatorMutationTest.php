@@ -81,6 +81,7 @@ final class RetryCoordinatorMutationTest extends TestCase
             replyValidator: $replyValidator,
             iocScorer: $iocScorer,
             logger: $this->logger,
+            paymentInstigationGuard: new AlwaysApprovePaymentInstigationGuard(),
             iocThreshold: $iocThreshold,
             fallbackProvider: $fallbackProvider ?? new FallbackProvider(),
             costEstimator: $costEstimator ?? new CostEstimator(),

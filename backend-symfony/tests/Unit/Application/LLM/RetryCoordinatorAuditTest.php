@@ -90,6 +90,7 @@ final class RetryCoordinatorAuditTest extends TestCase
             replyValidator: new ReplyValidator($this->llmClient, $promptBuilder, $this->logger),
             iocScorer: new IOCLikelihoodScorer($this->logger),
             logger: $this->logger,
+            paymentInstigationGuard: new AlwaysApprovePaymentInstigationGuard(),
             iocThreshold: $iocThreshold,
             fallbackProvider: new FallbackProvider(),
             costEstimator: new CostEstimator(),

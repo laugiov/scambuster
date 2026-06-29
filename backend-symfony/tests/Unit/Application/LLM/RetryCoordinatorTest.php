@@ -77,6 +77,7 @@ class RetryCoordinatorTest extends TestCase
             replyValidator: $replyValidator,
             iocScorer: $iocScorer,
             logger: $this->logger,
+            paymentInstigationGuard: new AlwaysApprovePaymentInstigationGuard(),
             iocThreshold: 60,
             fallbackProvider: new FallbackProvider(),
             costEstimator: new CostEstimator(),

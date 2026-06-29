@@ -66,15 +66,16 @@ class ReplyOrchestratorTest extends TestCase
         // The IOC threshold logic is covered by dedicated tests in
         // RetryCoordinatorTest::test_low_ioc_score_triggers_retry_Fix08.
         $this->orchestrator = new ReplyOrchestrator(
-            $this->llmClient,
-            $this->promptBuilder,
-            $this->policyGuard,
-            $this->replyValidator,
-            $this->iocScorer,
-            $this->logger,
-            0, // Spec 095 Fix #8 — disable IOC threshold for legacy flow tests
-            null,
-            new \App\Application\LLM\CostEstimator(),
+            llmClient: $this->llmClient,
+            promptBuilder: $this->promptBuilder,
+            policyGuard: $this->policyGuard,
+            replyValidator: $this->replyValidator,
+            iocScorer: $this->iocScorer,
+            logger: $this->logger,
+            paymentInstigationGuard: new AlwaysApprovePaymentInstigationGuard(),
+            iocThreshold: 0, // Spec 095 Fix #8 — disable IOC threshold for legacy flow tests
+            fallbackProvider: null,
+            costEstimator: new \App\Application\LLM\CostEstimator(),
         );
     }
 
