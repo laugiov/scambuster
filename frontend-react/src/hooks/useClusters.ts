@@ -38,6 +38,10 @@ export interface BehavioralProfile {
   language_switch_count: number;
   templated_excerpt_count: number;
   total_enriched_iocs: number;
+  // Optional: emitted by ClusterQueryService when the backend ticket adding
+  // COUNT(DISTINCT context_excerpt) lands. Until then it is `undefined` and
+  // the UI falls back to the rendered-count caption.
+  total_excerpt_variant_count?: number | null;
 }
 
 export interface ClusterDetail extends Cluster {

@@ -5,14 +5,10 @@ import { Loading } from '@/components/feedback/Loading';
 import { ErrorMessage } from '@/components/feedback/ErrorMessage';
 import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
 import { iocTypeLabel } from '@/lib/iocTypeLabels';
-import {
-  ROLE_COLORS,
-  STIMULUS_COLORS,
-  humanizeContext,
-  normalizeContextKey,
-  urgencyColorClass,
-  urgencyTextClass,
-} from '@/lib/iocContextLabels';
+import { VerdictBanner } from '@/components/clusters/VerdictBanner';
+import { SignalTiles } from '@/components/clusters/SignalTiles';
+import { AnchorReachRow } from '@/components/clusters/AnchorReachRow';
+import { CampaignExcerptsPanel } from '@/components/clusters/CampaignExcerptsPanel';
 import client from '@/api/client';
 import { ENDPOINTS } from '@/api/endpoints';
 
@@ -34,6 +30,8 @@ export function ClusterDetail() {
   const [selectedIndicatorId, setSelectedIndicatorId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortField>('risk');
   const [scamTypeFilter, setScamTypeFilter] = useState<string>('');
+  const [showAllConversations, setShowAllConversations] = useState(false);
+  const CONV_PREVIEW_LIMIT = 6;
 
   const filteredConversations = useMemo(() => {
     if (!cluster) return [];
@@ -106,8 +104,12 @@ export function ClusterDetail() {
           </Link>
           <h1 className="text-xl font-semibold text-on-surface mt-1">{cluster.name}</h1>
           <div className="flex items-center gap-3 mt-1 text-xs text-on-surface-dim">
-            <span className="capitalize">{cluster.sophistication}</span>
-            <span>&middot;</span>
+            {cluster.sophistication && cluster.sophistication !== 'minimal' && (
+              <>
+                <span className="capitalize">{cluster.sophistication}</span>
+                <span>&middot;</span>
+              </>
+            )}
             <span>{formatDate(cluster.first_seen)} – {formatDate(cluster.last_seen)}</span>
             <span>&middot;</span>
             <span>v{cluster.algorithm_version}</span>
@@ -124,6 +126,8 @@ export function ClusterDetail() {
         </button>
       </header>
 
+      <VerdictBanner cluster={cluster} />
+
       <div className="flex items-center gap-2 text-xs">
         <span className="text-on-surface-dim">STIX ID:</span>
         <code className="bg-surface-dim px-2 py-0.5 rounded text-on-surface font-mono text-xs select-all">
@@ -132,113 +136,32 @@ export function ClusterDetail() {
       </div>
 
       {cluster.behavioral_profile && cluster.behavioral_profile.total_enriched_iocs > 0 && (
-        <section className="rounded-lg border border-border bg-surface-low/30">
-          <div className="px-4 py-2 border-b border-border">
-            <h2 className="text-xs uppercase tracking-widest text-on-surface-dim">Threat Profile</h2>
-          </div>
-          <div className="px-4 py-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 text-xs">
-            {cluster.behavioral_profile.dominant_stimulus && (
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-on-surface-dim">Primary tactic</span>
-                <div className="flex items-center gap-2">
-                  <span className={`px-2 py-0.5 rounded font-medium ${STIMULUS_COLORS[normalizeContextKey(cluster.behavioral_profile.dominant_stimulus)] ?? 'bg-on-surface-dim/20 text-on-surface-dim'}`}>
-                    {humanizeContext(cluster.behavioral_profile.dominant_stimulus)}
-                  </span>
-                  <span className="text-on-surface-dim">
-                    {cluster.behavioral_profile.dominant_stimulus_count}/{cluster.conversation_count}
-                  </span>
-                </div>
-              </div>
-            )}
-            {cluster.behavioral_profile.dominant_revelation_turn !== null && (
-              <div className="flex items-center justify-between">
-                <span className="text-on-surface-dim">IOC revelation</span>
-                <span className="text-on-surface font-medium">
-                  Turn {cluster.behavioral_profile.dominant_revelation_turn}
-                  {cluster.behavioral_profile.dominant_revelation_turn === 1 && (
-                    <span className="text-on-surface-dim ml-1">· Initial email</span>
-                  )}
-                </span>
-              </div>
-            )}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-on-surface-dim">Avg scammer urgency</span>
-              <div className="flex items-center gap-2 min-w-0">
-                <div className="w-16 h-1.5 bg-surface-dim rounded-full overflow-hidden">
-                  <div
-                    className={`h-full ${urgencyColorClass(cluster.behavioral_profile.avg_urgency_score)}`}
-                    style={{ width: `${Math.round(cluster.behavioral_profile.avg_urgency_score * 100)}%` }}
-                  />
-                </div>
-                <span className={`font-medium ${urgencyTextClass(cluster.behavioral_profile.avg_urgency_score)}`}>
-                  {Math.round(cluster.behavioral_profile.avg_urgency_score * 100)}%
-                </span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-on-surface-dim">Hesitation detected</span>
-              <span className={cluster.behavioral_profile.hesitation_count > 0 ? 'text-warning font-medium' : 'text-on-surface-dim'}>
-                {cluster.behavioral_profile.hesitation_count} conversation{cluster.behavioral_profile.hesitation_count !== 1 ? 's' : ''}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-on-surface-dim">Language switches</span>
-              <span className={cluster.behavioral_profile.language_switch_count > 0 ? 'text-warning font-medium' : 'text-on-surface-dim'}>
-                {cluster.behavioral_profile.language_switch_count} conversation{cluster.behavioral_profile.language_switch_count !== 1 ? 's' : ''}
-              </span>
-            </div>
-            {cluster.behavioral_profile.templated_excerpt_count > 0 && (
-              <div className="md:col-span-2 flex items-center justify-between gap-3 mt-1 pt-2 border-t border-border/50">
-                <span className="text-on-surface-dim">Template signal</span>
-                <span className="px-2 py-0.5 rounded bg-warning/20 text-warning font-medium flex items-center gap-1">
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                  {cluster.behavioral_profile.templated_excerpt_count} IOCs share identical excerpt
-                </span>
-              </div>
-            )}
-          </div>
-        </section>
+        <SignalTiles
+          profile={cluster.behavioral_profile}
+          anchors={cluster.anchor_iocs}
+          conversationCount={cluster.conversation_count}
+        />
+      )}
+
+      {cluster.behavioral_profile && cluster.behavioral_profile.total_enriched_iocs > 0 &&
+       (cluster.behavioral_profile.hesitation_count > 0 || cluster.behavioral_profile.language_switch_count > 0) && (
+        <div className="flex items-center gap-4 text-xs text-on-surface-dim">
+          <span className={cluster.behavioral_profile.hesitation_count > 0 ? 'text-warning font-medium' : ''}>
+            Hesitation: {cluster.behavioral_profile.hesitation_count} conversation{cluster.behavioral_profile.hesitation_count !== 1 ? 's' : ''}
+          </span>
+          <span>&middot;</span>
+          <span className={cluster.behavioral_profile.language_switch_count > 0 ? 'text-warning font-medium' : ''}>
+            Language switches: {cluster.behavioral_profile.language_switch_count}
+          </span>
+        </div>
       )}
 
       {cluster.sample_excerpts && cluster.sample_excerpts.length > 0 && (
-        <section className="rounded-lg border border-border bg-surface-low/30">
-          <div className="px-4 py-2 border-b border-border flex items-center justify-between">
-            <h2 className="text-xs uppercase tracking-widest text-on-surface-dim">Campaign Excerpts</h2>
-            <span className="text-xs text-on-surface-dim">
-              {cluster.sample_excerpts.length} unique excerpt{cluster.sample_excerpts.length > 1 ? 's' : ''}
-            </span>
-          </div>
-          <ul className="px-4 py-3 space-y-2">
-            {cluster.sample_excerpts.slice(0, 5).map((excerpt, idx) => (
-              <li key={idx} className="text-xs flex items-start justify-between gap-3 pl-3 border-l-2 border-accent/40">
-                <span className="text-on-surface-dim italic flex-1">
-                  &ldquo;{excerpt.text}&rdquo;
-                </span>
-                <span className="flex items-center gap-2 shrink-0 mt-0.5">
-                  {excerpt.occurrence_count > 1 && (
-                    <span
-                      className="px-1.5 py-0.5 rounded bg-warning/20 text-warning text-[0.625rem] font-medium"
-                      title={`Repeated in ${excerpt.occurrence_count} conversations — templated campaign signal`}
-                    >
-                      ×{excerpt.occurrence_count}
-                    </span>
-                  )}
-                  {excerpt.source_conv_id && (
-                    <Link
-                      to={`/conversations/${excerpt.source_conv_id}`}
-                      className="text-accent hover:underline font-mono text-[0.625rem]"
-                      title="Open source conversation"
-                    >
-                      {excerpt.source_conv_id.slice(0, 8)}
-                    </Link>
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <CampaignExcerptsPanel
+          excerpts={cluster.sample_excerpts}
+          templatedExcerptCount={cluster.behavioral_profile?.templated_excerpt_count ?? 0}
+          totalVariantCount={cluster.behavioral_profile?.total_excerpt_variant_count ?? null}
+        />
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -250,77 +173,16 @@ export function ClusterDetail() {
             </h2>
           </div>
           <div className="divide-y divide-border">
-            {cluster.anchor_iocs.map((ioc) => {
-              const isSelected = selectedIndicatorId === ioc.indicator_id;
-              return (
-                <div
-                  key={ioc.indicator_id}
-                  className={`px-4 py-3 flex items-center justify-between cursor-pointer transition-colors border-l-4 ${
-                    isSelected
-                      ? 'bg-accent/15 border-accent shadow-inner'
-                      : 'border-transparent hover:bg-surface-dim/50'
-                  }`}
-                  onClick={() => handleAnchorClick(ioc.indicator_id)}
-                  title={`Click to filter conversations sharing this IOC`}
-                >
-                  <div className="flex flex-col gap-1 min-w-0 flex-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className={`px-1.5 py-0.5 text-xs rounded shrink-0 ${
-                        isSelected ? 'bg-accent text-on-accent font-medium' : 'bg-accent/10 text-accent'
-                      }`}>
-                        {iocTypeLabel(ioc.ioc_type)}
-                      </span>
-                      <span className={`text-xs font-mono truncate ${isSelected ? 'text-on-surface font-medium' : 'text-on-surface'}`} title={ioc.ioc_value}>
-                        {ioc.ioc_value}
-                      </span>
-                    </div>
-                    {ioc.dominant_semantic_role && (
-                      <div className="flex items-center gap-1.5 ml-1 flex-wrap">
-                        <span className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium ${ROLE_COLORS[normalizeContextKey(ioc.dominant_semantic_role)] ?? 'bg-on-surface-dim/20 text-on-surface-dim'}`}>
-                          {humanizeContext(ioc.dominant_semantic_role)}
-                        </span>
-                        {ioc.dominant_stimulus && (
-                          <span className={`px-1.5 py-0.5 rounded text-[0.625rem] font-medium ${STIMULUS_COLORS[normalizeContextKey(ioc.dominant_stimulus)] ?? 'bg-on-surface-dim/20 text-on-surface-dim'}`}>
-                            {humanizeContext(ioc.dominant_stimulus)}
-                          </span>
-                        )}
-                        {ioc.avg_urgency_score !== null && ioc.avg_urgency_score > 0 && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-10 h-1 bg-surface-dim rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${urgencyColorClass(ioc.avg_urgency_score)}`}
-                                style={{ width: `${Math.round(ioc.avg_urgency_score * 100)}%` }}
-                              />
-                            </div>
-                            <span className={`text-[0.625rem] ${urgencyTextClass(ioc.avg_urgency_score)}`}>
-                              {Math.round(ioc.avg_urgency_score * 100)}%
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className={`text-xs ${isSelected ? 'text-accent font-medium' : 'text-on-surface-dim'}`}>
-                      {ioc.conv_count} conv.
-                    </span>
-                    <button
-                      type="button"
-                      title="View IOC details"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/ioc-explorer/${ioc.indicator_id}`);
-                      }}
-                      className="p-1 rounded hover:bg-accent/20 text-on-surface-dim hover:text-accent transition-colors cursor-pointer"
-                    >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {cluster.anchor_iocs.map((ioc) => (
+              <AnchorReachRow
+                key={ioc.indicator_id}
+                anchor={ioc}
+                totalConversations={cluster.conversation_count}
+                isSelected={selectedIndicatorId === ioc.indicator_id}
+                onSelect={handleAnchorClick}
+                onOpenDetail={(id) => navigate(`/ioc-explorer/${id}`)}
+              />
+            ))}
           </div>
         </div>
 
@@ -371,37 +233,49 @@ export function ClusterDetail() {
               </div>
             )}
           </div>
-          <div className="relative">
-          {filteredConversations.length > 12 && (
-            <div className="absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-surface to-transparent pointer-events-none z-10" />
-          )}
-          <div className="divide-y divide-border max-h-[600px] overflow-y-auto">
-            {filteredConversations.map((conv) => (
-              <Link
-                key={conv.conv_id}
-                to={`/conversations/${conv.conv_id}`}
-                className="px-4 py-3 flex items-center justify-between hover:bg-surface-dim/50 transition-colors block"
+          <div>
+            <div className="divide-y divide-border">
+              {(showAllConversations
+                ? filteredConversations
+                : filteredConversations.slice(0, CONV_PREVIEW_LIMIT)
+              ).map((conv) => (
+                <Link
+                  key={conv.conv_id}
+                  to={`/conversations/${conv.conv_id}`}
+                  className="px-4 py-3 flex items-center justify-between hover:bg-surface-dim/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs text-on-surface">
+                      {conv.conv_id.slice(0, 8)}
+                    </span>
+                    <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${scamTypeColor(conv.scam_type)}`}>
+                      {scamTypeLabel(conv.scam_type)}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-on-surface-dim">
+                    <span className="capitalize">{conv.status}</span>
+                    <span>Risk: {conv.score_risk}</span>
+                  </div>
+                </Link>
+              ))}
+              {filteredConversations.length === 0 && (
+                <div className="px-4 py-8 text-center text-xs text-on-surface-dim">
+                  No conversations match the current filters.
+                </div>
+              )}
+            </div>
+            {filteredConversations.length > CONV_PREVIEW_LIMIT && (
+              <button
+                type="button"
+                onClick={() => setShowAllConversations((v) => !v)}
+                className="w-full px-4 py-2.5 text-xs text-accent hover:bg-surface-dim/40 border-t border-border transition-colors cursor-pointer"
+                data-testid="show-all-conversations"
               >
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs text-on-surface">
-                    {conv.conv_id.slice(0, 8)}
-                  </span>
-                  <span className={`px-1.5 py-0.5 text-xs rounded font-medium ${scamTypeColor(conv.scam_type)}`}>
-                    {scamTypeLabel(conv.scam_type)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-xs text-on-surface-dim">
-                  <span className="capitalize">{conv.status}</span>
-                  <span>Risk: {conv.score_risk}</span>
-                </div>
-              </Link>
-            ))}
-            {filteredConversations.length === 0 && (
-              <div className="px-4 py-8 text-center text-xs text-on-surface-dim">
-                No conversations match the current filters.
-              </div>
+                {showAllConversations
+                  ? `Show top ${CONV_PREVIEW_LIMIT} only`
+                  : `Show all ${filteredConversations.length} conversations`}
+              </button>
             )}
-          </div>
           </div>
         </div>
       </div>

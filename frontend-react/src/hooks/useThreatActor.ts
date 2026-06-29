@@ -114,9 +114,9 @@ export function useThreatActorSummary(convIds: string[]) {
 
       return {
         conversationCount: profiles.length,
-        scamTypes: [...new Set(profiles.map((p) => p.scamType))],
+        scamTypes: [...new Set(profiles.map((p) => p.scamType).filter(Boolean))],
         maxSophistication: topActor.sophistication,
-        allGoals: [...new Set(profiles.flatMap((p) => p.goals))],
+        allGoals: [...new Set(profiles.flatMap((p) => p.goals).filter(Boolean))],
         attackPatterns: [...new Set(profiles.map((p) => p.attackPattern?.name).filter(Boolean) as string[])],
         topActor,
       };

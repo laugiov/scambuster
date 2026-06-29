@@ -21,6 +21,17 @@ const mockClusters = [
     first_seen: '2026-02-01T00:00:00Z',
     last_seen: '2026-04-01T00:00:00Z',
   },
+  {
+    cluster_id: 'cl-2',
+    name: 'ScamBuster Cluster #BEEF (10 conversations)',
+    status: 'active',
+    conversation_count: 10,
+    sophistication: 'minimal',
+    primary_scam_types: ['CEO_FRAUD', 'INVOICE_FRAUD'],
+    anchor_ioc_types: ['phone'],
+    first_seen: '2024-09-01T00:00:00Z',
+    last_seen: '2024-09-30T00:00:00Z', // stale (years old)
+  },
 ];
 
 const mockClusterStats = {
@@ -115,5 +126,71 @@ describe('Clusters', () => {
     await waitFor(() => {
       expect(screen.getByText(/Failed to load clusters/i)).toBeInTheDocument();
     });
+  });
+
+  it('renders the dedup hero card before the secondary metrics', async () => {
+    setupHandlers();
+    const { container } = render(<Clusters />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(container.querySelector('[data-testid="dedup-hero"]')).not.toBeNull();
+    });
+    const hero = container.querySelector('[data-testid="dedup-hero"]');
+    const metrics = container.querySelector('[data-testid="secondary-metrics"]');
+    expect(hero).not.toBeNull();
+    expect(metrics).not.toBeNull();
+    // Hero must appear before the secondary metrics in the DOM order.
+    const pos = hero!.compareDocumentPosition(metrics!);
+    expect(pos & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('renders the Sophistication column with a tone per tier (C6 re-enabled)', async () => {
+    server.use(
+      http.get(`${BASE}/clusters`, () => HttpResponse.json([
+        { ...mockClusters[0], sophistication: 'intermediate' },
+        { ...mockClusters[1], sophistication: 'advanced' },
+      ])),
+      http.get(`${BASE}/clusters/stats`, () => HttpResponse.json(mockClusterStats)),
+    );
+    const { container } = render(<Clusters />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText(/ScamBuster Cluster #ABCD/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Sophistication/i)).toBeDefined();
+    const cells = container.querySelectorAll('[data-sophistication]');
+    expect(cells.length).toBe(2);
+    const tiers = Array.from(cells).map((el) => el.getAttribute('data-sophistication'));
+    expect(tiers).toContain('intermediate');
+    expect(tiers).toContain('advanced');
+  });
+
+  it('renders a freshness dot per cluster row', async () => {
+    setupHandlers();
+    const { container } = render(<Clusters />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText(/ScamBuster Cluster #ABCD/)).toBeInTheDocument();
+    });
+    const dots = container.querySelectorAll('[data-recency]');
+    expect(dots.length).toBe(2);
+  });
+
+  it('renders a financial anchor with the accent style and a phone anchor with the muted style', async () => {
+    setupHandlers();
+    const { container } = render(<Clusters />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText(/ScamBuster Cluster #ABCD/)).toBeInTheDocument();
+    });
+    const finCell = container.querySelector('[data-anchor-kind="financial"]');
+    const phoneCell = container.querySelector('[data-anchor-kind="phone"]');
+    expect(finCell).not.toBeNull();
+    expect(phoneCell).not.toBeNull();
+  });
+
+  it('renders a multi-type chip for clusters spanning multiple scam types', async () => {
+    setupHandlers();
+    render(<Clusters />, { wrapper: createWrapper() });
+    await waitFor(() => {
+      expect(screen.getByText(/ScamBuster Cluster #BEEF/)).toBeInTheDocument();
+    });
+    expect(screen.getByText(/Multi-type · 2/)).toBeDefined();
   });
 });
