@@ -35,6 +35,7 @@ final readonly class ReplyOrchestrator
         ?\App\Application\Audit\AuditLogger $auditLogger = null,
         string $model = 'gpt-4o',
         ?SignatureStripper $signatureStripper = null,
+        ?PaymentInstigationGuard $paymentInstigationGuard = null,
     ) {
         $this->coordinator = new RetryCoordinator(
             $llmClient,
@@ -50,6 +51,7 @@ final readonly class ReplyOrchestrator
             $auditLogger,
             $model,
             $signatureStripper,
+            $paymentInstigationGuard,
         );
     }
 

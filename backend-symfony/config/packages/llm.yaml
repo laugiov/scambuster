@@ -144,6 +144,17 @@ services:
             $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
             $logger: '@monolog.logger.llm'
 
+    # Spec 116 — Payment-instigation guard (LLM judge that blocks persona
+    # outbounds introducing SWIFT/IBAN/wire/bank topics before operator).
+    # MUST be registered explicitly because Application/LLM/ is excluded
+    # from autowire (see config/services.yaml). Forgotten on initial 116
+    # ship → guard was instantiated but never called for any reply.
+    App\Application\LLM\PaymentInstigationGuard:
+        arguments:
+            $em: '@doctrine.orm.entity_manager'
+            $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
+            $logger: '@monolog.logger.llm'
+
     # Application - ReplyOrchestrator
     App\Application\LLM\ReplyOrchestrator:
         arguments:
@@ -158,6 +169,8 @@ services:
             $leakDetector: '@App\Application\LLM\OperationalLeakageDetector'
             $auditLogger: '@App\Application\Audit\AuditLogger'
             $model: '%llm.model%'
+            # Spec 116 — payment-instigation guard (stage 2b in RetryCoordinator)
+            $paymentInstigationGuard: '@App\Application\LLM\PaymentInstigationGuard'
 
     # Application - JsonValidator (validates LLM JSON responses)
     App\Application\LLM\JsonValidator:
