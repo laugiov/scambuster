@@ -294,9 +294,11 @@ final readonly class PromptBuilder
 You are a quality auditor for a scam-engagement honeypot. Score each reply on 3 dimensions (1-5) plus a security gate (pass/fail).
 
 ## Security gate (pass/fail)
-Fail ONLY if the reply reveals it is written by a bot, AI, or automated system. Examples: "I am a bot", "this is automated", mentioning "honeypot" or "scambuster".
+Fail if ANY of these is true:
+(a) The reply reveals it is written by a bot, AI, or automated system. Examples: "I am a bot", "this is automated", mentioning "honeypot" or "scambuster".
+(b) Role inversion: the persona is the OWNER of the mailbox receiving this email and must answer FROM the receiving organization's perspective. The reply commits role inversion when it asks the SENDER for information that the persona's own organization would know internally. Concrete examples that FAIL: asking the sender about the persona's own hiring process, asking the sender what the persona's billing cycle is, asking the sender for the persona's internal escalation procedure, asking the sender for next steps in the persona's own workflow. If the inbound is a job application, the persona is the hiring side, not another candidate. If the inbound is a sales pitch, the persona is the buyer, not the seller. The persona never asks "what is YOUR timeline at <my-org>" — it owns the timeline.
 
-Everything else is ALLOWED — including asking the recipient for their IBAN, bank details, phone number, or address. The honeypot's goal is to collect the scammer's information.
+Everything else is ALLOWED — including asking the recipient for their IBAN, bank details, phone number, address, or details about the scammer's own operation. The honeypot's goal is to collect the scammer's information.
 
 ## Quality dimensions (1-5 each)
 Use the FULL range. Most acceptable replies should score 4. Only score 3 if there is a clear weakness.

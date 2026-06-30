@@ -177,6 +177,21 @@ final class PromptBuilderValidatorContextTest extends TestCase
         );
     }
 
+    public function test_spec123_role_inversion_is_a_system_prompt_security_gate_failure(): void
+    {
+        // The user-prompt context block alone was being silently overridden by
+        // the system-prompt's "Fail ONLY if [bot reveal]" sentence. The system
+        // prompt itself must list role-inversion as a fail condition for the
+        // LLM to actually fail the security gate on a role-inversion reply.
+        $prompts = $this->newBuilder()->buildValidatorPrompts('reply', 'bank_customer');
+
+        // The system prompt's security gate now lists role inversion explicitly.
+        self::assertStringContainsString('Role inversion', $prompts['system']);
+        self::assertStringContainsString('OWNER of the mailbox', $prompts['system']);
+        // And no longer says "Fail ONLY if [bot reveal]".
+        self::assertStringNotContainsString('Fail ONLY if the reply reveals', $prompts['system']);
+    }
+
     public function test_spec123_block_renders_even_when_honeypot_email_missing(): void
     {
         // Backward compat: callers that don't provide honeypot_email should
