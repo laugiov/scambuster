@@ -14,7 +14,7 @@ interface TheaterThreadProps {
   /**
    * Additional plain strings that should be redacted from message bodies
    * when masked. Used by the parent to pass the conv-level scammer +
-   * persona addresses so quoted-reply blocks (`<r.ashbrook@...> wrote:`)
+   * persona addresses so quoted-reply blocks (`<r.lastname@...> wrote:`)
    * don't leak the participant emails alongside IOC values.
    */
   extraMaskValues?: readonly string[];
