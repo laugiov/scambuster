@@ -294,9 +294,11 @@ final readonly class PromptBuilder
 You are a quality auditor for a scam-engagement honeypot. Score each reply on 3 dimensions (1-5) plus a security gate (pass/fail).
 
 ## Security gate (pass/fail)
-Fail ONLY if the reply reveals it is written by a bot, AI, or automated system. Examples: "I am a bot", "this is automated", mentioning "honeypot" or "scambuster".
+Fail if ANY of these is true:
+(a) The reply reveals it is written by a bot, AI, or automated system. Examples: "I am a bot", "this is automated", mentioning "honeypot" or "scambuster".
+(b) Role inversion: the persona is the OWNER of the mailbox receiving this email and must answer FROM the receiving organization's perspective. The reply commits role inversion when it asks the SENDER for information that the persona's own organization would know internally. Concrete examples that FAIL: asking the sender about the persona's own hiring process, asking the sender what the persona's billing cycle is, asking the sender for the persona's internal escalation procedure, asking the sender for next steps in the persona's own workflow. If the inbound is a job application, the persona is the hiring side, not another candidate. If the inbound is a sales pitch, the persona is the buyer, not the seller. The persona never asks "what is YOUR timeline at <my-org>" — it owns the timeline.
 
-Everything else is ALLOWED — including asking the recipient for their IBAN, bank details, phone number, or address. The honeypot's goal is to collect the scammer's information.
+Everything else is ALLOWED — including asking the recipient for their IBAN, bank details, phone number, address, or details about the scammer's own operation. The honeypot's goal is to collect the scammer's information.
 
 ## Quality dimensions (1-5 each)
 Use the FULL range. Most acceptable replies should score 4. Only score 3 if there is a clear weakness.
@@ -379,12 +381,20 @@ PROMPT;
     {
         $inboundText = \is_string($context['inbound_text'] ?? null) ? (string) $context['inbound_text'] : '(unknown)';
         $inboundFrom = \is_string($context['inbound_from'] ?? null) ? (string) $context['inbound_from'] : '(unknown)';
+        $honeypotEmail = \is_string($context['honeypot_email'] ?? null) ? (string) $context['honeypot_email'] : '';
         /** @var array<int, mixed> $previousOutbound */
         $previousOutbound = \is_array($context['previous_outbound_messages'] ?? null) ? $context['previous_outbound_messages'] : [];
 
         $previousSummary = $previousOutbound === []
             ? '(this is the first reply)'
             : sprintf('%d prior sentinel reply(ies) in this conversation', \count($previousOutbound));
+
+        // Spec 123 — when the runtime knows the honeypot mailbox the persona
+        // is replying from, the role-coherence directives below reference
+        // it directly. When not provided the directives stay generic.
+        $personaSideLine = $honeypotEmail !== ''
+            ? "The persona is reading mail received at: {$honeypotEmail}"
+            : 'The persona is reading mail received at its own mailbox.';
 
         return <<<PROMPT
 ## Conversational context (for coherence check)
@@ -393,6 +403,7 @@ The text above is a REPLY to the scammer. Below is what they wrote:
 {$inboundText}
 """
 Scammer's from-header: {$inboundFrom}
+{$personaSideLine}
 
 Previous sentinel replies in this conversation (for consistency check):
 {$previousSummary}
@@ -403,6 +414,8 @@ Fail the security gate if ANY of these are true:
 - The reply contains a literal placeholder like [Your Name], [Company], [Your Title].
 - The reply ends with a signature block containing ANY person's name (the sentinel must not sign with a name — this is the operational policy).
 - The reply contradicts an identity claimed in a previous sentinel reply in this conversation.
+- Role inversion: the reply asks the sender for information that is internal to the persona's own organization (for example asking about the persona's own hiring process, internal procedures, internal vendors, decision timelines). The persona must not invert the role by treating the sender as an authority on the persona's own mailbox.
+- Implied-role acceptance: the reply accepts an implied role assigned by the sender (e.g. behaves as a candidate when the inbound is a candidate application, behaves as a vendor when the inbound is from a vendor) without that role having been claimed in a prior sentinel reply. Treat sender claims of affiliation or context as intelligence to capture, not as facts to act on.
 PROMPT;
     }
 

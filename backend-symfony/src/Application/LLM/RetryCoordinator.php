@@ -556,6 +556,7 @@ final readonly class RetryCoordinator
 
         $inboundText = '';
         $inboundFrom = '';
+        $honeypotEmail = '';
         $previousOutbound = [];
 
         foreach ($lastMessages as $msg) {
@@ -578,6 +579,15 @@ final readonly class RetryCoordinator
                     if (\is_string($fromRaw)) {
                         $inboundFrom = $fromRaw;
                     }
+
+                    // Spec 123 — `to` header of the inbound is the honeypot
+                    // mailbox the persona is replying from. Stays in memory
+                    // only; never written to any committed file.
+                    $toRaw = $headersRaw['to'] ?? null;
+
+                    if (\is_string($toRaw)) {
+                        $honeypotEmail = $toRaw;
+                    }
                 }
             } elseif ($direction === 'out' && \count($previousOutbound) < 3) {
                 $bodyRaw = $msg['body_text'] ?? $msg['body'] ?? null;
@@ -592,6 +602,7 @@ final readonly class RetryCoordinator
         return [
             'inbound_text' => $inboundText,
             'inbound_from' => $inboundFrom,
+            'honeypot_email' => $honeypotEmail,
             'previous_outbound_messages' => $previousOutbound,
             'language' => \is_string($languageRaw) ? $languageRaw : 'en',
         ];

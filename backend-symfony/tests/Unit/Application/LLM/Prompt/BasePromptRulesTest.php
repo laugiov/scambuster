@@ -33,17 +33,18 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('Every single word', $rules);
     }
 
-    public function testRulesAreUnder270Words(): void
+    public function testRulesAreUnder310Words(): void
     {
         // Cap history:
         //   - Spec 095/112 raised cap to 170 to fit no-out-of-band-channel rule.
         //   - Spec 117 (careful-buyer pushback) raised to 250.
         //   - Spec 122 (anti-repetition rule) raised to 270.
+        //   - Spec 123 (mailbox-identity coherence) raised to 310.
         // Keep the cap close to actual size so future drift is caught early.
         $rules = BasePromptRules::getRules('en');
         $wordCount = str_word_count($rules);
 
-        $this->assertLessThan(270, $wordCount, "BasePromptRules should be under 270 words, got {$wordCount}");
+        $this->assertLessThan(310, $wordCount, "BasePromptRules should be under 310 words, got {$wordCount}");
     }
 
     public function testRulesUsePositiveDescriptions(): void
@@ -150,5 +151,20 @@ class BasePromptRulesTest extends TestCase
         $this->assertStringContainsString('re-ask', $rules, 'Rule must explicitly mention re-asking');
         $this->assertStringContainsString('vary the wording', $rules, 'Rule must instruct to vary the wording');
         $this->assertStringContainsString('change angle', $rules, 'Rule must instruct to change angle on follow-up');
+    }
+
+    /**
+     * Spec 123 — universal mailbox-identity coherence rule. Tells the persona
+     * to treat any sender claim about the persona's own organization or role
+     * as intelligence to capture rather than as a fact to act on. Generic by
+     * design — no honeypot names, applies to every persona and every scam
+     * type.
+     */
+    public function testRulesIncludeMailboxIdentityCoherenceRule_Spec123(): void
+    {
+        $rules = BasePromptRules::getRules('en');
+
+        $this->assertStringContainsString('mailbox', $rules, 'Rule must reference the mailbox the persona reads at');
+        $this->assertStringContainsString('intelligence', $rules, 'Rule must frame sender claims as intelligence');
     }
 }
