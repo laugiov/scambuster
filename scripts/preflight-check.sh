@@ -22,7 +22,7 @@
 #   DATABASE_URL inspection (each container resolves to a distinct database
 #   on the shared postgres instance).
 #
-# Output: a banner per gate with PASS/FAIL marker. The final "All 8 gates passed."
+# Output: a banner per gate with PASS/FAIL marker. The final "All 9 gates passed."
 # trailer is the proof of green and must be pasted into the commit message
 # (## Preflight section) per the spec 080 protocol.
 
@@ -37,7 +37,7 @@ banner() {
     gate_start=$(date +%s)
     echo ""
     echo "════════════════════════════════════════════════════════════════"
-    echo "  Gate ${n}/8: ${title}"
+    echo "  Gate ${n}/9: ${title}"
     echo "════════════════════════════════════════════════════════════════"
 }
 
@@ -147,11 +147,17 @@ print(f'PASS: 0 new advisories ({len(ignored)} known CVEs ignored, matches compo
 "
 gate_done
 
+# ── Gate 9: Honeypot-name leak scan (spec 123) ─────────────────────────
+CURRENT_GATE=9
+banner 9 "Honeypot-name leak scan"
+bash scripts/check-honeypot-leak.sh --full
+gate_done
+
 # ── Done ───────────────────────────────────────────────────────────────
 total=$(( $(date +%s) - start_ts ))
 echo ""
 echo "════════════════════════════════════════════════════════════════"
-echo "  All 8 gates passed in ${total}s."
+echo "  All 9 gates passed in ${total}s."
 echo "  Safe to commit. Paste this trailer into the commit message under"
 echo "  a '## Preflight' section."
 echo "════════════════════════════════════════════════════════════════"
