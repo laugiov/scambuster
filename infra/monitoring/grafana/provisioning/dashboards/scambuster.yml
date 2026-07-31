@@ -1,0 +1,14 @@
+# Grafana dashboard provisioning — auto-loads dashboards from disk.
+apiVersion: 1
+
+providers:
+  - name: ScamBuster
+    orgId: 1
+    folder: ScamBuster
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

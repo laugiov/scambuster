@@ -1,0 +1,59 @@
+security:
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_USER]
+
+    password_hashers:
+        App\Domain\User\User:
+            algorithm: auto
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Domain\User\User
+                property: email
+        # The `test_users` memory provider with hardcoded
+        # `foo` passwords used to live here but is now declared only in
+        # `config/packages/test/security.yaml`. It is therefore loaded
+        # only when APP_ENV=test and inaccessible in production.
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        api_auth:
+            pattern: ^/api/v1/auth
+            stateless: true
+            security: false
+
+        api:
+            pattern: ^/api/v1
+            stateless: true
+            provider: app_user_provider
+            jwt: ~
+            access_denied_handler: App\Security\CustomAccessDeniedHandler
+
+        main:
+            pattern: ^/
+            stateless: true
+            provider: app_user_provider
+            # JWT here too so an admin can authenticate to the non-/api/v1
+            # operational endpoints (/api/metrics, /api/health). No token →
+            # anonymous (public paths like /healthz stay reachable).
+            jwt: ~
+            access_denied_handler: App\Security\CustomAccessDeniedHandler
+
+    access_control:
+        - { path: ^/api/v1/auth, roles: PUBLIC_ACCESS }
+        - { path: ^/logout, roles: PUBLIC_ACCESS }
+        # Bare liveness probe stays public; the richer operational endpoints
+        # (which leak counts, kill-switch state, version) require an admin.
+        - { path: ^/healthz, roles: PUBLIC_ACCESS }
+        - { path: ^/api/metrics, roles: ROLE_ADMIN }
+        - { path: ^/api/health, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/admin, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/internal, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/campaign/hunt, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/campaign/rule/.+/promote, roles: ROLE_ADMIN }
+        - { path: ^/api/v1/campaign/.+/rules/compile, roles: ROLE_ADMIN }
+        - { path: ^/api/v1, roles: IS_AUTHENTICATED_FULLY }

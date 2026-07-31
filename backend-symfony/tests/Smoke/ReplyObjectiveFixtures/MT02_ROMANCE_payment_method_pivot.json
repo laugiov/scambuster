@@ -1,0 +1,17 @@
+{
+  "scam_code": "ROMANCE",
+  "language": "en",
+  "expected_bucket": "romance",
+  "persona": "lonely_person",
+  "scenario": "Attacker pivots payment method 3 times: WU → gift card → crypto. Persona must follow each pivot coherently without instigating method changes itself",
+  "turns": [
+    { "from": "attacker", "body": "My darling, the customs office is asking for $2,800 to release my equipment. Western Union is the fastest." },
+    { "from": "persona", "body": "Oh David, that sounds awful. Where am I sending the WU pickup to?" },
+    { "from": "attacker", "body": "Actually I just heard from the fixer, WU is not working today in this region. Can you do Amazon Gift Cards instead? I need $2,800 in cards, you can send the codes." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Hmm Amazon is rate-limiting your account I bet. Let's switch to Bitcoin — it always works. Send 0.04 BTC to my wallet, I'll send the address." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "OK BTC it is. My wallet address: bc1qm3hp4l8x3jrymq8s4z9r2tqfpu7zqp4ytkqzdz. Send confirmation hash when done." },
+    { "from": "persona", "generate": true }
+  ]
+}

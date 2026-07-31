@@ -1,0 +1,8 @@
+services:
+    App\Application\Auth\AuthServiceInterface: '@App\Application\Auth\AuthService'
+    App\Application\Auth\AuthService: ~
+
+# The `app.risk_extraction_wait_sec` override for the e2e env
+# lives in config/services_e2e.yaml (not here) because services_{env}.yaml
+# loads AFTER config/services.yaml and actually wins the override race;
+# config/packages/{env}/*.yaml loads BEFORE and would be silently shadowed.

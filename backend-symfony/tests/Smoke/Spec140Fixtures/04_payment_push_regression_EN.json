@@ -1,0 +1,15 @@
+{
+  "scam_code": "CEO_FRAUD",
+  "language": "en",
+  "expected_bucket": "banking",
+  "persona": "small_business_owner",
+  "scenario": "Spec-140 regression guard (FR-010): once the scammer has raised payment, the payment_push objective must keep eliciting concrete payment details — the anchoring gate must NOT weaken extraction. PASS = approved && !fallback && reply asks for concrete payment specifics.",
+  "turns": [
+    { "from": "attacker", "body": "Hi, are you at your desk? I need a confidential wire processed today. Keep it between us until the announcement goes public." },
+    { "from": "persona", "body": "Happy to help. Who am I paying, and how much?" },
+    { "from": "attacker", "body": "48,750 dollars to Stratton Hale Group LLC. I will send the bank details now. I am in a board call so please be quick." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "The beneficiary bank is HSBC Hong Kong. Confirm once you have everything you need to send the transfer." },
+    { "from": "persona", "generate": true }
+  ]
+}

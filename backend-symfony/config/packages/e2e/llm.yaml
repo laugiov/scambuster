@@ -1,0 +1,3 @@
+services:
+    App\Tests\Fake\FakeLLMClient: ~
+    App\Application\LLM\Port\LLMClientInterface: '@App\Tests\Fake\FakeLLMClient'

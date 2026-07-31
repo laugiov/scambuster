@@ -1,0 +1,102 @@
+# ═══════════════════════════════════════════════════════════════
+# ScamBuster Demo — Backend Dockerfile
+# Self-contained: auto-seeds DB on first start, no manual setup.
+# ═══════════════════════════════════════════════════════════════
+
+# --- Build stage ---
+FROM php:8.3.27-cli AS build
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        git unzip curl postgresql-client libpq-dev libzip-dev \
+    && (pecl install mailparse redis \
+        || (sleep 15 && pecl install -f mailparse redis) \
+        || (sleep 30 && pecl install -f mailparse redis)) \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pin Composer to 2.6.6 — the last release before --no-scripts also began
+# suppressing plugin event listeners. With newer Composer, the symfony/runtime
+# plugin no longer generates vendor/autoload_runtime.php during install (and
+# cannot be coerced into doing so by a follow-up dump-autoload either),
+# breaking bin/console at runtime. Tracked: revisit when we drop --no-scripts.
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer --version=2.6.6
+
+COPY backend-symfony/composer.* ./
+# Include dev dependencies (needed for fixtures).
+# Cache-bust 2026-05-10: the previous cached install layer was built against
+# Composer >= 2.7, which silently produces a vendor/ without autoload_runtime.php.
+RUN composer install --no-interaction --no-scripts --no-progress
+
+COPY backend-symfony/ ./
+
+# Drop rector — a dev-only refactoring CLI the demo never executes at runtime.
+# It bundles its own php-scoper-prefixed copy of symfony/yaml that lags the
+# project's patched version and trips the container vulnerability scanner (the
+# top-level dependencies are clean). The rest of the dev dependencies stay
+# because the demo seed step runs doctrine:fixtures:load, and rector is not
+# referenced anywhere in src/ or config/.
+#
+# `composer remove` is a no-op here (the pinned Composer 2.6.6 keeps the locked
+# package), so we delete the directory directly. rector registers a bootstrap.php
+# via Composer's `autoload.files`, which vendor/composer/autoload_real.php
+# require()s eagerly — deleting the directory alone would fatal the autoloader,
+# so we also strip that single files-autoload entry from the generated maps.
+RUN rm -rf vendor/rector vendor/bin/rector \
+    && sed -i '\#/rector/rector/bootstrap.php#d' vendor/composer/autoload_files.php \
+    && sed -i '\#/rector/rector/bootstrap.php#d' vendor/composer/autoload_static.php
+
+# Belt-and-braces: verify autoload_runtime.php exists so the build fails fast
+# here rather than at container start time. The Composer pin above is what
+# actually generates the file; this check guards against silent regressions.
+RUN test -f /app/vendor/autoload_runtime.php \
+    || (echo "FATAL: vendor/autoload_runtime.php missing after composer install" \
+        && ls -la /app/vendor/ | head -30 \
+        && composer --version \
+        && exit 1)
+
+# --- Runtime stage ---
+FROM php:8.3.27-cli
+
+WORKDIR /app
+
+LABEL org.opencontainers.image.title="ScamBuster Demo Backend" \
+      org.opencontainers.image.description="Self-contained demo with auto-seeding"
+
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        postgresql-client curl libpq-dev git unzip libzip-dev openssl \
+    && (pecl install mailparse redis \
+        || (sleep 15 && pecl install -f mailparse redis) \
+        || (sleep 30 && pecl install -f mailparse redis)) \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer
+
+# Copy built application (with dev dependencies for fixtures)
+COPY --from=build /app /app
+
+# Copy demo dataset into image (bust cache: 2026-04-06-v2)
+COPY scambuster-dataset-sample.json /app/scambuster-dataset-sample.json
+
+# Copy demo entrypoint
+COPY infra/docker/demo/docker-entrypoint-demo.sh /usr/local/bin/docker-entrypoint-demo.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint-demo.sh
+
+# Ensure writable directories and remove any stale JWT keys (entrypoint generates fresh ones)
+RUN mkdir -p /app/var /app/config/jwt \
+    && rm -f /app/config/jwt/private.pem /app/config/jwt/public.pem \
+    && chmod -R 777 /app/var /app/config/jwt
+
+EXPOSE 8080
+
+ENTRYPOINT ["docker-entrypoint-demo.sh"]

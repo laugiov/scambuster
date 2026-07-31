@@ -1,0 +1,52 @@
+parameters:
+    # Disable the GET /risk 30s wait in the test environment so
+    # PHPUnit functional tests don't block 30s per request hitting that route.
+    app.risk_extraction_wait_sec: 0
+
+services:
+    App\Security\TestCsrfTokenManager:
+        class: App\Security\TestCsrfTokenManager
+        public: true
+
+    security.csrf.token_manager:
+        alias: App\Security\TestCsrfTokenManager
+        public: true
+
+    App\Security\TestTokenAuthenticator:
+        autowire: true
+        autoconfigure: true
+        public: true
+
+    App\Application\Auth\AuthServiceInterface: '@App\Application\Auth\FakeAuthService'
+
+    App\Application\Auth\FakeAuthService:
+        public: true
+
+    test.symfony.http_client:
+        alias: Symfony\Contracts\HttpClient\HttpClientInterface
+        public: true
+
+    # Force the prompt-canary availability guard to read as "configured" in tests, so the endpoint's
+    # 202/404/422 coverage runs deterministically regardless of LLM_PROVIDER (CI runs it as `mock`).
+    # Lives here, not in config/packages/test/*.yaml, because services_{env}.yaml is loaded AFTER
+    # services.yaml — the packages/{env} path loads BEFORE it and would be silently shadowed by the
+    # base %env(LLM_PROVIDER)% definition. The unavailable (503) path is exercised by overriding this
+    # service per-test.
+    App\Application\Guard\CanaryAvailability:
+        arguments:
+            $provider: 'openai'
+            $openAiApiKey: 'canary-available-in-tests'
+            $anthropicApiKey: ''
+
+    # Campaign Handlers for Integration Tests
+    App\Application\Campaign\ProfileCampaignHandler:
+        public: true
+        autowire: true
+
+    App\Application\Campaign\GetCampaignMessagesHandler:
+        public: true
+        autowire: true
+
+    App\Application\Campaign\CampaignHunter:
+        public: true
+        autowire: true

@@ -1,0 +1,127 @@
+# ScamBuster — PRODUCTION compose (STANDALONE, not merged with docker-compose.yml).
+#
+#   cp .env.dist .env      # then fill PRODUCTION values (see docs/runbooks/production-deployment.md)
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# One self-contained app image (nginx + php-fpm, API + built frontend) + Postgres
+# + Redis + n8n + scheduler. No dev source mounts, no php -S, no test/e2e/preprod.
+# Put a TLS-terminating reverse proxy (Caddy/nginx/Traefik) in front of the app port.
+#
+# This file is ADDITIVE: the dev stack (docker-compose.yml, `make quickstart`) and
+# the demo stack (docker-compose.demo.yml) are untouched and keep working.
+
+name: scambuster-prod
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile.prod
+    restart: unless-stopped
+    env_file: [./.env]
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-scambuster}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-scambuster}?serverVersion=15&charset=utf8"
+      REDIS_URL: "redis://redis:6379"
+      LOCK_DSN: "${LOCK_DSN:-semaphore}"
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-scambuster}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-scambuster}
+    volumes:
+      - prod-pgdata:/var/lib/postgresql/data
+    # Not published to the host in production — internal network only.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scambuster}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  n8n:
+    image: n8nio/n8n:1.114.3
+    restart: unless-stopped
+    # Root so the init script can fix data-dir perms; n8n itself runs via 'su node'.
+    user: root
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-UTC}
+      - SCAMBUSTER_API_URL=http://app:8080
+      - INGEST_LOGIN=${INGEST_LOGIN}
+      - INGEST_PASSWORD=${INGEST_PASSWORD}
+      - HONEYPOT_IMAP_HOST=${HONEYPOT_IMAP_HOST:-imap.gmail.com}
+      - HONEYPOT_IMAP_PORT=${HONEYPOT_IMAP_PORT:-993}
+      - HONEYPOT_IMAP_USER=${HONEYPOT_IMAP_USER}
+      - HONEYPOT_IMAP_PASSWORD=${HONEYPOT_IMAP_PASSWORD}
+      - HONEYPOT_IMAP_SECURE=${HONEYPOT_IMAP_SECURE:-true}
+      - N8N_DEFAULT_USER_EMAIL=${N8N_DEFAULT_USER_EMAIL:-admin@scambuster.local}
+      - N8N_DEFAULT_USER_PASSWORD=${N8N_DEFAULT_USER_PASSWORD}
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+    entrypoint: ["/bin/sh", "/home/node/n8n-init.sh"]
+    # n8n admin UI: keep it behind the reverse proxy / firewalled; publish only if needed.
+    ports:
+      - "${N8N_HTTP_PORT:-5678}:5678"
+    volumes:
+      - prod-n8ndata:/home/node/.n8n
+      # Init assets (workflow definitions + bootstrap script), read-only. Not app source.
+      - ./n8n/n8n-init.sh:/home/node/n8n-init.sh:ro
+      - ./n8n/workflows:/home/node/init-workflows:ro
+    depends_on:
+      app: { condition: service_healthy }
+
+  # Cron-like recurring tasks (clustering, profiles, budget check, daily pg_dump).
+  # Reuses the app image; overrides the entrypoint to run the scheduler loop.
+  scheduler:
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile.prod
+    restart: unless-stopped
+    # The scheduler runs a task loop, not a web server, so the image's HTTP
+    # /healthz healthcheck never passes. Disable it for this service.
+    healthcheck:
+      disable: true
+    env_file: [./.env]
+    environment:
+      APP_ENV: prod
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-scambuster}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-scambuster}?serverVersion=15&charset=utf8"
+      REDIS_URL: "redis://redis:6379"
+      LOCK_DSN: "${LOCK_DSN:-semaphore}"
+    # Write /app/.env from the environment (Symfony console needs it), then run
+    # the scheduler loop.
+    entrypoint: ["sh", "-c", "sh /opt/write-prod-env.sh && exec sh /opt/scheduler.sh"]
+    volumes:
+      - prod-backups:/backups
+    depends_on:
+      app: { condition: service_healthy }
+
+volumes:
+  prod-pgdata:
+  prod-n8ndata:
+  prod-backups:

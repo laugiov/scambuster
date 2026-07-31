@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- CI variant: without SymfonyExtension (DebugClassLoader conflicts with Docker volume mounts) -->
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+    bootstrap="tests/bootstrap_ci.php"
+    cacheDirectory="/tmp/.phpunit.cache"
+    colors="true"
+    failOnWarning="false"
+    failOnDeprecation="false"
+>
+    <extensions>
+        <bootstrap class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
+    </extensions>
+
+    <php>
+        <env name="APP_ENV" value="test"/>
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="999999"/>
+        <env name="KERNEL_CLASS" value="App\\Kernel"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="integration">
+            <directory suffix="Test.php">tests/Integration</directory>
+            <exclude>tests/Integration/Auth/AbstractAuthBase.php</exclude>
+            <exclude>tests/Integration/Command/MailAccountOnboardCommandTest.php</exclude>
+            <exclude>tests/Integration/Communication/MailAccountSecretControllerTest.php</exclude>
+            <exclude>tests/Integration/Application/Communication/MailAccountSecretResolverTest.php</exclude>
+        </testsuite>
+        <testsuite name="unit">
+            <directory suffix="Test.php">tests/Unit</directory>
+        </testsuite>
+        <testsuite name="endtoend">
+            <directory suffix="Test.php">tests/EndToEnd</directory>
+            <exclude>tests/EndToEnd/Communication/MailAccountSecretEndToEndTest.php</exclude>
+            <exclude>tests/EndToEnd/Communication/MailAccountSecretE2eTest.php</exclude>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <exclude>
+            <directory suffix=".php">src/DataFixtures</directory>
+            <directory suffix=".php">src/Service</directory>
+            <file>src/Kernel.php</file>
+            <file>src/Infrastructure/Preprod/ConversationGenerator.php</file>
+            <file>src/Infrastructure/Preprod/IocGenerator.php</file>
+            <file>src/Infrastructure/Preprod/ScamTemplates.php</file>
+            <directory suffix=".php">src/UI/Console</directory>
+            <file>src/Command/VaultAddImapSecretCommand.php</file>
+            <file>src/Command/VaultDeleteImapSecretCommand.php</file>
+            <file>src/Command/MailAccountOnboardCommand.php</file>
+            <file>src/Command/PreprodCopyConversationsCommand.php</file>
+            <file>src/Command/PreprodGenerateConversationsCommand.php</file>
+            <file>src/Command/TestContextCommand.php</file>
+            <file>src/Command/TestConversationContextCommand.php</file>
+            <file>src/Command/TestReplyGenerateCommand.php</file>
+        </exclude>
+    </source>
+
+</phpunit>

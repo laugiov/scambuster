@@ -1,0 +1,13 @@
+{
+  "scam_code": "UNKNOWN",
+  "language": "en",
+  "expected_bucket": "banking",
+  "persona": "entrepreneur_rushed",
+  "scenario": "Spec-140 shape #2: terse archetype (telegraphic entrepreneur). The style validator wants brevity; the archetype-aware floor (20) must let a short reply clear PolicyGuard so the two gates stop ping-ponging into a fallback. PASS = approved && !fallback.",
+  "turns": [
+    { "from": "attacker", "body": "Hello, I represent a marketing agency and we noticed your company could rank much higher on search engines. We have helped dozens of businesses triple their visibility. Are you interested?" },
+    { "from": "persona", "body": "Maybe. What exactly do you do and who have you worked with?" },
+    { "from": "attacker", "body": "We run a full SEO and social audit, then optimize your listings and content over three months. Happy to show references. When can you jump on a quick call?" },
+    { "from": "persona", "generate": true }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "scam_code": "CEO_FRAUD",
+  "language": "en",
+  "expected_bucket": "banking",
+  "persona": "small_business_owner",
+  "scenario": "Multi-account pivot from BH USA slide 18 — attacker bounces between mule accounts when first one is closed",
+  "turns": [
+    { "from": "attacker", "body": "Hi, are you at your desk? I need a confidential wire today. Keep it between us until the announcement." },
+    { "from": "persona", "body": "Happy to help. Who am I paying, and how much?" },
+    { "from": "attacker", "body": "$48,750 to Stratton Hale Group LLC, account ending ****2231. HSBC Hong Kong. I'm in a board call." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Bank kicked it back, account is closed apparently. Use Pinecrest Holdings LLC instead, account ****8804. Call my cell +1 332 *** 0173 to confirm — I'm boarding in 20 minutes." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Forget the second-approver rule, I'm authorizing this myself. The deal is at risk. Tell me when you've sent it." },
+    { "from": "persona", "generate": true }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "scam_code": "PHISHING",
+  "language": "fr",
+  "expected_bucket": "phishing_pull",
+  "persona": "bank_customer",
+  "scenario": "Spec-140 shape #3: French conversation near the word floor. Unified whitespace counting must measure the reply the way the generator targets it, so a compliant French reply is not rejected as too_short. PASS = approved && !fallback.",
+  "turns": [
+    { "from": "attacker", "body": "Bonjour, votre colis n'a pas pu etre livre. Veuillez confirmer vos informations d'expedition en repondant a ce message avec votre adresse complete et votre numero de telephone." },
+    { "from": "persona", "body": "Bonjour, de quel colis parlez-vous exactement ? Je n'ai rien commande recemment." },
+    { "from": "attacker", "body": "Il s'agit d'un colis en attente depuis le 12 juillet 2026, reference 4512. Merci de confirmer vos coordonnees rapidement pour eviter le retour a l'expediteur." },
+    { "from": "persona", "generate": true }
+  ]
+}
