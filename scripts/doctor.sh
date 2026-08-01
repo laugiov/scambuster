@@ -67,14 +67,16 @@ echo ""
 # ─── CONNECTIVITY ───
 echo "CONNECTIVITY"
 
-# Backend API
+# Backend API — /healthz is the public health endpoint; /api/* requires a JWT.
+# SCAMBUSTER_API_URL is the container-internal URL, so the localhost fallback is
+# what normally answers when doctor runs from the host.
 BACKEND_URL="${SCAMBUSTER_API_URL:-http://localhost:8081}"
-if curl -sf "${BACKEND_URL}/api/health" > /dev/null 2>&1; then
+if curl -sf "${BACKEND_URL}/healthz" > /dev/null 2>&1; then
   ok "Backend API — ${BACKEND_URL} → OK"
-elif curl -sf "http://localhost:8081/api/health" > /dev/null 2>&1; then
+elif curl -sf "http://localhost:8081/healthz" > /dev/null 2>&1; then
   ok "Backend API — http://localhost:8081 → OK"
 else
-  fail "Backend API — unreachable (tried ${BACKEND_URL})"
+  fail "Backend API — unreachable (tried ${BACKEND_URL} and http://localhost:8081)"
 fi
 
 # PostgreSQL (try Docker first, then local)
