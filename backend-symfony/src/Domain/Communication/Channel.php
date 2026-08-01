@@ -1,0 +1,45 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Domain\Communication;
+
+use Doctrine\ORM\Mapping as ORM;
+
+#[ORM\Entity]
+#[ORM\Table(name: 'lkp_channel')]
+#[ORM\UniqueConstraint(columns: ['code'])]
+class Channel
+{
+    #[ORM\Id]
+    #[ORM\Column(name: 'channel_id', type: 'integer')]
+    #[ORM\GeneratedValue(strategy: 'SEQUENCE')]
+    private int $channelId = 0;
+
+    public function __construct(#[ORM\Column(type: 'string', length: 32, unique: true)]
+        private string $code, #[ORM\Column(name: 'label_en', type: 'string', length: 64)]
+        private string $labelEn, #[ORM\Column(name: 'label_fr', type: 'string', length: 64)]
+        private string $labelFr)
+    {
+    }
+
+    public function getChannelId(): int
+    {
+        return $this->channelId;
+    }
+
+    public function getCode(): string
+    {
+        return $this->code;
+    }
+
+    public function getLabelEn(): string
+    {
+        return $this->labelEn;
+    }
+
+    public function getLabelFr(): string
+    {
+        return $this->labelFr;
+    }
+}

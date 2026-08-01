@@ -1,0 +1,103 @@
+import { lazy, Suspense } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { AuthGuard } from '@/components/layout/AuthGuard';
+import { Loading } from '@/components/feedback/Loading';
+import { ErrorBoundary } from '@/components/feedback/ErrorBoundary';
+import { Login } from '@/pages/Login';
+
+const Impact = lazy(() => import('@/pages/Impact'));
+const Dashboard = lazy(() => import('@/pages/Dashboard'));
+const Conversations = lazy(() => import('@/pages/Conversations'));
+const ConversationDetail = lazy(() => import('@/pages/ConversationDetail'));
+const IocExplorer = lazy(() => import('@/pages/IocExplorer'));
+const IocDetail = lazy(() => import('@/pages/IocDetail'));
+const TtpExplorer = lazy(() => import('@/pages/TtpExplorer'));
+const TtpDetail = lazy(() => import('@/pages/TtpDetail'));
+const StixExport = lazy(() => import('@/pages/StixExport'));
+const Personas = lazy(() => import('@/pages/Personas'));
+const PromptCustomization = lazy(() => import('@/pages/PromptCustomization'));
+const PersonaMatrix = lazy(() => import('@/pages/PersonaMatrix'));
+const PersonaMirror = lazy(() => import('@/pages/PersonaMirror'));
+const ConvergenceHistory = lazy(() => import('@/pages/ConvergenceHistory'));
+// const Campaigns = lazy(() => import('@/pages/Campaigns')); // hidden: campaigns disconnected
+const LlmCosts = lazy(() => import('@/pages/LlmCosts'));
+// const CampaignDetail = lazy(() => import('@/pages/CampaignDetail')); // hidden: campaigns disconnected
+const ConversationMonitoring = lazy(() => import('@/pages/ConversationMonitoring'));
+const PipelineMonitor = lazy(() => import('@/pages/PipelineMonitor'));
+const InjectionMonitoring = lazy(() => import('@/pages/InjectionMonitoring'));
+const Analytics = lazy(() => import('@/pages/Analytics'));
+const Clusters = lazy(() => import('@/pages/Clusters'));
+const ClusterDetail = lazy(() => import('@/pages/ClusterDetail'));
+const Settings = lazy(() => import('@/pages/Settings'));
+// Live Bait Theater (full-screen, outside AppLayout)
+const Theater = lazy(() => import('@/pages/Theater'));
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <BrowserRouter>
+          <Suspense fallback={<Loading message="Loading page..." />}>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            {/* Theater is full-screen, outside the standard AppLayout */}
+            <Route
+              path="conversations/:id/theater"
+              element={
+                <AuthGuard>
+                  <Theater />
+                </AuthGuard>
+              }
+            />
+            <Route
+              element={
+                <AuthGuard>
+                  <AppLayout />
+                </AuthGuard>
+              }
+            >
+              <Route index element={<Impact />} />
+              <Route path="dashboard" element={<Dashboard />} />
+              <Route path="conversations" element={<Conversations />} />
+              <Route path="conversations/:id" element={<ConversationDetail />} />
+              <Route path="ioc-explorer" element={<IocExplorer />} />
+              <Route path="ioc-explorer/:indicatorId" element={<IocDetail />} />
+              <Route path="ttps" element={<TtpExplorer />} />
+              <Route path="ttps/:code" element={<TtpDetail />} />
+              <Route path="stix-export" element={<StixExport />} />
+              <Route path="personas" element={<Personas />} />
+              <Route path="prompt-customization" element={<PromptCustomization />} />
+              <Route path="personas/matrix" element={<PersonaMatrix />} />
+              <Route path="personas/mirror" element={<PersonaMirror />} />
+              <Route path="convergence" element={<ConvergenceHistory />} />
+              <Route path="llm-costs" element={<LlmCosts />} />
+              <Route path="monitoring/conversations" element={<ConversationMonitoring />} />
+              <Route path="monitoring/pipeline" element={<PipelineMonitor />} />
+              <Route path="monitoring/injection" element={<InjectionMonitoring />} />
+              <Route path="monitoring/analytics" element={<Analytics />} />
+              <Route path="clusters" element={<Clusters />} />
+              <Route path="clusters/:id" element={<ClusterDetail />} />
+              {/* Campaign routes hidden — pipeline disconnected */}
+              {/* <Route path="campaigns" element={<Campaigns />} /> */}
+              {/* <Route path="campaigns/:id" element={<CampaignDetail />} /> */}
+              <Route path="settings" element={<Settings />} />
+            </Route>
+          </Routes>
+          </Suspense>
+        </BrowserRouter>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+}

@@ -1,0 +1,44 @@
+# Disable all rate limiters in test environment (except where explicitly tested)
+framework:
+  rate_limiter:
+    login_ip:
+      policy: 'sliding_window'
+      limit: 100
+      interval: '1 minute'
+
+    api_global:
+      policy: 'token_bucket'
+      limit: 999999
+      rate: { interval: '1 minute', amount: 999999 }
+
+    emails_per_sender_per_day:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
+    replies_per_conversation:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
+    llm_calls_per_hour:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '1 hour'
+
+    active_conversations_per_day:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '24 hours'
+
+    # High override so existing E2E tests are not affected
+    ingest_per_account:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '1 hour'
+
+    # High override for per-email login limiter
+    login_email:
+      policy: 'sliding_window'
+      limit: 999999
+      interval: '15 minutes'

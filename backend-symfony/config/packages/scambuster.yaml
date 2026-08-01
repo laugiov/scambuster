@@ -1,0 +1,10 @@
+# Operator-tunable scalar configuration.
+#
+# Defaults ship in config/scambuster/scambuster.defaults.yaml. Operators override
+# them in config/scambuster/scambuster.yaml (git-versioned, optional). The operator
+# import is listed LAST so its values win; if the file is absent the defaults apply
+# (zero-config works out of the box). A malformed operator file fails the container
+# build on purpose — catch it on your branch before it reaches production.
+imports:
+    - { resource: '../scambuster/scambuster.defaults.yaml' }
+    - { resource: '../scambuster/scambuster.yaml', ignore_errors: not_found }

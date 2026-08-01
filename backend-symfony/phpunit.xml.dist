@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+    bootstrap="tests/bootstrap.php"
+    cacheDirectory="/tmp/.phpunit.cache"
+    colors="true"
+>
+    <extensions>
+        <bootstrap class="Symfony\Bridge\PhpUnit\SymfonyExtension"/>
+        <bootstrap class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
+    </extensions>
+
+    <php>
+        <!-- Headroom for the full suite: individual testsuites peak ~85MB, but
+             running integration+functional+unit in one process (make test)
+             accumulates to ~160MB, which overflows PHP's default 128M and
+             aborts mid-run. 512M keeps the combined run — and future growth —
+             comfortably bounded. -->
+        <ini name="memory_limit" value="512M"/>
+        <env name="APP_ENV" value="test"/>
+        <env name="SYMFONY_DEPRECATIONS_HELPER" value="999999"/>
+        <env name="KERNEL_CLASS" value="App\\Kernel"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="integration">
+            <directory suffix="Test.php">tests/Integration</directory>
+        </testsuite>
+        <testsuite name="functional">
+            <directory suffix="Test.php">tests/Functional</directory>
+            <exclude>tests/Functional/Auth/AbstractAuthBase.php</exclude>
+        </testsuite>
+        <testsuite name="unit">
+            <directory suffix="Test.php">tests/Unit</directory>
+        </testsuite>
+        <testsuite name="endtoend">
+            <directory suffix="Test.php">tests/EndToEnd</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">src</directory>
+        </include>
+        <exclude>
+            <directory suffix=".php">src/DataFixtures</directory>
+            <directory suffix=".php">src/Service</directory>
+            <file>src/Kernel.php</file>
+            <file>src/Infrastructure/Preprod/ConversationGenerator.php</file>
+            <file>src/Infrastructure/Preprod/IocGenerator.php</file>
+            <file>src/Infrastructure/Preprod/ScamTemplates.php</file>
+            <directory suffix=".php">src/UI/Console</directory>
+            <file>src/Command/VaultAddImapSecretCommand.php</file>
+            <file>src/Command/VaultDeleteImapSecretCommand.php</file>
+            <file>src/Command/MailAccountOnboardCommand.php</file>
+            <file>src/Command/PreprodCopyConversationsCommand.php</file>
+            <file>src/Command/PreprodGenerateConversationsCommand.php</file>
+            <file>src/Command/TestContextCommand.php</file>
+            <file>src/Command/TestConversationContextCommand.php</file>
+            <file>src/Command/TestReplyGenerateCommand.php</file>
+        </exclude>
+    </source>
+
+</phpunit>

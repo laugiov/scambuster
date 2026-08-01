@@ -1,0 +1,56 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Meta;
+
+use App\Application\Communication\IocExtractor;
+use App\Application\Scambaiting\PersonaOptimizer;
+use App\Domain\Communication\Persona;
+use App\Domain\Communication\ScamType;
+use Doctrine\ORM\EntityManagerInterface;
+
+final readonly class ConfigHandler
+{
+    public function __construct(
+        private EntityManagerInterface $em,
+        private PersonaOptimizer $personaOptimizer,
+        private string $llmProvider = 'openai',
+        private string $llmModel = 'gpt-4o-mini',
+    ) {
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getConfig(): array
+    {
+        $personas = $this->em->getRepository(Persona::class)->findAll();
+        $scamTypes = $this->em->getRepository(ScamType::class)->findAll();
+
+        return [
+            'personas' => array_map(
+                static fn (Persona $p): array => [
+                    'code' => $p->getPersonaCode(),
+                    'label' => $p->getPersonaLabel(),
+                    'tone' => $p->getPersonaTone(),
+                    'active' => $p->isActive(),
+                ],
+                $personas,
+            ),
+            'scam_types' => array_map(
+                static fn (ScamType $st): array => [
+                    'code' => $st->getCode(),
+                    'label' => $st->getLabel(),
+                    'description' => $st->getDescription(),
+                    'active' => $st->isActive(),
+                ],
+                $scamTypes,
+            ),
+            'ioc_types' => IocExtractor::getSupportedTypes(),
+            'bandit' => $this->personaOptimizer->getBanditConfig(),
+            'llm_provider' => $this->llmProvider,
+            'llm_model' => $this->llmModel,
+        ];
+    }
+}

@@ -1,0 +1,101 @@
+{
+  "title": "ScamBuster — Security & Operations",
+  "uid": "scambuster-secops",
+  "schemaVersion": 39,
+  "editable": true,
+  "tags": ["scambuster", "security"],
+  "timezone": "browser",
+  "time": { "from": "now-24h", "to": "now" },
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {}
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Kill switch",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "INACTIVE", "color": "green" } } },
+            { "type": "value", "options": { "1": { "text": "ACTIVE", "color": "red" } } }
+          ],
+          "thresholds": { "steps": [ { "color": "green", "value": null }, { "color": "red", "value": 1 } ] }
+        }
+      },
+      "targets": [ { "expr": "scambuster_kill_switch", "refId": "A" } ]
+    },
+    {
+      "id": 2,
+      "title": "Dependency health",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 10, "x": 6, "y": 0 },
+      "options": { "colorMode": "background" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" } } },
+            { "type": "value", "options": { "1": { "text": "OK", "color": "green" } } }
+          ]
+        }
+      },
+      "targets": [ { "expr": "scambuster_health_check", "legendFormat": "{{service}}", "refId": "A" } ]
+    },
+    {
+      "id": 3,
+      "title": "Version",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 },
+      "options": { "textMode": "name" },
+      "targets": [ { "expr": "scambuster_info", "legendFormat": "{{version}}", "refId": "A" } ]
+    },
+    {
+      "id": 4,
+      "title": "Conversations by status",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [ { "expr": "scambuster_conversations_total", "legendFormat": "{{status}}", "refId": "A" } ]
+    },
+    {
+      "id": 5,
+      "title": "Messages by direction",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [ { "expr": "scambuster_messages_total", "legendFormat": "{{direction}}", "refId": "A" } ]
+    },
+    {
+      "id": 6,
+      "title": "IOCs (total / unique)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "scambuster_iocs_total", "legendFormat": "total", "refId": "A" },
+        { "expr": "scambuster_iocs_unique", "legendFormat": "unique", "refId": "B" }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Bandit convergence ratio",
+      "type": "gauge",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "unit": "percentunit" } },
+      "targets": [ { "expr": "scambuster_convergence_ratio", "refId": "A" } ]
+    }
+  ]
+}

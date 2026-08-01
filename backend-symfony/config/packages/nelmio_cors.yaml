@@ -1,0 +1,13 @@
+nelmio_cors:
+    defaults:
+        # Origin allowlist as a regex (origin_regex: true) — never '*' on the
+        # authenticated API. Set CORS_ALLOW_ORIGIN to a regex of your frontend
+        # origin(s), e.g. ^https?://app\.example\.com$.
+        origin_regex: true
+        allow_origin: ['%env(CORS_ALLOW_ORIGIN)%']
+        allow_methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
+        allow_headers: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'X-Requested-With']
+        expose_headers: ['X-Trace-Id', 'X-TAXII-Date-Added-First', 'X-TAXII-Date-Added-Last']
+        max_age: 3600
+    paths:
+        '^/api/': ~

@@ -1,0 +1,25 @@
+# scripts/honeypot-names.txt.example
+#
+# Template for local/honeypot-names.txt — the private list of honeypot
+# identifiers that the pre-commit hook + preflight gate 9 scan committed
+# files against.
+#
+# Setup:
+#   cp scripts/honeypot-names.txt.example local/honeypot-names.txt
+#   $EDITOR local/honeypot-names.txt   # add your real identifiers, one per line
+#   bash scripts/install-pre-commit-hook.sh
+#
+# The local/ directory is gitignored, so your real identifiers never reach
+# committed code. The hook + preflight gate refuse any commit that contains
+# a substring match (case-insensitive) on any name in the list.
+#
+# What to add: organization names, domain names, characteristic email
+# locals — anything that uniquely identifies a honeypot you don't want
+# linked to your project publicly.
+#
+# Lines starting with # are ignored. Blank lines are ignored.
+#
+# Examples (replace with your own):
+# <YOUR_HONEYPOT_ORG_NAME_1>
+# <YOUR_HONEYPOT_DOMAIN_1>
+# <YOUR_HONEYPOT_ORG_NAME_2>

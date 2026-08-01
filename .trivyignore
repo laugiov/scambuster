@@ -1,0 +1,13 @@
+# Trivy vulnerability ignore list.
+#
+# Intentionally EMPTY. This file suppresses *fixable* CVEs we consciously accept;
+# there are currently none.
+#
+# - Fixable base-image CVEs are patched at build time by `apt-get upgrade` in the
+#   Dockerfiles, so they never reach the scan.
+# - Unfixable base CVEs (no upstream patch — e.g. perl-base, kernel headers,
+#   ncurses) are skipped by the CI Trivy job's `ignore-unfixed: true`, so they do
+#   not need explicit entries here.
+#
+# Add an entry (with a dated justification) only for a CVE that HAS a fix but that
+# we deliberately choose not to apply yet.

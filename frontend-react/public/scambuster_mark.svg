@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300">
+  <defs>
+    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="strongGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="10" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="redGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="6" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="bg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%"   style="stop-color:#071a07"/>
+      <stop offset="100%" style="stop-color:#000000"/>
+    </radialGradient>
+    <radialGradient id="rimGrad" cx="50%" cy="0%" r="100%">
+      <stop offset="0%"   style="stop-color:#00ff41;stop-opacity:0.7"/>
+      <stop offset="100%" style="stop-color:#004010;stop-opacity:0.3"/>
+    </radialGradient>
+    <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#0a2a0a" stroke-width="0.4"/>
+    </pattern>
+  </defs>
+
+  <!-- Outer circle rim -->
+  <circle cx="150" cy="150" r="148" fill="url(#bg)"/>
+  <circle cx="150" cy="150" r="148" fill="url(#grid)"/>
+  <!-- Glowing outer ring -->
+  <circle cx="150" cy="150" r="144" fill="none" stroke="#00ff41" stroke-width="3" opacity="0.7" filter="url(#glow)"/>
+  <circle cx="150" cy="150" r="140" fill="none" stroke="#00ff41" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Tick marks around the rim (like a targeting reticle) -->
+  <g stroke="#00ff41" stroke-width="2" opacity="0.5">
+    <!-- 12 o'clock -->
+    <line x1="150" y1="6"  x2="150" y2="20"/>
+    <!-- 3 o'clock -->
+    <line x1="294" y1="150" x2="280" y2="150"/>
+    <!-- 6 o'clock -->
+    <line x1="150" y1="294" x2="150" y2="280"/>
+    <!-- 9 o'clock -->
+    <line x1="6"   y1="150" x2="20"  y2="150"/>
+    <!-- diagonals shorter -->
+    <line x1="253" y1="47"  x2="244" y2="56"/>
+    <line x1="253" y1="253" x2="244" y2="244"/>
+    <line x1="47"  y1="253" x2="56"  y2="244"/>
+    <line x1="47"  y1="47"  x2="56"  y2="56"/>
+  </g>
+
+  <!-- Small SB text top arc (optional flavor) -->
+  <text x="150" y="35" font-family="'Courier New', monospace" font-size="10" fill="#1e4a1e"
+        text-anchor="middle" letter-spacing="8">S C A M B U S T E R</text>
+
+  <!-- Spider web -->
+  <g transform="translate(150, 148)" filter="url(#glow)">
+    <circle cx="0" cy="0" r="25"  fill="none" stroke="#00ff41" stroke-width="1.1" opacity="0.6"/>
+    <circle cx="0" cy="0" r="52"  fill="none" stroke="#00ff41" stroke-width="1"   opacity="0.5"/>
+    <circle cx="0" cy="0" r="79"  fill="none" stroke="#00ff41" stroke-width="0.9" opacity="0.38"/>
+    <circle cx="0" cy="0" r="106" fill="none" stroke="#00ff41" stroke-width="0.7" opacity="0.22"/>
+    <!-- Spokes -->
+    <line x1="0"    y1="-110" x2="0"    y2="110"  stroke="#00ff41" stroke-width="0.8" opacity="0.45"/>
+    <line x1="-110" y1="0"    x2="110"  y2="0"    stroke="#00ff41" stroke-width="0.8" opacity="0.45"/>
+    <line x1="-78"  y1="-78"  x2="78"   y2="78"   stroke="#00ff41" stroke-width="0.7" opacity="0.35"/>
+    <line x1="78"   y1="-78"  x2="-78"  y2="78"   stroke="#00ff41" stroke-width="0.7" opacity="0.35"/>
+  </g>
+
+  <!-- Spider + hook mark, scaled (512 art) and centred on the scope at (150,148) -->
+  <radialGradient id="body" cx="42%" cy="34%" r="75%">
+    <stop offset="0%" stop-color="#6dffab"/><stop offset="55%" stop-color="#2bcf78"/><stop offset="100%" stop-color="#0f6e40"/>
+  </radialGradient>
+  <g transform="translate(47,52) scale(0.402)">
+    <g transform="translate(0,40) translate(256,256) scale(1.06) translate(-256,-256)">
+      <path d="M286,190 L340,146 L388,132" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M388.8,134.9 L400.5,128.4 L387.2,129.1 Z" fill="#2fce79"/>
+      <path d="M226,190 L172,146 L124,132" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M124.8,129.1 L111.5,128.4 L123.2,134.9 Z" fill="#2fce79"/>
+      <path d="M292,206 L358,194 L414,206" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M413.4,208.9 L426.7,208.7 L414.6,203.1 Z" fill="#2fce79"/>
+      <path d="M220,206 L154,194 L98,206" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M97.4,203.1 L85.3,208.7 L98.6,208.9 Z" fill="#2fce79"/>
+      <path d="M292,224 L352,238 L406,262" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M404.8,264.7 L417.9,267.3 L407.2,259.3 Z" fill="#2fce79"/>
+      <path d="M220,224 L160,238 L106,262" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M104.8,259.3 L94.1,267.3 L107.2,264.7 Z" fill="#2fce79"/>
+      <path d="M286,240 L330,272 L370,304" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M368.1,306.3 L380.2,312.1 L371.9,301.7 Z" fill="#2fce79"/>
+      <path d="M226,240 L182,272 L142,304" fill="none" stroke="#2fce79" stroke-width="8.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M140.1,301.7 L131.8,312.1 L143.9,306.3 Z" fill="#2fce79"/>
+      <ellipse cx="256" cy="288" rx="56" ry="74" fill="url(#body)" stroke="#0a4226" stroke-width="2.5"/>
+      <path d="M214,266 Q256,250 298,266" fill="none" stroke="#0f6e40" stroke-width="2.5" opacity="0.6"/>
+      <path d="M210,300 Q256,288 302,300" fill="none" stroke="#0f6e40" stroke-width="2.5" opacity="0.5"/>
+      <ellipse cx="256" cy="204" rx="40" ry="37" fill="url(#body)" stroke="#0a4226" stroke-width="2.5"/>
+      <ellipse cx="240" cy="190" rx="11" ry="7" fill="#6dffab" opacity="0.30"/>
+      <circle cx="244" cy="194" r="5" fill="#eafff4"/><circle cx="268" cy="194" r="5" fill="#eafff4"/><circle cx="250" cy="182" r="3.2" fill="#eafff4"/><circle cx="262" cy="182" r="3.2" fill="#eafff4"/>
+      <path d="M248,238 L252,252 L256,240 Z" fill="#0f6e40"/>
+      <path d="M264,238 L260,252 L256,240 Z" fill="#0f6e40"/>
+      <g transform="translate(6,-14)">
+        <g stroke-linecap="round" stroke-linejoin="round" fill="none">
+          <path d="M324,58 C316,66 338,72 330,82" stroke="#ff5563" stroke-width="3.4"/>
+          <circle cx="330" cy="96" r="7.5" stroke="#ff5563" stroke-width="5.5"/>
+          <path d="M330,107 L330,178" stroke="#ff5563" stroke-width="10"/>
+          <path d="M330,178 C330,212 302,216 292,192 C286,178 294,166 308,167" stroke="#ff5563" stroke-width="10"/>
+        </g>
+        <path d="M308,167 L299,149 L317,160 Z" fill="#ff5563"/>
+        <path d="M306,171 L291,170 L304,181 Z" fill="#ff5563"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Bottom text -->
+  <text x="150" y="272" font-family="'Courier New', monospace" font-size="10" fill="#1e4a1e"
+        text-anchor="middle" letter-spacing="5">WE HUNT THE HUNTERS</text>
+</svg>

@@ -1,0 +1,14 @@
+{
+  "scam_code": "CEO_FRAUD",
+  "language": "en",
+  "persona": "small_business_owner",
+  "scenario": "Sustained Authority across 3 generations — scammer keeps invoking title rank + bank order. Mirror must persist (deference + credential ask) without slipping into pure banking-IOC ask.",
+  "turns": [
+    { "from": "attacker", "body": "As the appointed Director of Risk at HSBC, I am authorized to oversee this wire. My credentials are filed under HSBC-CRM-22841. By order of the Compliance Office, please proceed." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "I confirm my authority — I am also the executive sponsor of this acquisition. The registry entry HSBC-CRM-22841 is verifiable on HSBC's internal directory. Proceed." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "I have given you my title, my credentials, my registry reference. As a Director I should not need to justify myself further. Process the wire now." },
+    { "from": "persona", "generate": true }
+  ]
+}

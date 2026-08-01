@@ -1,0 +1,490 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Communication;
+
+use App\Application\Audit\AuditLogger;
+use App\Application\Communication\Smtp\SmtpTransportResolver;
+use App\Domain\Communication\Direction;
+use App\Domain\Communication\Message;
+use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
+
+/**
+ * Handles reply composition, header building, send-status tracking, and SMTP delivery.
+ *
+ * Responsibilities:
+ * - Compose RFC 5322 threading headers (References, In-Reply-To)
+ * - Mark messages as sent with provider metadata
+ * - Send emails via Symfony Mailer (SMTP)
+ */
+class ReplyCompositionService
+{
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly MessageHandler $messageHandler,
+        private readonly ReplyCadenceService $cadenceService,
+        private readonly LoggerInterface $logger,
+        private readonly ?AuditLogger $auditLogger = null,
+        private readonly ?MailerInterface $mailer = null,
+        private readonly ?SmtpTransportResolver $transportResolver = null,
+        private readonly string $messageIdDomain = '',
+    ) {
+    }
+
+    /**
+     * Build an outbound Message-ID whose domain matches the real sending
+     * identity rather than a fixed product string, so the header does not
+     * brand every reply nor act as a cross-mailbox correlation key.
+     */
+    public function buildMessageId(string $fromAddress): string
+    {
+        return '<' . bin2hex(random_bytes(16)) . '@' . $this->resolveMessageIdDomain($fromAddress) . '>';
+    }
+
+    /**
+     * Resolve the Message-ID domain: an explicit operator override wins,
+     * otherwise the domain of the From address, otherwise a neutral generic.
+     *
+     * Uses RFC-compliant address parsing so a display name that itself contains
+     * an "@" (e.g. `"a@b" <jane@bank.example>`) still yields the real domain.
+     */
+    private function resolveMessageIdDomain(string $fromAddress): string
+    {
+        if ($this->messageIdDomain !== '') {
+            return $this->messageIdDomain;
+        }
+
+        try {
+            $address = Address::create($fromAddress)->getAddress();
+            $domain = substr(strrchr($address, '@') ?: '', 1);
+
+            if ($domain !== '') {
+                return strtolower($domain);
+            }
+        } catch (\Throwable) {
+            // Unparseable From (empty/malformed) → neutral generic below.
+        }
+
+        return 'localhost.localdomain';
+    }
+
+    /**
+     * Compose headers for threaded email sending.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function composeHeaders(string $msgId): ?array
+    {
+        $message = $this->messageHandler->getMessage($msgId);
+
+        if (!$message instanceof \App\Domain\Communication\Message) {
+            return null;
+        }
+
+        $parent = $message->getReplyTo();
+
+        if (!$parent instanceof \App\Domain\Communication\Message) {
+            throw new \RuntimeException('Message is not a reply');
+        }
+
+        // Build References header according to RFC
+        $refs = [];
+        $parentHeaders = $parent->getHeaders();
+
+        if (!empty($parentHeaders['references'])) {
+            /** @var string $references */
+            $references = $parentHeaders['references'];
+            $refs = preg_split('/\s+/', trim($references)) ?: [];
+        }
+
+        if (!empty($parentHeaders['in_reply_to']) && !in_array($parentHeaders['in_reply_to'], $refs, true)) {
+            $refs[] = $parentHeaders['in_reply_to'];
+        }
+
+        if (!empty($parentHeaders['message_id'])) {
+            $refs[] = $parentHeaders['message_id'];
+        }
+
+        // Keep only last 12 unique references
+        $refs = array_slice(array_unique(array_filter($refs, 'is_string')), -12);
+
+        $to = $message->getHeaders()['to'] ?? null;
+        $from = $message->getHeaders()['from'] ?? null;
+
+        // Fix: if "from" is not a valid email (e.g., IMAP hostname stored during ingestion),
+        // resolve it from the parent inbound message's "to" (= the honeypot address),
+        // then from the MailAccount's own emailAddress as a last resort.
+        $fromStr = \is_string($from) ? $from : '';
+
+        if ($fromStr === '' || !str_contains($fromStr, '@')) {
+            $parentHeaders = $parent->getHeaders();
+            $accountEmail = $message->getConversation()->getAccount()->getEmailAddress();
+            $from = $parentHeaders['to']
+                ?? $parentHeaders['delivered-to']
+                ?? $accountEmail
+                ?? $from;
+        }
+
+        if (!$to || !$from) {
+            throw new \RuntimeException('Missing to/from headers');
+        }
+
+        // Run safety checks
+        $checks = [
+            'safelist_ok' => $this->cadenceService->checkSafelist(\is_string($to) ? $to : ''),
+            'kill_switch_off' => !$this->cadenceService->isKillSwitchActive(),
+            'cadence_ok' => $this->cadenceService->checkCadence($message->getConversation()->getConvId()),
+            'conversation_open' => $message->getConversation()->getStatus()->value === 'open',
+        ];
+
+        $safeToSend = $checks['safelist_ok'] && $checks['kill_switch_off'] && $checks['cadence_ok'] && $checks['conversation_open'];
+        $rateLimited = !$checks['cadence_ok'];
+
+        return [
+            'msg_id' => $msgId,
+            'to' => $to,
+            'from' => $from,
+            'subject' => $message->getSubject() ?? '',
+            'in_reply_to' => $parentHeaders['message_id'] ?? null,
+            'references' => implode(' ', $refs),
+            'thread_id' => $parentHeaders['thread_id'] ?? null,
+            'safe_to_send' => $safeToSend,
+            'rate_limited' => $rateLimited,
+            'checks' => $checks,
+        ];
+    }
+
+    /**
+     * Mark message as sent and store threading headers.
+     *
+     * @param array<string, mixed>|null $sentHeaders
+     */
+    public function markAsSent(
+        string $msgId,
+        string $provider,
+        string $providerMsgId,
+        \DateTimeImmutable $tsSent,
+        ?array $sentHeaders = null,
+        ?string $convId = null
+    ): bool {
+        $message = $this->messageHandler->getMessage($msgId);
+
+        if (!$message instanceof \App\Domain\Communication\Message) {
+            return false;
+        }
+
+        // Idempotency on match, typed conflict on mismatch.
+        // The natural key is provider_msg_id (the message-id we generated at
+        // SMTP send time). If a duplicate /sent call arrives with the same
+        // id, we treat it as a no-op; if it arrives with a different id,
+        // we refuse rather than silently overwriting recorded state.
+        if ($message->getSendStatus() === 'sent') {
+            $storedProviderMsgId = $message->getProviderMsgId();
+
+            // Compare normalized (no chevrons) so historical rows
+            // stored with chevrons stay idempotent against bare callbacks.
+            if (trim((string) $storedProviderMsgId, '<>') === trim($providerMsgId, '<>')) {
+                return true;
+            }
+
+            throw new \App\Application\Communication\Exception\MarkAsSentConflictException(
+                msgId: $msgId,
+                expectedProviderMsgId: $storedProviderMsgId ?? '',
+                actualProviderMsgId: $providerMsgId,
+            );
+        }
+
+        $message->setSendStatus('sent');
+        $message->setProviderMsgId(trim($providerMsgId, '<>'));
+        $message->setTsSent($tsSent);
+
+        $conversation = $message->getConversation();
+
+        // If conv_id is provided, verify it matches (security check)
+        if ($convId !== null && $conversation->getConvId() !== $convId) {
+            $this->logger->warning('[ReplyCompositionService] conv_id mismatch during markAsSent', [
+                'expected' => $conversation->getConvId(),
+                'received' => $convId,
+            ]);
+        }
+
+        // Build proper threading headers from conversation context
+        $currentHeaders = $message->getHeaders();
+
+        // Get the last INCOMING message from the conversation to reply to
+        // Direction is an entity, fetch it first
+        $directionIn = $this->em->getRepository(Direction::class)->findOneBy(['code' => 'in']);
+
+        /** @var Message[] $inboundMessages */
+        $inboundMessages = $this->em->createQueryBuilder()
+            ->select('m')
+            ->from(Message::class, 'm')
+            ->where('m.conversation = :conversation')
+            ->andWhere('m.direction = :direction')
+            ->andWhere('m.deletedAt IS NULL')
+            ->setParameter('conversation', $conversation)
+            ->setParameter('direction', $directionIn)
+            ->orderBy('m.tsMsg', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getResult();
+
+        if (count($inboundMessages) > 0) {
+            /** @var Message $lastInbound */
+            $lastInbound = $inboundMessages[0];
+            $parentHeaders = $lastInbound->getHeaders();
+
+            // Headers can be stored with either 'message-id' (with dash) or 'message_id' (with underscore)
+            /** @var string|null $parentMessageId */
+            $parentMessageId = $parentHeaders['message-id'] ?? $parentHeaders['message_id'] ?? null;
+            /** @var string $parentReferences */
+            $parentReferences = $parentHeaders['references'] ?? '';
+
+            // Build RFC 5322 compliant headers
+            if ($parentMessageId) {
+                $currentHeaders['in_reply_to'] = $parentMessageId;
+
+                // Build references: parent's references + parent's message_id
+                $referencesArray = array_filter(explode(' ', trim($parentReferences)));
+                $referencesArray[] = $parentMessageId;
+                $currentHeaders['references'] = implode(' ', array_unique($referencesArray));
+
+                $this->logger->debug('[ReplyCompositionService] Threading headers rebuilt', [
+                    'in_reply_to' => $parentMessageId,
+                ]);
+            } else {
+                $this->logger->warning('[ReplyCompositionService] No message_id in parent message headers');
+            }
+        } else {
+            $this->logger->warning('[ReplyCompositionService] No incoming messages found in conversation');
+        }
+
+        // Store additional headers from n8n
+        if ($sentHeaders !== null) {
+            if (isset($sentHeaders['thread_id'])) {
+                $currentHeaders['thread_id'] = $sentHeaders['thread_id'];
+            }
+
+            // Store the real RFC822 Message-ID if provided by n8n workflow
+            if (isset($sentHeaders['message-id'])) {
+                $rfc822MessageId = $sentHeaders['message-id'];
+
+                // Clean chevrons if present (e.g., "<message-id>" -> "message-id")
+                $rfc822MessageId = trim(is_string($rfc822MessageId) ? $rfc822MessageId : '', '<>');
+
+                $currentHeaders['message-id'] = $rfc822MessageId;
+                $this->logger->debug('[ReplyCompositionService] RFC822 Message-ID stored');
+            }
+        }
+
+        $message->setHeaders($currentHeaders);
+
+        $this->em->flush();
+
+        $this->auditLogger?->log(
+            \App\Domain\Audit\AuditEventType::REPLY_SENT,
+            $conversation->getConvId(),
+            'mark_as_sent',
+            'success',
+            'message',
+            $msgId,
+            [
+                'provider' => $provider,
+                'provider_msg_id' => $providerMsgId,
+            ],
+        );
+
+        return true;
+    }
+
+    /**
+     * Send a reply email via Symfony Mailer (SMTP).
+     * Stateless: reads draft from DB, sends, returns Message-ID. Does NOT modify message state.
+     *
+     * @return array{success: bool, message_id: string, ts_sent: string}
+     */
+    public function sendEmail(string $msgId): array
+    {
+        if (!$this->mailer instanceof \Symfony\Component\Mailer\MailerInterface) {
+            throw new \RuntimeException('Mailer not configured (MAILER_DSN missing or symfony/mailer not installed)');
+        }
+
+        $message = $this->messageHandler->getMessage($msgId);
+
+        if (!$message instanceof \App\Domain\Communication\Message) {
+            throw new \RuntimeException('Message not found');
+        }
+
+        // Verify it's an outbound reply
+        if ($message->getDirection()->getCode() !== 'out') {
+            throw new \RuntimeException('Cannot send a non-outbound message');
+        }
+
+        // Verrou B: send-side idempotency.
+        // If the message is already marked sent, return the cached delivery metadata
+        // without invoking SMTP. Protects against duplicate SMTP delivery caused by
+        // retried workflows, replayed runs, or manual UI re-triggers.
+        if ($message->getSendStatus() === 'sent') {
+            $providerMsgId = $message->getProviderMsgId() ?? '';
+            $tsSent = $message->getTsSent();
+            $this->logger->info('[ReplyCompositionService] Send already completed, returning idempotent response', [
+                'msg_id' => $msgId,
+                'provider_msg_id' => $providerMsgId,
+                'reason' => 'send_already_completed',
+            ]);
+
+            return [
+                'success' => true,
+                'message_id' => $providerMsgId,
+                'ts_sent' => $tsSent instanceof \DateTimeImmutable ? $tsSent->format(\DateTimeInterface::ATOM) : '',
+            ];
+        }
+
+        // Resolve the right mailer based on the conversation's mail account.
+        // Falls back to the default mailer (global MAILER_DSN) if no resolver
+        // is injected or the account has no per-account SMTP configured.
+        $mailer = $this->mailer;
+
+        if ($this->transportResolver !== null) {
+            $account = $message->getConversation()->getAccount();
+            $mailer = $this->transportResolver->resolveForAccount($account);
+        }
+
+        // Get compose/threading data
+        $compose = $this->composeHeaders($msgId);
+
+        if (!$compose) {
+            throw new \RuntimeException('Cannot compose headers for message');
+        }
+
+        // Check safety -- but skip cadence check (n8n human delay already handles timing)
+        /** @var array{safelist_ok: bool, kill_switch_off: bool, cadence_ok: bool, conversation_open: bool} $checks */
+        $checks = $compose['checks'];
+
+        if (!$checks['safelist_ok']) {
+            throw new \RuntimeException('Safety checks failed: recipient not in safelist');
+        }
+
+        if (!$checks['kill_switch_off']) {
+            throw new \RuntimeException('Safety checks failed: kill switch is active');
+        }
+
+        if (!$checks['conversation_open']) {
+            throw new \RuntimeException('Safety checks failed: conversation is not open');
+        }
+
+        // Build the email -- composeHeaders() already resolves correct from/to
+        /** @var string $composeFrom */
+        $composeFrom = $compose['from'] ?? '';
+        /** @var string $composeTo */
+        $composeTo = $compose['to'] ?? '';
+        /** @var string $composeSubject */
+        $composeSubject = $compose['subject'] ?? '';
+
+        // Message-ID domain tracks the real From identity, not a fixed product string
+        $generatedMessageId = $this->buildMessageId($composeFrom);
+        $tsSent = new \DateTimeImmutable();
+
+        $email = (new Email())
+            ->from($composeFrom)
+            ->to($composeTo)
+            ->subject($composeSubject);
+
+        // Set threading headers
+        if (!empty($compose['in_reply_to'])) {
+            /** @var string $inReplyTo */
+            $inReplyTo = $compose['in_reply_to'];
+            $email->getHeaders()->addIdHeader('In-Reply-To', $inReplyTo);
+        }
+
+        if (!empty($compose['references'])) {
+            /** @var string $refs */
+            $refs = $compose['references'];
+            $email->getHeaders()->addTextHeader('References', $refs);
+        }
+        // Message-ID must use addIdHeader (IdentificationHeader), not addTextHeader
+        // Strip chevrons -- Symfony adds them automatically
+        $cleanMessageId = trim($generatedMessageId, '<>');
+        $email->getHeaders()->addIdHeader('Message-ID', $cleanMessageId);
+
+        // Set body
+        $bodyHtml = $message->getBodyHtml();
+        $bodyText = $message->getBodyText();
+
+        if ($bodyHtml) {
+            $email->html($bodyHtml);
+        }
+
+        if ($bodyText !== '' && $bodyText !== '0') {
+            $email->text($bodyText);
+        }
+
+        // Send via resolved mailer (per-account or default fallback)
+        $mailer->send($email);
+
+        $this->logger->info('[ReplyCompositionService] Email sent via SMTP', [
+            'msg_id' => $msgId,
+            'to' => $compose['to'],
+            'message_id' => $generatedMessageId,
+        ]);
+
+        // Atomic post-send state write.
+        // Persist send_status='sent' + provider_msg_id + ts_sent in the
+        // same operation that observed the SMTP success. Without this,
+        // the row stays send_status='draft' until n8n's /sent callback,
+        // opening a window where a duplicate /send-email call would
+        // bypass the Verrou-B idempotency check (which keys on 'sent')
+        // and trigger a second SMTP delivery to the scammer.
+        try {
+            $message->setSendStatus('sent');
+            // Persist provider_msg_id in bare form so the n8n
+            // /sent callback (which strips chevrons) finds it on idempotent
+            // retries. The chevron-wrapped form is still returned to the
+            // caller via $result['message_id'] for RFC visibility.
+            $message->setProviderMsgId(trim($generatedMessageId, '<>'));
+            $message->setTsSent($tsSent);
+
+            // Persist the bare message-id (no chevrons)
+            // in headers so ThreadResolverService finds the parent when
+            // the scammer replies. The headers field is what
+            // ThreadResolver consults; the provider_msg_id column is
+            // covered by a separate fallback.
+            $headers = $message->getHeaders();
+            $headers['message-id'] = trim($generatedMessageId, '<>');
+            $message->setHeaders($headers);
+
+            $this->em->flush();
+        } catch (\Throwable $persistError) {
+            // SMTP delivered but DB write failed — log loudly so the
+            // operator sees this rare class of inconsistency. Re-throw
+            // as a 500 so the caller knows the operation is half-done;
+            // the next retry will re-send (strictly no-worse than today,
+            // where the row also stays 'draft' until /sent is called).
+            $this->logger->error('[ReplyCompositionService] SMTP succeeded but post-send DB write failed', [
+                'msg_id' => $msgId,
+                'provider_msg_id' => $generatedMessageId,
+                'error' => $persistError->getMessage(),
+            ]);
+
+            throw new \RuntimeException(
+                'SMTP delivered but failed to persist sent state — manual reconciliation required',
+                0,
+                $persistError,
+            );
+        }
+
+        // Return the bare form to keep the response symmetric
+        // with the idempotent branch above (line 304) and with the n8n
+        // /sent callback contract (which also posts bare).
+        return [
+            'success' => true,
+            'message_id' => trim($generatedMessageId, '<>'),
+            'ts_sent' => $tsSent->format(\DateTimeInterface::ATOM),
+        ];
+    }
+}

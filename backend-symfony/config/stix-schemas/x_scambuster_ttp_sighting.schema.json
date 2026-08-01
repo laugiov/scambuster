@@ -1,0 +1,12 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "ScamBuster STIX extension — x_scambuster_ttp_sighting",
+    "description": "Per-cluster attribution attached to a STIX 2.1 sighting of a TTP attack-pattern (schema version 1.0). Carries the ScamBuster threat-actor cluster id so that sightings of the same attack-pattern by different clusters stay distinguishable in the shared TAXII feed (a sighting cannot carry the cluster in sighting_of_ref or where_sighted_refs).",
+    "type": "object",
+    "required": ["schema_version", "cluster_id"],
+    "properties": {
+        "schema_version": {"type": "string"},
+        "cluster_id": {"type": "string"}
+    },
+    "additionalProperties": false
+}

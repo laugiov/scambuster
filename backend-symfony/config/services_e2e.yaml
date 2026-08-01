@@ -1,0 +1,7 @@
+parameters:
+    # Disable the GET /risk 30s wait in the e2e environment.
+    # Lives in services_e2e.yaml (not config/packages/e2e/services.yaml)
+    # because services_{env}.yaml is loaded AFTER services.yaml, so it
+    # actually overrides the default. The packages/{env} path is loaded
+    # BEFORE services.yaml, so its override would be silently shadowed.
+    app.risk_extraction_wait_sec: 0

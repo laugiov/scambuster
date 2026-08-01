@@ -1,0 +1,105 @@
+# Weekly real-LLM GUARD regression run.
+#
+# The per-PR CI already runs GUARD's OFFLINE checks (baseline↔oracle fingerprint lock, the
+# oracle⊇PolicyGuard drift tests, the comparator) via the unit suite. What it cannot run per-PR is
+# the real-LLM canary (~$0.14, ~35 min): generating replies over the fixed scenario set and diffing
+# the candidate against the frozen baseline. This workflow does that on a schedule so a
+# generation/prompt drift on the default branch is caught even without a paid per-PR run.
+#
+# SETUP (one-time, by a maintainer): add an `LLM_API_KEY` repository secret (an OpenAI key). Without
+# it the run is skipped gracefully. Trigger it once via "Run workflow" to validate before trusting
+# the weekly schedule — the first run also confirms the frozen baseline reproduces green over the
+# fixtures-seeded personas; if it flags a regression that is really a persona-seed mismatch,
+# regenerate the baseline from a fixtures-seeded run (`make guard-baseline`). The secret is written
+# only to the runner's ephemeral .env and is never uploaded as an artifact.
+name: GUARD nightly (real-LLM regression)
+
+on:
+  schedule:
+    - cron: '0 5 * * 0' # Sundays 05:00 UTC
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: guard-nightly
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Check LLM secret
+    runs-on: ubuntu-latest
+    outputs:
+      has_key: ${{ steps.check.outputs.has_key }}
+    steps:
+      - id: check
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: |
+          if [ -n "$LLM_API_KEY" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::LLM_API_KEY secret not set — skipping the real-LLM GUARD run."
+          fi
+
+  guard:
+    name: Real-LLM GUARD regression
+    needs: preflight
+    if: needs.preflight.outputs.has_key == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Create environment files (real LLM, dev env)
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: |
+          bash .github/scripts/create-ci-env.sh
+          # In APP_ENV=test the container binds LLMClientInterface to a FakeLLMClient
+          # (config/packages/test/llm.yaml), so a smoke run there would be fake and the verdict
+          # meaningless. Run in APP_ENV=dev instead — where the client is bound by LLM_PROVIDER via
+          # the compiler pass, exactly like the local `make guard` on backend-dev. The
+          # DoctrineFixturesBundle is enabled in dev too, so the persona seed still loads. Override
+          # .env (dev does not load .env.test) BEFORE the container warms — the LLM client is bound
+          # at container-compile time from LLM_PROVIDER.
+          sed -i 's|^APP_ENV=.*|APP_ENV=dev|' .env
+          sed -i 's|^LLM_PROVIDER=.*|LLM_PROVIDER=openai|' .env
+          sed -i 's|^LLM_MODEL=.*|LLM_MODEL=gpt-4o-mini|' .env
+          sed -i "s|^LLM_API_KEY=.*|LLM_API_KEY=${LLM_API_KEY}|" .env
+
+      - name: Start services
+        run: docker compose up -d --build postgres redis backend-dev
+
+      - name: Wait for healthy services
+        run: |
+          for i in $(seq 1 30); do docker compose exec postgres pg_isready -U postgres && break || sleep 2; done
+          for i in $(seq 1 60); do docker compose exec backend-dev php -v > /dev/null 2>&1 && break || sleep 2; done
+
+      - name: Install dependencies
+        run: |
+          docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+          docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
+
+      - name: Setup database (dev env — real LLM client, fixtures seed personas)
+        run: |
+          docker compose exec backend-dev php bin/console doctrine:database:create --if-not-exists --env=dev
+          docker compose exec backend-dev php bin/console doctrine:migrations:migrate --no-interaction --env=dev
+          docker compose exec backend-dev php bin/console doctrine:fixtures:load --no-interaction --env=dev
+
+      - name: Assert a real LLM is configured (fail fast before the paid run)
+        run: |
+          docker compose exec backend-dev sh -c 'test "$LLM_PROVIDER" = "openai"' \
+            || { echo "::error::LLM_PROVIDER is not openai — refusing to run the paid smoke on a mock provider."; exit 1; }
+
+      - name: GUARD — real-LLM smoke over the fixtures
+        run: docker compose exec backend-dev php bin/console scambuster:smoke:reply-objective --summary-json=var/smoke/guard-candidate.json
+
+      - name: GUARD — diff candidate vs frozen baseline (fails on regression)
+        run: docker compose exec backend-dev php bin/console scambuster:guard:check --summary-json=var/smoke/guard-candidate.json --baseline=tests/Smoke/guard-baseline.json
+
+      - name: Dump candidate summary on failure (debug)
+        if: failure()
+        run: docker compose exec backend-dev cat var/smoke/guard-candidate.json || true

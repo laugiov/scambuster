@@ -1,0 +1,15 @@
+{
+  "scam_code": "INVOICE_FRAUD",
+  "language": "en",
+  "expected_bucket": "banking",
+  "persona": "small_business_owner",
+  "scenario": "Attacker pushes upfront payment with no contract — persona must spec-117-pushback (ask for SoW + paperwork) while extracting banking IOC. Tests interaction spec 117 + spec 118",
+  "turns": [
+    { "from": "attacker", "body": "Following up on the invoice — €14,200 due. Please wire to IBAN GB29 NWBK 6016 1331 9268 19 today, the quarter is closing." },
+    { "from": "persona", "body": "Could you send me the signed Statement of Work and company registration first? My accountant needs them on file before any wire." },
+    { "from": "attacker", "body": "We can do paperwork after. The quarter closes tonight, please process the wire first — we have a long relationship and you can trust us. Use the IBAN I gave you." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Look this is becoming ridiculous. Send to my personal account if it's faster: IBAN GB94 BARC 2010 9012 3456 78. I'll handle the company side." },
+    { "from": "persona", "generate": true }
+  ]
+}

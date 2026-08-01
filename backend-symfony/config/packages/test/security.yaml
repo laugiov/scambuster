@@ -1,0 +1,28 @@
+security:
+    providers:
+        test_users:
+            memory:
+                users:
+                    test-user:
+                        password: foo
+                        roles: ['ROLE_USER']
+                    test-admin:
+                        password: foo
+                        roles: ['ROLE_ADMIN', 'ROLE_USER']
+    firewalls:
+        api:
+            pattern: ^/api/v1
+            stateless: true
+            provider: test_users
+            jwt: false
+            custom_authenticators:
+                - App\Security\TestTokenAuthenticator
+        main:
+            pattern: ^/
+            stateless: true
+            provider: test_users
+            # Disable the real lexik JWT authenticator (inherited from the prod
+            # main firewall) so the test token authenticator handles auth here.
+            jwt: false
+            custom_authenticators:
+                - App\Security\TestTokenAuthenticator

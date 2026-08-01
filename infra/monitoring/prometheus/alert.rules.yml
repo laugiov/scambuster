@@ -1,0 +1,42 @@
+# ScamBuster alert rules — security & operations signals over /api/metrics.
+groups:
+  - name: scambuster-security-ops
+    rules:
+      - alert: ScamBusterKillSwitchActive
+        expr: scambuster_kill_switch == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ScamBuster kill switch is ACTIVE"
+          description: "All outbound replies are halted. This is either an operator action or an incident-response containment. Confirm it was intended."
+
+      - alert: ScamBusterDependencyDown
+        expr: scambuster_health_check == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ScamBuster dependency down: {{ $labels.service }}"
+          description: "The {{ $labels.service }} dependency has been unhealthy for 2 minutes."
+
+      - alert: ScamBusterMetricsUnreachable
+        expr: up{job="scambuster"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "ScamBuster /api/metrics is unreachable"
+          description: "Prometheus cannot scrape the backend (down, or the admin scrape token expired — check /etc/prometheus/scambuster-token)."
+
+      - alert: ScamBusterIngestStalled
+        # scambuster_messages_total is a gauge (a live COUNT), so use delta() not
+        # increase() — increase() would treat a retention-purge dip as a counter
+        # reset and extrapolate. delta()==0 means the inbound count has not moved.
+        expr: delta(scambuster_messages_total{direction="inbound"}[6h]) == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No inbound scam mail ingested in 6h"
+          description: "The honeypot has ingested no inbound messages for 6 hours — check the n8n IMAP intake workflow."

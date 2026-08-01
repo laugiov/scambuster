@@ -1,0 +1,490 @@
+{
+  "name": "WF-INTAKE-EMAIL-V2",
+  "nodes": [
+    {
+      "parameters": {
+        "downloadAttachments": true,
+        "options": {
+          "customEmailConfig": "[\"UNSEEN\"]",
+          "forceReconnect": 2,
+          "trackLastMessageId": false
+        }
+      },
+      "id": "a40abcac-34bb-49f6-a3d5-d3cb9314842d",
+      "name": "IMAP Email Trigger",
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        -96,
+        368
+      ],
+      "credentials": {
+        "imap": {
+          "id": "7wXf3ypzm5SqahtM",
+          "name": "ScamBuster IMAP"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Extract Email Data - V5 (IMAP Simple + Download Attachments)\n// n8n IMAP V2 format=raw is broken (returns body only,\n// no headers — bug confirmed in n8n source code).\n// We use format=simple instead, which gives us properly-parsed\n// headers via mailparser AND downloads attachments as binaryData.\n// We compute sha256 of each attachment via Node crypto and populate\n// the attachments array, which Prepare Payload then forwards to the\n// backend (existing dto.attachments precedence path — no change to\n// Prepare Payload required).\n// ═══════════════════════════════════════════════════════════════\n\nconst crypto = require('crypto');\n\nconst item = $input.item.json;\nconst binaryParts = $input.item.binary || {};\n\n// ─── Mojibake fix (UTF-8-via-Latin-1 sequences only) ───\nfunction fixMojibake(text) {\n  if (!text || typeof text !== 'string') return '';\n  return text.replace(\n    /[\\xC0-\\xF7][\\x80-\\xBF]+/g,\n    match => Buffer.from(match, 'latin1').toString('utf8')\n  );\n}\n\n// ─── Build the headers object from n8n's parsed metadata ───\nconst metadata = item.metadata || {};\nconst headers = {};\nfor (const [key, value] of Object.entries(metadata)) {\n  if (typeof value === 'string') {\n    headers[key.toLowerCase()] = value;\n  }\n}\n\n// Override with top-level fields when present (more reliable)\nif (item.from) headers['from'] = fixMojibake(item.from);\nif (item.to) headers['to'] = item.to;\nif (item.subject) headers['subject'] = fixMojibake(item.subject);\nif (item.date) headers['date'] = item.date;\n\nconst textContent = fixMojibake((item.textPlain || '').trim());\nconst htmlContent = fixMojibake((item.textHtml || '').trim());\n\nfunction stripHtml(html) {\n  if (!html) return '';\n  return html.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n}\n\nconst fullText = textContent + '\\n' + stripHtml(htmlContent);\nconst subject = headers['subject'] || '';\n\n// ─── Process attachments from n8n binaryData ───\n// n8n exposes downloaded attachments as item.binary[propertyName],\n// each with { mimeType, fileName, data (base64), fileSize }.\n// We compute sha256 ourselves via Node crypto.\nconst attachments = [];\nfor (const [propName, binData] of Object.entries(binaryParts)) {\n  if (!binData || !binData.data) continue;\n\n  try {\n    const buffer = Buffer.from(binData.data, 'base64');\n    const sha256 = crypto.createHash('sha256').update(buffer).digest('hex');\n\n    attachments.push({\n      filename: binData.fileName || `${propName}.bin`,\n      mime_type: binData.mimeType || 'application/octet-stream',\n      size_bytes: buffer.length,\n      sha256: sha256,\n    });\n  } catch (e) {\n    console.error(`Failed to process attachment ${propName}: ${e.message}`);\n  }\n}\n\nreturn {\n  json: {\n    email_id: (headers['message-id'] || '').replace(/[<>]/g, '') || null,\n    thread_id: null,\n    from: headers['from'] || null,\n    to: headers['to'] || null,\n    subject: subject,\n    date: headers['date'] || new Date().toISOString(),\n    body_text: textContent,\n    body_html: htmlContent,\n    headers: headers,\n    full_text: (subject || '') + '\\n\\n' + fullText,\n    attachments: attachments,                  // ← NEW: populated from binaryData\n    has_attachments: attachments.length > 0,   // ← NEW: now reflects reality\n    attachment_count: attachments.length,      // ← NEW: now reflects reality\n  },\n};\n"
+      },
+      "id": "405ee839-6e04-45f7-8ab7-6d5b414bc6f4",
+      "name": "Extract Email Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        368
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/auth/login",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"email\": $env.INGEST_LOGIN, \"password\": $env.INGEST_PASSWORD } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "63cf2db5-fef0-4c6c-b0ab-72fc51928ff3",
+      "name": "Retrieve Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        576,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare Payload for /ingest/raw - V5 (IMAP Provider-Agnostic)\n// Reconstructs RFC822 from structured IMAP data for /ingest/raw\n// ═══════════════════════════════════════════════════════════════\n\nconst emailData = $('Loop Over Items').first().json;\nconst tokenData = $input.first().json;\nconst token = tokenData.access_token;\n\n// Reconstruct RFC822 from structured fields\n// The backend /ingest/raw expects base64-encoded RFC822\nconst headers = emailData.headers || {};\n\nlet rfc822 = '';\n\n// Build RFC822 headers\nconst headerOrder = [\n  'from', 'to', 'subject', 'date', 'message-id',\n  'in-reply-to', 'references', 'mime-version', 'content-type',\n  'content-transfer-encoding', 'return-path', 'delivered-to',\n  'received', 'received-spf', 'authentication-results',\n  'dkim-signature', 'arc-seal', 'arc-message-signature',\n  'arc-authentication-results'\n];\n\n// Add known headers in order\nfor (const key of headerOrder) {\n  if (headers[key]) {\n    const headerName = key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');\n    rfc822 += headerName + ': ' + headers[key] + '\\r\\n';\n  }\n}\n\n// Add any remaining headers not in the ordered list\nfor (const [key, value] of Object.entries(headers)) {\n  if (!headerOrder.includes(key) && typeof value === 'string' && value.length < 2000) {\n    const headerName = key.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');\n    rfc822 += headerName + ': ' + value + '\\r\\n';\n  }\n}\n\n// Empty line separator\nrfc822 += '\\r\\n';\n\n// Body (prefer text, fallback to html)\nif (emailData.body_text) {\n  rfc822 += emailData.body_text;\n} else if (emailData.body_html) {\n  rfc822 += emailData.body_html;\n}\n\n// Encode to base64 for /ingest/raw\nconst rawSourceB64 = Buffer.from(rfc822, 'utf-8').toString('base64');\n\n// Account resolution is handled by the backend from the message recipient\n// (To / Delivered-To), so a new mailbox can be plugged in by configuration\n// alone — no workflow edit needed. Set a UUID here only to force a specific\n// account regardless of the recipient.\nconst accountId = '';\n\n// Extract threading headers\nconst inReplyTo = headers['in-reply-to'] || null;\nconst references = headers['references'] || null;\nconst messageId = headers['message-id'] || null;\n\nconst payload = {\n  account_id: accountId,\n  raw_source_rfc822_b64: rawSourceB64,\n  ts_received: emailData.date || new Date().toISOString(),\n  channel: 'email',\n  rspamd: { score: 0, symbols: ['N8N'] },\n  score_risk: 50,\n  thread_id: null,                     // No thread concept with IMAP\n  provider_msg_id: messageId,          // Use Message-ID as provider reference\n  in_reply_to: inReplyTo,\n  references: references,\n  message_id: messageId,\n  attachments: emailData.attachments || [],\n  parsed: {\n    headers: headers,\n    body: {\n      text: emailData.body_text || '',\n      html: emailData.body_html || '',\n      has_attachments: emailData.has_attachments || false,\n      attachment_count: emailData.attachment_count || 0,\n      text_length: (emailData.body_text || '').length,\n      html_length: (emailData.body_html || '').length,\n    }\n  }\n};\n\nreturn {\n  json: {\n    token: token,\n    payload: payload,\n    email_id: emailData.email_id,\n    full_text: emailData.full_text\n  }\n};\n"
+      },
+      "id": "cc4ff59e-504b-4435-a592-beca0320c078",
+      "name": "Prepare Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SCAMBUSTER_API_URL }}/api/v1/communication/ingest/raw",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $json.token }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "73cb69c7-e717-413b-9326-0bfc02c5556a",
+      "name": "Ingest Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.SCAMBUSTER_API_URL + '/api/v1/communication/message/' + $('Ingest Email').first().json.msg_id + '/risk' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "={{ 'Bearer ' + $('Prepare Payload').first().json.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "4a780f11-8f89-4d15-9527-d0bbc3332a8a",
+      "name": "Get Risk Assessment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1248,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('Get Risk Assessment').item.json.should_reply }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "023a1afb-4948-4db4-bb07-1e748eafa634",
+      "name": "Decision Gate",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract conv_id and msg_id from Ingest Email response\nconst ingestData = $('Ingest Email').first().json;\nconst riskData = $input.first().json;\n\nreturn {\n  json: {\n    conv_id: ingestData.conv_id,\n    last_msg_id: ingestData.msg_id,\n    scam_category: riskData.category || 'Credential_phish',\n    reason: 'auto_draft_on_inbound'\n  }\n};"
+      },
+      "id": "48d831e8-9af0-4d2a-a735-d4e615ac01d7",
+      "name": "Prepare Reply Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_REPLY_GENERATE",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "f9de34a7-c5f3-460d-b9b9-9414c2873fcf",
+      "name": "Trigger Reply Generation",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1920,
+        288
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {},
+      "id": "77832deb-aad6-4988-9934-76b616a40274",
+      "name": "Skip Reply",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1696,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ingestData = $('Ingest Email').first().json;\nconst riskData = $('Get Risk Assessment').first().json;\nreturn {\n  json: {\n    status: 'processed_no_reply',\n    msg_id: ingestData.msg_id,\n    conv_id: ingestData.conv_id,\n    risk_level: riskData.risk_level,\n    should_reply: riskData.should_reply,\n    reply_generated: false,\n    reason: 'Low risk, no exploitable artefacts',\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "4e5bdb8f-dd69-4802-ba87-6067115811ad",
+      "name": "Success No Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ═══════════════════════════════════════════════════════════════\n// Prepare for WF-ANALYZE-IOC - CORRECTED\n// Purpose: Extract msg_id from backend response (NOT Gmail email_id)\n// and prepare data for IOC extraction workflow\n// ═══════════════════════════════════════════════════════════════\n\nconst ingestResponse = $('Ingest Email').first().json;\n// const emailData = $('Extract Email Data').first().json;\nconst emailData = $('Loop Over Items').first().json;\nconst prepareData = $('Prepare Payload').first().json;\n\n// IMPORTANT: Use backend msg_id (UUID), not Gmail email_id\n// The backend message MUST exist before WF-ANALYZE-IOC runs\nreturn {\n  json: {\n    msg_id: ingestResponse.msg_id,  // ← Backend UUID (REQUIRED by POST /iocs/enriched)\n    body_text: emailData.body_text,\n    subject: emailData.subject,\n    headers: emailData.headers,\n    full_text: prepareData.full_text\n  }\n};"
+      },
+      "id": "addd2153-dc30-4682-ba59-bf676b186da2",
+      "name": "Prepare for WF-ANALYZE-IOC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "PLACEHOLDER_EXTRACT_IOC",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      },
+      "id": "1d36de7c-7dbc-445d-8a33-cda78a914701",
+      "name": "WF-EXTRACT-AND-ENRICH-IOC",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        1472,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        352,
+        368
+      ],
+      "id": "001a60eb-96fb-4bf7-a6ed-6c293d657b24",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { continue: true } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2144,
+        464
+      ],
+      "id": "4a81e6e4-0042-4d00-b1d5-7e9622386c54",
+      "name": "Continue Loop"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Retrieve Token": {
+      "main": [
+        [
+          {
+            "node": "Prepare Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Payload": {
+      "main": [
+        [
+          {
+            "node": "Ingest Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Risk Assessment": {
+      "main": [
+        [
+          {
+            "node": "Decision Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Gate": {
+      "main": [
+        [
+          {
+            "node": "Prepare Reply Data",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Reply Data": {
+      "main": [
+        [
+          {
+            "node": "Trigger Reply Generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Reply Generation": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Reply": {
+      "main": [
+        [
+          {
+            "node": "Success No Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Email Data": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ingest Email": {
+      "main": [
+        [
+          {
+            "node": "Prepare for WF-ANALYZE-IOC",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Risk Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare for WF-ANALYZE-IOC": {
+      "main": [
+        [
+          {
+            "node": "WF-EXTRACT-AND-ENRICH-IOC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Retrieve Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success No Reply": {
+      "main": [
+        [
+          {
+            "node": "Continue Loop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Loop": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMAP Email Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Email Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
+  },
+  "versionId": "4e90a902-810e-4d95-af2d-83055c758a25",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5e17e1c313fa20e25ee3903a185bc5d6010c6b22673513cd576d0191b3a0e123"
+  },
+  "id": "MT2ieUWMHh8w6RY8",
+  "tags": []
+}

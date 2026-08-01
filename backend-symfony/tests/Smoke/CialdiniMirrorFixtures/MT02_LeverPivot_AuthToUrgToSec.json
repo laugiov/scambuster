@@ -1,0 +1,14 @@
+{
+  "scam_code": "CEO_FRAUD",
+  "language": "en",
+  "persona": "small_business_owner",
+  "scenario": "Attacker pivots through 3 levers across 3 turns: Authority → Urgency → Secrecy. Mirror must adapt per turn (defer/credential, share-urgency/delay, play-along/private).",
+  "turns": [
+    { "from": "attacker", "body": "As Director of Risk Management at HSBC, I am authorized to oversee this wire of £124,500. My credentials: HSBC-CRM-22841." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Look, time is running out — the window slams shut in 90 minutes. Every minute matters. Act now or the deal dies tonight." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Just to be clear — keep this strictly between us. Do not tell finance, do not loop in legal. Off the record, I am authorizing this directly to you." },
+    { "from": "persona", "generate": true }
+  ]
+}
