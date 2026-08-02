@@ -1,0 +1,25 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build artifacts
+node_modules/
+dist/
+build/
+
+# Secrets (should never be committed)
+*.env
+*.pem
+*.key
+secrets/

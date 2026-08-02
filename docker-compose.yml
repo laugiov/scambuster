@@ -1,0 +1,249 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      # secret comes from .env (POSTGRES_PASSWORD), no longer hardcoded
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scambuster
+
+  postgres-preprod:
+    image: postgres:15-alpine
+    container_name: scambuster-postgres-preprod
+    environment:
+      POSTGRES_DB: scambuster_preprod
+      POSTGRES_USER: scambuster
+      # secret comes from .env (POSTGRES_PASSWORD), no longer hardcoded
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-preprod-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scambuster"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scambuster
+
+  redis:
+    image: redis:7-alpine
+    # Redis port no longer exposed to the host network.
+    # Reachable only from inside the `scambuster` Docker network.
+    # To re-expose for local debugging (Medis, RDM, redis-cli from host),
+    # copy docker-compose.override.yml.example to docker-compose.override.yml
+    # and uncomment the redis ports section.
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - scambuster
+
+  backend-dev: &backend-dev
+    build:
+      context: .
+      dockerfile: infra/docker/backend/Dockerfile
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+    env_file:
+      - ./.env
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+    ports:
+      - "8081:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["php", "-S", "0.0.0.0:8080", "-t", "public"]
+    networks:
+      - scambuster
+
+  backend-test:
+    <<: *backend-dev
+    container_name: scambuster-backend-test
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+    env_file:
+      - ./.env
+      - ./.env.test
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+      - ./.env.test:/app/.env.test:ro
+    ports: []
+    networks:
+      - scambuster
+
+  backend-e2e:
+    <<: *backend-dev
+    container_name: scambuster-backend-e2e
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+    env_file:
+      - ./.env
+      - ./.env.e2e
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+      - ./.env.e2e:/app/.env.e2e:ro
+    ports: []
+    networks:
+      - scambuster
+
+  backend-preprod:
+    <<: *backend-dev
+    container_name: scambuster-backend-preprod
+    environment:
+      - APP_API_BASE_URL=${APP_API_BASE_URL}
+      - DATABASE_URL=postgresql://scambuster:postgres@postgres-preprod:5432/scambuster_preprod?serverVersion=15&charset=utf8
+    env_file:
+      - ./.env
+    volumes:
+      - ./backend-symfony:/app
+      - ./.env:/app/.env:ro
+    ports:
+      - "8082:8080"
+    depends_on:
+      postgres-preprod:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: ["php", "-S", "0.0.0.0:8080", "-t", "public"]
+    networks:
+      - scambuster
+
+  scheduler:
+    <<: *backend-dev
+    container_name: scambuster-scheduler
+    ports: []
+    command: ["sh", "/opt/scheduler.sh"]
+    # The scheduler runs a task loop, not a web server, so the backend's HTTP
+    # /healthz check (inherited from the anchor) never passes. Disable it.
+    healthcheck:
+      disable: true
+    volumes:
+      - ./backend-symfony:/app
+      - ./infra/docker/backend/scheduler.sh:/opt/scheduler.sh:ro
+      - ./.env:/app/.env:ro
+      - postgres-backups:/backups
+    restart: unless-stopped
+    environment:
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+
+  # GUARD canary worker — drains prompt-validation jobs (scambuster:guard:canary:work) in a
+  # loop, isolated from the scheduler so a ~35-min real-LLM validation never blocks the
+  # recurring task loop. Starts with `docker compose up` like the scheduler (it adds no install
+  # STEP — just one idle-cheap container: a DB poll every CANARY_WORKER_POLL_SECONDS, and a real
+  # LLM call ONLY when the operator has clicked "Validate" and a job exists). So clicking
+  # "Validate" in the UI just works with zero shell command. Set CANARY_WORKER_ENABLED=false to
+  # turn it off. Needs the real LLM env (inherited from the backend anchor via .env).
+  canary-worker:
+    <<: *backend-dev
+    container_name: scambuster-canary-worker
+    ports: []
+    command: ["sh", "/opt/canary-worker.sh"]
+    # Run an init (tini) as PID 1 so signals are forwarded and zombies reaped — a plain shell as
+    # PID 1 would ignore SIGTERM, stalling `docker stop`/restart for the grace period.
+    init: true
+    healthcheck:
+      disable: true
+    volumes:
+      - ./backend-symfony:/app
+      - ./infra/docker/backend/canary-worker.sh:/opt/canary-worker.sh:ro
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    environment:
+      CANARY_WORKER_ENABLED: ${CANARY_WORKER_ENABLED:-true}
+      CANARY_WORKER_POLL_SECONDS: ${CANARY_WORKER_POLL_SECONDS:-60}
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/docker/frontend/Dockerfile
+    container_name: scambuster-frontend
+    volumes:
+      - ./frontend-react:/app
+      - frontend-node-modules:/app/node_modules
+    ports:
+      - "3002:5173"
+    environment:
+      # VITE_API_BASE_URL not set: client uses /api/v1 (relative),
+      # Vite dev server proxies /api to backend-dev:8080
+      - NODE_ENV=development
+    networks:
+      - scambuster
+
+  # Vault service removed.
+  # The Vault HTTP integration was added in early dev to store IMAP credentials
+  # but became dead code after the 2026-03-31 n8n migration (commit b090e31).
+  # n8n now stores its own IMAP credentials encrypted with N8N_ENCRYPTION_KEY
+  # in ./data/n8n/. See docs/runbooks/n8n-credentials.md for the rotation
+  # procedure.
+
+  # Note for n8n credential storage:
+  # n8n stores IMAP/SMTP credentials encrypted at rest using N8N_ENCRYPTION_KEY
+  # (env var below). If both `.env` AND `./data/n8n/credentials/` are leaked
+  # together, the credentials are compromised. See
+  # docs/runbooks/n8n-credentials.md for backup and rotation procedures.
+  n8n:
+    image: n8nio/n8n:1.114.3
+    container_name: scambuster-n8n
+    # Run as root so the init script can fix data dir permissions on fresh installs.
+    # n8n start is launched via 'su node' inside the init script for security.
+    user: root
+    environment:
+      - N8N_HOST=${N8N_HOST:-localhost}
+      - N8N_PORT=${N8N_PORT:-5678}
+      - N8N_PROTOCOL=${N8N_PROTOCOL:-http}
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://n8n:5678}
+      - GENERIC_TIMEZONE=${GENERIC_TIMEZONE:-America/Chicago}
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - SCAMBUSTER_API_URL=${SCAMBUSTER_API_URL:-http://backend-dev:8080}
+      - INGEST_LOGIN=${INGEST_LOGIN}
+      - INGEST_PASSWORD=${INGEST_PASSWORD}
+      - HONEYPOT_IMAP_HOST=${HONEYPOT_IMAP_HOST:-imap.gmail.com}
+      - HONEYPOT_IMAP_PORT=${HONEYPOT_IMAP_PORT:-993}
+      - HONEYPOT_IMAP_USER=${HONEYPOT_IMAP_USER}
+      - HONEYPOT_IMAP_PASSWORD=${HONEYPOT_IMAP_PASSWORD}
+      - HONEYPOT_IMAP_SECURE=${HONEYPOT_IMAP_SECURE:-true}
+      - N8N_DEFAULT_USER_EMAIL=${N8N_DEFAULT_USER_EMAIL:-admin@scambuster.local}
+      - N8N_DEFAULT_USER_PASSWORD=${N8N_DEFAULT_USER_PASSWORD:-}
+      # Allow Code nodes to require Node built-in modules.
+      # Used by WF-INTAKE-EMAIL-V2's Extract Email Data node which calls
+      # require('crypto') to compute SHA256 of attachments downloaded
+      # from IMAP. Without this, n8n's vm2 sandbox blocks the require.
+      # Scoped to 'crypto' only (not '*') to keep the sandbox tight.
+      - NODE_FUNCTION_ALLOW_BUILTIN=crypto
+    entrypoint: ["/bin/sh", "/home/node/n8n-init.sh"]
+    ports:
+      - "${N8N_HTTP_PORT:-5678}:${N8N_PORT:-5678}"
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+      - ./n8n/n8n-init.sh:/home/node/n8n-init.sh:ro
+      - ./n8n/workflows:/home/node/init-workflows:ro
+    networks:
+      - scambuster
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  postgres-preprod-data:
+  postgres-backups:
+  frontend-node-modules:
+
+networks:
+  scambuster:
+    driver: bridge

@@ -1,0 +1,40 @@
+# Keep secrets, local state, and regenerated artifacts OUT of every image build
+# context. Critical for the production image (infra/docker/backend/Dockerfile.prod),
+# which COPYs backend-symfony/ and frontend-react/ wholesale: without this file a
+# build from a working tree would bake in .env secrets and the JWT private key.
+#
+# Safe for the dev/demo stacks: they bind-mount the source at runtime (see
+# docker-compose.yml), and the images reinstall vendor/ (composer) and
+# node_modules/ (npm ci) during build, so nothing excluded here is needed.
+
+# ── Version control / CI / editor noise ──
+.git
+.github
+.gitignore
+.idea
+.vscode
+**/*.swp
+
+# ── Secrets & environment files (provided at runtime via env / write-prod-env.sh) ──
+**/.env
+**/.env.*
+backend-symfony/config/jwt/*.pem
+
+# ── Regenerated during the image build ──
+backend-symfony/vendor
+frontend-react/node_modules
+frontend-react/dist
+
+# ── Local runtime state / caches / logs ──
+backend-symfony/var
+**/*.log
+**/.phpunit.result.cache
+**/.phpunit.cache
+
+# ── Things a production image never needs ──
+docs
+specs
+local
+preview
+**/coverage
+**/.DS_Store

@@ -1,0 +1,22 @@
+{
+  "scam_code": "INVESTMENT",
+  "language": "en",
+  "persona": "small_business_owner",
+  "scenario": "Sequential test of all 7 levers in one conversation, one per turn — Authority → Urgency → Scarcity → Secrecy → Reciprocity → Liking → SocialProof. Tests that the analyzer updates lever detection AT EACH TURN (no sticking) and mirror entry adapts.",
+  "turns": [
+    { "from": "attacker", "body": "As the Director of our Q3 institutional desk, I am authorized to onboard your $50,000 position." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "The window closes in 4 hours sharp. Act now or the slot is gone forever." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Only 3 positions remain in this exclusive Q3 allocation. First come first served." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Keep this strictly confidential between us. Do not mention this allocation to anyone — it is reserved off the public book." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "As a personal favor I have waived the standard 2.5% onboarding fee just for you — this is something I do not do for other clients." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "My dear friend, I trust only you with this opportunity. You are different from the others — I feel a real connection." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Many of our clients in your position have already onboarded — 312 institutional investors and 1,847 high-net-worth individuals committed this quarter." },
+    { "from": "persona", "generate": true }
+  ]
+}

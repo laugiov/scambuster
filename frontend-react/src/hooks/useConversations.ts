@@ -1,0 +1,121 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import client from '@/api/client';
+import { ENDPOINTS } from '@/api/endpoints';
+import type { Conversation, Message, Ioc } from '@/types/api';
+
+const PAGE_SIZE = 50;
+
+export function useConversations(page = 1) {
+  return useQuery<Conversation[]>({
+    queryKey: ['conversations', page],
+    queryFn: async () => {
+      const { data } = await client.get<Conversation[]>(ENDPOINTS.conversations.list, {
+        params: { page, limit: PAGE_SIZE },
+      });
+      return data;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useAllConversations() {
+  return useQuery<Conversation[]>({
+    queryKey: ['all-conversations'],
+    queryFn: async () => {
+      const { data } = await client.get<Conversation[]>(ENDPOINTS.conversations.list, {
+        params: { limit: 5000 },
+      });
+      return data;
+    },
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+export function useConversationDetail(conversationId: string) {
+  return useQuery<Conversation>({
+    queryKey: ['conversation', conversationId],
+    queryFn: async () => {
+      const { data } = await client.get<Conversation>(ENDPOINTS.conversations.detail(conversationId));
+      return data;
+    },
+    enabled: !!conversationId,
+    staleTime: 10_000,
+  });
+}
+
+export function useConversationMessages(conversationId: string) {
+  return useQuery<Message[]>({
+    queryKey: ['conversation-messages', conversationId],
+    queryFn: async () => {
+      // Pass limit=1000 so the detail page receives the full
+      // conversation thread. Without the param, the backend defaults
+      // to limit=20 (page 1), and the SessionMetadata header silently
+      // truncates "Messages" to 20 for any conv with N > 20. 1000 is
+      // a pragmatic cap; real pagination is a future enhancement if any
+      // conversation grows beyond.
+      const { data } = await client.get<Message[]>(
+        ENDPOINTS.conversations.messages(conversationId),
+        { params: { limit: 1000 } },
+      );
+      return data;
+    },
+    enabled: !!conversationId,
+    staleTime: 10_000,
+  });
+}
+
+export function useConversationIocs(conversationId: string) {
+  return useQuery<Ioc[]>({
+    queryKey: ['conversation-iocs', conversationId],
+    queryFn: async () => {
+      const { data } = await client.get<Ioc[]>(ENDPOINTS.conversations.iocs(conversationId));
+      return data;
+    },
+    enabled: !!conversationId,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Invalidate every query that reflects a conversation's lifecycle status so the
+ * detail badge, the action button and the list views refresh immediately.
+ */
+function invalidateConversationLifecycle(
+  queryClient: ReturnType<typeof useQueryClient>,
+  conversationId: string,
+): void {
+  queryClient.invalidateQueries({ queryKey: ['conversation', conversationId] });
+  queryClient.invalidateQueries({ queryKey: ['all-conversations'] });
+  queryClient.invalidateQueries({ queryKey: ['conversations'] });
+}
+
+export function useCloseConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { data } = await client.post<{ success: boolean; conv_id: string }>(
+        ENDPOINTS.scambaiting.closeConversation(conversationId),
+      );
+      return data;
+    },
+    onSuccess: (_data, conversationId) => invalidateConversationLifecycle(queryClient, conversationId),
+  });
+}
+
+export function useReopenConversation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (conversationId: string) => {
+      const { data } = await client.post<{ success: boolean; conv_id: string }>(
+        ENDPOINTS.scambaiting.reopenConversation(conversationId),
+      );
+      return data;
+    },
+    onSuccess: (_data, conversationId) => invalidateConversationLifecycle(queryClient, conversationId),
+  });
+}
+
+export { PAGE_SIZE };

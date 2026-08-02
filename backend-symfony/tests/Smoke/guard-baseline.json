@@ -1,0 +1,23 @@
+{
+    "metrics": {
+        "approved_rate": 1.0,
+        "fallback_rate": 0.0,
+        "attempts_avg": 1.8941176470588235
+    },
+    "violation_rates": {
+        "payment_token": 0.29411764705882354,
+        "payment_instrument": 0.0,
+        "crypto_wallet": 0.0,
+        "out_of_band_channel": 0.0,
+        "word_band": 0.0,
+        "language_mismatch": 0.03529411764705882,
+        "automation_reveal": 0.0
+    },
+    "meta": {
+        "recording_slots": 85,
+        "runs": 85,
+        "errors": 0,
+        "out_texts_scored": 85,
+        "oracle_fingerprint": "374f95367add"
+    }
+}

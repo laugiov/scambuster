@@ -1,0 +1,23 @@
+# Prometheus scrape configuration for ScamBuster.
+#
+# /api/metrics is admin-only (returns kill-switch state, counts, version), so the
+# scrape must authenticate. Create a dedicated admin service account, obtain a JWT,
+# and put "Bearer <token>" into a file referenced by `authorization.credentials_file`.
+# (Rotate it like any secret — see docs/runbooks.)
+
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+rule_files:
+  - alert.rules.yml
+
+scrape_configs:
+  - job_name: scambuster
+    metrics_path: /api/metrics
+    scheme: http            # use https behind a TLS-terminating proxy
+    authorization:
+      type: Bearer
+      credentials_file: /etc/prometheus/scambuster-token   # contains the raw JWT
+    static_configs:
+      - targets: ['backend:8080']   # adjust to your backend host:port

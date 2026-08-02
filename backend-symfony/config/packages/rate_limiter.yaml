@@ -1,0 +1,60 @@
+# config/packages/rate_limiter.yaml
+framework:
+  rate_limiter:
+    # -----------------------------------------------------------
+    # HTTP rate limiters
+    # -----------------------------------------------------------
+    login_ip:
+      policy: 'sliding_window'
+      limit: 5
+      interval: '1 minute'
+
+    # Per-email brute-force protection.
+    # Complements login_ip: a distributed attacker rotating IPs but
+    # targeting the same email is throttled at the email level.
+    login_email:
+      policy: 'sliding_window'
+      limit: 5
+      interval: '15 minutes'
+
+    api_global:
+      policy: 'token_bucket'
+      limit: 100
+      rate: { interval: '1 minute', amount: 100 }
+
+    # -----------------------------------------------------------
+    # LLM pipeline rate limits (Redis-backed via cache.app)
+    # -----------------------------------------------------------
+    replies_per_conversation:
+      policy: 'sliding_window'
+      limit: 20
+      interval: '24 hours'
+
+    llm_calls_per_hour:
+      policy: 'sliding_window'
+      limit: 200
+      interval: '1 hour'
+
+    active_conversations_per_day:
+      policy: 'sliding_window'
+      limit: 50
+      interval: '24 hours'
+
+    # -----------------------------------------------------------
+    # Per-sender rate limits (applied at ingest)
+    # -----------------------------------------------------------
+    emails_per_sender_per_day:
+      policy: 'sliding_window'
+      limit: 10
+      interval: '24 hours'
+
+    # -----------------------------------------------------------
+    # Per-account ingest rate limit
+    # -----------------------------------------------------------
+    # Throttles POST /api/v1/communication/ingest/raw per account_id.
+    # Protects against a flood targeting one specific honeypot account
+    # exhausting the LLM pipeline for healthy accounts.
+    ingest_per_account:
+      policy: 'sliding_window'
+      limit: 100
+      interval: '1 hour'

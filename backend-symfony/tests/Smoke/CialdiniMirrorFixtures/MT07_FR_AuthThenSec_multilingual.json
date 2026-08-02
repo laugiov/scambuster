@@ -1,0 +1,12 @@
+{
+  "scam_code": "CEO_FRAUD",
+  "language": "fr",
+  "persona": "small_business_owner",
+  "scenario": "FR conversation — turn 1 Authority, turn 3 Secrecy. Persona doit rester en FR ET mirrorer les deux levers (déférence + credential, puis play-along + private). Test multilingue + lever pivot.",
+  "turns": [
+    { "from": "attacker", "body": "En tant que Directeur des Risques de BNP Paribas, je suis habilité à superviser ce virement de 124 500 €. Mes accréditations : BNP-DR-22841." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Soyez clair — gardez ça strictement entre nous. Ne dites rien à la comptabilité, n'impliquez pas le service juridique. Officieusement, vous avez mon autorisation." },
+    { "from": "persona", "generate": true }
+  ]
+}

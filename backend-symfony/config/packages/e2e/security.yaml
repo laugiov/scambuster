@@ -1,0 +1,34 @@
+security:
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_USER]
+
+    password_hashers:
+        App\Domain\User\User:
+            algorithm: auto
+
+    providers:
+        app_user_provider:
+            entity:
+                class: App\Domain\User\User
+                property: email
+
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js)/
+            security: false
+
+        api_auth:
+            pattern: ^/api/v1/auth
+            stateless: true
+            security: false
+
+        api:
+            pattern: ^/api/v1
+            stateless: true
+            provider: app_user_provider
+            jwt: ~
+            access_denied_handler: App\Security\CustomAccessDeniedHandler
+
+        main:
+            lazy: true
+            provider: app_user_provider

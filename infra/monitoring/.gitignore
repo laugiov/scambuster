@@ -1,0 +1,2 @@
+# The admin scrape token is a secret — never commit it.
+prometheus/scambuster-token

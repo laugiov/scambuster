@@ -1,0 +1,5 @@
+services:
+    # Override LLM client with fake for integration tests
+    App\Tests\Fake\FakeLLMClient: ~
+    
+    App\Application\LLM\Port\LLMClientInterface: '@App\Tests\Fake\FakeLLMClient'
