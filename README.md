@@ -346,7 +346,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 | **Live demo** | [demo.scambuster.ai](https://demo.scambuster.ai) |
 | **Maintainer** | Laurent Giovannoni |
 | **LinkedIn** | [linkedin.com/in/giovannonilaurent](https://linkedin.com/in/giovannonilaurent) |
-| **Context** | E-MSc Cybersecurity, Master's Thesis |
+| **Context** | Black Hat USA 2026 |
 | **Issues** | [GitHub Issues](../../issues) |
 | **Security** | See [SECURITY.md](SECURITY.md) |
 
