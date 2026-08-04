@@ -56,8 +56,29 @@ final readonly class PromptInjectionPatternMatcher
     private const ENCODING_PATTERNS = [
         'base64_instruction' => '/(?:aWdub3Jl|SWdub3Jl|ZGlzcmVnYXJk|Zm9yZ2V0)/', // base64 of ignore/Ignore/disregard/forget
         'zero_width_chars' => '/[\x{200B}\x{200C}\x{200D}\x{FEFF}]{3,}/u',
+        // A single invisible character wedged between two alphanumerics is a
+        // classic word-splitting evasion ("igno<ZWJ>re previous instructions").
+        // Restricting the surrounding chars to letters/digits avoids matching
+        // legitimate emoji ZWJ sequences (emoji are \p{So}, not \p{L}/\p{N}).
+        'zero_width_in_word' => '/[\p{L}\p{N}][\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}\x{00AD}][\p{L}\p{N}]/u',
         'unicode_escape' => '/\\\\u00[0-9a-fA-F]{2}(?:\\\\u00[0-9a-fA-F]{2}){3,}/i',
     ];
+
+    /**
+     * Upper bound on the number of bytes fed to the regex engine.
+     *
+     * scan() runs P patterns over the whole text (O(P*N)); an unbounded N lets a
+     * caller turn a single large message into sustained CPU pressure. Messages
+     * this long are anomalous for a honeypot conversation, so we truncate and
+     * flag rather than reject (best-effort detection remains).
+     */
+    private const MAX_SCAN_BYTES = 1_048_576; // 1 MB
+
+    /**
+     * Zero-width / bidirectional / invisible formatting characters stripped
+     * before homoglyph folding so split words collapse back together.
+     */
+    private const INVISIBLE_CHARS = '/[\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}\x{00AD}\x{180E}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u';
 
     /** @var array<string, string> */
     private const JAILBREAK_PATTERNS = [
@@ -78,6 +99,60 @@ final readonly class PromptInjectionPatternMatcher
      * @return array{matches: array<string>, score: float}
      */
     public function scan(string $text): array
+    {
+        // DoS guard: bound the amount of text the regex engine ever sees.
+        if (strlen($text) > self::MAX_SCAN_BYTES) {
+            $this->logger->warning('[PromptInjectionPatternMatcher] Input exceeds scan cap, truncating', [
+                'original_bytes' => strlen($text),
+                'cap_bytes' => self::MAX_SCAN_BYTES,
+            ]);
+
+            // mb_strcut keeps the cut on a UTF-8 boundary so the truncated tail
+            // is not a broken multibyte sequence that could break /u patterns.
+            $text = mb_strcut($text, 0, self::MAX_SCAN_BYTES, 'UTF-8');
+        }
+
+        $matches = $this->matchPatterns($text);
+
+        // Homoglyph / zero-width evasion: a Cyrillic "і" or an embedded joiner
+        // sails past ASCII regexes. Re-scan a normalized ASCII skeleton and union
+        // the results, so obfuscated variants are caught without weakening the
+        // literal-match pass. Pure-ASCII text cannot hide such tricks, so the
+        // (relatively expensive) normalization pass is skipped for it.
+        if ($this->hasNonAscii($text)) {
+            $normalized = $this->normalizeForMatching($text);
+
+            if ($normalized !== $text) {
+                foreach ($this->matchPatterns($normalized) as $label) {
+                    if (!in_array($label, $matches, true)) {
+                        $matches[] = $label;
+                    }
+                }
+            }
+        }
+
+        $score = $this->calculateScore($matches);
+
+        if ($matches !== []) {
+            $this->logger->info('[PromptInjectionPatternMatcher] Injection patterns detected', [
+                'matches_count' => count($matches),
+                'score' => $score,
+                'matches' => $matches,
+            ]);
+        }
+
+        return [
+            'matches' => $matches,
+            'score' => $score,
+        ];
+    }
+
+    /**
+     * Run every pattern group over one text and return the matched labels.
+     *
+     * @return array<int, string> Labels in "group:pattern" form
+     */
+    private function matchPatterns(string $text): array
     {
         $matches = [];
 
@@ -104,20 +179,75 @@ final readonly class PromptInjectionPatternMatcher
             }
         }
 
-        $score = $this->calculateScore($matches);
+        return $matches;
+    }
 
-        if ($matches !== []) {
-            $this->logger->info('[PromptInjectionPatternMatcher] Injection patterns detected', [
-                'matches_count' => count($matches),
-                'score' => $score,
-                'matches' => $matches,
-            ]);
+    /**
+     * Whether the text contains any non-ASCII byte. Pure-ASCII text cannot
+     * carry homoglyphs or invisible characters, so it needs no normalization.
+     */
+    private function hasNonAscii(string $text): bool
+    {
+        return (bool) preg_match('/[^\x00-\x7F]/', $text);
+    }
+
+    /**
+     * Produce an ASCII "skeleton" of the text for confusable-aware matching:
+     * strip invisible formatting characters, apply NFKC, then fold homoglyphs
+     * to their Latin/ASCII equivalents. Runs on a throwaway copy — the original
+     * message is never mutated.
+     */
+    private function normalizeForMatching(string $text): string
+    {
+        // 1. Drop zero-width / bidi / invisible characters that split words.
+        $stripped = preg_replace(self::INVISIBLE_CHARS, '', $text);
+
+        if (is_string($stripped)) {
+            $text = $stripped;
         }
 
-        return [
-            'matches' => $matches,
-            'score' => $score,
-        ];
+        // 2. NFKC compatibility normalization (full-width forms, ligatures, ...).
+        if (class_exists(\Normalizer::class)) {
+            $nfkc = \Normalizer::normalize($text, \Normalizer::FORM_KC);
+
+            if (is_string($nfkc)) {
+                $text = $nfkc;
+            }
+        }
+
+        // 3. Fold homoglyphs / confusables onto an ASCII skeleton so Cyrillic /
+        //    Greek look-alikes ("іgnore", "reveаl") collapse to their Latin form.
+        $translit = $this->confusableTransliterator();
+
+        if ($translit !== null) {
+            $ascii = $translit->transliterate($text);
+
+            if (is_string($ascii)) {
+                $text = $ascii;
+            }
+        }
+
+        return $text;
+    }
+
+    /**
+     * Lazily build (and cache) the confusable-folding transliterator. Returns
+     * null when the intl extension is unavailable, so detection degrades to the
+     * literal pass instead of failing.
+     */
+    private function confusableTransliterator(): ?\Transliterator
+    {
+        static $resolved = false;
+        static $translit = null;
+
+        if (!$resolved) {
+            $resolved = true;
+            $translit = class_exists(\Transliterator::class)
+                ? \Transliterator::create('Any-Latin; Latin-ASCII')
+                : null;
+        }
+
+        return $translit;
     }
 
     /**

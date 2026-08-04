@@ -47,6 +47,8 @@ final class EvalTestPromptV2Command extends Command
 
     public function __construct(
         private readonly LLMClientInterface $llmClient,
+        // Bound to %kernel.project_dir% (see config/services.yaml _defaults).
+        private readonly string $projectDir,
     ) {
         parent::__construct();
     }
@@ -186,7 +188,9 @@ final class EvalTestPromptV2Command extends Command
 
     private function renderIoc(string $obsId): ?array
     {
-        $process = new Process(['php', '/app/bin/console', 'app:eval:render-ioc', '--obs-id', $obsId, '--format', 'json']);
+        // Resolve the console binary from the project dir + current PHP
+        // interpreter so this runs outside the container too (no /app/bin/console).
+        $process = new Process([\PHP_BINARY, $this->projectDir . '/bin/console', 'app:eval:render-ioc', '--obs-id', $obsId, '--format', 'json']);
         $process->setTimeout(30);
         $process->run();
 

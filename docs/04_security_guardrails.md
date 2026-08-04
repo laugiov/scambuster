@@ -377,7 +377,7 @@ JWT signing migrated from HS256 (shared secret) to RS256 (private/public key pai
 
 ### Payload Size Limit
 
-Requests exceeding 1 MB are rejected with `413 Payload Too Large` via `PayloadSizeLimitListener`.
+Requests exceeding **1 MB** (default) are rejected with `413 Payload Too Large` via `PayloadSizeLimitListener`. The mail-ingestion prefix `/api/v1/communication/ingest` gets a higher **50 MB** budget to accommodate RFC822 mails with base64-expanded attachments. The limit is enforced from the `Content-Length` header and, when that header is absent (e.g. HTTP chunked transfer-encoding), from the actual buffered body size — so a chunked request cannot bypass the cap. This is a defense-in-depth control layered on top of the reverse-proxy / PHP SAPI body limits.
 
 ### CI Security Scanning
 

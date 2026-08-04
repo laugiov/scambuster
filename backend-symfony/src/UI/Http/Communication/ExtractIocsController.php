@@ -100,7 +100,9 @@ final readonly class ExtractIocsController
     {
         $this->logger->info('[IOC-EXTRACT-DEBUG] Starting IOC extraction', [
             'msg_id' => $msgId,
-            'request_content' => $request->getContent(),
+            // Never log the raw request body: it is attacker-controlled and can
+            // carry sensitive values (IBANs, wallets) and forged log lines.
+            'request_bytes' => strlen($request->getContent()),
         ]);
 
         // Get message
@@ -134,8 +136,9 @@ final readonly class ExtractIocsController
 
         $this->logger->info('[IOC-EXTRACT-DEBUG] Message found', [
             'msg_id' => $msgId,
+            // Log only the length — the message body is untrusted user content
+            // and must never be written to logs (see 04_security_guardrails.md).
             'body_length' => strlen($message->getBodyText()),
-            'body_preview' => substr($message->getBodyText(), 0, 200),
         ]);
 
         // Parse request body
@@ -183,7 +186,12 @@ final readonly class ExtractIocsController
             $this->logger->info('[IOC-EXTRACT-DEBUG] IOCs extracted successfully', [
                 'msg_id' => $msgId,
                 'iocs_found' => count($iocs),
-                'iocs_preview' => array_slice($iocs, 0, 3),
+                // Log the IOC types only, not their values — extracted values are
+                // sensitive (emails, IBANs, wallets) and must not land in logs.
+                'ioc_types' => array_values(array_unique(array_map(
+                    static fn (array $ioc): string => \is_string($ioc['type'] ?? null) ? $ioc['type'] : 'unknown',
+                    $iocs
+                ))),
                 'extraction_time_ms' => $extractionTime,
             ]);
 

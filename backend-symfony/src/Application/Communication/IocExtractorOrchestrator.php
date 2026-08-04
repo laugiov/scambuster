@@ -6,6 +6,8 @@ namespace App\Application\Communication;
 
 use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Orchestrates IOC extraction from messages using multiple methods.
@@ -15,11 +17,23 @@ use Doctrine\ORM\EntityManagerInterface;
  */
 class IocExtractorOrchestrator
 {
+    /**
+     * Upper bound on the text length scanned by the regex extractor.
+     *
+     * extractIocsWithRegex() runs ~20 patterns via preg_match_all over the whole
+     * text (O(R*N) time, O(M) memory for the captures). The ingest endpoint
+     * legitimately accepts multi-MB mails, so without a cap a single oversized
+     * message could pin CPU/memory. 1 MB of text is far beyond any genuine
+     * scam-mail body; longer input is truncated (best-effort extraction).
+     */
+    private const MAX_REGEX_BYTES = 1_048_576; // 1 MB
+
     public function __construct(
         private readonly EntityManagerInterface $em,
         private readonly IocValidator $validator,
         private readonly IocNormalizer $normalizer,
         private readonly IocExtractor $iocExtractor,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -196,6 +210,17 @@ class IocExtractorOrchestrator
      */
     public function extractIocsWithRegex(string $text, array $types = []): array
     {
+        // DoS guard: bound the text before running the pattern battery.
+        if (strlen($text) > self::MAX_REGEX_BYTES) {
+            $this->logger->warning('[IocExtractorOrchestrator] Text exceeds regex cap, truncating', [
+                'original_bytes' => strlen($text),
+                'cap_bytes' => self::MAX_REGEX_BYTES,
+            ]);
+
+            // mb_strcut keeps the cut on a UTF-8 boundary.
+            $text = mb_strcut($text, 0, self::MAX_REGEX_BYTES, 'UTF-8');
+        }
+
         $iocs = [];
 
         $patterns = [

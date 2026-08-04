@@ -128,4 +128,80 @@ class PayloadSizeLimitListenerTest extends TestCase
         $this->assertArrayHasKey('hint', $data);
         $this->assertStringContainsString('exceeds', $data['hint']);
     }
+
+    // =========================================================================
+    // No Content-Length header (e.g. HTTP chunked transfer-encoding).
+    // A missing declared size must not become a size-check bypass.
+    // =========================================================================
+
+    private function jsonPost(string $path, string $body): Request
+    {
+        $request = Request::create($path, 'POST', [], [], [], ['CONTENT_TYPE' => 'application/json'], $body);
+        // Simulate a chunked request: no declared Content-Length.
+        $request->headers->remove('Content-Length');
+        $request->server->remove('CONTENT_LENGTH');
+
+        return $request;
+    }
+
+    public function test_rejects_chunked_post_exceeding_limit_without_content_length(): void
+    {
+        $listener = new PayloadSizeLimitListener(new NullLogger(), maxBytes: 1000);
+        $request = $this->jsonPost('/api/v1/test', str_repeat('A', 2000));
+        $this->assertNull($request->headers->get('Content-Length'));
+
+        $event = $this->createEvent($request);
+        $listener($event);
+
+        $response = $event->getResponse();
+        $this->assertNotNull($response, 'Oversized chunked body must be rejected even without Content-Length');
+        $this->assertSame(413, $response->getStatusCode());
+
+        $data = json_decode($response->getContent(), true);
+        $this->assertSame('Payload too large', $data['error']);
+        $this->assertSame(2000, $data['received_bytes']);
+    }
+
+    public function test_allows_small_chunked_post_without_content_length(): void
+    {
+        $listener = new PayloadSizeLimitListener(new NullLogger(), maxBytes: 1000);
+        $request = $this->jsonPost('/api/v1/test', str_repeat('A', 100));
+
+        $event = $this->createEvent($request);
+        $listener($event);
+
+        $this->assertNull($event->getResponse());
+    }
+
+    public function test_uses_ingest_limit_for_chunked_ingest_without_content_length(): void
+    {
+        $listener = new PayloadSizeLimitListener(new NullLogger(), maxBytes: 1000, maxIngestBytes: 5000);
+
+        // 2000 bytes: over the 1000 default, but under the 5000 ingest limit.
+        $request = $this->jsonPost('/api/v1/communication/ingest/raw', str_repeat('A', 2000));
+        $event = $this->createEvent($request);
+        $listener($event);
+        $this->assertNull($event->getResponse(), 'Chunked ingest under the ingest limit must be allowed');
+
+        // 6000 bytes: over the ingest limit -> rejected.
+        $request = $this->jsonPost('/api/v1/communication/ingest/raw', str_repeat('A', 6000));
+        $event = $this->createEvent($request);
+        $listener($event);
+        $this->assertSame(413, $event->getResponse()?->getStatusCode());
+    }
+
+    public function test_skips_body_read_for_get_without_content_length(): void
+    {
+        $listener = new PayloadSizeLimitListener(new NullLogger(), maxBytes: 1000);
+
+        // A GET cannot carry a chunked body worth guarding; ensure we don't reject.
+        $request = Request::create('/api/v1/test', 'GET');
+        $request->headers->remove('Content-Length');
+        $request->server->remove('CONTENT_LENGTH');
+
+        $event = $this->createEvent($request);
+        $listener($event);
+
+        $this->assertNull($event->getResponse());
+    }
 }

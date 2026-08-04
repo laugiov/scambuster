@@ -82,10 +82,13 @@ final readonly class IngestController
         try {
             $dto = $this->serializer->deserialize($request->getContent(), IngestRawRequestDto::class, 'json');
         } catch (\Throwable $e) {
-            // Malformed JSON deserialization (NotEncodableValueException, JsonException, etc.)
-            $this->logger->error('[IngestController] JSON deserialization error', [
+            // Malformed JSON deserialization (NotEncodableValueException, JsonException, etc.).
+            // This is a client error: log the exception type/message for triage but
+            // not the full stack trace — traces add no diagnostic value for bad input
+            // and needlessly expose internal class paths in the log stream.
+            $this->logger->warning('[IngestController] JSON deserialization error', [
+                'exception' => $e::class,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
 
             return new JsonResponse(['error' => 'Invalid JSON'], Response::HTTP_BAD_REQUEST);

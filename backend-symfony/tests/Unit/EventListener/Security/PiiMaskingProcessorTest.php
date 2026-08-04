@@ -101,6 +101,63 @@ class PiiMaskingProcessorTest extends TestCase
         $this->assertSame($record, $result);
     }
 
+    public function testMasksIbanKeepingCountryAndCheckDigits(): void
+    {
+        $record = $this->createRecord('Pay to IBAN FR7630006000011234567890189 now');
+        $result = ($this->processor)($record);
+
+        $this->assertSame('Pay to IBAN FR76**** now', $result->message);
+    }
+
+    public function testMasksEthWallet(): void
+    {
+        $record = $this->createRecord('Send to 0x52908400098527886E0F7030069857D2E4169EE7 please');
+        $result = ($this->processor)($record);
+
+        $this->assertSame('Send to 0x**** please', $result->message);
+    }
+
+    public function testMasksPaymentCardWithSpaces(): void
+    {
+        $record = $this->createRecord('Card 4111 1111 1111 1111 on file');
+        $result = ($this->processor)($record);
+
+        $this->assertSame('Card 4111-****-****-**** on file', $result->message);
+    }
+
+    public function testMasksPaymentCardWithoutSeparators(): void
+    {
+        $record = $this->createRecord('4111111111111111');
+        $result = ($this->processor)($record);
+
+        $this->assertSame('4111-****-****-****', $result->message);
+    }
+
+    public function testMasksIbanInContext(): void
+    {
+        $record = $this->createRecord('Ingest', ['iban' => 'DE89370400440532013000']);
+        $result = ($this->processor)($record);
+
+        $this->assertSame('DE89****', $result->context['iban']);
+    }
+
+    public function testDoesNotMaskEpochMillisAsCard(): void
+    {
+        // 13-digit epoch-millis must not be swallowed by the card pattern.
+        $record = $this->createRecord('ts=1712345678901 done');
+        $result = ($this->processor)($record);
+
+        $this->assertSame('ts=1712345678901 done', $result->message);
+    }
+
+    public function testDoesNotMaskUuidTraceId(): void
+    {
+        $record = $this->createRecord('trace 550e8400-e29b-41d4-a716-446655440000 ok');
+        $result = ($this->processor)($record);
+
+        $this->assertSame('trace 550e8400-e29b-41d4-a716-446655440000 ok', $result->message);
+    }
+
     /**
      * @param array<string, mixed> $context
      */

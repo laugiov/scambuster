@@ -43,6 +43,8 @@ final class EvalRunJudgeCommand extends Command
 
     public function __construct(
         private readonly LLMClientInterface $llmClient,
+        // Bound to %kernel.project_dir% (see config/services.yaml _defaults).
+        private readonly string $projectDir,
     ) {
         parent::__construct();
     }
@@ -181,8 +183,10 @@ final class EvalRunJudgeCommand extends Command
     private function renderIoc(string $obsId): ?array
     {
         // Invoke the existing renderer command to get the JSON payload.
-        // Cleanest reuse — no DB duplication.
-        $process = new Process(['php', '/app/bin/console', 'app:eval:render-ioc', '--obs-id', $obsId, '--format', 'json']);
+        // Cleanest reuse — no DB duplication. Resolve the console binary from the
+        // project dir and reuse the current PHP interpreter so this works outside
+        // the container too (no hardcoded /app/bin/console).
+        $process = new Process([\PHP_BINARY, $this->projectDir . '/bin/console', 'app:eval:render-ioc', '--obs-id', $obsId, '--format', 'json']);
         $process->setTimeout(30);
         $process->run();
 
