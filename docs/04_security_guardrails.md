@@ -377,7 +377,9 @@ JWT signing migrated from HS256 (shared secret) to RS256 (private/public key pai
 
 ### Payload Size Limit
 
-Requests exceeding **1 MB** (default) are rejected with `413 Payload Too Large` via `PayloadSizeLimitListener`. The mail-ingestion prefix `/api/v1/communication/ingest` gets a higher **50 MB** budget to accommodate RFC822 mails with base64-expanded attachments. The limit is enforced from the `Content-Length` header and, when that header is absent (e.g. HTTP chunked transfer-encoding), from the actual buffered body size — so a chunked request cannot bypass the cap. This is a defense-in-depth control layered on top of the reverse-proxy / PHP SAPI body limits.
+Requests exceeding **1 MB** (default) are rejected with `413 Payload Too Large` via `PayloadSizeLimitListener`. The mail-ingestion prefix `/api/v1/communication/ingest` gets a higher **50 MB** budget to accommodate RFC822 mails with base64-expanded attachments. The limit is enforced from the `Content-Length` header and, when that header is absent (e.g. HTTP chunked transfer-encoding), from the actual buffered body size — closing the header-less bypass that would otherwise skip the check.
+
+This is a defense-in-depth control layered on top of the reverse-proxy and PHP SAPI body limits, which remain the primary line of defense. Note that a body larger than PHP's `post_max_size` is discarded by the SAPI *before* this listener runs (`php://input` comes back empty), so `post_max_size` must be configured at or above the largest per-endpoint limit (**≥ 50 MB** for ingest) for the app-layer cap to see and reject oversized header-less bodies rather than have them silently emptied upstream.
 
 ### CI Security Scanning
 

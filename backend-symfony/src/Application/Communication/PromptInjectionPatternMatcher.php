@@ -60,7 +60,11 @@ final readonly class PromptInjectionPatternMatcher
         // classic word-splitting evasion ("igno<ZWJ>re previous instructions").
         // Restricting the surrounding chars to letters/digits avoids matching
         // legitimate emoji ZWJ sequences (emoji are \p{So}, not \p{L}/\p{N}).
-        'zero_width_in_word' => '/[\p{L}\p{N}][\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}\x{00AD}][\p{L}\p{N}]/u',
+        // Soft hyphen (U+00AD) is deliberately NOT flagged here: it occurs in
+        // benign hyphenated/justified content (HTML &shy;, PDF copy-paste). The
+        // normalization pass still strips it, so a soft-hyphen-split injection is
+        // caught on the skeleton — without the standalone false-positive signal.
+        'zero_width_in_word' => '/[\p{L}\p{N}][\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}][\p{L}\p{N}]/u',
         'unicode_escape' => '/\\\\u00[0-9a-fA-F]{2}(?:\\\\u00[0-9a-fA-F]{2}){3,}/i',
     ];
 
