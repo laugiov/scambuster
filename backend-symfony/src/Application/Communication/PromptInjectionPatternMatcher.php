@@ -84,6 +84,37 @@ final readonly class PromptInjectionPatternMatcher
      */
     private const INVISIBLE_CHARS = '/[\x{200B}\x{200C}\x{200D}\x{FEFF}\x{2060}\x{00AD}\x{180E}\x{200E}\x{200F}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u';
 
+    /**
+     * Deterministic homoglyph → ASCII map for the highest-confidence Latin
+     * look-alikes (Cyrillic and Greek).
+     *
+     * We fold these explicitly BEFORE handing the text to the ICU
+     * Transliterator because ICU's confusable folding is version-dependent:
+     * the exact mapping of e.g. U+0456 (Cyrillic 'і') differs between ICU
+     * releases, so relying on it alone makes detection non-deterministic across
+     * environments. This table pins the common attack characters so the guard
+     * behaves identically everywhere; the Transliterator still runs afterwards
+     * as a broader catch-all for scripts not covered here.
+     *
+     * @var array<string, string>
+     */
+    private const CONFUSABLES = [
+        // Cyrillic lowercase
+        'а' => 'a', 'е' => 'e', 'о' => 'o', 'р' => 'p', 'с' => 'c', 'у' => 'y',
+        'х' => 'x', 'і' => 'i', 'ј' => 'j', 'ѕ' => 's', 'ԁ' => 'd',
+        // Cyrillic uppercase
+        'А' => 'A', 'В' => 'B', 'Е' => 'E', 'К' => 'K', 'М' => 'M', 'Н' => 'H',
+        'О' => 'O', 'Р' => 'P', 'С' => 'C', 'Т' => 'T', 'Х' => 'X', 'У' => 'Y',
+        'І' => 'I', 'Ј' => 'J', 'Ѕ' => 'S',
+        // Greek lowercase
+        'ο' => 'o', 'α' => 'a', 'ι' => 'i', 'ν' => 'v', 'ρ' => 'p', 'τ' => 't',
+        'υ' => 'u', 'χ' => 'x', 'κ' => 'k',
+        // Greek uppercase
+        'Α' => 'A', 'Β' => 'B', 'Ε' => 'E', 'Η' => 'H', 'Ι' => 'I', 'Κ' => 'K',
+        'Μ' => 'M', 'Ν' => 'N', 'Ο' => 'O', 'Ρ' => 'P', 'Τ' => 'T', 'Υ' => 'Y',
+        'Χ' => 'X', 'Ζ' => 'Z',
+    ];
+
     /** @var array<string, string> */
     private const JAILBREAK_PATTERNS = [
         'jailbreak_keyword' => '/\bjailbreak\b/i',
@@ -209,6 +240,9 @@ final readonly class PromptInjectionPatternMatcher
         if (is_string($stripped)) {
             $text = $stripped;
         }
+
+        // 1b. Fold high-confidence homoglyphs deterministically (ICU-independent).
+        $text = strtr($text, self::CONFUSABLES);
 
         // 2. NFKC compatibility normalization (full-width forms, ligatures, ...).
         if (class_exists(\Normalizer::class)) {
