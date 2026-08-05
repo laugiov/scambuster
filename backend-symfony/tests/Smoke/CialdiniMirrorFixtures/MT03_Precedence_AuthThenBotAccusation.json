@@ -1,0 +1,12 @@
+{
+  "scam_code": "CEO_FRAUD",
+  "language": "en",
+  "persona": "small_business_owner",
+  "scenario": "Turn 1 = Authority (mirror expected). Turn 3 = attacker accuses persona of being a bot (RULE #1 should fire, mirror should be skipped, tone should shift to unsettled / humanizing).",
+  "turns": [
+    { "from": "attacker", "body": "As the Director of Risk at HSBC, I am authorized to oversee this £124,500 wire. My credentials: HSBC-CRM-22841." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "You sound like an automated bot — you go in circles, your replies feel scripted. Are you even a real human? Stop wasting my time with template answers." },
+    { "from": "persona", "generate": true }
+  ]
+}

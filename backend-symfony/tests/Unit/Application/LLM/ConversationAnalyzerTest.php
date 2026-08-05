@@ -1,0 +1,1100 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Unit\Application\LLM;
+
+use App\Application\LLM\ConversationAnalyzer;
+use App\Application\LLM\Director\ConversationDirectorBrief;
+use App\Application\LLM\Director\MarkState;
+use App\Application\LLM\Port\LLMClientInterface;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+
+final class ConversationAnalyzerTest extends TestCase
+{
+    private LLMClientInterface $llmClient;
+    private LoggerInterface $logger;
+    private ConversationAnalyzer $analyzer;
+
+    protected function setUp(): void
+    {
+        $this->llmClient = $this->createMock(LLMClientInterface::class);
+        $this->logger = $this->createMock(LoggerInterface::class);
+
+        $this->analyzer = new ConversationAnalyzer(
+            $this->llmClient,
+            $this->logger
+        );
+    }
+
+    public function testItReturnsGenericInstructionsWhenNotEnoughMessages(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-1',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Hello',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [],
+        ];
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        $this->assertIsArray($result);
+        $this->assertArrayHasKey('analysis', $result);
+        $this->assertArrayHasKey('repetitions_detected', $result);
+        $this->assertArrayHasKey('strategic_suggestions', $result);
+        $this->assertArrayHasKey('tone_recommendation', $result);
+        $this->assertArrayHasKey('instructions_for_llm', $result);
+
+        $this->assertSame('worried', $result['tone_recommendation']);
+        $this->assertEmpty($result['repetitions_detected']);
+        // instructions_for_llm is now a structured array, not a string
+        $this->assertIsArray($result['instructions_for_llm']);
+        $this->assertArrayHasKey('interdictions', $result['instructions_for_llm']);
+        $this->assertArrayHasKey('obligations', $result['instructions_for_llm']);
+    }
+
+    public function testItAnalyzesConversationWithMultipleMessages(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-2',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Hello, I am from your bank',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                    'subject' => 'Urgent action required',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Bonjour, je suis inquiet',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                ],
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Please send your bank details',
+                    'ts_msg' => '2025-10-27T10:02:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [
+                ['type' => 'email', 'value' => 'scammer@evil.com', 'category' => 'contact'],
+            ],
+        ];
+
+        $llmResponse = json_encode([
+            'repetitions_detected' => ['Répète "je suis inquiet" trop souvent'],
+            'strategic_analysis' => 'Le scammer est engagé, conversation avance bien',
+            'missing_iocs' => ['IBAN', 'Numéro de téléphone'],
+            'tone_recommendation' => 'suspicious',
+            'strategic_suggestions' => ['Demander plus de preuves'],
+            'instructions' => [
+                'interdictions' => ["INTERDIT d'utiliser 'je suis inquiet' (déjà utilisé × 2)"],
+                'obligations' => ["Varie ton expression d'inquiétude", "Utilise des formulations différentes"],
+                'objectif_strategique' => "Obtenir l'IBAN du scammer",
+                'style_ton' => "Méfiant mais coopératif, 80-100 mots",
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->with(
+                $this->callback(function ($messages) {
+                    $this->assertIsArray($messages);
+                    $this->assertCount(1, $messages);
+                    $this->assertSame('user', $messages[0]['role']);
+                    $this->assertStringContainsString('Scam type: phishing', $messages[0]['content']);
+                    $this->assertStringContainsString('Number of messages exchanged: 3', $messages[0]['content']);
+                    $this->assertStringContainsString('email (1)', $messages[0]['content']);
+
+                    return true;
+                }),
+                $this->callback(function ($options) {
+                    $this->assertArrayHasKey('model', $options);
+                    $this->assertArrayHasKey('temperature', $options);
+                    $this->assertArrayHasKey('max_tokens', $options);
+                    $this->assertArrayHasKey('response_format', $options);
+                    $this->assertSame('gpt-4o', $options['model']); // Upgraded from gpt-4o-mini
+                    $this->assertSame(0.3, $options['temperature']);
+                    $this->assertSame(3000, $options['max_tokens']); // Increased from 2500
+                    $this->assertSame(['type' => 'json_object'], $options['response_format']);
+
+                    return true;
+                })
+            )
+            ->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        $this->assertIsArray($result);
+        $this->assertSame('Le scammer est engagé, conversation avance bien', $result['analysis']);
+        $this->assertCount(1, $result['repetitions_detected']);
+        $this->assertSame('Répète "je suis inquiet" trop souvent', $result['repetitions_detected'][0]);
+        $this->assertSame('suspicious', $result['tone_recommendation']);
+        // instructions_for_llm is now a structured array
+        $this->assertIsArray($result['instructions_for_llm']);
+        $this->assertArrayHasKey('interdictions', $result['instructions_for_llm']);
+        $this->assertArrayHasKey('obligations', $result['instructions_for_llm']);
+        $this->assertStringContainsString('je suis inquiet', $result['instructions_for_llm']['interdictions'][0]);
+    }
+
+    public function testItCachesAnalysisResults(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-3',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Message 1',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Message 2',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [],
+        ];
+
+        $llmResponse = json_encode([
+            'repetitions_detected' => [],
+            'strategic_analysis' => 'Test analysis',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'worried',
+            'strategic_suggestions' => [],
+            'instructions' => [
+                'interdictions' => [],
+                'obligations' => ["Varie ton style"],
+                'objectif_strategique' => "Obtenir des IOCs",
+                'style_ton' => "Naturel",
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        // LLM should only be called ONCE
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->willReturn($llmResponse);
+
+        // First call
+        $result1 = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // Second call with same context (should use cache)
+        $result2 = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        $this->assertSame($result1, $result2);
+        $this->assertSame('Test analysis', $result1['analysis']);
+    }
+
+    public function testItInvalidatesCacheWhenMessageCountChanges(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-4',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Message 1',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Message 2',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [],
+        ];
+
+        $llmResponse1 = json_encode([
+            'repetitions_detected' => [],
+            'strategic_analysis' => 'Analysis with 2 messages',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'worried',
+            'strategic_suggestions' => [],
+            'instructions' => [
+                'interdictions' => [],
+                'obligations' => ["Varie ton style"],
+                'objectif_strategique' => "Obtenir des IOCs",
+                'style_ton' => "Naturel",
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $llmResponse2 = json_encode([
+            'repetitions_detected' => ['New repetition detected'],
+            'strategic_analysis' => 'Analysis with 3 messages',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'suspicious',
+            'strategic_suggestions' => [],
+            'instructions' => [
+                'interdictions' => ["INTERDIT de répéter"],
+                'obligations' => ["Varie davantage"],
+                'objectif_strategique' => "Obtenir IBAN",
+                'style_ton' => "Méfiant",
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        // LLM should be called TWICE (different message count)
+        $this->llmClient
+            ->expects($this->exactly(2))
+            ->method('chat')
+            ->willReturnOnConsecutiveCalls($llmResponse1, $llmResponse2);
+
+        // First call with 2 messages
+        $result1 = $this->analyzer->analyzeAndGenerateInstructions($context);
+        $this->assertSame('Analysis with 2 messages', $result1['analysis']);
+
+        // Second call with 3 messages (cache should be invalidated)
+        $context['all_messages'][] = [
+            'direction' => 'in',
+            'body_text' => 'Message 3',
+            'ts_msg' => '2025-10-27T10:02:00+00:00',
+        ];
+
+        $result2 = $this->analyzer->analyzeAndGenerateInstructions($context);
+        $this->assertSame('Analysis with 3 messages', $result2['analysis']);
+    }
+
+    public function testItHandlesLlmException(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-5',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Message 1',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Message 2',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [],
+        ];
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->willThrowException(new \RuntimeException('LLM API error'));
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // Should return generic instructions as fallback
+        $this->assertIsArray($result);
+        $this->assertStringContainsString('Not enough messages', $result['analysis']);
+        $this->assertSame('worried', $result['tone_recommendation']);
+        // instructions_for_llm is now a structured array
+        $this->assertIsArray($result['instructions_for_llm']);
+        $this->assertArrayHasKey('interdictions', $result['instructions_for_llm']);
+        $this->assertArrayHasKey('obligations', $result['instructions_for_llm']);
+    }
+
+    public function testItHandlesInvalidJsonResponse(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-6',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Message 1',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Message 2',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [],
+        ];
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->willReturn('Invalid JSON response {]');
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // Should return generic instructions as fallback
+        $this->assertIsArray($result);
+        $this->assertStringContainsString('Not enough messages', $result['analysis']);
+        $this->assertSame('worried', $result['tone_recommendation']);
+    }
+
+    public function testItHandlesMissingRequiredFields(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-7',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Message 1',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Message 2',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [],
+        ];
+
+        // Missing required field: tone_recommendation
+        $llmResponse = json_encode([
+            'repetitions_detected' => [],
+            'instructions_for_llm' => 'Test',
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // Should return generic instructions as fallback
+        $this->assertIsArray($result);
+        $this->assertStringContainsString('Not enough messages', $result['analysis']);
+    }
+
+    public function testItFormatsIocsSummaryCorrectly(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-8',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Contact me at scammer@evil.com or call +33123456789',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Je vous remercie',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                ],
+            ],
+            'extracted_iocs' => [
+                ['type' => 'email', 'value' => 'scammer@evil.com'],
+                ['type' => 'phone', 'value' => '+33123456789'],
+                ['type' => 'email', 'value' => 'scammer2@evil.com'],
+            ],
+        ];
+
+        $llmResponse = json_encode([
+            'repetitions_detected' => [],
+            'strategic_analysis' => 'Test',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'worried',
+            'strategic_suggestions' => [],
+            'instructions_for_llm' => 'Test',
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->with(
+                $this->callback(function ($messages) {
+                    $prompt = $messages[0]['content'];
+                    // Should contain "email (2), phone (1)"
+                    $this->assertStringContainsString('email (2)', $prompt);
+                    $this->assertStringContainsString('phone (1)', $prompt);
+
+                    return true;
+                }),
+                $this->anything()
+            )
+            ->willReturn($llmResponse);
+
+        $this->analyzer->analyzeAndGenerateInstructions($context);
+    }
+
+    public function testItFormatsConversationHistoryWithSubjects(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-9',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                [
+                    'direction' => 'in',
+                    'body_text' => 'Hello',
+                    'ts_msg' => '2025-10-27T10:00:00+00:00',
+                    'subject' => 'Urgent action required',
+                ],
+                [
+                    'direction' => 'out',
+                    'body_text' => 'Bonjour',
+                    'ts_msg' => '2025-10-27T10:01:00+00:00',
+                    'subject' => 'Re: Urgent action required',
+                ],
+            ],
+            'extracted_iocs' => [],
+        ];
+
+        $llmResponse = json_encode([
+            'repetitions_detected' => [],
+            'strategic_analysis' => 'Test',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'worried',
+            'strategic_suggestions' => [],
+            'instructions_for_llm' => 'Test',
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->with(
+                $this->callback(function ($messages) {
+                    $prompt = $messages[0]['content'];
+                    $this->assertStringContainsString('Message #1 - SCAMMER', $prompt);
+                    $this->assertStringContainsString('Subject: Urgent action required', $prompt);
+                    $this->assertStringContainsString('Message #2 - VICTIM', $prompt);
+                    $this->assertStringContainsString('Subject: Re: Urgent action required', $prompt);
+
+                    return true;
+                }),
+                $this->anything()
+            )
+            ->willReturn($llmResponse);
+
+        $this->analyzer->analyzeAndGenerateInstructions($context);
+    }
+
+    public function testItSummarizesLongConversations(): void
+    {
+        $messages = [];
+
+        // Create 15 messages (> MAX_MESSAGES_WITHOUT_SUMMARY = 10)
+        for ($i = 1; $i <= 15; ++$i) {
+            $messages[] = [
+                'direction' => ($i % 2 === 1) ? 'in' : 'out',
+                'body_text' => "Message $i",
+                'ts_msg' => '2025-10-27T10:00:00+00:00',
+            ];
+        }
+
+        $context = [
+            'conversation_id' => 'test-conv-10',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => $messages,
+            'extracted_iocs' => [],
+        ];
+
+        $llmResponse = json_encode([
+            'repetitions_detected' => [],
+            'strategic_analysis' => 'Test',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'worried',
+            'strategic_suggestions' => [],
+            'instructions_for_llm' => 'Test',
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient
+            ->expects($this->once())
+            ->method('chat')
+            ->with(
+                $this->callback(function ($messages) {
+                    $prompt = $messages[0]['content'];
+                    // Should contain summary marker
+                    $this->assertStringContainsString('SUMMARY', $prompt);
+                    $this->assertStringContainsString('messages exchanged', $prompt);
+
+                    return true;
+                }),
+                $this->anything()
+            )
+            ->willReturn($llmResponse);
+
+        $this->analyzer->analyzeAndGenerateInstructions($context);
+    }
+
+    // ================================================================== //
+    //  Merged from ConversationAnalyzerCoverageTest
+    // ================================================================== //
+
+    private function buildContext(): array
+    {
+        return [
+            'conversation_id' => 'test-conv',
+            'scam_type' => 'PHISHING',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                ['direction' => 'in', 'body_text' => 'Hello 1', 'ts_msg' => '2026-01-01T00:00:00+00:00'],
+                ['direction' => 'out', 'body_text' => 'Reply 1', 'ts_msg' => '2026-01-01T01:00:00+00:00'],
+                ['direction' => 'in', 'body_text' => 'Hello 2', 'ts_msg' => '2026-01-01T02:00:00+00:00'],
+                ['direction' => 'out', 'body_text' => 'Reply 2', 'ts_msg' => '2026-01-01T03:00:00+00:00'],
+                ['direction' => 'in', 'body_text' => 'Hello 3', 'ts_msg' => '2026-01-01T04:00:00+00:00'],
+            ],
+        ];
+    }
+
+    public function testAnalyzeHandlesJsonWithMultiplicationSymbol(): void
+    {
+        $llmResponse = '```json
+{
+    "strategic_analysis": "test",
+    "repetitions_detected": ["Bonjour," × 3, "Suite..." × 2],
+    "tone_recommendation": "more assertive",
+    "strategic_suggestions": [],
+    "instructions": {
+        "interdictions": ["Do not repeat"],
+        "obligations": ["Use new phrases"]
+    }
+}
+```';
+
+        $this->llmClient->method('chat')->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertArrayHasKey('instructions_for_llm', $result);
+        $this->assertSame('more assertive', $result['tone_recommendation']);
+    }
+
+    public function testAnalyzeHandlesJsonWithTrailingComma(): void
+    {
+        $llmResponse = '{
+    "strategic_analysis": "test analysis",
+    "repetitions_detected": ["word1",],
+    "tone_recommendation": "assertive",
+    "strategic_suggestions": [],
+    "instructions": {
+        "interdictions": ["stop repeating",],
+        "obligations": ["use variety"]
+    }
+}';
+
+        $this->llmClient->method('chat')->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertArrayHasKey('repetitions_detected', $result);
+    }
+
+    public function testAnalyzeHandlesJsonWithoutMarkdownBlock(): void
+    {
+        // extractJsonFromResponse falls through to raw JSON extraction
+        $llmResponse = 'Here is the analysis: {"strategic_analysis": "test", "repetitions_detected": [], "tone_recommendation": "calm", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": []}} end of response';
+
+        $this->llmClient->method('chat')->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertSame('calm', $result['tone_recommendation']);
+    }
+
+    public function testAnalyzeFallsBackToGenericOnInvalidJson(): void
+    {
+        $this->llmClient->method('chat')->willReturn('Not valid JSON at all');
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        // Should return generic instructions (fallback), not throw
+        $this->assertArrayHasKey('instructions_for_llm', $result);
+        $this->assertArrayHasKey('tone_recommendation', $result);
+        $this->assertNotEmpty($result['instructions_for_llm']);
+    }
+
+    public function testAnalyzeFallsBackToGenericOnMissingRequiredFields(): void
+    {
+        $llmResponse = '{"strategic_analysis": "test"}'; // missing required fields
+
+        $this->llmClient->method('chat')->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        // Should return generic instructions
+        $this->assertArrayHasKey('instructions_for_llm', $result);
+    }
+
+    public function testAnalyzeFallsBackToGenericOnInvalidInstructionsStructure(): void
+    {
+        $llmResponse = '{"strategic_analysis": "test", "repetitions_detected": [], "tone_recommendation": "calm", "instructions": "not an object"}';
+
+        $this->llmClient->method('chat')->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        // Should return generic instructions
+        $this->assertArrayHasKey('instructions_for_llm', $result);
+    }
+
+    public function testAnalyzeFallsBackOnLlmException(): void
+    {
+        $this->llmClient->method('chat')
+            ->willThrowException(new \RuntimeException('LLM unavailable'));
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        // Should return generic instructions (fallback)
+        $this->assertArrayHasKey('instructions_for_llm', $result);
+        $this->assertArrayHasKey('tone_recommendation', $result);
+    }
+
+    public function testAnalyzeWithIocsInContext(): void
+    {
+        $validResponse = '{"strategic_analysis": "Scammer engaged", "repetitions_detected": [], "tone_recommendation": "warm", "strategic_suggestions": ["Ask about payment"], "instructions": {"interdictions": ["Do not reveal truth"], "obligations": ["Stay engaged"]}}';
+
+        $this->llmClient->method('chat')->willReturn($validResponse);
+
+        $context = $this->buildContext();
+        $context['extracted_iocs'] = [
+            ['type' => 'iban', 'value' => 'FR7612345', 'category' => 'financial'],
+            ['type' => 'email', 'value' => 'scammer@evil.com', 'category' => 'contact'],
+        ];
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        $this->assertSame('warm', $result['tone_recommendation']);
+    }
+
+    /**
+     * ConversationAnalyzer's strategic analysis prompt
+     * must now be in English (was 264 lines of French previously).
+     * Eliminates LLM code-switching with the 90 % EN corpus.
+     */
+    public function testAnalysisPromptIsInEnglish(): void
+    {
+        $validResponse = '{"strategic_analysis": "OK", "repetitions_detected": [], "tone_recommendation": "confident", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": []}}';
+
+        $captured = '';
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$captured, $validResponse) {
+            $captured = ($messages[0]['content'] ?? '') . "\n---\n" . ($messages[1]['content'] ?? '');
+
+            return $validResponse;
+        });
+
+        $context = $this->buildContext();
+        $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // No FR markers
+        $this->assertStringNotContainsString('Tu es un analyste', $captured);
+        $this->assertStringNotContainsString('CONTEXTE :', $captured);
+        $this->assertStringNotContainsString('Voici', $captured);
+        $this->assertStringNotContainsString('OBJECTIF DE L', $captured);
+        // EN markers present
+        $this->assertStringContainsString('You are', $captured);
+        $this->assertStringContainsString('CONTEXT', $captured);
+        $this->assertStringContainsString('OBJECTIVE', $captured);
+    }
+
+    /**
+     * The meta-prompt must contain RULE #6 instructing
+     * the analyzer to pivot away from a deferred IOC rather than re-asking
+     * it robotically. Triggered by the first real bot-detection event on
+     * 2026-06-11 (conv d2a31055, yogesh@ecommstreet.com said "you are not
+     * human" after we asked for BIC/SWIFT 3 turns in a row despite his
+     * explicit deferral).
+     */
+    public function testBuildAnalysisPromptContainsAntiRoboticIocRule(): void
+    {
+        $validResponse = '{"strategic_analysis": "OK", "repetitions_detected": [], "tone_recommendation": "confident", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": []}}';
+
+        $captured = '';
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$captured, $validResponse) {
+            $captured = ($messages[0]['content'] ?? '') . "\n---\n" . ($messages[1]['content'] ?? '');
+
+            return $validResponse;
+        });
+
+        $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        // RULE #6 marker
+        $this->assertStringContainsString('RULE #6', $captured, 'RULE #6 must exist in the analyzer system prompt');
+        // Key concept: explicit deferral by scammer
+        $this->assertStringContainsString('deferred', $captured, 'Rule must mention "deferred" IOC concept');
+        // At least one canonical EN deferral phrase example
+        $this->assertTrue(
+            str_contains($captured, "I'll share later")
+                || str_contains($captured, 'share later')
+                || str_contains($captured, 'with the invoice')
+                || str_contains($captured, 'after we finalize'),
+            'Rule must give at least one EN example of a deferral phrase'
+        );
+        // The fix is about PIVOTING, not re-asking
+        $this->assertTrue(
+            str_contains(strtolower($captured), 'pivot')
+                || str_contains(strtolower($captured), 'switch to a different ioc')
+                || str_contains(strtolower($captured), 'change angle'),
+            'Rule must instruct the analyzer to pivot to a different IOC'
+        );
+    }
+
+    /**
+     * When the scammer's recent reply contains an
+     * explicit deferral and the LLM applies RULE #6, the parsed
+     * `instructions_for_llm` payload should carry an interdiction
+     * forbidding the re-ask of the deferred IOC.
+     *
+     * This test verifies WIRING (prompt → LLM → parsing). The LLM is
+     * mocked to simulate compliant output; real LLM obedience is checked
+     * end-to-end in test_cases.sh.
+     */
+    public function testAnalyzerPivotsAwayFromDeferredIoc(): void
+    {
+        $context = [
+            'conversation_id' => 'test-conv-fix17',
+            'scam_type' => 'ADVANCE_FEE_419',
+            'persona_code' => 'small_business_owner',
+            'all_messages' => [
+                ['direction' => 'in', 'body_text' => 'Hi, please send your bank details for the wire.', 'ts_msg' => '2026-01-01T00:00:00+00:00'],
+                ['direction' => 'out', 'body_text' => 'Could you share the BIC/SWIFT code for the wire?', 'ts_msg' => '2026-01-01T01:00:00+00:00'],
+                ['direction' => 'in', 'body_text' => 'I will share the BIC later once we finalize the project.', 'ts_msg' => '2026-01-01T02:00:00+00:00'],
+            ],
+        ];
+
+        // Mock the LLM as if it had applied RULE #6 — output pivots away from BIC/SWIFT
+        $compliantResponse = json_encode([
+            'strategic_analysis' => 'Scammer deferred BIC; pivot to phone or postal address',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'confident',
+            'strategic_suggestions' => [
+                'Acknowledge the BIC will come later, ask for phone number for "bank verification call"',
+            ],
+            'instructions' => [
+                'interdictions' => [
+                    "FORBIDDEN to ask for 'BIC' or 'SWIFT' again (already deferred, would read as robotic)",
+                ],
+                'obligations' => [
+                    'Pivot to a different IOC angle (phone, postal address, full name)',
+                ],
+                'objectif_strategique' => 'Obtain a phone number for bank verification call',
+                'style_ton' => 'Cooperative, acknowledge their pace, 80-100 words',
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($compliantResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        // The parsed output must carry the pivot directives
+        $this->assertIsArray($result['instructions_for_llm']);
+        $interdictions = $result['instructions_for_llm']['interdictions'] ?? [];
+        $this->assertNotEmpty($interdictions);
+        $combined = implode(' | ', $interdictions);
+        $this->assertTrue(
+            str_contains($combined, 'BIC') || str_contains($combined, 'SWIFT'),
+            'interdictions must reference the deferred IOC'
+        );
+        // objectif_strategique must NOT re-target BIC/SWIFT
+        $objectif = (string) ($result['instructions_for_llm']['objectif_strategique'] ?? '');
+        $this->assertStringNotContainsStringIgnoringCase('BIC', $objectif, 'New objectif_strategique should pivot away from BIC');
+        $this->assertStringNotContainsStringIgnoringCase('SWIFT', $objectif, 'New objectif_strategique should pivot away from SWIFT');
+    }
+
+    // === structured forbidden_iocs + pivot_to_iocs schema ===
+
+    /**
+     * Backward compatibility: when the LLM returns a
+     * response WITHOUT the new `forbidden_iocs` / `pivot_to_iocs` fields
+     * (the historical schema, all existing fixtures), parsing must succeed
+     * and default both fields to empty arrays in instructions_for_llm.
+     *
+     * This is the critical regression guard against breaking the 8 existing
+     * fixtures in ConversationAnalyzerTest + ConversationAnalyzerMutationTest.
+     */
+    public function testParseAcceptsResponseWithoutForbiddenIocsField(): void
+    {
+        // Old schema — no forbidden_iocs, no pivot_to_iocs
+        $oldSchemaResponse = json_encode([
+            'strategic_analysis' => 'Test',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'confident',
+            'strategic_suggestions' => [],
+            'instructions' => [
+                'interdictions' => [],
+                'obligations' => ['stay engaged'],
+                'objectif_strategique' => 'Get phone number',
+                'style_ton' => 'Natural, 80-100 words',
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($oldSchemaResponse);
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertIsArray($result['instructions_for_llm']);
+        // The new fields must default to [] when absent — never throw, never null
+        $this->assertArrayHasKey('forbidden_iocs', $result['instructions_for_llm'], 'forbidden_iocs key must always be present (default empty array)');
+        $this->assertArrayHasKey('pivot_to_iocs', $result['instructions_for_llm'], 'pivot_to_iocs key must always be present (default empty array)');
+        $this->assertSame([], $result['instructions_for_llm']['forbidden_iocs']);
+        $this->assertSame([], $result['instructions_for_llm']['pivot_to_iocs']);
+    }
+
+    /**
+     * When the LLM emits the new structured fields,
+     * they must flow through to instructions_for_llm verbatim.
+     */
+    public function testParseAcceptsForbiddenIocsField(): void
+    {
+        $newSchemaResponse = json_encode([
+            'strategic_analysis' => 'Scammer deferred BIC; pivot to phone',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'confident',
+            'strategic_suggestions' => [],
+            'instructions' => [
+                'interdictions' => ['FORBIDDEN to ask BIC/SWIFT (deferred)'],
+                'obligations' => ['Pivot to phone'],
+                'objectif_strategique' => 'Obtain phone number',
+                'style_ton' => 'Cooperative, 80-100 words',
+                'forbidden_iocs' => ['BIC', 'SWIFT'],
+                'pivot_to_iocs' => ['phone', 'postal address', 'beneficiary name'],
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($newSchemaResponse);
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertSame(['BIC', 'SWIFT'], $result['instructions_for_llm']['forbidden_iocs']);
+        $this->assertSame(['phone', 'postal address', 'beneficiary name'], $result['instructions_for_llm']['pivot_to_iocs']);
+    }
+
+    /**
+     * The fallback path (LLM error or message count < 2)
+     * must also expose the new fields with safe empty defaults, so
+     * PromptBuilder can read them unconditionally without isset/?? guards.
+     */
+    public function testGenericInstructionsContainEmptyForbiddenIocs(): void
+    {
+        // Trigger fallback by providing a context with < 2 messages
+        $context = [
+            'conversation_id' => 'test-conv',
+            'scam_type' => 'PHISHING',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                ['direction' => 'in', 'body_text' => 'single msg', 'ts_msg' => '2026-01-01T00:00:00+00:00'],
+            ],
+        ];
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($context);
+
+        $this->assertArrayHasKey('forbidden_iocs', $result['instructions_for_llm']);
+        $this->assertArrayHasKey('pivot_to_iocs', $result['instructions_for_llm']);
+        $this->assertSame([], $result['instructions_for_llm']['forbidden_iocs']);
+        $this->assertSame([], $result['instructions_for_llm']['pivot_to_iocs']);
+    }
+
+    // -----------------------------------------------------------------------
+    // Cialdini influence-principle mirroring (RULE #7)
+    //
+    // The analyzer's meta-prompt must include RULE #7 enumerating the 8 buckets
+    // (Authority / Urgency / Scarcity / Secrecy / Reciprocity / Liking /
+    // SocialProof / None), specifying the "CIALDINI-MIRROR (<lever>): " prefix
+    // for the strategic_suggestions entry, declaring multilingual support, and
+    // declaring lowest precedence vs RULES #1-#6.
+    //
+    // Tests capture the prompt sent to the LLM via the existing
+    // method-mock-callback pattern used by Fix17 tests above.
+    // -----------------------------------------------------------------------
+
+    /** Helper: capture the system+user prompt sent to the LLM. */
+    private function captureAnalyzerPrompt(): string
+    {
+        $validResponse = '{"strategic_analysis": "OK", "repetitions_detected": [], "tone_recommendation": "confident", "strategic_suggestions": [], "instructions": {"interdictions": [], "obligations": []}}';
+
+        $captured = '';
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use (&$captured, $validResponse) {
+            $captured = ($messages[0]['content'] ?? '') . "\n---\n" . ($messages[1]['content'] ?? '');
+
+            return $validResponse;
+        });
+
+        $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        return $captured;
+    }
+
+    public function testSpec119_promptIncludesCialdiniRule7Header(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('RULE #7', $captured, 'Analyzer prompt must contain the RULE #7 marker');
+        $this->assertStringContainsString('Cialdini influence-principle mirroring', $captured, 'Analyzer prompt must mention Cialdini mirroring');
+    }
+
+    /**
+     * @dataProvider cialdiniBucketsProvider
+     */
+    public function testSpec119_promptEnumeratesAllEightCialdiniBuckets(string $bucket): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString($bucket, $captured, "Analyzer prompt must list the {$bucket} Cialdini bucket");
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function cialdiniBucketsProvider(): array
+    {
+        return [
+            'Authority' => ['Authority'],
+            'Urgency' => ['Urgency'],
+            'Scarcity' => ['Scarcity'],
+            'Secrecy' => ['Secrecy'],
+            'Reciprocity' => ['Reciprocity'],
+            'Liking' => ['Liking'],
+            'SocialProof' => ['SocialProof'],
+            'None' => ['None'],
+        ];
+    }
+
+    public function testSpec119_promptSpecifiesCialdiniMirrorPrefix(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('CIALDINI-MIRROR (', $captured, 'Prompt must define the CIALDINI-MIRROR (<lever>): prefix as recognition handle');
+    }
+
+    public function testSpec119_promptDeclaresMultilingualSupport(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('detection works in any language', $captured, 'Prompt must explicitly say detection is multilingual');
+        $this->assertStringContainsString('emitted in ENGLISH', $captured, 'Prompt must say the mirror principle is emitted in English (Generator translates at gen time)');
+    }
+
+    public function testSpec119_promptDeclaresLowestPrecedence(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        $this->assertStringContainsString('RULES #1-#6 take precedence', $captured, 'Prompt must say Cialdini mirror is lowest priority vs RULES #1-#6');
+        $this->assertStringContainsString('skip the Cialdini mirror', $captured, 'Prompt must instruct to skip the mirror when RULES #1-#2 fire');
+    }
+
+    public function testSpec119_promptIncludesPerLeverMirrorPrinciple(): void
+    {
+        $captured = $this->captureAnalyzerPrompt();
+
+        // Each lever (other than None) must have its own mirror response
+        // principle. Test for a recognizable anchor of each principle.
+        $this->assertStringContainsString('Authority → mirror with deference', $captured, 'Authority mirror must say defer + ask credential');
+        $this->assertStringContainsString('Urgency → mirror by sharing the urgency', $captured, 'Urgency mirror must say share urgency + delay');
+        $this->assertStringContainsString('Scarcity → mirror by accepting the framing', $captured, 'Scarcity mirror must say accept + ask reservation reference');
+        $this->assertStringContainsString('Secrecy → mirror by playing along', $captured, 'Secrecy mirror must say play along + private context');
+        $this->assertStringContainsString('Reciprocity → mirror by accepting the favor', $captured, 'Reciprocity mirror must say accept + ask practical anchor');
+        $this->assertStringContainsString('Liking → mirror with warm but non-personal', $captured, 'Liking mirror must say warmth + practical pivot without personal disclosure');
+        $this->assertStringContainsString('SocialProof → mirror by accepting the social signal', $captured, 'SocialProof mirror must say accept + ask verifiable name/reference');
+    }
+
+    /**
+     * Integration-style: stub the LLM to return a JSON with a
+     * `CIALDINI-MIRROR (Authority): ...` entry inside strategic_suggestions
+     * and verify the analyzer parses it through to the return contract.
+     */
+    /** @return array<string, mixed> */
+    private function directorContext(): array
+    {
+        return [
+            'conversation_id' => 'test-conv-director',
+            'scam_type' => 'phishing',
+            'persona_code' => 'generic_user',
+            'all_messages' => [
+                ['direction' => 'in', 'body_text' => 'Here is our postal address and CIN.', 'ts_msg' => '2025-10-27T10:00:00+00:00', 'subject' => 'Re'],
+                ['direction' => 'out', 'body_text' => 'Could you send your postal address?', 'ts_msg' => '2025-10-27T10:01:00+00:00'],
+                ['direction' => 'in', 'body_text' => 'I already sent it. Are you a bot?', 'ts_msg' => '2025-10-27T10:02:00+00:00'],
+            ],
+            'extracted_iocs' => [],
+        ];
+    }
+
+    public function testAnalyzerParsesDirectorBrief(): void
+    {
+        $llmResponse = json_encode([
+            'repetitions_detected' => [],
+            'strategic_analysis' => 'stalling',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'suspicious',
+            'strategic_suggestions' => [],
+            'instructions' => ['interdictions' => [], 'obligations' => []],
+            'director' => [
+                'already_obtained' => ['postal address', 'registration number'],
+                'mark_state' => 'anti_bot_challenge',
+                'objective' => 'get a price then request an invoice',
+                'progress' => 'stalled',
+                'next_move' => 'stop re-asking; acknowledge and pivot to pricing',
+                'should_continue' => false,
+                'stop_reason' => 'mark suspects a bot',
+            ],
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->directorContext());
+
+        self::assertInstanceOf(ConversationDirectorBrief::class, $result['director']);
+        $brief = $result['director'];
+        self::assertSame(['postal address', 'registration number'], $brief->alreadyObtained);
+        self::assertSame(MarkState::ANTI_BOT_CHALLENGE, $brief->markState);
+        self::assertSame('get a price then request an invoice', $brief->objective);
+        self::assertFalse($brief->shouldContinue);
+    }
+
+    public function testAnalyzerDefaultsDirectorWhenAbsent(): void
+    {
+        $llmResponse = json_encode([
+            'repetitions_detected' => [],
+            'strategic_analysis' => 'ok',
+            'missing_iocs' => [],
+            'tone_recommendation' => 'worried',
+            'strategic_suggestions' => [],
+            'instructions' => ['interdictions' => [], 'obligations' => []],
+            // no "director" key — older/degraded response
+        ], JSON_THROW_ON_ERROR);
+
+        $this->llmClient->method('chat')->willReturn($llmResponse);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->directorContext());
+
+        self::assertInstanceOf(ConversationDirectorBrief::class, $result['director']);
+        self::assertTrue($result['director']->shouldContinue, 'absent director → safe default keeps going');
+        self::assertSame([], $result['director']->alreadyObtained);
+    }
+
+    public function testSpec119_analyzerParsesCialdiniMirrorEntryInStrategicSuggestions(): void
+    {
+        $mirrorEntry = 'CIALDINI-MIRROR (Authority): He invokes a title — the persona defers respectfully and asks for the official document or registry that proves the title.';
+        $responseJson = json_encode([
+            'strategic_analysis' => 'OK',
+            'repetitions_detected' => [],
+            'tone_recommendation' => 'reassured',
+            'strategic_suggestions' => [
+                'Ask for verification of the company.',
+                $mirrorEntry,
+            ],
+            'instructions' => ['interdictions' => [], 'obligations' => []],
+        ], JSON_UNESCAPED_UNICODE);
+
+        $this->llmClient->method('chat')->willReturn((string) $responseJson);
+
+        $result = $this->analyzer->analyzeAndGenerateInstructions($this->buildContext());
+
+        $this->assertArrayHasKey('strategic_suggestions', $result);
+        $this->assertContains($mirrorEntry, $result['strategic_suggestions'], 'Cialdini mirror entry must flow through the parser to the return contract');
+    }
+}

@@ -1,0 +1,44 @@
+# Optional turnkey monitoring stack for ScamBuster (Prometheus + Grafana).
+#
+# Prerequisites:
+#   1. The ScamBuster backend is reachable on the same Docker network (adjust the
+#      scrape target in prometheus/prometheus.yml).
+#   2. Create the admin scrape token file (raw JWT, no "Bearer " prefix — see README):
+#        echo -n "<admin-jwt>" > ./prometheus/scambuster-token
+#      Then: chmod 600 ./prometheus/scambuster-token   (it is git-ignored)
+#
+# Start:  docker compose -f infra/monitoring/docker-compose.yml up -d
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    container_name: scambuster-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alert.rules.yml:/etc/prometheus/alert.rules.yml:ro
+      - ./prometheus/scambuster-token:/etc/prometheus/scambuster-token:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    container_name: scambuster-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-changeme}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3003:3000"
+
+volumes:
+  prometheus-data:
+  grafana-data:

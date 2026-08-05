@@ -1,0 +1,120 @@
+# Production application image — SELF-CONTAINED (nginx + php-fpm via supervisord).
+#
+# Serves the Symfony API AND the built React frontend from ONE container on one
+# port (8080). This is the PRODUCTION runtime. The dev image
+# (infra/docker/backend/Dockerfile, `php -S`) and `make quickstart` are untouched.
+#
+# Used only by docker-compose.prod.yml:
+#   docker compose -f docker-compose.prod.yml up -d --build
+
+# ── Stage 1: build the React frontend ────────────────────────────────────────
+FROM node:20-alpine AS frontend
+WORKDIR /fe
+COPY frontend-react/package*.json ./
+RUN npm ci --no-audit --no-fund
+COPY frontend-react/ ./
+# The frontend calls `/api/v1` relative (VITE_API_BASE_URL ?? '/api/v1'), so it
+# is served same-origin behind nginx — no API URL is baked in.
+RUN npm run build          # → /fe/dist
+
+# ── Stage 2: PHP app + composer ──────────────────────────────────────────────
+FROM php:8.3.27-cli AS build
+WORKDIR /app
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        git unzip curl postgresql-client libpq-dev libzip-dev \
+    && (pecl install mailparse redis \
+        || (sleep 15 && pecl install -f mailparse redis) \
+        || (sleep 30 && pecl install -f mailparse redis)) \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer
+COPY backend-symfony/composer.* ./
+RUN composer install --no-interaction --no-scripts --no-progress
+COPY backend-symfony/ ./
+
+# ── Stage 3: production runtime (php-fpm + nginx + supervisord) ──────────────
+FROM php:8.3.27-fpm
+
+# OCI labels for provenance and compliance
+LABEL org.opencontainers.image.source="https://github.com/laugiov/scambuster" \
+        org.opencontainers.image.description="ScamBuster production app (nginx + php-fpm)" \
+        org.opencontainers.image.licenses="MIT" \
+        org.opencontainers.image.sbom="true"
+
+# Runtime deps + PHP extensions + nginx + supervisor.
+# `apt-get upgrade` pulls security patches for the base packages (e.g. libgnutls).
+# git + the -dev headers are needed to build the PHP extensions and run composer.
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && apt-get install -y --no-install-recommends \
+        nginx supervisor postgresql-client curl libpq-dev git unzip libzip-dev openssl \
+    && (pecl install mailparse redis \
+        || (sleep 15 && pecl install -f mailparse redis) \
+        || (sleep 30 && pecl install -f mailparse redis)) \
+    && docker-php-ext-enable mailparse redis \
+    && docker-php-ext-install pdo pdo_pgsql zip opcache \
+    && rm -rf /var/lib/apt/lists/*
+RUN curl -sS https://getcomposer.org/installer | php -- \
+        --install-dir=/usr/local/bin --filename=composer
+
+# Production PHP settings
+RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
+
+# php-fpm production tuning (listens on loopback; nginx proxies to it in-container)
+RUN { \
+    echo '[www]'; \
+    echo 'listen = 127.0.0.1:9000'; \
+    echo 'pm = dynamic'; \
+    echo 'pm.max_children = 20'; \
+    echo 'pm.start_servers = 4'; \
+    echo 'pm.min_spare_servers = 2'; \
+    echo 'pm.max_spare_servers = 8'; \
+    echo 'pm.max_requests = 1000'; \
+    echo 'access.log = /dev/null'; \
+} > /usr/local/etc/php-fpm.d/zz-production.conf
+
+# OPcache production settings
+RUN { \
+    echo 'opcache.enable=1'; \
+    echo 'opcache.memory_consumption=256'; \
+    echo 'opcache.max_accelerated_files=20000'; \
+    echo 'opcache.validate_timestamps=0'; \
+} > /usr/local/etc/php/conf.d/opcache-prod.ini
+
+# php.ini-production ships variables_order="GPCS" (no E), which leaves $_ENV empty.
+# Symfony config and some migrations read $_ENV directly, so include E (EGPCS) —
+# this matches the dev/demo image and is the standard Symfony production setting.
+RUN echo 'variables_order = "EGPCS"' > /usr/local/etc/php/conf.d/zz-variables-order.ini
+
+WORKDIR /app
+COPY --from=build    /app     /app
+COPY --from=frontend /fe/dist /app/public-frontend
+
+# Install production-only dependencies
+RUN composer install --no-dev --prefer-dist --optimize-autoloader \
+    --no-interaction --no-scripts --no-progress
+
+# nginx site + supervisor program set + scheduler + prod entrypoint
+COPY infra/docker/backend/nginx-prod.conf            /etc/nginx/sites-available/default
+COPY infra/docker/backend/supervisord.conf           /etc/supervisor/conf.d/scambuster.conf
+COPY infra/docker/backend/scheduler.sh               /opt/scheduler.sh
+COPY infra/docker/backend/write-prod-env.sh          /opt/write-prod-env.sh
+COPY infra/docker/backend/prod-seed-reference.sql    /opt/prod-seed-reference.sql
+COPY infra/docker/backend/docker-entrypoint-prod.sh  /usr/local/bin/docker-entrypoint-prod.sh
+
+RUN chmod +x /usr/local/bin/docker-entrypoint-prod.sh /opt/scheduler.sh /opt/write-prod-env.sh \
+    && mkdir -p /app/config/jwt /app/var /backups /run/php \
+    && chown -R www-data:www-data /app/var /app/config/jwt /backups \
+    && ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD curl -fsS http://localhost:8080/healthz || exit 1
+
+# Entrypoint runs migrations + JWT + reference seed, then execs supervisord
+# (php-fpm + nginx). The scheduler service overrides this to run scheduler.sh.
+ENTRYPOINT ["docker-entrypoint-prod.sh"]

@@ -1,0 +1,344 @@
+name: CI
+
+on:
+  push:
+    branches: [main, demo]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  static-analysis:
+    name: Static Analysis (PHPStan)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Create environment files
+        run: bash .github/scripts/create-ci-env.sh
+
+      - name: Start containers
+        run: docker compose up -d --build postgres redis backend-dev
+
+      - name: Wait for services
+        run: make wait-healthy
+
+      - name: Install dependencies
+        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+
+      - name: Fix permissions
+        run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
+
+      - name: Run PHPStan
+        run: docker compose exec backend-dev vendor/bin/phpstan analyse src --memory-limit=1G
+
+      - name: Vault resurrection guard
+        run: bash .github/scripts/check-no-vault-resurrection.sh
+
+  code-style:
+    name: Code Style (PHP-CS-Fixer)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Create environment files
+        run: bash .github/scripts/create-ci-env.sh
+
+      - name: Start containers
+        run: docker compose up -d --build postgres redis backend-dev
+
+      - name: Wait for services
+        run: make wait-healthy
+
+      - name: Install dependencies
+        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+
+      - name: Fix permissions
+        run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
+
+      - name: Run PHP-CS-Fixer (dry-run)
+        run: docker compose exec backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no
+
+  backend-tests:
+    name: Backend Tests (Unit + Integration)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Create environment files
+        run: bash .github/scripts/create-ci-env.sh
+
+      - name: Start services
+        run: docker compose up -d --build postgres redis backend-test
+
+      - name: Wait for healthy services
+        run: |
+          echo "Waiting for postgres..."
+          for i in $(seq 1 30); do docker compose exec postgres pg_isready -U postgres && break || sleep 2; done
+          echo "Waiting for backend-test..."
+          for i in $(seq 1 30); do docker compose exec backend-test php -v > /dev/null 2>&1 && break || sleep 2; done
+
+      - name: Install dependencies
+        run: |
+          docker compose exec --user root backend-test composer install --no-interaction --no-progress 2>/dev/null
+          docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
+
+      - name: Setup database
+        run: |
+          docker compose exec backend-test php bin/console doctrine:database:create --if-not-exists --env=test
+          docker compose exec backend-test php bin/console doctrine:migrations:migrate --no-interaction --env=test
+          docker compose exec backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test
+
+      - name: Run tests with coverage (unit + integration)
+        # `-d memory_limit=512M` — PHPUnit code-coverage report generation peaks
+        # around 200-300 MB once the suite grows past ~3500 tests. Default 128 MB
+        # OOMed at coverage-report time (tests themselves had passed). Same
+        # pattern as PHPStan above (which uses --memory-limit=1G).
+        #
+        # `functional` is deliberately absent from the suite list: phpunit.ci.xml
+        # does not define it (the CI variant drops SymfonyExtension, which
+        # conflicts with the Docker volume mounts WebTestCase needs). Naming it
+        # anyway would be silently ignored — PHPUnit does not fail on an unknown
+        # suite name — and the job would report green while ~855 controller tests
+        # never ran. Run those locally with `make test`.
+        run: |
+          docker compose exec backend-test vendor/bin/phpunit \
+            -d memory_limit=512M \
+            --configuration phpunit.ci.xml \
+            --testsuite unit,integration \
+            --exclude-group compiler-pass \
+            --coverage-clover /tmp/coverage.xml \
+            --testdox --colors=never
+
+      - name: Run CompilerPass tests (isolated)
+        run: |
+          docker compose exec backend-test vendor/bin/phpunit \
+            --configuration phpunit.ci.xml \
+            --group compiler-pass \
+            --colors=never
+
+      - name: Extract unit+integration coverage
+        if: always()
+        run: |
+          docker compose exec backend-test cat /tmp/coverage.xml > coverage-unit-integration.xml 2>/dev/null || true
+          wc -c coverage-unit-integration.xml
+
+      - name: Generate JWT keys for E2E
+        if: always()
+        run: |
+          mkdir -p backend-symfony/config/jwt
+          openssl genpkey -algorithm RSA \
+            -out backend-symfony/config/jwt/private.pem \
+            -aes-256-cbc -pass pass:scambuster-jwt-dev-passphrase \
+            -pkeyopt rsa_keygen_bits:2048 2>/dev/null
+          openssl rsa \
+            -in backend-symfony/config/jwt/private.pem \
+            -pubout -out backend-symfony/config/jwt/public.pem \
+            -passin pass:scambuster-jwt-dev-passphrase 2>/dev/null
+          chmod 644 backend-symfony/config/jwt/*.pem
+          echo "JWT keys generated for E2E"
+
+      - name: Start E2E container
+        if: always()
+        run: |
+          docker compose up -d --build backend-e2e
+          for i in $(seq 1 30); do docker compose exec backend-e2e php -v > /dev/null 2>&1 && break || sleep 2; done
+
+      - name: Setup E2E database
+        if: always()
+        run: |
+          docker compose exec --user root backend-e2e composer install --no-interaction --no-progress 2>/dev/null
+          docker compose exec --user root backend-e2e sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
+          docker compose exec backend-e2e php bin/console doctrine:database:create --if-not-exists --env=e2e
+          docker compose exec backend-e2e php bin/console doctrine:migrations:migrate --no-interaction --env=e2e
+          docker compose exec backend-e2e php bin/console doctrine:fixtures:load --no-interaction --env=e2e
+
+      - name: Run E2E tests with coverage
+        if: always()
+        # Same `-d memory_limit=512M` as the unit/integration job — coverage
+        # report generation OOMs at the default 128 MB on a 308-test suite.
+        run: |
+          docker compose exec backend-e2e vendor/bin/phpunit \
+            -d memory_limit=512M \
+            --testsuite endtoend \
+            --exclude-group ci-skip \
+            --coverage-clover /tmp/coverage-e2e.xml \
+            --colors=never
+
+      - name: Extract E2E coverage
+        if: always()
+        run: |
+          docker compose exec backend-e2e cat /tmp/coverage-e2e.xml > coverage-e2e.xml 2>/dev/null || true
+          wc -c coverage-e2e.xml
+
+      - name: Upload to Codecov (unit + integration + e2e merged)
+        if: always()
+        uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+        with:
+          files: ./coverage-unit-integration.xml,./coverage-e2e.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+
+  security:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    # The workflow's top-level permissions are 'contents: read'. The Gitleaks
+    # action additionally needs to list a PR's commits via
+    # GET /repos/{owner}/{repo}/pulls/{n}/commits, which requires
+    # 'pull-requests: read'. Without it, the API returns 403 with
+    # 'x-accepted-github-permissions: pull_requests=read' and the job dies.
+    # Granted at the job level so other jobs keep the tighter default.
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Create environment files
+        run: bash .github/scripts/create-ci-env.sh
+
+      - name: Composer audit (PHP SCA)
+        run: |
+          docker compose up -d --build backend-dev
+          docker compose exec --user root backend-dev composer install --no-interaction --no-progress 2>/dev/null
+          # Blocking on NEW vulnerabilities, ignoring known/accepted CVEs.
+          # Previously-ignored entries were cleared (Symfony 7.4 + PHPUnit 10.5.63
+          # upgrades fixed them). Keep this set in sync with scripts/preflight-check.sh
+          # and backend-symfony/composer.json audit.ignored.
+          AUDIT_JSON=$(docker compose exec backend-dev composer audit --format=json 2>/dev/null || true)
+          echo "$AUDIT_JSON" | python3 -c "
+          import sys, json
+          raw = sys.stdin.read().strip()
+          if not raw:
+              print('Composer audit returned no output (no advisories found)')
+              sys.exit(0)
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError:
+              print('::warning::Composer audit returned non-JSON output:')
+              print(raw[:500])
+              sys.exit(0)
+          ignored = set()
+          unignored = []
+          # composer audit serializes 'advisories' as {} when populated, [] when empty.
+          advisories_field = data.get('advisories', {})
+          if isinstance(advisories_field, dict):
+              for pkg, advisories in advisories_field.items():
+                  for adv in advisories:
+                      if adv.get('advisoryId') not in ignored:
+                          unignored.append(f\"{pkg}: {adv.get('title', 'unknown')} ({adv.get('advisoryId')})\")
+          if unignored:
+              print('::error::New vulnerabilities found:')
+              for u in unignored: print(f'  - {u}')
+              sys.exit(1)
+          else:
+              print(f'Composer audit OK ({len(ignored)} known CVEs ignored)')
+          "
+
+      - name: Gitleaks (secret detection)
+        # Run the gitleaks CLI directly (MIT, free) instead of the
+        # gitleaks-action wrapper, which now requires a paid GITLEAKS_LICENSE
+        # secret. Scans full git history (fetch-depth: 0 above) and honours the
+        # repo's .gitleaks.toml. Exits non-zero on any finding.
+        run: |
+          GITLEAKS_VERSION=8.21.2
+          mkdir -p "$HOME/bin"
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$HOME/bin" gitleaks
+          "$HOME/bin/gitleaks" version
+          "$HOME/bin/gitleaks" git . --redact --verbose --config .gitleaks.toml --exit-code 1
+
+  frontend:
+    name: Frontend (TypeScript, Lint, Tests, Build)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend-react
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-react/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript strict check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm run test
+
+      - name: Production build
+        run: npm run build
+
+  container-security:
+    name: Container Security (Trivy + SBOM)
+    runs-on: ubuntu-latest
+    needs: [static-analysis]
+    # Blocking gate. The Dockerfiles run `apt-get upgrade` so fixable base-image
+    # CVEs are patched at build time; unfixable ones (perl-base, kernel headers,
+    # ncurses — no upstream patch, not reachable from our PHP runtime) are skipped
+    # via `ignore-unfixed` below. So a failure here means a *fixable* CRITICAL/HIGH
+    # slipped in and must be addressed (usually a rebuild picks up the patch).
+    # Scan BOTH images: the dev image (used by the stack + tests) and the
+    # self-contained production image that actually gets deployed/published.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: dev, dockerfile: infra/docker/backend/Dockerfile }
+          - { name: prod, dockerfile: infra/docker/backend/Dockerfile.prod }
+          - { name: demo, dockerfile: infra/docker/demo/Dockerfile.backend }
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Build ${{ matrix.name }} image
+        run: docker build -t scambuster-${{ matrix.name }}:ci -f ${{ matrix.dockerfile }} .
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: 'scambuster-${{ matrix.name }}:ci'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL,HIGH'
+          # ignore-unfixed: don't fail CI on CVEs that have no patch available
+          # in any package upstream yet. Most of these are kernel/ncurses CVEs
+          # in the Debian base of php:8.x that are red herrings inside a
+          # container (containers share the host kernel) and that we cannot
+          # fix without rebuilding the base image. We still want to be alerted
+          # for fixable CVEs in our PHP/Composer dependency tree.
+          ignore-unfixed: true
+          trivyignores: '.trivyignore'
+
+      - name: Generate SBOM (CycloneDX)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          image-ref: 'scambuster-${{ matrix.name }}:ci'
+          format: 'cyclonedx'
+          output: 'sbom-${{ matrix.name }}.cdx.json'
+
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sbom-cyclonedx-${{ matrix.name }}
+          path: 'sbom-${{ matrix.name }}.cdx.json'
+          retention-days: 30

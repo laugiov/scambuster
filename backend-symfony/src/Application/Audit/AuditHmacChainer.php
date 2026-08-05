@@ -1,0 +1,89 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Audit;
+
+use Psr\Log\LoggerInterface;
+
+/**
+ * Computes HMAC-SHA256 chains for the audit_log table.
+ *
+ * Each new audit row's HMAC depends on the previous row's HMAC,
+ * forming a tamper-evident chain: modifying any row in the middle
+ * invalidates every subsequent HMAC.
+ *
+ * Algorithm: `row_hmac = HMAC-SHA256(key, prev_hmac_bin || canonical_json)`
+ * where `canonical_json = json_encode(sorted_row_fields)`.
+ *
+ * The key is read from the `AUDIT_HMAC_KEY` env var (64 hex chars
+ * = 32 bytes) at construction time.
+ *
+ * Fail-closed in prod / graceful in dev: if the key is empty or invalid the
+ * chainer is DISABLED (compute() returns '', isEnabled() false) — but this is
+ * only tolerated outside production. In `prod` a missing/invalid key throws at
+ * construction, so a production deployment cannot silently run without the
+ * tamper-evidence chain. Non-prod environments log a WARNING instead of failing,
+ * so local/CI runs don't crash on login (AUTH events are blocking in AuditLogger).
+ *
+ * Thread safety: stateless after construction.
+ */
+final readonly class AuditHmacChainer
+{
+    private ?string $key;
+    private bool $enabled;
+
+    public function __construct(
+        ?string $hmacKeyHex = '',
+        string $environment = 'dev',
+        ?LoggerInterface $logger = null,
+    ) {
+        if ($hmacKeyHex === null || $hmacKeyHex === '' || strlen($hmacKeyHex) !== 64 || !ctype_xdigit($hmacKeyHex)) {
+            if ($environment === 'prod') {
+                throw new \RuntimeException(
+                    'AUDIT_HMAC_KEY is required in production: the audit tamper-evidence '
+                    . 'chain must not be silently disabled. Set a 64-hex-character key.'
+                );
+            }
+
+            $logger?->warning(
+                '[AuditHmacChainer] AUDIT_HMAC_KEY missing/invalid — audit HMAC chain DISABLED '
+                . '(non-prod graceful path). Set a 64-hex-character key to enable tamper-evidence.'
+            );
+
+            $this->key = null;
+            $this->enabled = false;
+
+            return;
+        }
+        $this->key = (string) hex2bin($hmacKeyHex);
+        $this->enabled = true;
+    }
+
+    public function isEnabled(): bool
+    {
+        return $this->enabled;
+    }
+
+    /**
+     * Compute the HMAC for a new audit row.
+     *
+     * Returns '' when the chainer is disabled (no key configured).
+     *
+     * @param string               $prevHmacBin  Raw bytes of the previous row's HMAC (or '' for the first row)
+     * @param array<string, mixed> $canonicalRow The audit row fields (will be sorted + json-encoded)
+     *
+     * @return string Raw bytes of the new HMAC (32 bytes for SHA-256), or '' if disabled
+     */
+    public function compute(string $prevHmacBin, array $canonicalRow): string
+    {
+        if (!$this->enabled || $this->key === null) {
+            return '';
+        }
+
+        ksort($canonicalRow);
+        $canonical = json_encode($canonicalRow, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+
+        return hash_hmac('sha256', $prevHmacBin . $canonical, $this->key, true);
+    }
+}

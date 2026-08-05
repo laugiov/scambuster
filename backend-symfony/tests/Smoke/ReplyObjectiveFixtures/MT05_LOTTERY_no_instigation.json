@@ -1,0 +1,15 @@
+{
+  "scam_code": "LOTTERY",
+  "language": "en",
+  "expected_bucket": "lottery_fee",
+  "persona": "lottery_believer",
+  "scenario": "Attacker is vague about payment method for 2 turns — persona must NOT instigate banking topics (spec 116), must let attacker name the method first",
+  "turns": [
+    { "from": "attacker", "body": "Congratulations! You won $5.8M USD in our quarterly draw. To release the prize we need a small processing fee." },
+    { "from": "persona", "body": "Wonderful news! How exactly should I send the processing fee?" },
+    { "from": "attacker", "body": "Our finance team will follow up with details. For now please confirm your interest and provide your full name." },
+    { "from": "persona", "generate": true },
+    { "from": "attacker", "body": "Great, thanks for confirming. The processing fee is $385 and you'll get instructions within 24 hours." },
+    { "from": "persona", "generate": true }
+  ]
+}

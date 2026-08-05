@@ -1,0 +1,15 @@
+lexik_jwt_authentication:
+    # RS256 asymmetric signing (private key signs, public key verifies)
+    secret_key: '%kernel.project_dir%/config/jwt/private.pem'
+    public_key: '%kernel.project_dir%/config/jwt/public.pem'
+    pass_phrase: '%env(JWT_PASSPHRASE)%'
+    encoder:
+        signature_algorithm: RS256
+    token_ttl: 900  # 15 minutes (security-by-design recommendation)
+
+    token_extractors:
+        authorization_header:
+            enabled: true
+            prefix: Bearer
+        query_parameter:    { enabled: false }
+        cookie:             { enabled: false }

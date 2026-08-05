@@ -1,0 +1,547 @@
+parameters:
+    conversation_history.excluded_emails: '%env(csv:CONVERSATION_HISTORY_EXCLUDED_EMAILS)%'
+    # Comma-separated list of honeypot email addresses to NEVER ingest as IOCs.
+    # Defaults to empty list (filter is a no-op for fresh deployments). Operators should
+    # set HONEYPOT_EMAIL_ADDRESSES in .env to enable the filter.
+    app.honeypot_email_addresses: '%env(default::csv:HONEYPOT_EMAIL_ADDRESSES)%'
+    # Comma-separated list of honeypot-owned domains. Distinct from
+    # HONEYPOT_EMAIL_ADDRESSES because some configured addresses live on shared
+    # providers (gmail.com, outlook.com) which obviously cannot be treated as
+    # honeypot domains. Only enumerate domains we actually own.
+    # Any IOC of type domain (exact match), url (host match after stripping www.),
+    # or email (domain-part match) under one of these domains is rejected.
+    app.honeypot_domains: '%env(default::csv:HONEYPOT_DOMAINS)%'
+
+    # How long the GET /risk endpoint sleeps before computing the
+    # risk score, to let the n8n parallel WF-EXTRACT-AND-ENRICH-IOC branch
+    # finish persisting body IOCs (otherwise /risk runs on header IOCs only
+    # and the score can fall below the reply threshold — race condition
+    # root-caused on 2026-06-19). Default 30s in prod/dev; overridden to 0
+    # in config/services_test.yaml so PHPUnit doesn't block per request.
+    app.risk_extraction_wait_sec: 30
+
+    # Typed defaults for the optional OIDC SSO feature. Used as the
+    # `default:` fallback so the container builds with real bool/string values even
+    # when no OIDC_* env var is set — SSO simply stays disabled.
+    app.oidc.enabled: false
+    app.oidc.discovery_url: ''
+    app.oidc.client_id: ''
+    app.oidc.client_secret: ''
+    app.oidc.redirect_uri: ''
+    # "openid" is mandatory; "email"/"profile" give us the email + display name.
+    app.oidc.default_scopes: 'openid email profile'
+    app.oidc.auto_provision: false
+    app.oidc.success_redirect: ''
+    # Array-typed OIDC settings need an array fallback, so an unset env resolves to []
+    # (not null) — otherwise the value object's `array` argument gets null and 500s.
+    app.oidc.allowed_email_domains: []
+    app.oidc.default_roles: []
+
+    # Typed defaults for the TTP extraction module. Used as the `default:`
+    # fallback so the container builds with real bool/float values even when
+    # neither TTP_* env var is set — extraction stays enabled with the 0.55
+    # confidence threshold.
+    ttp_extraction.enabled.default: true
+    ttp_extraction.confidence.default: 0.55
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+        bind:
+            $projectDir: '%kernel.project_dir%'
+            $monthlyLimitUsd: '%llm.max_cost_usd_month%'
+            $honeypotEmailAddresses: '%app.honeypot_email_addresses%'
+            $honeypotDomains: '%app.honeypot_domains%'
+            $appSecret: '%env(APP_SECRET)%'
+            # Reply-pipeline feature flags (see config/packages/llm.yaml)
+            $signatureStripEnabled:            '%reply.signature_strip.enabled%'
+            $validatorContextEnabled:          '%reply.validator.context.enabled%'
+            $validatorStructuredCorrection:    '%reply.validator.structured_correction%'
+            $generatorPatchMode:               '%reply.generator.patch_mode%'
+            $generatorNoSignatureInstruction:  '%reply.generator.no_signature_instruction%'
+            # Operator-test sender CSV (consumed by IngestPostProcessor::matchPreFilter)
+            $operatorTestSenders:              '%env(string:default::SCAMBUSTER_OPERATOR_TEST_SENDERS)%'
+            # Extraction-wait param injected into GetMessageRiskController
+            $riskExtractionWaitSec:            '%app.risk_extraction_wait_sec%'
+            # Static key for unattended TAXII consumers. Empty = feature off
+            # (JWT-only), see App\Security\TaxiiApiKeyAuthenticator.
+            $taxiiApiKey:                      '%env(string:default::TAXII_API_KEY)%'
+
+    App\:
+        resource: '../src/'
+        exclude:
+            - '../src/DependencyInjection/'
+            - '../src/Entity/'
+            - '../src/Kernel.php'
+            - '../src/Application/LLM/'
+            - '../src/Infrastructure/LLM/'
+            - '../src/UI/Http/'
+            # Explicitly wired in llm.yaml (ordered $sources iterable — not autowirable).
+            - '../src/Infrastructure/Prompt/CompositePromptOverrideSource.php'
+
+    App\UI\Http\:
+        resource: '../src/UI/Http/'
+        exclude:
+            - '../src/UI/Http/Campaign/'
+            - '../src/UI/Http/Dto/'
+        public: true
+        tags: ['controller.service_arguments']
+
+    App\Security\:
+        resource: '../src/Security'
+        tags: ['controller.service_arguments']
+
+    # STIX extension schema validator
+    # Marked public so the test harness can pull it via the container without
+    # injecting it into every STIX builder. The validator is intentionally
+    # NOT wired into the production export path: validation runs in the
+    # test gate, the prod export skips it to keep per-bundle latency clean.
+    App\Application\Stix\ExtensionSchemaValidator:
+        public: true
+
+    # UserTotpChecker port binding
+    App\Application\Auth\Port\UserTotpCheckerInterface:
+        class: App\Infrastructure\Auth\DoctrineUserTotpChecker
+
+    # UserRepository port binding
+    App\Domain\User\Repository\UserRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineUserRepository
+
+    # Domain repository port bindings
+    App\Domain\Communication\Repository\MailAccountRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineMailAccountRepository
+    App\Domain\Communication\Repository\ChannelRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineChannelRepository
+    App\Domain\Communication\Repository\DirectionRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrineDirectionRepository
+    # Doctrine ServiceEntityRepository subclasses are already registered by
+    # DoctrineBundle, so alias the Domain port to the existing service.
+    App\Domain\CampaignRadar\CampaignRepositoryInterface: '@App\Infrastructure\Campaign\Doctrine\CampaignRepository'
+    App\Domain\Scambaiting\Repository\PersonaPerformanceStatsRepositoryInterface: '@App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository'
+    App\Domain\Prompt\PromptOverrideRepositoryInterface:
+        class: App\Infrastructure\Doctrine\Repository\DoctrinePromptOverrideRepository
+    App\Domain\Prompt\PromptCanaryJobRepositoryInterface: '@App\Infrastructure\Doctrine\Repository\DoctrinePromptCanaryJobRepository'
+    App\Domain\Communication\TtpObservationRepositoryInterface: '@App\Infrastructure\Doctrine\Repository\DoctrineTtpObservationRepository'
+
+    # GUARD baseline provider (load + .sha256 integrity of the frozen trust anchor)
+    App\Application\Guard\CanaryBaselineProvider:
+        arguments:
+            $baselinePath: '%kernel.project_dir%/tests/Smoke/guard-baseline.json'
+
+    # GUARD canary availability — whether a live LLM provider is configured, so the UI (and the
+    # request endpoint) can hide/refuse "Validate this prompt" where a job could only hang/fail
+    # (e.g. the demo's LLM_PROVIDER=mock, or a keyless install). Keyed off the same LLM_PROVIDER
+    # the client is swapped on; per-provider credentials mirror llm.yaml.
+    App\Application\Guard\CanaryAvailability:
+        arguments:
+            $provider: '%env(LLM_PROVIDER)%'
+            $openAiApiKey: '%env(LLM_API_KEY)%'
+            $anthropicApiKey: '%env(default:anthropic.default_key:ANTHROPIC_API_KEY)%'
+
+    # TTP extraction feature flag + confidence threshold (bool/float scalars
+    # cannot be autowired). Turning the flag off makes the handler refuse and
+    # the endpoint answer 503, without touching the rest of the pipeline.
+    App\Application\Ttp\TtpHandler:
+        arguments:
+            $enabled: '%env(default:ttp_extraction.enabled.default:bool:TTP_EXTRACTION_ENABLED)%'
+            $confidenceThreshold: '%env(default:ttp_extraction.confidence.default:float:TTP_CONFIDENCE_THRESHOLD)%'
+
+    # GUARD smoke runner — invokes the reply-objective smoke command in-process for the worker.
+    App\Infrastructure\Guard\InProcessSmokeRunner:
+        arguments:
+            $smoke: '@App\UI\Console\ReplyObjectiveSmokeCommand'
+            $fixturesDir: '%kernel.project_dir%/tests/Smoke/ReplyObjectiveFixtures'
+            $outputDir: '%kernel.project_dir%/var/smoke/canary'
+    App\Application\Guard\CanarySmokeRunnerInterface: '@App\Infrastructure\Guard\InProcessSmokeRunner'
+    App\Application\Communication\Smtp\Port\TransportFactoryInterface: '@App\Infrastructure\Mailer\TransportFactory'
+    App\Application\Audit\Port\RequestContextInterface: '@App\Infrastructure\Audit\HttpRequestContext'
+
+    App\UI\Http\Auth\CsrfTokenController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Monitoring\AutonomyMonitoringController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Meta\ConfigController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    # App\UI\Http\Internal\MailAccountSecretController removed
+    # along with the rest of the Vault dead code (n8n holds the IMAP
+    # credentials internally since the 2026-03-31 migration).
+
+    App\UI\Http\Auth\TotpLoginController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+        arguments:
+            # Reuse login_ip rate limiter for 2FA endpoint
+            $loginIpLimiter: '@limiter.login_ip'
+            # TOTP replay protection cache (90s TTL)
+            $totpReplayCache: '@cache.app'
+
+    App\UI\Http\Auth\LoginController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+        arguments:
+            # Per-email brute-force rate limiter
+            $loginEmailLimiter: '@limiter.login_email'
+
+    App\UI\Http\Auth\LogoutController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Auth\RefreshController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\Infrastructure\EventListener\Auth\JWTNotFoundListener:
+        tags:
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_not_found, method: onJWTNotFound }
+
+    App\Infrastructure\EventListener\Auth\AccessDeniedExceptionListener:
+        tags:
+            - { name: kernel.event_listener, event: kernel.exception, method: onKernelException }
+
+    App\Infrastructure\EventListener\AuditAuthListener:
+        tags:
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_authentication_success, method: onAuthenticationSuccess }
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_invalid, method: onJwtInvalid }
+            - { name: kernel.event_listener, event: lexik_jwt_authentication.on_jwt_expired, method: onJwtExpired }
+
+    Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface:
+        public: true
+        alias: 'security.user_password_hasher'
+
+    App\Security\CustomAccessDeniedHandler: ~
+
+    App\Application\Auth\AuthServiceInterface: '@App\Application\Auth\AuthService'
+    App\Application\Auth\AuthService: ~
+
+    # Audit port: AuditLogger is the sole implementation.
+    App\Application\Audit\AuditLoggerInterface: '@App\Application\Audit\AuditLogger'
+
+    # Optional OIDC SSO (G1). Disabled by default — the endpoints return 404 and
+    # nothing in the password-login path changes. Every OIDC env var is optional
+    # (default:: processors) so the container compiles and SSO stays off even with
+    # zero configuration. Everything else in the OIDC namespace autowires; only
+    # this value object needs its env-bound scalars.
+    App\Application\Auth\Oidc\OidcConfig:
+        arguments:
+            $enabled: '%env(default:app.oidc.enabled:bool:OIDC_ENABLED)%'
+            $discoveryUrl: '%env(default:app.oidc.discovery_url:OIDC_DISCOVERY_URL)%'
+            $clientId: '%env(default:app.oidc.client_id:OIDC_CLIENT_ID)%'
+            $clientSecret: '%env(default:app.oidc.client_secret:OIDC_CLIENT_SECRET)%'
+            $redirectUri: '%env(default:app.oidc.redirect_uri:OIDC_REDIRECT_URI)%'
+            $scopes: '%env(default:app.oidc.default_scopes:OIDC_SCOPES)%'
+            $autoProvision: '%env(default:app.oidc.auto_provision:bool:OIDC_AUTO_PROVISION)%'
+            $allowedEmailDomains: '%env(default:app.oidc.allowed_email_domains:csv:OIDC_ALLOWED_EMAIL_DOMAINS)%'
+            $defaultRoles: '%env(default:app.oidc.default_roles:csv:OIDC_DEFAULT_ROLES)%'
+            $successRedirect: '%env(default:app.oidc.success_redirect:OIDC_SUCCESS_REDIRECT)%'
+
+    App\Application\Communication\PurgeService:
+        autowire: true
+
+    App\UI\Http\Communication\IngestController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+        arguments:
+            # Per-account ingest rate limiter
+            $ingestPerAccountLimiter: '@limiter.ingest_per_account'
+
+    App\UI\Http\Communication\ScamTypeController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Communication\ExportMispController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\ProfileCampaignController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\CompileCampaignRulesController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\GetCampaignMessagesController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\TranspileRuleController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\HuntCampaignsController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\StoreRuleController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    login_ip.limiter:
+        alias: 'limiter.login_ip'
+    # Per-email login rate limiter
+    login_email.limiter:
+        alias: 'limiter.login_email'
+    api_global.limiter:
+        alias: 'limiter.api_global'
+    # Per-account ingest rate limiter
+    ingest_per_account.limiter:
+        alias: 'limiter.ingest_per_account'
+
+    App\Infrastructure\EventListener\Communication\UpdateConversationTsLastListener:
+        autowire: true
+        tags:
+            - { name: doctrine.orm.entity_listener, event: postPersist, entity: App\Domain\Communication\Message }
+
+    App\UI\Http\Internal\MailAccountActiveController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    ###> Campaign Radar - Phase 5: Promotion & STIX Export ###
+    App\Application\Campaign\STIXExporter:
+        arguments:
+            $stixExportPath: '%env(STIX_EXPORT_PATH)%'
+        public: true
+
+    App\Application\Campaign\CampaignPromoter:
+        public: true
+
+    # Campaign Controllers
+    App\UI\Http\Campaign\GetPromotionCandidatesController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\PromoteCampaignController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+
+    App\UI\Http\Campaign\ExportCampaignSTIXController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+    App\UI\Http\Campaign\GetCampaignDetailController:
+        public: true
+        tags: ['controller.service_arguments']
+        autowire: true
+        autoconfigure: true
+    ###< Campaign Radar - Phase 5: Promotion & STIX Export ###
+
+    ###> Scam Classification Services ###
+    App\Application\Communication\ScamClassificationHandler:
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\PersonaManager:
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\ScamTypeManager:
+        autowire: true
+        autoconfigure: true
+    ###< Scam Classification Services ###
+
+    ###> Conversation History Services ###
+    App\Application\Communication\ConversationHistoryService:
+        arguments:
+            $excludedEmails: '%conversation_history.excluded_emails%'
+        autowire: true
+        autoconfigure: true
+    ###< Conversation History Services ###
+
+    ###> Scambaiting Adaptatif - Infrastructure Layer ###
+    App\Infrastructure\EventListener\ConversationEndedListener:
+        arguments:
+            $statsRepository: '@App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository'
+            $em: '@doctrine.orm.entity_manager'
+            $logger: '@monolog.logger.scambaiting'
+    App\Infrastructure\EventListener\ConversationStatusChangeListener:
+        arguments:
+            $metricsCollector: '@App\Application\Scambaiting\ConversationMetricsCollector'
+            $eventDispatcher: '@event_dispatcher'
+            $logger: '@monolog.logger.scambaiting'
+        tags:
+            - { name: doctrine.event_listener, event: onFlush }
+            - { name: doctrine.event_listener, event: postFlush }
+    ###< Scambaiting Adaptatif - Infrastructure Layer ###
+
+    ###> Scambaiting Adaptatif - Application Layer ###
+    App\Application\Scambaiting\PersonaOptimizer:
+        arguments:
+            $statsRepository: '@App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository'
+            $em: '@doctrine.orm.entity_manager'
+            $logger: '@monolog.logger.scambaiting'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Scambaiting\ConversationMetricsCollector:
+        arguments:
+            $logger: '@monolog.logger.scambaiting'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Scambaiting\ConversationClosureService:
+        arguments:
+            $logger: '@monolog.logger.scambaiting'
+        autowire: true
+        autoconfigure: true
+
+    # RewardJudge: operator-tunable outcome weight + rubric override.
+    # $logger is left to autowire so its channel is unchanged.
+    App\Application\Scambaiting\RewardJudge:
+        autowire: true
+        autoconfigure: true
+        arguments:
+            $promptProvider: '@App\Application\LLM\Prompt\PromptProvider'
+            $llmWeight: '%scambuster.reward.llm_weight%'
+
+    App\Application\Communication\ReplyContextService:
+        arguments:
+            $personaOptimizer: '@App\Application\Scambaiting\PersonaOptimizer'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Communication\ReplyCadenceService:
+        autowire: true
+        autoconfigure: true
+        arguments:
+            # Redis-backed runtime kill switch
+            $killSwitchCache: '@cache.app'
+
+    App\Application\Communication\ReplyCompositionService:
+        autowire: true
+        autoconfigure: true
+        arguments:
+            # Message-ID domain; empty => derive from the sending From address
+            $messageIdDomain: '%env(string:default::HONEYPOT_MESSAGE_ID_DOMAIN)%'
+
+    App\Application\Communication\ReplyHandler:
+        autowire: true
+        autoconfigure: true
+        arguments:
+            # Wire the budget enforcement mode
+            $budgetEnforcementMode: '%llm.budget_enforcement_mode%'
+    ###< Scambaiting Adaptatif - Application Layer ###
+
+    ###> LLM cost guard ###
+    App\Application\Monitoring\BudgetThresholdNotifier:
+        arguments:
+            $costHandler: '@App\Application\Monitoring\LlmCostHandler'
+            $auditLogger: '@App\Application\Audit\AuditLogger'
+            $cache: '@cache.app'
+            $logger: '@logger'
+
+    App\UI\Console\CheckLlmBudgetCommand:
+        arguments:
+            $notifier: '@App\Application\Monitoring\BudgetThresholdNotifier'
+        tags:
+            - { name: console.command }
+
+    App\UI\Console\PromptDiagCommand:
+        arguments:
+            $promptProvider: '@App\Application\LLM\Prompt\PromptProvider'
+            $promptsDir: '%kernel.project_dir%/config/scambuster/prompts'
+            $rewardLlmWeight: '%scambuster.reward.llm_weight%'
+        tags:
+            - { name: console.command }
+
+    App\UI\Http\Admin\GetLlmKillSwitchStateController:
+        autowire: true
+        arguments:
+            $cache: '@cache.app'
+        tags: ['controller.service_arguments']
+
+    App\UI\Http\Admin\ToggleLlmKillSwitchController:
+        autowire: true
+        arguments:
+            $cache: '@cache.app'
+            $auditLogger: '@App\Application\Audit\AuditLogger'
+        tags: ['controller.service_arguments']
+    ###< LLM cost guard ###
+
+    ###> Audit HMAC chain ###
+    App\Application\Audit\AuditHmacChainer:
+        arguments:
+            # A missing key disables the chain in dev/test (logged WARNING) but
+            # THROWS in prod — the tamper-evidence chain must not be silently off.
+            $hmacKeyHex: '%env(default::AUDIT_HMAC_KEY)%'
+            $environment: '%kernel.environment%'
+
+    App\Application\Audit\AuditLogger:
+        arguments:
+            $hmacChainer: '@App\Application\Audit\AuditHmacChainer'
+    ###< Audit HMAC chain ###
+
+    ###> Preprod Conversation Generator ###
+    App\Application\Meta\ConfigHandler:
+        arguments:
+            $llmProvider: '%llm.provider%'
+            $llmModel: '%llm.model%'
+
+    App\Infrastructure\LLM\LLMServiceInterface:
+        alias: App\Infrastructure\LLM\OpenAIService
+
+    App\Infrastructure\LLM\OpenAIService:
+        arguments:
+            $httpClient: '@http_client'
+            $apiKey: '%env(LLM_API_KEY)%'
+            $model: '%env(LLM_MODEL)%'
+            $logger: '@logger'
+        autowire: true
+
+    App\Infrastructure\Preprod\IocGenerator:
+        autowire: true
+
+    App\Infrastructure\Preprod\ConversationGenerator:
+        arguments:
+            $em: '@doctrine.orm.entity_manager'
+            $llm: '@App\Infrastructure\LLM\LLMServiceInterface'
+            $iocGenerator: '@App\Infrastructure\Preprod\IocGenerator'
+            $logger: '@logger'
+            $httpClient: '@http_client'
+        autowire: true
+    ###< Preprod Conversation Generator ###

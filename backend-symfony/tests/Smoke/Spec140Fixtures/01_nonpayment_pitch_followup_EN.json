@@ -1,0 +1,13 @@
+{
+  "scam_code": "UNKNOWN",
+  "language": "en",
+  "expected_bucket": "banking",
+  "persona": "small_business_owner",
+  "scenario": "Spec-140 shape #1 (dominant fallback cause): B2B app-development pitch that never raises money. The follow_up objective must NOT ask about money, so the payment-instigation guard does not block and no fallback ships. PASS = approved && !fallback.",
+  "turns": [
+    { "from": "attacker", "body": "Hi, we are a mobile app development agency and I came across your business online. We have delivered many successful projects for companies like yours. Would you be open to discussing a possible collaboration?" },
+    { "from": "persona", "body": "Hello, thanks for reaching out. Could you tell me more about the kind of projects your team has delivered?" },
+    { "from": "attacker", "body": "Thank you for your response. I have several project references and a preliminary roadmap I would like to showcase. During a short Google Meet I can walk you through these examples in detail." },
+    { "from": "persona", "generate": true }
+  ]
+}

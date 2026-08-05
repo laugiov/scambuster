@@ -1,0 +1,37 @@
+doctrine:
+    dbal:
+        # ---------------- Custom types ----------------
+        types:
+            uuid: Symfony\Bridge\Doctrine\Types\UuidType   # ← plus de Ramsey ici
+            json: Doctrine\DBAL\Types\JsonType             # garde si tu l'utilises
+            # Transparent encryption for TOTP secrets at rest
+            encrypted_string: App\Infrastructure\Doctrine\Type\EncryptedStringType
+
+        # ---------------- Connexions ------------------------
+        default_connection: default
+        connections:
+            default:
+                url: '%env(resolve:DATABASE_URL)%'
+                use_savepoints: true
+                # charset, server_version… au besoin
+                mapping_types:
+                    _text: string  # Map PostgreSQL text[] to string type for Doctrine
+
+    orm:
+        auto_generate_proxy_classes: true
+        enable_lazy_ghost_objects: true
+
+        mappings:
+            Domain:
+                is_bundle: false
+                type: attribute
+                dir: '%kernel.project_dir%/src/Domain'
+                prefix: 'App\Domain'
+                alias: Domain
+
+            Infrastructure:
+                is_bundle: false
+                type: attribute
+                dir: '%kernel.project_dir%/src/Infrastructure/Doctrine/Entity'
+                prefix: 'App\Infrastructure\Doctrine\Entity'
+                alias: Infrastructure

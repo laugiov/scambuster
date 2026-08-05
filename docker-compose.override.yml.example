@@ -1,0 +1,53 @@
+# docker-compose.override.yml.example
+#
+# Copy this file to docker-compose.override.yml for local customizations.
+# docker-compose.override.yml is gitignored and will not be committed.
+#
+# Usage:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   # Edit as needed, then:
+#   docker compose up -d
+#
+# Docker Compose automatically merges docker-compose.override.yml
+# with docker-compose.yml when both exist.
+
+services:
+  # Re-expose Redis to the host for GUI debugging tools
+  # (Medis, RDM, redis-cli from host). The default compose file leaves
+  # Redis on the internal network only for security.
+  # redis:
+  #   ports:
+  #     - "6379:6379"
+
+  # Re-expose Postgres to the host for psql / pgAdmin.
+  # The default compose file leaves Postgres internal-only.
+  # postgres:
+  #   ports:
+  #     - "5432:5432"
+
+  # Example: change backend-dev exposed port
+  # backend-dev:
+  #   ports:
+  #     - "9090:8080"
+
+  # Example: change frontend exposed port
+  # frontend:
+  #   ports:
+  #     - "3000:5173"
+
+  # Example: disable preprod services to save resources
+  # postgres-preprod:
+  #   profiles: ["preprod"]
+  # backend-preprod:
+  #   profiles: ["preprod"]
+
+  # Example: add pgAdmin for database management
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   environment:
+  #     PGADMIN_DEFAULT_EMAIL: admin@example.com
+  #     PGADMIN_DEFAULT_PASSWORD: admin
+  #   ports:
+  #     - "5050:80"
+  #   networks:
+  #     - scambuster

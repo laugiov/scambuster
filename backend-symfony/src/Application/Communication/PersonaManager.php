@@ -1,0 +1,239 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Communication;
+
+use App\Domain\Communication\Persona;
+use App\Domain\Communication\ScamType;
+use App\Domain\Scambaiting\Repository\PersonaPerformanceStatsRepositoryInterface;
+use Doctrine\ORM\EntityManagerInterface;
+
+/**
+ * Manage CRUD operations for Persona entities
+ */
+class PersonaManager
+{
+    public function __construct(
+        private readonly EntityManagerInterface $em,
+        private readonly PersonaPerformanceStatsRepositoryInterface $statsRepository
+    ) {
+    }
+
+    /**
+     * Find persona by code
+     */
+    public function findByCode(string $code): ?Persona
+    {
+        return $this->em->getRepository(Persona::class)->findOneBy([
+            'personaCode' => $code,
+        ]);
+    }
+
+    /**
+     * Get all active personas
+     *
+     * @return Persona[]
+     */
+    public function getAllActive(): array
+    {
+        return $this->em->getRepository(Persona::class)->findBy(
+            ['isActive' => true],
+            ['personaCode' => 'ASC']
+        );
+    }
+
+    /**
+     * Count personas created automatically by LLM
+     */
+    public function countAutoCreated(): int
+    {
+        return (int) $this->em->createQueryBuilder()
+            ->select('COUNT(p.personaId)')
+            ->from(Persona::class, 'p')
+            ->where('p.createdBy = :createdBy')
+            ->setParameter('createdBy', 'llm_auto')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Create a new persona.
+     *
+     * @param list<string> $scamTypeCodes optional scam-type codes to link (scam_type_persona).
+     *                                    Not required for bandit eligibility (the optimizer
+     *                                    selects from all active personas) — links only feed
+     *                                    the legacy random-assign path + scam-type display.
+     *
+     * @throws \RuntimeException on invalid code, short prompt, duplicate code, or unknown scam type
+     */
+    public function createPersona(
+        string $personaCode,
+        string $personaLabel,
+        string $personaTone,
+        string $systemPrompt,
+        string $createdBy = 'manual',
+        array $scamTypeCodes = []
+    ): Persona {
+        // Validate persona code format (snake_case, 3-30 chars)
+        if (!preg_match('/^[a-z_]{3,30}$/', $personaCode)) {
+            throw new \RuntimeException(
+                "Invalid persona_code format: must be snake_case, 3-30 characters (got: {$personaCode})"
+            );
+        }
+
+        // Validate system_prompt minimum length
+        if (strlen($systemPrompt) < 100) {
+            throw new \RuntimeException(
+                'system_prompt must be at least 100 characters long'
+            );
+        }
+
+        // Check if persona already exists
+        $existing = $this->findByCode($personaCode);
+
+        if ($existing instanceof \App\Domain\Communication\Persona) {
+            throw new \RuntimeException(
+                "Persona with code '{$personaCode}' already exists"
+            );
+        }
+
+        // Resolve scam types up front so an unknown code fails before anything is written.
+        $scamTypes = [];
+
+        foreach ($scamTypeCodes as $code) {
+            $scamType = $this->em->getRepository(ScamType::class)->findOneBy(['code' => $code]);
+
+            if (!$scamType instanceof ScamType) {
+                throw new \RuntimeException("Unknown scam_type code: {$code}");
+            }
+
+            $scamTypes[] = $scamType;
+        }
+
+        $persona = new Persona(
+            personaCode: $personaCode,
+            personaLabel: $personaLabel,
+            personaTone: $personaTone,
+            systemPrompt: $systemPrompt,
+            createdBy: $createdBy,
+            createdAt: new \DateTimeImmutable(),
+            isActive: true
+        );
+
+        $this->em->persist($persona);
+
+        // Link the persona to the requested scam types (M2M owned by ScamType).
+        foreach ($scamTypes as $scamType) {
+            $scamType->addPersona($persona);
+            $this->em->persist($scamType);
+        }
+
+        $this->em->flush();
+
+        return $persona;
+    }
+
+    /**
+     * Reset a persona's bandit statistics (all scam types) so it re-enters cold-start
+     * exploration. Called when its system prompt changes — the accumulated reward was
+     * earned by the previous prompt and would otherwise bias persona selection.
+     *
+     * @return int number of stat rows removed
+     */
+    public function resetStats(Persona $persona): int
+    {
+        return $this->statsRepository->deleteAllForPersona($persona);
+    }
+
+    /**
+     * Update an existing persona
+     */
+    public function updatePersona(
+        Persona $persona,
+        ?string $personaLabel = null,
+        ?string $personaTone = null,
+        ?string $systemPrompt = null
+    ): void {
+        if ($personaLabel !== null) {
+            $persona->setPersonaLabel($personaLabel);
+        }
+
+        if ($personaTone !== null) {
+            $persona->setPersonaTone($personaTone);
+        }
+
+        if ($systemPrompt !== null) {
+            if (strlen($systemPrompt) < 100) {
+                throw new \RuntimeException(
+                    'system_prompt must be at least 100 characters long'
+                );
+            }
+            $persona->setSystemPrompt($systemPrompt);
+        }
+
+        $this->em->flush();
+    }
+
+    /**
+     * Deactivate a persona (soft delete)
+     */
+    public function deactivate(Persona $persona): void
+    {
+        $persona->setIsActive(false);
+        $this->em->flush();
+    }
+
+    /**
+     * Reactivate a persona
+     */
+    public function activate(Persona $persona): void
+    {
+        $persona->setIsActive(true);
+        $this->em->flush();
+    }
+
+    /**
+     * Assign a random persona from those compatible with a given ScamType.
+     *
+     * Uses array_rand() for uniform (non-cryptographic) random selection among the
+     * compatible personas. This method is non-deterministic by design.
+     *
+     * Important: The caller MUST persist the returned persona in the Conversation entity
+     * to ensure consistency across multiple reply generations.
+     *
+     * @param \App\Domain\Communication\ScamType $scamType The scam type to select persona for
+     *
+     * @return Persona|null Random persona from the scam type's personas, or null if none available
+     */
+    public function assignRandomPersona(\App\Domain\Communication\ScamType $scamType): ?Persona
+    {
+        $personas = $scamType->getPersonas()->toArray();
+
+        if (empty($personas)) {
+            return null; // No persona associated with this scam type
+        }
+
+        // Random selection among compatible personas
+        $randomIndex = array_rand($personas);
+
+        return $personas[$randomIndex];
+    }
+
+    /**
+     * Get system prompt for a given persona.
+     *
+     * @return string System prompt ready to be used in LLM generation
+     */
+    public function getSystemPrompt(Persona $persona): string
+    {
+        return <<<PROMPT
+PERSONA: {$persona->getPersonaLabel()}
+Tone: {$persona->getPersonaTone()}
+
+{$persona->getSystemPrompt()}
+
+Embody this persona consistently throughout the conversation.
+PROMPT;
+    }
+}

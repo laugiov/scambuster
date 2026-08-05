@@ -1,0 +1,42 @@
+# Gitleaks configuration for ScamBuster.
+#
+# The repository ships only template/example/dev-default credentials — no real
+# secrets (verified over the full history). This config extends the default
+# ruleset and allowlists the documented placeholder values so a clean scan
+# (`gitleaks detect`) returns zero findings. Real secrets live only in an
+# operator's local, gitignored `.env` (never committed).
+
+title = "ScamBuster gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented placeholders, example values, and dev/test/demo defaults (no real secrets)."
+
+# Placeholder patterns that appear in templates and documentation.
+regexes = [
+  '''sk-proj-abc123\.\.\.''',                 # QUICKSTART example LLM key
+  '''sk-your-api-key-here''',                 # .env.dist example LLM key
+  '''sk-e2e-not-real''',                      # e2e test stub
+  '''sk-test-not-a-real-key''',               # CI test stub
+  '''YOUR_[A-Z0-9_]*(KEY|TOKEN|SECRET|PASSWORD)''', # docs placeholders (YOUR_MISP_API_KEY, ...)
+  '''your-app-password-here''',               # .env.dist IMAP placeholder
+  '''a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4''',     # .env.dist example APP_SECRET
+  '''change-me-generate-with-openssl''',      # .env.dist JWT placeholder
+  '''dev-only-change-in-production''',         # .env.dist n8n placeholder
+  '''demo-secret-change-in-production''',      # demo compose APP_SECRET
+]
+
+# Files that contain ONLY templates, examples, or disposable dev/test/demo
+# defaults by design.
+paths = [
+  '''\.env\.dist''',
+  '''\.env\.test''',
+  '''\.env\.e2e''',
+  '''docs/QUICKSTART\.md''',
+  '''docs/13_misp_integration\.md''',
+  '''docker-compose\.demo\.yml''',
+  '''infra/docker/demo/docker-entrypoint-demo\.sh''',
+  '''\.github/scripts/create-ci-env\.sh''',
+]
