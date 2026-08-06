@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Application\Communication;
 
+use App\Application\Communication\Checksum\BitcoinAddress;
+use App\Application\Communication\Checksum\EthereumAddress;
+use App\Application\Communication\Checksum\Iban;
+
 /**
  * Validates IOC values based on their type.
  *
@@ -125,6 +129,28 @@ final class IocValidator
         // Special case: credit_card (validate Luhn checksum)
         if ($type === 'credit_card') {
             return $this->validateCreditCard($value);
+        }
+
+        // Financial IOCs carry real checksums — a well-formed but invalid value
+        // (fabricated to poison the feed) must not pass on format alone.
+        if ($type === 'iban') {
+            return Iban::isValid($value);
+        }
+
+        if ($type === 'wallet_btc') {
+            return BitcoinAddress::isValid($value);
+        }
+
+        if ($type === 'wallet_eth') {
+            return EthereumAddress::isValid($value);
+        }
+
+        // bank_account has no global checksum; enforce a real structural rule
+        // (digits only, IBAN-length-bounded) instead of the previous "match all".
+        if ($type === 'bank_account') {
+            $digits = preg_replace('/[\s\-]/', '', $value) ?? $value;
+
+            return preg_match('/^\d{6,34}$/', $digits) === 1;
         }
 
         // Unknown type

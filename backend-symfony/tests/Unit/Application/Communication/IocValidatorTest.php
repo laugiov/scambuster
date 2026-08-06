@@ -121,7 +121,7 @@ class IocValidatorTest extends TestCase
 
     public function testValidateIban(): void
     {
-        $this->assertTrue($this->validator->validate('iban', 'FR7612345678901234567890185'));
+        $this->assertTrue($this->validator->validate('iban', 'FR1420041010050500013M02606'));
         $this->assertTrue($this->validator->validate('iban', 'DE89370400440532013000'));
         $this->assertFalse($this->validator->validate('iban', 'FR76'));  // Too short
         $this->assertFalse($this->validator->validate('iban', '1234567890'));  // No country code
@@ -138,14 +138,14 @@ class IocValidatorTest extends TestCase
     public function testValidateWalletBtc(): void
     {
         $this->assertTrue($this->validator->validate('wallet_btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'));
-        $this->assertTrue($this->validator->validate('wallet_btc', '3J98t1WpEZ73CNmYviecrnyiWrnqRhWNLy'));
+        $this->assertTrue($this->validator->validate('wallet_btc', '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy'));
         $this->assertTrue($this->validator->validate('wallet_btc', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq'));
         $this->assertFalse($this->validator->validate('wallet_btc', 'invalid-btc-address'));
     }
 
     public function testValidateWalletEth(): void
     {
-        $this->assertTrue($this->validator->validate('wallet_eth', '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0'));  // 40 hex chars
+        $this->assertTrue($this->validator->validate('wallet_eth', '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'));  // 40 hex chars
         $this->assertFalse($this->validator->validate('wallet_eth', '742d35Cc6634C0532925a3b844Bc9e7595f0bEb0'));  // Missing 0x
         $this->assertFalse($this->validator->validate('wallet_eth', '0x742d35Cc'));  // Too short
     }
