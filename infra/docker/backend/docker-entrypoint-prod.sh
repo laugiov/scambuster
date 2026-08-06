@@ -22,6 +22,12 @@ cd /app
 # Symfony's console reads /app/.env at bootstrap — write it from the environment.
 sh /opt/write-prod-env.sh
 
+# ── Reject known-default / weak secrets (fail fast, before touching the DB) ───
+# Presence is checked above; this rejects values still equal to the published
+# .env.dist defaults (APP_SECRET, TOTP/AUDIT keys, ADMIN_PASSWORD, …). Delegates
+# to tested PHP (App\Security\SecretPolicy).
+php bin/console app:security:check-secrets
+
 # ── Wait for PostgreSQL (TCP) ────────────────────────────────────────────────
 pg_host=$(printf '%s' "$DATABASE_URL" | sed -E 's#^[a-z+]+://[^@]*@([^:/]+).*#\1#')
 pg_port=$(printf '%s' "$DATABASE_URL" | sed -nE 's#^[a-z+]+://[^@]*@[^:]+:([0-9]+).*#\1#p'); pg_port=${pg_port:-5432}
@@ -77,13 +83,28 @@ if [ "${FRESH_INSTALL}" = "1" ]; then
             && echo "[prod] honeypot mailbox registered: ${HONEYPOT_IMAP_USER}" \
             || echo "[prod] (mailbox auto-register skipped — add later with app:mail-account:add)"
     fi
-    echo ""
-    echo "  ####################################################################"
-    echo "  #  SECURITY: default admin seeded with the PUBLIC default password. #"
-    echo "  #  Log in as user@example.com and CHANGE THE PASSWORD before you    #"
-    echo "  #  expose this instance (or seed your own user and delete this one).#"
-    echo "  ####################################################################"
-    echo ""
+
+    # Create the initial admin. No predictable password ever reaches prod:
+    # ADMIN_PASSWORD if provided (already validated by app:security:check-secrets
+    # above), otherwise a strong generated one printed ONCE below.
+    admin_email="${ADMIN_EMAIL:-admin@example.com}"
+    echo "[prod] creating initial admin ${admin_email} ..."
+    if [ -n "${ADMIN_PASSWORD:-}" ]; then
+        php bin/console app:user:create --email="${admin_email}" \
+            --password="${ADMIN_PASSWORD}" --admin --no-interaction
+        echo "[prod] admin ${admin_email} created with ADMIN_PASSWORD."
+    else
+        echo ""
+        echo "  ####################################################################"
+        echo "  #  No ADMIN_PASSWORD set — generating a one-time admin password.    #"
+        echo "  #  Copy it now; it is shown ONCE and cannot be recovered.           #"
+        echo "  ####################################################################"
+        # --generate prints "Generated password: …" exactly once.
+        php bin/console app:user:create --email="${admin_email}" \
+            --generate --admin --no-interaction
+        echo "  (change it after first login, or seed your own user.)"
+        echo ""
+    fi
 fi
 
 # ── Warm cache + hand ownership to the runtime user ──────────────────────────

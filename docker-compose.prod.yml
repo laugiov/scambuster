@@ -28,8 +28,10 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+    # Published on loopback only: a reverse proxy must terminate TLS and front this
+    # port for any non-local access. Override APP_BIND_HOST only behind a firewall.
     ports:
-      - "${APP_PORT:-8080}:8080"
+      - "${APP_BIND_HOST:-127.0.0.1}:${APP_PORT:-8080}:8080"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://localhost:8080/healthz"]
       interval: 30s
@@ -65,8 +67,9 @@ services:
   n8n:
     image: n8nio/n8n:1.114.3
     restart: unless-stopped
-    # Root so the init script can fix data-dir perms; n8n itself runs via 'su node'.
-    user: root
+    # Runs as the image's non-root node user (uid 1000). The named volume inherits
+    # node ownership of /home/node/.n8n from the image, so no root chown is needed.
+    user: "node"
     environment:
       - N8N_HOST=${N8N_HOST:-localhost}
       - N8N_PORT=5678
@@ -85,9 +88,10 @@ services:
       - N8N_DEFAULT_USER_PASSWORD=${N8N_DEFAULT_USER_PASSWORD}
       - NODE_FUNCTION_ALLOW_BUILTIN=crypto
     entrypoint: ["/bin/sh", "/home/node/n8n-init.sh"]
-    # n8n admin UI: keep it behind the reverse proxy / firewalled; publish only if needed.
+    # n8n admin UI (arbitrary workflow / JS execution): published on loopback only,
+    # must stay behind the reverse proxy / firewall. Override N8N_BIND_HOST with care.
     ports:
-      - "${N8N_HTTP_PORT:-5678}:5678"
+      - "${N8N_BIND_HOST:-127.0.0.1}:${N8N_HTTP_PORT:-5678}:5678"
     volumes:
       - prod-n8ndata:/home/node/.n8n
       # Init assets (workflow definitions + bootstrap script), read-only. Not app source.

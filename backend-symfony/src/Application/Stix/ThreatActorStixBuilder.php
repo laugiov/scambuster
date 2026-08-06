@@ -20,6 +20,11 @@ final class ThreatActorStixBuilder
     // ScamBuster identity (same as StixBundleBuilder)
     private const IDENTITY_ID = 'identity--f431f809-377b-45e0-aa1c-6a4751cae5ff';
 
+    // MITRE ATT&CK is a static catalog, so attack-patterns get a fixed
+    // deterministic created/modified (required by STIX 2.1) rather than "now",
+    // keeping the feed stable across polls.
+    private const MITRE_CATALOG_TIMESTAMP = '2026-07-30T00:00:00.000Z';
+
     // TLP marking definitions (OpenCTI standard UUIDs)
     private const TLP_AMBER = 'marking-definition--f88d31f6-486f-44da-b317-01333bde0b82';
     private const TLP_WHITE = 'marking-definition--613f2e26-407d-48c7-9eca-b8e91df99dc9';
@@ -217,6 +222,8 @@ final class ThreatActorStixBuilder
             'type' => 'attack-pattern',
             'spec_version' => '2.1',
             'id' => 'attack-pattern--' . $this->deterministicUuid('mitre-attack-' . $attckTechnique),
+            'created' => self::MITRE_CATALOG_TIMESTAMP,
+            'modified' => self::MITRE_CATALOG_TIMESTAMP,
             'created_by_ref' => self::IDENTITY_ID,
             'name' => $technique['name'],
             'external_references' => [[

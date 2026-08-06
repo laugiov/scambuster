@@ -250,8 +250,11 @@ final class TtpAttackPatternBuilder
         $firstSeen = $this->parseTimestamp($ttp['first_seen'] ?? null);
         $lastSeen = $this->parseTimestamp($ttp['last_seen'] ?? null);
 
-        if ($firstSeen !== null && $lastSeen !== null && $lastSeen < $firstSeen) {
-            $lastSeen = $firstSeen;
+        // STIX 2.1 requires stop_time > start_time when present. For a single-point
+        // sighting (last_seen == first_seen, or earlier) omit stop_time rather than
+        // emit an equal/invalid value; start_time alone is valid.
+        if ($firstSeen !== null && $lastSeen !== null && $lastSeen <= $firstSeen) {
+            $lastSeen = null;
         }
 
         $relationship = [

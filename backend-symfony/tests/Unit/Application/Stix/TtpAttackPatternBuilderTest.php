@@ -241,7 +241,7 @@ final class TtpAttackPatternBuilderTest extends TestCase
         self::assertCount(4, array_unique($ids), 'Each (cluster, code) pair must produce a distinct sighting id');
     }
 
-    public function testStopTimeClampedWhenLastBeforeFirst(): void
+    public function testStopTimeOmittedWhenLastNotAfterFirst(): void
     {
         $objects = $this->builder->buildClusterTtpObjects(
             [['code' => 'SB-T001', 'label' => 'x', 'definition' => 'x', 'phase' => 'hook', 'external_refs' => [], 'count' => 1, 'first_seen' => '2026-06-05 18:00:00', 'last_seen' => '2026-06-01 10:00:00']],
@@ -251,7 +251,11 @@ final class TtpAttackPatternBuilderTest extends TestCase
         );
         $byType = $this->groupByType($objects);
 
-        self::assertSame($byType['relationship'][0]['start_time'], $byType['relationship'][0]['stop_time']);
+        // STIX 2.1 requires stop_time > start_time when present. When last_seen is
+        // not strictly after first_seen, stop_time is omitted (start_time stays).
+        self::assertArrayHasKey('start_time', $byType['relationship'][0]);
+        self::assertArrayNotHasKey('stop_time', $byType['relationship'][0]);
+        // A sighting still clamps last_seen >= first_seen (equal is valid there).
         self::assertSame($byType['sighting'][0]['first_seen'], $byType['sighting'][0]['last_seen']);
     }
 

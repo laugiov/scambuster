@@ -111,16 +111,16 @@ http_check() {
   fi
 }
 
-# ─── 0. Ensure data directory is writable ───
-# The container runs as root (for permission fixes), then drops to user "node" for n8n.
-# On fresh installs, Docker creates the bind mount dir as root — n8n (node) can't write.
-log "Ensuring /home/node/.n8n is writable by node user..."
+# ─── 0. Ensure data directory exists ───
+# This runs as the non-root node user (uid 1000). The n8n image ships
+# /home/node/.n8n owned by node, so the named volume inherits that ownership —
+# no privileged chown is needed.
+log "Ensuring /home/node/.n8n exists..."
 mkdir -p /home/node/.n8n
-chown -R 1000:1000 /home/node/.n8n
 
-# ─── 1. Start n8n in background as user "node" ───
-log "Starting n8n in background (as user node)..."
-su -s /bin/sh node -c "n8n start" &
+# ─── 1. Start n8n in background (already running as node) ───
+log "Starting n8n in background..."
+n8n start &
 N8N_PID=$!
 
 # Relay Docker shutdown signals to n8n
@@ -306,8 +306,9 @@ if [ -d "$INIT_DIR" ] && [ "$(ls -1 "$INIT_DIR"/*.json 2>/dev/null | wc -l)" -gt
           err "  Failed to import (API): $wf_name"
         fi
       else
-        # Fallback: CLI import (works without auth but workflows may not be visible to admin)
-        if su -s /bin/sh node -c "n8n import:workflow --input='$wf_file'" 2>/dev/null; then
+        # Fallback: CLI import (works without auth but workflows may not be visible to admin).
+        # Runs as the node user directly (the container is no longer root).
+        if n8n import:workflow --input="$wf_file" 2>/dev/null; then
           log "  Imported (CLI): $wf_name"
           IMPORTED=$((IMPORTED + 1))
         else
