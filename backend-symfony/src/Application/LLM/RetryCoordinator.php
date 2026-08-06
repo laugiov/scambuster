@@ -81,7 +81,11 @@ final readonly class RetryCoordinator
         /** @var array<int, mixed> $lastMsgs */
         $lastMsgs = $context['last_messages'] ?? [];
         $messageCount = count($lastMsgs);
-        $bestPolicyApprovedText = null;
+        // The only draft eligible for a last-resort "best-of-3" is one the
+        // validator confirmed security-clean (security_pass=true) but rejected on
+        // quality. A draft rejected for a security reason — or never security-
+        // checked at all — is never sent (fail closed at the last layer).
+        $bestSecurityPassedText = null;
         $fallbackProvider = $this->getFallbackProvider();
 
         // Evaluate payment anchoring ONCE per generation and share it
@@ -229,8 +233,6 @@ final readonly class RetryCoordinator
                 continue;
             }
 
-            $bestPolicyApprovedText = $generatedText;
-
             // --- Stage 3: Operational leakage detection ---
             if ($this->leakDetector instanceof \App\Application\LLM\OperationalLeakageDetector) {
                 $leakResult = $this->leakDetector->check($generatedText, $personaCode);
@@ -290,7 +292,10 @@ final readonly class RetryCoordinator
                 ]);
                 $dialogue[] = ['role' => 'validator', 'attempt' => $attempt, 'approved' => false, 'reasons' => [$e->getMessage()]];
 
-                if ($attempt === self::MAX_ATTEMPTS && $bestPolicyApprovedText !== null) { // @phpstan-ignore-line
+                // A validator exception leaves security unverified for this
+                // attempt; fall back to a best-of-3 only if an EARLIER attempt was
+                // confirmed security-clean, else the canned reply (fail closed).
+                if ($attempt === self::MAX_ATTEMPTS && $bestSecurityPassedText !== null) { // @phpstan-ignore-line
                     break; // Use best-of-3
                 }
 
@@ -382,24 +387,30 @@ final readonly class RetryCoordinator
                 ];
             }
 
-            // Validator rejected — retry
-            if ($attempt === self::MAX_ATTEMPTS && $bestPolicyApprovedText !== null) { // @phpstan-ignore-line
+            // Validator rejected. Only a security-clean draft (rejected on
+            // quality) may serve as a best-of-3; a security_pass=false rejection
+            // is never eligible.
+            if ($validatorResult['security_pass'] === true) {
+                $bestSecurityPassedText = $generatedText;
+            }
+
+            if ($attempt === self::MAX_ATTEMPTS && $bestSecurityPassedText !== null) { // @phpstan-ignore-line
                 break; // Use best-of-3
             }
 
             $this->emitReplyRetry($convId, 'validator', $attempt, $personaCode, ['reasons' => $validatorResult['reasons']]);
         }
 
-        // --- Fallback: best-of-3 or canned ---
-        if ($bestPolicyApprovedText !== null) {
+        // --- Fallback: best-of-3 (security-clean only) or canned ---
+        if ($bestSecurityPassedText !== null) {
             $trace->attempts = self::MAX_ATTEMPTS;
 
             return [
-                'text' => $bestPolicyApprovedText,
+                'text' => $bestSecurityPassedText,
                 'approved' => true,
                 'fallback_used' => false,
                 'policy_flags' => [],
-                'validation_reasons' => ['Best-of-3: PolicyGuard-approved, validator rejected'],
+                'validation_reasons' => ['Best-of-3: security-clean, validator rejected on quality'],
                 'model' => $this->getModelName(),
                 'persona' => $personaCode,
                 'cost_estimate' => $this->estimateTotalCost($dialogue, $messageCount),

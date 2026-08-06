@@ -115,7 +115,7 @@ class RetryCoordinatorTest extends TestCase
                 return $validReply;
             }
             // Validator: return approved JSON
-            return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
+            return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
         });
 
         $coordinator = $this->createCoordinator();
@@ -148,7 +148,7 @@ class RetryCoordinatorTest extends TestCase
             $systemContent = $messages[0]['content'] ?? '';
 
             if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
-                return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
+                return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
             }
 
             return $activeText;
@@ -173,7 +173,7 @@ class RetryCoordinatorTest extends TestCase
             $systemContent = $messages[0]['content'] ?? '';
 
             if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
-                return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
+                return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
             }
 
             return $activeText;
@@ -293,7 +293,7 @@ class RetryCoordinatorTest extends TestCase
             $systemContent = $messages[0]['content'] ?? '';
             // If it's the validator prompt, always reject
             if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'APPROVED') || str_contains($systemContent, 'persona_fit')) {
-                return '{"approved":false,"naturalness":2,"persona_fit":2,"ti_value":2,"reasons":["Not natural enough"],"fix_suggestion":"Try harder"}';
+                return '{"security_pass":true,"approved":false,"naturalness":2,"persona_fit":2,"ti_value":2,"reasons":["Not natural enough"],"fix_suggestion":"Try harder"}';
             }
             // Generator: return valid text
             return $validText;
@@ -306,6 +306,71 @@ class RetryCoordinatorTest extends TestCase
         $this->assertTrue($result['approved']);
         $this->assertFalse($result['fallback_used']);
         $this->assertSame(3, $result['attempts']);
+    }
+
+    /**
+     * Fail-closed at the last layer: when the validator rejects a draft for a
+     * SECURITY reason (security_pass=false) on every attempt, the draft must
+     * never be emitted — not even as a best-of-3. The orchestrator falls to the
+     * canned fallback instead.
+     */
+    public function test_security_reject_on_all_attempts_falls_to_canned_not_best_of_3(): void
+    {
+        $validText = 'Oh my, that sounds really interesting! I have been looking for exactly this kind of opportunity. ' .
+            'Could you please tell me more about how this works? I would love to hear the details about your offer. ' .
+            'My friend told me about something similar last week but I was not sure if it was real or not. ' .
+            'Please send me more information when you can, I am very eager to learn more about this.';
+
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use ($validText) {
+            $systemContent = $messages[0]['content'] ?? '';
+            // Validator: high quality but a SECURITY failure → approved=false for
+            // a security reason, on every attempt.
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"naturalness":4,"persona_fit":4,"ti_value":4,"security_pass":false,'
+                    . '"security_reasoning":"reply leaks operational detail","reasons":["security"]}';
+            }
+
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $this->assertTrue($result['fallback_used'], 'A security-rejected draft must never be sent — canned fallback fires.');
+        $this->assertSame(3, $result['attempts']);
+        $this->assertNotSame($validText, $result['text'], 'The security-failing draft must not be the returned text.');
+    }
+
+    /**
+     * The complement: a draft rejected for QUALITY only (security_pass=true) is
+     * still eligible as a best-of-3 — availability is preserved for non-security
+     * rejections.
+     */
+    public function test_quality_only_reject_still_uses_best_of_3(): void
+    {
+        $validText = 'Oh my, that sounds really interesting! I have been looking for exactly this kind of opportunity. ' .
+            'Could you please tell me more about how this works? I would love to hear the details about your offer. ' .
+            'My friend told me about something similar last week but I was not sure if it was real or not. ' .
+            'Please send me more information when you can, I am very eager to learn more about this.';
+
+        $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use ($validText) {
+            $systemContent = $messages[0]['content'] ?? '';
+            // Validator: security clean, but low naturalness → approved=false for
+            // a quality reason only.
+            if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
+                return '{"naturalness":1,"persona_fit":1,"ti_value":1,"security_pass":true,"reasons":["not natural"]}';
+            }
+
+            return $validText;
+        });
+
+        $coordinator = $this->createCoordinator();
+        $result = $coordinator->execute($this->baseContext(), 'generic_user');
+
+        $this->assertTrue($result['approved']);
+        $this->assertFalse($result['fallback_used'], 'A quality-only rejection stays eligible as best-of-3.');
+        $this->assertSame(3, $result['attempts']);
+        $this->assertSame($validText, $result['text']);
     }
 
     public function test_execute_handles_validator_exception(): void
@@ -329,9 +394,10 @@ class RetryCoordinatorTest extends TestCase
         $coordinator = $this->createCoordinator();
         $result = $coordinator->execute($this->baseContext(), 'generic_user');
 
-        // Should still succeed with best-of-3
-        $this->assertTrue($result['approved']);
-        $this->assertFalse($result['fallback_used']);
+        // Fail closed: the validator threw on every attempt, so security was never
+        // confirmed — no draft may be sent and the canned fallback fires.
+        $this->assertTrue($result['fallback_used']);
+        $this->assertNotSame($validText, $result['text']);
     }
 
     public function test_execute_with_leak_detection(): void
@@ -349,7 +415,7 @@ class RetryCoordinatorTest extends TestCase
                 return '{"leak":true,"reason":"Contains platform reference","matched_terms":["orchestrator"]}';
             }
             if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
-                return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
+                return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
             }
             return $validText;
         });
@@ -431,7 +497,7 @@ class RetryCoordinatorTest extends TestCase
             $systemContent = $messages[0]['content'] ?? '';
             // Validator call: always approve with ti_value >= 3
             if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
-                return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
+                return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
             }
             // Generator call: passive on attempt 1, active on attempt 2+
             $generatorCallCount++;
@@ -468,7 +534,7 @@ class RetryCoordinatorTest extends TestCase
         $this->llmClient->method('chat')->willReturnCallback(function (array $messages) use ($passiveText) {
             $systemContent = $messages[0]['content'] ?? '';
             if (str_contains($systemContent, 'naturalness') || str_contains($systemContent, 'persona_fit')) {
-                return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
+                return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
             }
 
             return $passiveText;

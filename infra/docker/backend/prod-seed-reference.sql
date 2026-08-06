@@ -126,11 +126,8 @@ SELECT st.scam_type_id, p.persona_id FROM lkp_scam_type st, persona p
 WHERE st.code = 'UNKNOWN' AND p.persona_code IN ('generic_user')
 ON CONFLICT (scam_type_id, persona_id) DO NOTHING;
 
--- ── Default admin login. PUBLIC default password — CHANGE IT after first login.
---    bcrypt(cost 13) of the documented default password. ROLE_ADMIN grants all
---    permissions implicitly, so the permissions column keeps its '[]' default. ─
-INSERT INTO app_users (id, email, password_hash, roles)
-SELECT gen_random_uuid(), 'user@example.com',
-       '$2y$13$.ZKFmSNj6jfhxtImiOHucu45qmOodpzMT/Mq2PwWX5rkLayygMMZG',
-       '["ROLE_ADMIN"]'::json
-WHERE NOT EXISTS (SELECT 1 FROM app_users WHERE email = 'user@example.com');
+-- ── Default admin login is intentionally NOT seeded here. ────────────────────
+--    Seeding a fixed bcrypt of the documented public password would give every
+--    fresh prod instance the same known admin credentials. The
+--    entrypoint now creates the admin on a fresh install with ADMIN_PASSWORD, or
+--    a generated password printed once — see docker-entrypoint-prod.sh.

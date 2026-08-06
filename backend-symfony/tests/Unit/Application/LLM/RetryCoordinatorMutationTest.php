@@ -1015,7 +1015,7 @@ final class RetryCoordinatorMutationTest extends TestCase
 
     // === Validator exception falls through to best-of-3 ===
 
-    public function test_validator_exception_uses_best_of_3(): void
+    public function test_validator_exception_on_all_attempts_falls_to_canned(): void
     {
         $validText = $this->validReplyText();
         $callCount = 0;
@@ -1031,10 +1031,11 @@ final class RetryCoordinatorMutationTest extends TestCase
         $coordinator = $this->createCoordinator();
         $result = $coordinator->execute($this->baseContext(), 'generic_user');
 
-        // Policy approved the text, but validator threw exception
-        // Should fall through to best-of-3
-        $this->assertFalse($result['fallback_used']);
-        $this->assertSame($validText, $result['text']);
+        // Policy approved the text, but the validator threw on every attempt, so
+        // security was never confirmed. Fail closed: the draft is not sent; the
+        // canned fallback fires instead of a security-unverified best-of-3.
+        $this->assertTrue($result['fallback_used']);
+        $this->assertNotSame($validText, $result['text']);
     }
 
     // === getModelName returns 'gpt-4o' in all paths ===

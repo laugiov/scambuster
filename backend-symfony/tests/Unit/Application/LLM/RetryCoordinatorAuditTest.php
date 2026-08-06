@@ -150,7 +150,7 @@ final class RetryCoordinatorAuditTest extends TestCase
             }
 
             // Validator
-            return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
+            return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":3,"reasons":["OK"],"fix_suggestion":""}';
         });
 
         $audit = $this->createAuditLoggerSpy();
@@ -207,14 +207,14 @@ final class RetryCoordinatorAuditTest extends TestCase
             }
 
             if ($callCount === 2) {
-                return '{"approved":false,"naturalness":2,"persona_fit":3,"ti_value":2,"reasons":["too generic"],"fix_suggestion":"ask a specific question"}';
+                return '{"security_pass":true,"approved":false,"naturalness":2,"persona_fit":3,"ti_value":2,"reasons":["too generic"],"fix_suggestion":"ask a specific question"}';
             }
 
             if ($callCount === 3) {
                 return $validReply;
             }
 
-            return '{"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
+            return '{"security_pass":true,"approved":true,"naturalness":4,"persona_fit":4,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
         });
 
         $audit = $this->createAuditLoggerSpy();
@@ -273,7 +273,7 @@ final class RetryCoordinatorAuditTest extends TestCase
 
             return $callCount % 2 === 1
                 ? $validReply
-                : '{"approved":true,"naturalness":5,"persona_fit":5,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
+                : '{"security_pass":true,"approved":true,"naturalness":5,"persona_fit":5,"ti_value":4,"reasons":["OK"],"fix_suggestion":""}';
         });
 
         $audit = $this->createAuditLoggerSpy();

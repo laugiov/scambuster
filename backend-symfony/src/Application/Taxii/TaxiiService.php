@@ -11,6 +11,7 @@ use App\Application\Stix\ClusteredThreatActorStixBuilder;
 use App\Application\Stix\CognitiveMirrorNoteBuilder;
 use App\Application\Stix\IocContextStixExtensionBuilder;
 use App\Application\Stix\IocInteroperableFieldsBuilder;
+use App\Application\Stix\StixObjectDeduplicator;
 use App\Application\Stix\StixProvenance;
 use App\Application\Stix\ThreatActorStixBuilder;
 use App\Application\ThreatActor\ThreatActorPsychProfileReaderInterface;
@@ -721,7 +722,9 @@ final readonly class TaxiiService
         return [
             'envelope' => [
                 'more' => $more,
-                'objects' => $objects,
+                // Shared SDOs (extension-definitions, MITRE attack-patterns reused
+                // across clusters) would otherwise repeat once per cluster.
+                'objects' => StixObjectDeduplicator::dedupeById($objects),
             ],
             'firstAdded' => $firstAdded !== null ? $this->formatIso8601($firstAdded) : null,
             'lastAdded' => $lastAdded !== null ? $this->formatIso8601($lastAdded) : null,
@@ -874,15 +877,17 @@ final readonly class TaxiiService
 
     private function formatIso8601(string $value): string
     {
-        if ($value === '') {
-            return (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
-        }
+        $utc = new \DateTimeZone('UTC');
 
         try {
-            return (new \DateTimeImmutable($value))->format(\DateTimeInterface::ATOM);
+            $dt = $value === '' ? new \DateTimeImmutable('now', $utc) : new \DateTimeImmutable($value);
         } catch (\Exception) {
-            return (new \DateTimeImmutable())->format(\DateTimeInterface::ATOM);
+            $dt = new \DateTimeImmutable('now', $utc);
         }
+
+        // STIX 2.1 requires RFC3339 UTC with a trailing "Z" (never a "+00:00"
+        // offset), with millisecond precision to match the STIX builders.
+        return $dt->setTimezone($utc)->format('Y-m-d\TH:i:s.v\Z');
     }
 
     /**
