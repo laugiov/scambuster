@@ -178,7 +178,23 @@ clean-db-complete: ##@migration Destroy & recreate dev + test DBs from scratch
 # ======================================================================
 #  TESTS / QUALITY
 # ======================================================================
-test:          ##@test Load fixtures then run only integration and unit PHPUnit tests
+# Start the test/e2e container if it isn't running (it sits behind the `test`
+# Compose profile, so quickstart doesn't start it), then make sure its database
+# exists and is migrated: quickstart only provisions the dev database, so on a
+# fresh install `make test` used to fail with "database scambuster_test does
+# not exist". Naming the service auto-activates its profile.
+test-prepare:  ##@test Start backend-test and ensure the test DB exists (create + migrate)
+	$(DC) up -d $(PHP_CONTAINER_TEST)
+	$(CONSOLE_TEST) doctrine:database:create --if-not-exists --env=test
+	$(CONSOLE_TEST) doctrine:migrations:migrate --env=test -n --allow-no-migration
+
+e2e-prepare:   ##@test Start backend-e2e and ensure the e2e DB exists (create + migrate)
+	$(DC) up -d $(PHP_CONTAINER_E2E)
+	$(CONSOLE_E2E) doctrine:database:create --if-not-exists --env=e2e
+	$(CONSOLE_E2E) doctrine:migrations:migrate --env=e2e -n --allow-no-migration
+
+test:          ##@test Prepare the test DB, load fixtures, run unit+integration+functional
+	$(MAKE) test-prepare
 	$(MAKE) fixtures
 	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,functional,unit
 
@@ -447,16 +463,19 @@ deploy: ##@docker Full deployment: build, start, migrate
 # ======================================================================
 #  TESTS – E2E
 # ======================================================================
-endToEndTest:  ##@test Load fixtures then run end-to-end tests
+endToEndTest:  ##@test Prepare the e2e DB, load fixtures, run end-to-end tests
+	$(MAKE) e2e-prepare
 	$(MAKE) fixtures-e2e
 	$(DC) exec $(PHP_CONTAINER_E2E) php bin/console cache:clear --env=e2e
 	$(DC) run --rm $(PHP_CONTAINER_E2E) vendor/bin/phpunit --testdox --testsuite endtoend
 
 endToEndTestOne: ##@test Run a single E2E test (q=filter)
+	$(MAKE) e2e-prepare
 	$(MAKE) fixtures-e2e
 	$(DC) run --rm $(PHP_CONTAINER_E2E) vendor/bin/phpunit --testdox --testsuite endtoend --filter $(q)
 
 testOne: ##@test Run a single integration/unit test (q=filter)
+	$(MAKE) test-prepare
 	$(MAKE) fixtures
 	$(DC) exec $(PHP_CONTAINER_TEST) vendor/bin/phpunit --testdox --testsuite integration,functional,unit --filter $(q)
 
@@ -559,6 +578,9 @@ fix-existing-data: ##@fix Apply all data quality corrections after fixture/demo 
 # ======================================================================
 respawn-all: ##@docker Reset all DBs and load fixtures
 	$(MAKE) upd
+	# backend-test / backend-e2e sit behind the `test` Compose profile, so the
+	# plain `upd` above doesn't start them; name them to auto-activate it.
+	$(DC) up -d $(PHP_CONTAINER_TEST) $(PHP_CONTAINER_E2E)
 	$(MAKE) reset-db
 	$(MAKE) reset-db-test
 	$(MAKE) reset-db-e2e
