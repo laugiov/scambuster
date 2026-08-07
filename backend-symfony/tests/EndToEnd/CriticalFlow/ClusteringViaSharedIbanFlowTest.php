@@ -22,9 +22,10 @@ final class ClusteringViaSharedIbanFlowTest extends AbstractCriticalFlowTestCase
 
         // Use a unique IBAN per test run to avoid stix_id collisions with
         // clusters from prior runs (STIX UUID v5 is deterministic on value).
-        // Format: DE<check>3704004405<8 random digits> — valid BBAN length.
+        // The check digits are computed so the IBAN passes the mod-97 validation
+        // now enforced at extraction (a fabricated one would be rejected).
         $randomDigits = str_pad((string) random_int(10000000, 99999999), 8, '0', STR_PAD_LEFT);
-        $sharedIban = 'DE00370400440532' . $randomDigits;
+        $sharedIban = self::ibanWithValidCheckDigits('DE', '370400440532' . $randomDigits);
 
         // Step 1: Ingest email A from sender1 with the shared IBAN
         $resultA = $this->ingestEmail(
@@ -163,5 +164,28 @@ final class ClusteringViaSharedIbanFlowTest extends AbstractCriticalFlowTestCase
         $this->assertSame('bundle', $stixBundle['type']);
         $stixTypes = array_column($stixBundle['objects'], 'type');
         $this->assertContains('threat-actor', $stixTypes, 'Cluster STIX export must contain a threat-actor object');
+    }
+
+    /**
+     * Build an IBAN whose ISO 7064 mod-97 check digits are correct for the given
+     * country + BBAN, so it survives the extraction-time checksum validation.
+     */
+    private static function ibanWithValidCheckDigits(string $country, string $bban): string
+    {
+        $rearranged = strtoupper($bban . $country . '00');
+        $numeric = '';
+
+        for ($i = 0, $n = \strlen($rearranged); $i < $n; $i++) {
+            $ch = $rearranged[$i];
+            $numeric .= ctype_alpha($ch) ? (string) (\ord($ch) - 55) : $ch;
+        }
+
+        $mod = 0;
+
+        for ($i = 0, $n = \strlen($numeric); $i < $n; $i++) {
+            $mod = ($mod * 10 + (int) $numeric[$i]) % 97;
+        }
+
+        return $country . str_pad((string) (98 - $mod), 2, '0', STR_PAD_LEFT) . $bban;
     }
 }
