@@ -52,6 +52,22 @@ class ReplyValidatorTest extends TestCase
         );
     }
 
+    public function test_validate_forces_json_response_format(): void
+    {
+        $captured = [];
+        $this->llmClient->method('chat')->willReturnCallback(
+            function (array $messages, array $options) use (&$captured): string {
+                $captured = $options;
+
+                return '{"naturalness":4,"persona_fit":4,"ti_value":3,"security_pass":true,"reasons":["ok"]}';
+            }
+        );
+
+        $this->validator->validate('A perfectly ordinary reply for the validator to score.', 'generic_user');
+
+        self::assertSame(['type' => 'json_object'], $captured['response_format'] ?? null, 'validator must request JSON mode, not free text');
+    }
+
     /**
      * @test
      */

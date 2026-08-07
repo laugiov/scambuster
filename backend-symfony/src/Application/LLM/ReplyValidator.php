@@ -96,6 +96,9 @@ final readonly class ReplyValidator
             'temperature' => 0.4,
             'max_tokens' => 500,
             'purpose' => 'reply_validation',
+            // Force JSON output (the prompt already requires it); the regex/json_decode
+            // path stays as a fallback for providers that ignore the option.
+            'response_format' => ['type' => 'json_object'],
         ];
 
         $this->logger->debug('[ReplyValidator] Calling LLM validator', [

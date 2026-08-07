@@ -45,6 +45,18 @@ final readonly class OpenAIClient implements LLMClientInterface
                 'user' => $this->buildSafetyIdentifier($options),
             ];
 
+            // Structured output: honour the caller's response_format (JSON mode /
+            // JSON schema) instead of silently dropping it — the JSON agents relied
+            // on this and were being coaxed by prompt + parsed by regex. A seed is
+            // forwarded when given, for reproducibility.
+            if (isset($options['response_format'])) {
+                $payload['response_format'] = $options['response_format'];
+            }
+
+            if (isset($options['seed'])) {
+                $payload['seed'] = $options['seed'];
+            }
+
             $response = $this->httpClient->request('POST', $this->apiUrl . self::API_ENDPOINT, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->apiKey,

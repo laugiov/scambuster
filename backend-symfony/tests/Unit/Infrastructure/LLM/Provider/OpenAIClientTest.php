@@ -316,6 +316,51 @@ class OpenAIClientTest extends TestCase
         $this->assertSame('tenant_campaign_profile_v2', $requestData['user']);
     }
 
+    public function testForwardsResponseFormatAndSeedWhenProvided(): void
+    {
+        $captured = $this->captureChat([
+            'response_format' => ['type' => 'json_object'],
+            'seed' => 42,
+        ]);
+
+        self::assertSame(['type' => 'json_object'], $captured['response_format'] ?? null, 'response_format must reach the API, not be dropped');
+        self::assertSame(42, $captured['seed'] ?? null, 'seed must be forwarded for reproducibility');
+    }
+
+    public function testOmitsResponseFormatAndSeedWhenNotProvided(): void
+    {
+        $captured = $this->captureChat([]);
+
+        self::assertArrayNotHasKey('response_format', $captured);
+        self::assertArrayNotHasKey('seed', $captured);
+    }
+
+    /**
+     * Run chat() with a capturing HTTP client and return the JSON payload sent.
+     *
+     * @param array<string, mixed> $options
+     *
+     * @return array<string, mixed>
+     */
+    private function captureChat(array $options): array
+    {
+        $captured = [];
+        $http = new MockHttpClient(function (string $method, string $url, array $opts) use (&$captured): MockResponse {
+            /** @var array<string, mixed> $captured */
+            $captured = json_decode((string) $opts['body'], true, 512, JSON_THROW_ON_ERROR);
+
+            return new MockResponse((string) json_encode([
+                'choices' => [['message' => ['content' => '{}']]],
+                'usage' => [],
+            ], JSON_THROW_ON_ERROR));
+        });
+
+        $client = new OpenAIClient($http, new NullLogger(), new EventDispatcher(), self::API_URL, self::API_KEY, self::MODEL);
+        $client->chat([['role' => 'user', 'content' => 'return json please']], $options);
+
+        return $captured;
+    }
+
     private function createClient(MockResponse $mockResponse): OpenAIClient
     {
         return new OpenAIClient(

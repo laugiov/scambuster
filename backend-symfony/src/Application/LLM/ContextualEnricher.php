@@ -50,6 +50,9 @@ final readonly class ContextualEnricher
                 'temperature' => 0.3,
                 'max_tokens' => 500,
                 'purpose' => 'contextual_enrichment',
+                // Force JSON output (the prompt already requires it); the
+                // extract-JSON path stays as a fallback if the provider ignores it.
+                'response_format' => ['type' => 'json_object'],
             ];
 
             $this->logger->debug('[ContextualEnricher] Calling LLM', [
