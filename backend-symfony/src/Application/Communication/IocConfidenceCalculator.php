@@ -33,21 +33,35 @@ final class IocConfidenceCalculator
         return self::BASE_CONFIDENCE[strtolower($method)] ?? self::DEFAULT_CONFIDENCE;
     }
 
+    /** Corroborating sources needed before repetition lifts confidence at all. */
+    private const MIN_SOURCES_TO_BOOST = 2;
+
+    /** Confidence added per corroborating source beyond the first. */
+    private const PER_SOURCE_BOOST = 0.05;
+
+    /** Hard cap on the total lift from corroboration. */
+    private const MAX_CORROBORATION_BOOST = 0.15;
+
     /**
-     * Boost confidence based on number of independent observations.
+     * Boost confidence by the number of INDEPENDENT corroborating sources
+     * (distinct conversations that observed the value), never by raw repetition.
      *
-     * Formula: 1 - (1 - base)^n — converges toward 1.0 as observations increase.
-     * Example: base=0.75, n=3 → 1 - 0.25^3 = 1 - 0.015625 = 0.984
+     * Re-seeing the same value from a single source is not corroboration — it is a
+     * poisoning vector (an adversary re-posting a fabricated IBAN across a baited
+     * thread). So a single source never lifts confidence, and the total lift from
+     * corroboration is hard-capped (+0.15) so volume alone can never reach ~1.0.
+     *
+     * @param int $distinctSources number of distinct sources that observed the value
      */
-    public static function boostConfidence(float $base, int $occurrences): float
+    public static function boostConfidence(float $base, int $distinctSources): float
     {
-        if ($occurrences <= 1) {
+        if ($distinctSources < self::MIN_SOURCES_TO_BOOST) {
             return $base;
         }
 
-        $boosted = 1.0 - (1.0 - $base) ** $occurrences;
+        $boost = min(self::PER_SOURCE_BOOST * ($distinctSources - 1), self::MAX_CORROBORATION_BOOST);
 
-        return min($boosted, 1.0);
+        return min($base + $boost, 1.0);
     }
 
     /**

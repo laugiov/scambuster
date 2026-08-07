@@ -55,87 +55,38 @@ final class ConfidenceFormulaTest extends TestCase
     }
 
     // ================================================================== //
-    //  Multi-observation boost: 1 - (1-base)^n
+    //  Corroboration boost: +0.05 per DISTINCT source beyond the first, capped
+    //  at +0.15. A single source (raw repetition) never boosts.
     // ================================================================== //
 
-    public function testBoostHeaderSingle(): void
+    public function testBoostSingleSourceUnchanged(): void
     {
-        // base=0.99, n=1 → 1-(1-0.99)^1 = 1-0.01 = 0.99
-        $this->assertEqualsWithDelta(
-            0.99,
-            IocConfidenceCalculator::boostConfidence(0.99, 1),
-            0.0001,
-        );
+        $this->assertEqualsWithDelta(0.99, IocConfidenceCalculator::boostConfidence(0.99, 1), 0.0001);
+        $this->assertEqualsWithDelta(0.75, IocConfidenceCalculator::boostConfidence(0.75, 1), 0.0001);
     }
 
-    public function testBoostHeaderDouble(): void
+    public function testBoostZeroSourcesUnchanged(): void
     {
-        // base=0.99, n=2 → 1-(0.01)^2 = 1-0.0001 = 0.9999
-        $this->assertEqualsWithDelta(
-            0.9999,
-            IocConfidenceCalculator::boostConfidence(0.99, 2),
-            0.0001,
-        );
+        $this->assertEqualsWithDelta(0.75, IocConfidenceCalculator::boostConfidence(0.75, 0), 0.0001);
     }
 
-    public function testBoostRegexTriple(): void
+    public function testBoostTwoDistinctSources(): void
     {
-        // base=0.95, n=3 → 1-(0.05)^3 = 1-0.000125 = 0.999875
-        $this->assertEqualsWithDelta(
-            0.999875,
-            IocConfidenceCalculator::boostConfidence(0.95, 3),
-            0.0001,
-        );
+        // base=0.75, 2 sources → +0.05 = 0.80
+        $this->assertEqualsWithDelta(0.80, IocConfidenceCalculator::boostConfidence(0.75, 2), 0.0001);
     }
 
-    public function testBoostLlmSingle(): void
+    public function testBoostThreeDistinctSources(): void
     {
-        // base=0.75, n=1 → returns base unchanged
-        $this->assertEqualsWithDelta(
-            0.75,
-            IocConfidenceCalculator::boostConfidence(0.75, 1),
-            0.0001,
-        );
+        // base=0.75, 3 sources → +0.10 = 0.85
+        $this->assertEqualsWithDelta(0.85, IocConfidenceCalculator::boostConfidence(0.75, 3), 0.0001);
     }
 
-    public function testBoostLlmDouble(): void
+    public function testBoostSaturatesAtCap(): void
     {
-        // base=0.75, n=2 → 1-(0.25)^2 = 1-0.0625 = 0.9375
-        $this->assertEqualsWithDelta(
-            0.9375,
-            IocConfidenceCalculator::boostConfidence(0.75, 2),
-            0.0001,
-        );
-    }
-
-    public function testBoostLlmTriple(): void
-    {
-        // base=0.75, n=3 → 1-(0.25)^3 = 1-0.015625 = 0.984375
-        $this->assertEqualsWithDelta(
-            0.984375,
-            IocConfidenceCalculator::boostConfidence(0.75, 3),
-            0.0001,
-        );
-    }
-
-    public function testBoostLlmFive(): void
-    {
-        // base=0.75, n=5 → 1-(0.25)^5 = 1-0.0009765625 = 0.9990234375
-        $this->assertEqualsWithDelta(
-            0.9990234375,
-            IocConfidenceCalculator::boostConfidence(0.75, 5),
-            0.0001,
-        );
-    }
-
-    public function testBoostZeroOccurrences(): void
-    {
-        // n=0 treated same as n=1 (no boost)
-        $this->assertEqualsWithDelta(
-            0.75,
-            IocConfidenceCalculator::boostConfidence(0.75, 0),
-            0.0001,
-        );
+        // base=0.75, 5+ sources → +0.15 cap = 0.90 (and never higher)
+        $this->assertEqualsWithDelta(0.90, IocConfidenceCalculator::boostConfidence(0.75, 5), 0.0001);
+        $this->assertEqualsWithDelta(0.90, IocConfidenceCalculator::boostConfidence(0.75, 500), 0.0001);
     }
 
     public function testBoostNeverExceedsOne(): void

@@ -44,6 +44,7 @@ class IocUpsertService
         // Extracted from Message::canExtractIocs()
         private readonly IocExtractionPolicy $iocExtractionPolicy = new IocExtractionPolicy(),
         ?array $honeypotDomains = null,
+        private readonly IocValidator $iocValidator = new IocValidator(),
     ) {
         // Normalize once (lowercase, deduplicated, indexed for O(1) lookup).
         $addresses = [];
@@ -251,6 +252,14 @@ class IocUpsertService
 
         $context = $this->exportMapper->enrichWithExportMetadata($context);
 
+        // Non-destructive integrity flags. The enriched ingest path used to trust
+        // n8n verbatim: nothing checked the value was a valid instance of its type,
+        // nor that it actually appears in the source message. Flag both so
+        // analysts / downstream filters can see invalid or ungrounded observations
+        // without dropping them.
+        $context['valid'] = $this->iocValidator->validate($type, (string) $iocData['value']);
+        $context['grounded'] = $this->isGroundedInSource((string) $iocData['value'], $valueNorm, $message);
+
         $conn = $this->em->getConnection();
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
 
@@ -310,12 +319,23 @@ class IocUpsertService
         $extractionMethod = $context['extraction_method'] ?? 'unknown';
         $confidence = IocConfidenceCalculator::getBaseConfidence($extractionMethod);
 
-        $occurrencesRow = $conn->fetchOne(
-            'SELECT occurrences FROM indicator WHERE indicator_id = :id',
-            ['id' => $indicatorId],
+        // Confidence is lifted by DISTINCT corroborating sources (conversations
+        // that observed this value), never by raw re-sightings of the same value
+        // from one source — that is a poisoning vector. Count includes the current
+        // conversation (the observed_ioc row is not persisted yet).
+        $currentConvId = (string) $message->getConversation()->getConvId();
+        $distinctSourcesRow = $conn->fetchOne(
+            'SELECT COUNT(DISTINCT conv_id) FROM (
+                SELECT m.conv_id::text AS conv_id
+                FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id
+                WHERE oi.indicator_id = :id
+                UNION
+                SELECT :conv
+            ) s',
+            ['id' => $indicatorId, 'conv' => $currentConvId],
         );
-        $occurrences = \is_numeric($occurrencesRow) ? (int) $occurrencesRow : 1;
-        $confidence = IocConfidenceCalculator::boostConfidence($confidence, $occurrences);
+        $distinctSources = \is_numeric($distinctSourcesRow) ? (int) $distinctSourcesRow : 1;
+        $confidence = IocConfidenceCalculator::boostConfidence($confidence, $distinctSources);
 
         $observedIoc = new ObservedIoc(
             $obsId,
@@ -350,6 +370,29 @@ class IocUpsertService
         );
 
         return $observedIoc;
+    }
+
+    /**
+     * Does the IOC value actually appear in the source message (subject, body, or
+     * headers)? Matched case-insensitively, with a separator-stripped fallback so a
+     * spaced/dashed IBAN or phone in the body still grounds its normalized form.
+     */
+    private function isGroundedInSource(string $value, string $valueNorm, Message $message): bool
+    {
+        $haystack = mb_strtolower(
+            ($message->getSubject() ?? '') . ' ' . $message->getBodyText() . ' ' . (string) json_encode($message->getHeaders())
+        );
+
+        foreach ([$value, $valueNorm] as $needle) {
+            if ($needle !== '' && str_contains($haystack, mb_strtolower($needle))) {
+                return true;
+            }
+        }
+
+        $strip = static fn (string $s): string => strtolower((string) preg_replace('/[^a-z0-9]/i', '', $s));
+        $needle = $strip($value);
+
+        return $needle !== '' && str_contains($strip($haystack), $needle);
     }
 
     /**
