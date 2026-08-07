@@ -30,17 +30,15 @@ final class Iban
             $numeric .= ctype_alpha($ch) ? (string) (\ord($ch) - 55) : $ch;
         }
 
-        // Piecewise mod-97 so the value never overflows a native int.
-        $remainder = '';
+        // Digit-by-digit mod-97: the running remainder stays < 97, so the largest
+        // intermediate value is 97*10+9 = 979 — no large integer cast, safe on any
+        // PHP int width.
+        $remainder = 0;
 
         for ($i = 0, $n = \strlen($numeric); $i < $n; $i++) {
-            $remainder .= $numeric[$i];
-
-            if (\strlen($remainder) >= 9) {
-                $remainder = (string) ((int) $remainder % 97);
-            }
+            $remainder = ($remainder * 10 + (int) $numeric[$i]) % 97;
         }
 
-        return (int) $remainder % 97 === 1;
+        return $remainder === 1;
     }
 }

@@ -84,9 +84,16 @@ final class BitcoinAddress
             $values[] = $v;
         }
 
-        $polymod = self::polymod(array_merge(self::hrpExpand($hrp), $values));
+        // First data symbol is the witness version. Per BIP-350 the checksum
+        // constant is tied to it: v0 must use bech32, v1+ must use bech32m —
+        // accepting either would pass addresses that are invalid by spec.
+        if ($values === []) {
+            return false;
+        }
 
-        return $polymod === self::BECH32_CONST || $polymod === self::BECH32M_CONST;
+        $expected = $values[0] === 0 ? self::BECH32_CONST : self::BECH32M_CONST;
+
+        return self::polymod(array_merge(self::hrpExpand($hrp), $values)) === $expected;
     }
 
     /**
