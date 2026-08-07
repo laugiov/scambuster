@@ -81,6 +81,9 @@ final readonly class RetryCoordinator
         /** @var array<int, mixed> $lastMsgs */
         $lastMsgs = $context['last_messages'] ?? [];
         $messageCount = count($lastMsgs);
+        // Loop-invariant identity, bundled once so the shared fallback/audit
+        // helper takes one value instead of the same four scalars at every site.
+        $ctx = new ReplyContext($convId, $personaCode, $detectedLanguage, $messageCount);
         // The only draft eligible for a last-resort "best-of-3" is one the
         // validator confirmed security-clean (security_pass=true) but rejected on
         // quality. A draft rejected for a security reason — or never security-
@@ -160,22 +163,9 @@ final readonly class RetryCoordinator
                 $dialogue[] = ['role' => 'policy_guard', 'attempt' => $attempt, 'approved' => false, 'feedback' => $feedback];
 
                 if ($attempt === self::MAX_ATTEMPTS) {
-                    $trace->attempts = $attempt;
-                    $trace->fallbackUsed = true;
-                    $this->emitReplyRejected($convId, 'policy_guard', $attempt, $personaCode, ['PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts']);
-                    $result = $this->buildFallbackResponse(
-                        $policyResult['flags'],
-                        ['PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts'],
-                        $personaCode,
-                        $attempt,
-                        $dialogue,
-                        $detectedLanguage,
-                        $messageCount,
-                        $convId,
-                    );
-                    $result['pipeline_trace'] = $trace->toArray();
+                    $msg = 'PolicyGuard hard rules failed after ' . self::MAX_ATTEMPTS . ' attempts';
 
-                    return $result;
+                    return $this->finalizeWithFallback($trace, $attempt, $ctx, $dialogue, 'policy_guard', [$msg], $policyResult['flags'], [$msg]);
                 }
 
                 $this->emitReplyRetry($convId, 'policy_guard', $attempt, $personaCode, ['flags' => $policyResult['flags']]);
@@ -210,22 +200,16 @@ final readonly class RetryCoordinator
                 ];
 
                 if ($attempt === self::MAX_ATTEMPTS) {
-                    $trace->attempts = $attempt;
-                    $trace->fallbackUsed = true;
-                    $this->emitReplyRejected($convId, 'payment_instigation_guard', $attempt, $personaCode, [$reason]);
-                    $result = $this->buildFallbackResponse(
+                    return $this->finalizeWithFallback(
+                        $trace,
+                        $attempt,
+                        $ctx,
+                        $dialogue,
+                        'payment_instigation_guard',
+                        [$reason],
                         [$reason],
                         ['Payment instigation guard failed after ' . self::MAX_ATTEMPTS . ' attempts'],
-                        $personaCode,
-                        $attempt,
-                        $dialogue,
-                        $detectedLanguage,
-                        $messageCount,
-                        $convId,
                     );
-                    $result['pipeline_trace'] = $trace->toArray();
-
-                    return $result;
                 }
 
                 $this->emitReplyRetry($convId, 'payment_instigation_guard', $attempt, $personaCode, ['reason' => $reason]);
@@ -252,22 +236,9 @@ final readonly class RetryCoordinator
                     );
 
                     if ($attempt === self::MAX_ATTEMPTS) {
-                        $trace->attempts = $attempt;
-                        $trace->fallbackUsed = true;
-                        $this->emitReplyRejected($convId, 'leak_detector', $attempt, $personaCode, ['LLM leak detector rejected all ' . self::MAX_ATTEMPTS . ' attempts']);
-                        $result = $this->buildFallbackResponse(
-                            ['operational_leak_detected'],
-                            ['LLM leak detector rejected all ' . self::MAX_ATTEMPTS . ' attempts'],
-                            $personaCode,
-                            $attempt,
-                            $dialogue,
-                            $detectedLanguage,
-                            $messageCount,
-                            $convId,
-                        );
-                        $result['pipeline_trace'] = $trace->toArray();
+                        $msg = 'LLM leak detector rejected all ' . self::MAX_ATTEMPTS . ' attempts';
 
-                        return $result;
+                        return $this->finalizeWithFallback($trace, $attempt, $ctx, $dialogue, 'leak_detector', [$msg], ['operational_leak_detected'], [$msg]);
                     }
 
                     $this->emitReplyRetry($convId, 'leak_detector', $attempt, $personaCode, ['reason_detail' => $leakResult->reason]);
@@ -422,22 +393,16 @@ final readonly class RetryCoordinator
             ];
         }
 
-        $trace->attempts = self::MAX_ATTEMPTS;
-        $trace->fallbackUsed = true;
-        $this->emitReplyRejected($convId, 'validator', self::MAX_ATTEMPTS, $personaCode, ['All ' . self::MAX_ATTEMPTS . ' attempts failed validation without a PolicyGuard-approved fallback']);
-        $result = $this->buildFallbackResponse(
+        return $this->finalizeWithFallback(
+            $trace,
+            self::MAX_ATTEMPTS,
+            $ctx,
+            $dialogue,
+            'validator',
+            ['All ' . self::MAX_ATTEMPTS . ' attempts failed validation without a PolicyGuard-approved fallback'],
             [],
             ['All attempts failed'],
-            $personaCode,
-            self::MAX_ATTEMPTS,
-            $dialogue,
-            $detectedLanguage,
-            $messageCount,
-            $convId,
         );
-        $result['pipeline_trace'] = $trace->toArray();
-
-        return $result;
     }
 
     /**
@@ -823,6 +788,46 @@ final readonly class RetryCoordinator
             'validation_scores' => null,
             'ioc_likelihood' => null,
         ];
+    }
+
+    /**
+     * Final-attempt guard failure: record the trace, emit the REPLY_REJECTED row,
+     * build the canned fallback and stamp the trace onto it. This is the block that
+     * every hard guard (and the post-loop validator failure) repeated verbatim.
+     *
+     * @param array<int, array<string, mixed>> $dialogue
+     * @param list<string>                     $emitReasons     REPLY_REJECTED audit reasons
+     * @param array<string>                    $fallbackFlags   policy_flags on the response
+     * @param array<string>                    $fallbackReasons validation_reasons on the response
+     *
+     * @return array<string, mixed>
+     */
+    private function finalizeWithFallback(
+        PipelineTrace $trace,
+        int $attempt,
+        ReplyContext $ctx,
+        array $dialogue,
+        string $stage,
+        array $emitReasons,
+        array $fallbackFlags,
+        array $fallbackReasons,
+    ): array {
+        $trace->attempts = $attempt;
+        $trace->fallbackUsed = true;
+        $this->emitReplyRejected($ctx->convId, $stage, $attempt, $ctx->personaCode, $emitReasons);
+        $result = $this->buildFallbackResponse(
+            $fallbackFlags,
+            $fallbackReasons,
+            $ctx->personaCode,
+            $attempt,
+            $dialogue,
+            $ctx->detectedLanguage,
+            $ctx->messageCount,
+            $ctx->convId,
+        );
+        $result['pipeline_trace'] = $trace->toArray();
+
+        return $result;
     }
 
     /**

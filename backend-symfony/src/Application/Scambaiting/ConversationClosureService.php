@@ -80,7 +80,7 @@ final readonly class ConversationClosureService
         }
 
         $conversation->setRewardValue($reward);
-        $conversation->setStatus(ConversationStatus::CLOSED);
+        $conversation->close();
 
         $this->em->flush();
 
