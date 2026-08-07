@@ -200,9 +200,9 @@ make validate-n8n    # Validate n8n workflow JSON files
 
 ### Preflight says a port is already taken
 
-The stack publishes **8081** (backend), **8082** (backend-preprod), **3002**
-(frontend), **5678** (n8n) and **5433** (postgres-preprod). The preflight names the
-container holding the port. Either stop it, or remap the port in
+The default stack publishes **8081** (backend), **3002** (frontend) and **5678**
+(n8n). (**8082**/**5433** only appear if you activate the `preprod` Compose
+profile.) The preflight names the container holding the port. Either stop it, or remap the port in
 `docker-compose.override.yml`:
 
 ```yaml

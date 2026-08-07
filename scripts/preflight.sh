@@ -25,6 +25,30 @@ ERRORS=0
 echo ""
 echo "PREFLIGHT"
 
+# ─── 0. Available memory ───
+# The default stack (~6 containers: postgres, redis, backend-dev, scheduler,
+# frontend, n8n) is comfortable from ~4 GB of available RAM. Warning only —
+# never a blocker: the stack boots on less, just slowly (or OOMs later, which
+# this warning helps diagnose).
+AVAIL_KB=""
+if [ -r /proc/meminfo ]; then
+  AVAIL_KB=$(awk '/^MemAvailable:/{print $2}' /proc/meminfo)
+elif command -v sysctl > /dev/null 2>&1 && sysctl -n hw.memsize > /dev/null 2>&1; then
+  # macOS has no MemAvailable — use total RAM as a rough proxy.
+  AVAIL_KB=$(( $(sysctl -n hw.memsize) / 1024 ))
+fi
+
+if [ -n "${AVAIL_KB:-}" ]; then
+  AVAIL_GB=$(awk -v kb="$AVAIL_KB" 'BEGIN{printf "%.1f", kb/1024/1024}')
+  if [ "$AVAIL_KB" -lt $((4 * 1024 * 1024)) ]; then
+    warn "~${AVAIL_GB} GB RAM available — below the ~4 GB the stack is comfortable with (may be slow or OOM)"
+  else
+    ok "~${AVAIL_GB} GB RAM available (≥4 GB recommended)"
+  fi
+else
+  warn "could not determine available RAM — skipping the memory check"
+fi
+
 # ─── 1. Host ports ───
 # Ports come from the merged compose config, so a docker-compose.override.yml
 # that remaps them is respected. Fall back to the defaults of

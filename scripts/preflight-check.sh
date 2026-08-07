@@ -11,6 +11,8 @@
 #
 # Preconditions:
 # - Docker compose stack is up (`make up` or `docker compose up -d`).
+#   backend-test / backend-e2e sit behind the `test` Compose profile and are
+#   started explicitly below (naming a service auto-activates its profile).
 # - python3 available on the host (used for composer audit JSON parsing,
 #   matching the CI workflow's parser).
 #
@@ -67,6 +69,10 @@ gate_done
 # and rolls back, so a single load before gate 3 is sufficient for gates 3-6.
 echo ""
 echo "──────── Schema + Fixtures: bring scambuster_test to HEAD ────────"
+# backend-test/backend-e2e are behind the `test` Compose profile, so a plain
+# `docker compose up -d` doesn't start them; naming them here auto-activates it.
+docker compose up -d backend-test backend-e2e
+docker compose exec -T backend-test php bin/console doctrine:database:create --no-interaction --env=test --if-not-exists --quiet
 docker compose exec -T backend-test php bin/console doctrine:migrations:migrate --no-interaction --env=test --quiet --allow-no-migration
 docker compose exec -T backend-test php bin/console doctrine:fixtures:load --no-interaction --env=test --quiet
 echo "  → scambuster_test ready"
@@ -99,6 +105,7 @@ gate_done
 # No DAMA wrapper on e2e — state preserved across the testsuite intentionally.
 echo ""
 echo "──────── Schema + Fixtures: bring scambuster_e2e to HEAD ────────"
+docker compose exec -T backend-e2e php bin/console doctrine:database:create --no-interaction --env=e2e --if-not-exists --quiet
 docker compose exec -T backend-e2e php bin/console doctrine:migrations:migrate --no-interaction --env=e2e --quiet --allow-no-migration
 docker compose exec -T backend-e2e php bin/console doctrine:fixtures:load --no-interaction --env=e2e --quiet
 echo "  → scambuster_e2e ready"

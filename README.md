@@ -211,13 +211,20 @@ secret-handling and guardrails an agent needs.
 > data, migrations auto-run). An agent can follow the Production section of
 > [AI_DEPLOYMENT.md](docs/AI_DEPLOYMENT.md).
 
-**Before real (non-demo) use, change these in `.env`**:
+**Before real (non-demo) use, edit these 4 in `.env`** (the same 4 the
+`>>> EDIT THESE 4 FIRST <<<` block at the top of `.env.dist` points to, and that
+`make quickstart` checks for placeholders):
 
 | Variable | What to do |
 |----------|------------|
-| `POSTGRES_PASSWORD` | Choose a password, update `DATABASE_URL` to match |
-| `JWT_PASSPHRASE` | `openssl rand -hex 32` |
 | `LLM_API_KEY` | Your OpenAI API key (or keep `LLM_PROVIDER=mock` for a no-key demo) |
+| `HONEYPOT_IMAP_USER` | The honeypot mailbox (IMAP — receives scam emails) |
+| `HONEYPOT_IMAP_PASSWORD` | Its app password (NOT the regular account password) |
+| `MAILER_DSN` | SMTP for sending replies — same mailbox, `@` written as `%40` |
+
+For production hardening, also change `POSTGRES_PASSWORD` (and `DATABASE_URL` to
+match) and `JWT_PASSPHRASE` (`openssl rand -hex 32`) — see the
+[production deployment runbook](docs/runbooks/production-deployment.md).
 
 **LLM providers** (switch with one env var):
 
