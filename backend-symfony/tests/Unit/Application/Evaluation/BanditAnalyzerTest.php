@@ -63,6 +63,44 @@ final class BanditAnalyzerTest extends TestCase
         $this->assertSame('elderly_person', $analyses[0]['dominant_persona']);
     }
 
+    public function test_analyze_reports_confidence_intervals_and_reliability(): void
+    {
+        $rows = [];
+
+        // A well-sampled arm (n=12, slight spread) and a single-observation arm.
+        for ($i = 0; $i < 12; ++$i) {
+            $rows[] = [
+                'conv_id' => 'r-' . $i, 'scam_type' => 'PHISHING', 'persona_code' => 'elderly_person',
+                'reward_value' => $i === 0 ? 0.7 : 0.8, 'status' => 'closed',
+                'engagement_duration_sec' => 3600, 'ts_created' => '2026-03-01 00:00:00',
+            ];
+        }
+        $rows[] = [
+            'conv_id' => 'single', 'scam_type' => 'PHISHING', 'persona_code' => 'tech_newbie',
+            'reward_value' => 0.9, 'status' => 'closed',
+            'engagement_duration_sec' => 3600, 'ts_created' => '2026-03-01 00:00:00',
+        ];
+
+        $conn = $this->createMock(Connection::class);
+        $conn->method('fetchAllAssociative')->willReturn($rows);
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('getConnection')->willReturn($conn);
+
+        $stats = (new BanditAnalyzer($em))->analyze()['scam_type_analyses'][0]['reward_stats'];
+
+        // Well-sampled arm: a real interval and flagged reliable.
+        self::assertSame(12, $stats['elderly_person']['count']);
+        self::assertNotNull($stats['elderly_person']['ci_margin']);
+        self::assertLessThan($stats['elderly_person']['ci_upper'], $stats['elderly_person']['ci_lower']);
+        self::assertTrue($stats['elderly_person']['reliable']);
+
+        // Single observation: no interval, never reliable — the average must not be
+        // presented as an effect.
+        self::assertSame(1, $stats['tech_newbie']['count']);
+        self::assertNull($stats['tech_newbie']['ci_margin']);
+        self::assertFalse($stats['tech_newbie']['reliable']);
+    }
+
     public function test_analyze_no_convergence_when_spread(): void
     {
         $rows = [];
