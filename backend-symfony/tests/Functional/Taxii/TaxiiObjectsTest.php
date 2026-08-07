@@ -98,6 +98,48 @@ final class TaxiiObjectsTest extends WebTestCase
         $this->assertEmpty($data['objects']);
     }
 
+    /**
+     * The shared TAXII feed must not export header-noise / non-actionable IOC
+     * types (message_id `@scambuster.local`, subject, auth-results) — only
+     * actionable intel. Aligns the feed with the actionability policy.
+     */
+    public function testFeedExcludesNonActionableHeaderTypes(): void
+    {
+        $container = static::getContainer();
+        /** @var \Doctrine\DBAL\Connection $conn */
+        $conn = $container->get('doctrine.dbal.default_connection');
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s');
+
+        $rows = [
+            ['dddd0001-0000-4000-8000-000000000001', 'iban', 'GB29NWBK60161331926819', 'GB29NWBK60161331926819'],
+            ['dddd0002-0000-4000-8000-000000000002', 'message_id', '<probe-xyz@scambuster.local>', 'probe-xyz@scambuster.local'],
+            ['dddd0003-0000-4000-8000-000000000003', 'subject', 'NONACTIONABLE-SUBJECT-PROBE', 'NONACTIONABLE-SUBJECT-PROBE'],
+        ];
+
+        foreach ($rows as [$id, $type, $value, $norm]) {
+            if (!$conn->fetchAssociative('SELECT 1 FROM indicator WHERE indicator_id = ?', [$id])) {
+                $conn->executeStatement(
+                    'INSERT INTO indicator (indicator_id, type, value, value_norm, first_seen, last_seen, occurrences, enrichment, score, tlp, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?)',
+                    [$id, $type, $value, $norm, $now, $now, '{}', '{"vt":0,"urlscan":0,"agg":0}', 'AMBER', $now, $now]
+                );
+            }
+        }
+
+        $this->client->request('GET', '/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [
+            'limit' => '500',
+        ], [], [
+            'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+        $blob = (string) $this->client->getResponse()->getContent();
+
+        $this->assertStringContainsString('GB29NWBK60161331926819', $blob, 'Actionable IBAN must be in the feed');
+        $this->assertStringNotContainsString('scambuster.local', $blob, 'Honeypot message_id must never reach the shared feed');
+        $this->assertStringNotContainsString('NONACTIONABLE-SUBJECT-PROBE', $blob, 'subject header noise must not be exported');
+    }
+
     public function testLimitParameterWorks(): void
     {
         $this->client->request('GET', '/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [

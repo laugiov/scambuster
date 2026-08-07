@@ -16,7 +16,9 @@ use App\Application\Stix\StixProvenance;
 use App\Application\Stix\ThreatActorStixBuilder;
 use App\Application\ThreatActor\ThreatActorPsychProfileReaderInterface;
 use App\Application\Ttp\TtpQueryService;
+use App\Domain\Communication\Policy\IocActionablePolicy;
 use App\Domain\ThreatActor\AnalystVerdict;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -275,6 +277,12 @@ final readonly class TaxiiService
             ->orderBy('i.updated_at', 'ASC')
             ->addOrderBy('i.indicator_id', 'ASC')
             ->setMaxResults($limit + 1);
+
+        // Header noise / non-actionable types (message_id incl. the honeypot's
+        // own @scambuster.local ids, subject, auth-results, …) never belong in the
+        // shared feed — align with the actionability policy used elsewhere.
+        $qb->andWhere('i.type NOT IN (:non_actionable)')
+            ->setParameter('non_actionable', IocActionablePolicy::NON_ACTIONABLE_TYPES, ArrayParameterType::STRING);
 
         if ($addedAfter instanceof \DateTimeImmutable) {
             $qb->andWhere('i.updated_at > :added_after')
