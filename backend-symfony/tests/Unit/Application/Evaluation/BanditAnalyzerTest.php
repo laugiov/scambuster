@@ -91,7 +91,7 @@ final class BanditAnalyzerTest extends TestCase
         // Well-sampled arm: a real interval and flagged reliable.
         self::assertSame(12, $stats['elderly_person']['count']);
         self::assertNotNull($stats['elderly_person']['ci_margin']);
-        self::assertLessThan($stats['elderly_person']['ci_upper'], $stats['elderly_person']['ci_lower']);
+        self::assertGreaterThan($stats['elderly_person']['ci_lower'], $stats['elderly_person']['ci_upper'], 'upper bound is above the lower bound');
         self::assertTrue($stats['elderly_person']['reliable']);
 
         // Single observation: no interval, never reliable — the average must not be

@@ -59,6 +59,6 @@ final class ConfidenceIntervalTest extends TestCase
         self::assertSame(12, $ci['n']);
         self::assertTrue($ci['reliable'], 'n>=10 with a real interval is reliable');
         self::assertNotNull($ci['margin']);
-        self::assertLessThan($ci['upper'], $ci['lower']);
+        self::assertGreaterThan($ci['lower'], $ci['upper'], 'upper bound is above the lower bound');
     }
 }

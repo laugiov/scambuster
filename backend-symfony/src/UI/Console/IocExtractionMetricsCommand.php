@@ -44,7 +44,6 @@ final class IocExtractionMetricsCommand extends Command
         }
 
         try {
-            /**  */
             $data = json_decode((string) file_get_contents($path), true, 512, JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
             $io->error('Invalid JSON: ' . $e->getMessage());
