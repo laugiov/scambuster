@@ -138,7 +138,7 @@ final readonly class BanditAnalyzer
     /**
      * @param array<string, array<int, float>> $personaRewards
      *
-     * @return array<string, array<string, float>>
+     * @return array<string, array{count: int, mean: float, stddev: float, ci_lower: float|null, ci_upper: float|null, ci_margin: float|null, reliable: bool, q1: float, median: float, q3: float}>
      */
     private function computeRewardStats(array $personaRewards): array
     {
@@ -161,10 +161,19 @@ final readonly class BanditAnalyzer
 
             $stddev = $n > 1 ? sqrt($variance / ($n - 1)) : 0.0;
 
+            // A per-arm average is not a defensible effect without its interval:
+            // pair every mean with a 95% CI and flag small samples as unreliable.
+            // $rewards is a list of floats (re-indexed by sort() above).
+            $ci = ConfidenceInterval::forMean($rewards);
+
             $stats[$persona] = [
                 'count' => $n,
                 'mean' => round($mean, 4),
                 'stddev' => round($stddev, 4),
+                'ci_lower' => $ci['lower'],
+                'ci_upper' => $ci['upper'],
+                'ci_margin' => $ci['margin'],
+                'reliable' => $ci['reliable'],
                 'q1' => round($rewards[(int) floor($n * 0.25)] ?? 0, 4),
                 'median' => round($rewards[(int) floor($n * 0.50)] ?? 0, 4),
                 'q3' => round($rewards[(int) floor($n * 0.75)] ?? 0, 4),
