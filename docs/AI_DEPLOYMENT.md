@@ -153,10 +153,11 @@ curl -s -o /dev/null -w "login %{http_code}\n" -X POST http://localhost:8081/api
   normal single install this never happens; to co-locate two, override the
   `container_name`s in a `docker-compose.override.yml`.
 - **`make quickstart` aborts with `Bind for 0.0.0.0:<port> failed: port is already
-  allocated`.** The stack publishes **8081** (backend), **8082** (backend-preprod),
-  **3002** (frontend), **5678** (n8n) and **5433** (postgres-preprod). An unrelated
-  container on the host holding any of them stops the install. `make quickstart` now
-  checks all five up front — before its destructive `down -v` — and names the
+  allocated`.** The default stack publishes **8081** (backend), **3002** (frontend)
+  and **5678** (n8n) — **8082** (backend-preprod) and **5433** (postgres-preprod)
+  only with the `preprod` Compose profile active. An unrelated container on the host
+  holding any of them stops the install. `make quickstart` checks the published
+  ports up front — before its destructive `down -v` — and names the
   offending container. Fix by stopping that container, or remap the port in
   `docker-compose.override.yml`:
 

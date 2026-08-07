@@ -15,6 +15,10 @@ services:
       - scambuster
 
   postgres-preprod:
+    # Behind the `preprod` profile: a plain `docker compose up` (and quickstart)
+    # no longer starts it. Start with `docker compose --profile preprod up -d`
+    # or by naming the service explicitly (profiles auto-activate then).
+    profiles: ["preprod"]
     image: postgres:15-alpine
     container_name: scambuster-postgres-preprod
     environment:
@@ -73,6 +77,9 @@ services:
 
   backend-test:
     <<: *backend-dev
+    # Behind the `test` profile: not started by a plain `docker compose up`.
+    # `make test` and CI start it by name (which auto-activates the profile).
+    profiles: ["test"]
     container_name: scambuster-backend-test
     environment:
       - APP_API_BASE_URL=${APP_API_BASE_URL}
@@ -89,6 +96,8 @@ services:
 
   backend-e2e:
     <<: *backend-dev
+    # Behind the `test` profile — see backend-test above.
+    profiles: ["test"]
     container_name: scambuster-backend-e2e
     environment:
       - APP_API_BASE_URL=${APP_API_BASE_URL}
@@ -105,6 +114,8 @@ services:
 
   backend-preprod:
     <<: *backend-dev
+    # Behind the `preprod` profile with its database — see postgres-preprod.
+    profiles: ["preprod"]
     container_name: scambuster-backend-preprod
     environment:
       - APP_API_BASE_URL=${APP_API_BASE_URL}
@@ -145,13 +156,16 @@ services:
 
   # GUARD canary worker — drains prompt-validation jobs (scambuster:guard:canary:work) in a
   # loop, isolated from the scheduler so a ~35-min real-LLM validation never blocks the
-  # recurring task loop. Starts with `docker compose up` like the scheduler (it adds no install
-  # STEP — just one idle-cheap container: a DB poll every CANARY_WORKER_POLL_SECONDS, and a real
-  # LLM call ONLY when the operator has clicked "Validate" and a job exists). So clicking
-  # "Validate" in the UI just works with zero shell command. Set CANARY_WORKER_ENABLED=false to
-  # turn it off. Needs the real LLM env (inherited from the backend anchor via .env).
+  # recurring task loop. Idle-cheap: a DB poll every CANARY_WORKER_POLL_SECONDS, and a real
+  # LLM call ONLY when the operator has clicked "Validate" and a job exists.
+  # Behind the `canary` profile: start it with `docker compose up -d canary-worker`
+  # (or `docker compose --profile canary up -d`) before using "Validate" in the UI —
+  # a plain `docker compose up` / quickstart no longer starts it. Alternative without
+  # the worker: `make guard-canary-work` drains one job on demand.
+  # Needs the real LLM env (inherited from the backend anchor via .env).
   canary-worker:
     <<: *backend-dev
+    profiles: ["canary"]
     container_name: scambuster-canary-worker
     ports: []
     command: ["sh", "/opt/canary-worker.sh"]
