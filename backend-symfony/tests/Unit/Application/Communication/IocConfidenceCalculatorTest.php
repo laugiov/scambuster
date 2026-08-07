@@ -32,36 +32,35 @@ class IocConfidenceCalculatorTest extends TestCase
         $this->assertSame(0.80, IocConfidenceCalculator::getBaseConfidence('unknown'));
     }
 
-    // --- Boost confidence ---
+    // --- Boost confidence (driven by DISTINCT corroborating sources) ---
 
-    public function testBoostWithSingleOccurrence(): void
+    public function testSingleSourceNeverBoosts(): void
     {
+        // The argument is now the count of DISTINCT corroborating sources. Raw
+        // repetition of the same value from one source is not corroboration (it is
+        // the poisoning vector), so a single source never lifts confidence.
         $this->assertSame(0.75, IocConfidenceCalculator::boostConfidence(0.75, 1));
-    }
-
-    public function testBoostWithTwoOccurrences(): void
-    {
-        // 1 - (1-0.75)^2 = 1 - 0.0625 = 0.9375
-        $result = IocConfidenceCalculator::boostConfidence(0.75, 2);
-        $this->assertEqualsWithDelta(0.9375, $result, 0.001);
-    }
-
-    public function testBoostWithThreeOccurrences(): void
-    {
-        // 1 - (1-0.75)^3 = 1 - 0.015625 = 0.984375
-        $result = IocConfidenceCalculator::boostConfidence(0.75, 3);
-        $this->assertEqualsWithDelta(0.984, $result, 0.001);
-    }
-
-    public function testBoostCappedAtOne(): void
-    {
-        $result = IocConfidenceCalculator::boostConfidence(0.95, 100);
-        $this->assertLessThanOrEqual(1.0, $result);
-    }
-
-    public function testBoostWithZeroOccurrences(): void
-    {
         $this->assertSame(0.75, IocConfidenceCalculator::boostConfidence(0.75, 0));
+    }
+
+    public function testDistinctSourcesBoostLinearly(): void
+    {
+        // +0.05 per corroborating source beyond the first.
+        $this->assertEqualsWithDelta(0.80, IocConfidenceCalculator::boostConfidence(0.75, 2), 0.0001);
+        $this->assertEqualsWithDelta(0.85, IocConfidenceCalculator::boostConfidence(0.75, 3), 0.0001);
+    }
+
+    public function testCorroborationBoostIsHardCapped(): void
+    {
+        // Volume alone can never drive confidence to ~1.0: the lift saturates at
+        // +0.15, so many sources of the same value stay bounded.
+        $this->assertEqualsWithDelta(0.90, IocConfidenceCalculator::boostConfidence(0.75, 4), 0.0001);
+        $this->assertEqualsWithDelta(0.90, IocConfidenceCalculator::boostConfidence(0.75, 50), 0.0001);
+    }
+
+    public function testBoostNeverExceedsOne(): void
+    {
+        $this->assertLessThanOrEqual(1.0, IocConfidenceCalculator::boostConfidence(0.95, 100));
     }
 
     // --- Decay factor ---

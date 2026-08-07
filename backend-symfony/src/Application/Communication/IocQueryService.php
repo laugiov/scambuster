@@ -219,7 +219,16 @@ class IocQueryService
         }
 
         $baseConfidence = IocConfidenceCalculator::getBaseConfidence('unknown');
-        $confidence = IocConfidenceCalculator::boostConfidence($baseConfidence, $occurrences);
+        // Corroboration = distinct conversations that observed the value, not the
+        // raw `occurrences` count (which a single adversary can inflate).
+        $distinctSourcesRow = $conn->fetchOne(
+            'SELECT COUNT(DISTINCT m.conv_id)
+             FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id
+             WHERE oi.indicator_id = :id',
+            ['id' => $indicatorId],
+        );
+        $distinctSources = is_numeric($distinctSourcesRow) ? (int) $distinctSourcesRow : 1;
+        $confidence = IocConfidenceCalculator::boostConfidence($baseConfidence, $distinctSources);
         $decayFactor = IocConfidenceCalculator::computeDecayFactor($type, $lastSeenDt);
         $effectiveScore = round($confidence * $decayFactor, 4);
 
@@ -287,6 +296,9 @@ class IocQueryService
                 'conv_scam_type' => is_string($obs['scam_type_code']) ? $obs['scam_type_code'] : 'unknown',
                 'extraction_method' => $extractionMethod,
                 'ts_observed' => $this->normalizeTimestamp($obs['ts_observed']),
+                // Integrity flags recorded at ingest (null for older rows).
+                'grounded' => \is_array($obsContext) && \is_bool($obsContext['grounded'] ?? null) ? $obsContext['grounded'] : null,
+                'valid' => \is_array($obsContext) && \is_bool($obsContext['valid'] ?? null) ? $obsContext['valid'] : null,
             ];
         }
 

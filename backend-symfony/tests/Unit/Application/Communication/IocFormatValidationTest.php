@@ -39,20 +39,18 @@ final class IocFormatValidationTest extends TestCase
     public function testIbanValidFrench(): void
     {
         $this->assertTrue(
-            $this->validator->validate('iban', 'FR7612345678901234567890185'),
+            $this->validator->validate('iban', 'FR1420041010050500013M02606'),
             'Valid French IBAN should pass',
         );
     }
 
     public function testIbanInvalidAllZeroChecksum(): void
     {
-        // Format-valid but DE00... — the regex does not check IBAN checksum,
-        // only structural format (2 alpha + 2 digits + 1-30 alphanumeric).
-        // This is a known limitation: the regex accepts structurally valid
-        // IBANs without checksum verification.
-        $this->assertTrue(
+        // Structurally well-formed but the ISO 7064 mod-97 check fails — a
+        // fabricated IBAN must be rejected, not accepted on format alone.
+        $this->assertFalse(
             $this->validator->validate('iban', 'DE00000000000000000000'),
-            'IBAN regex validates structure only, not checksum (known limitation)',
+            'IBAN with an invalid mod-97 checksum must be rejected',
         );
     }
 
@@ -142,7 +140,7 @@ final class IocFormatValidationTest extends TestCase
     public function testBtcValidP2sh(): void
     {
         $this->assertTrue(
-            $this->validator->validate('wallet_btc', '3J98t1WpEZ73CNmYviecrnyiWrnqRhWNLy'),
+            $this->validator->validate('wallet_btc', '3J98t1WpEZ73CNmQviecrnyiWrnqRhWNLy'),
             'Valid P2SH (3-prefix) BTC address should pass',
         );
     }
@@ -170,7 +168,7 @@ final class IocFormatValidationTest extends TestCase
     public function testEthValid(): void
     {
         $this->assertTrue(
-            $this->validator->validate('wallet_eth', '0x742d35Cc6634C0532925a3b844Bc9e7595f2bD21'),
+            $this->validator->validate('wallet_eth', '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'),
             'Valid 42-char ETH address should pass',
         );
     }
@@ -407,7 +405,7 @@ final class IocFormatValidationTest extends TestCase
         yield 'ipv4_public' => ['ipv4', '203.0.113.1'];
         yield 'iban_gb' => ['iban', 'GB29NWBK60161331926819'];
         yield 'wallet_btc_legacy' => ['wallet_btc', '1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa'];
-        yield 'wallet_eth_full' => ['wallet_eth', '0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb0'];
+        yield 'wallet_eth_full' => ['wallet_eth', '0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed'];
         yield 'sha256_known' => ['sha256', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'];
         yield 'phone_international' => ['phone', '+441234567890'];
         yield 'cve_log4shell' => ['cve', 'CVE-2021-44228'];

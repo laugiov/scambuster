@@ -40,9 +40,23 @@ final readonly class IocClusteringService
         '0x95ad61b0a150d79219dcf64e1e6cc01f0b64c4ce' => true, // SHIB
     ];
 
+    // Structural specificity thresholds for an anchor to form an edge — mirror
+    // VerifyClusterQualityCommand (previously report-only). A shorter value is
+    // generic and must not merge conversations.
+    private const MIN_IBAN_LENGTH = 15;
+    private const MIN_PHONE_DIGITS = 10;
+    private const MIN_CRYPTO_LENGTH = 25;
+
     public function __construct(
         private Connection $conn,
         private LoggerInterface $logger,
+        // An anchor shared across more than this many DISTINCT conversations is not
+        // actor-specific (a reused mule / exchange-deposit / payment-processor
+        // account) and must not form a clustering edge. Tunable per deployment.
+        private int $maxAnchorConversations = 25,
+        // Weak anchor types (phone) are more easily shared/reused/spoofed, so a
+        // shared IBAN weighs more than a shared phone: phones hit a tighter cap.
+        private int $maxWeakAnchorConversations = 10,
     ) {
         // Determine anchor types from IocConfidenceCalculator (single source of truth)
         // Only types that are HIGH WITHOUT enrichment (computeSeverity with vt=0, urlscan=0)
@@ -90,10 +104,42 @@ final readonly class IocClusteringService
                 WHERE m.conv_id = ?
                   AND i.type IN ({$placeholders})
             ),
-            shared_conversations AS (
-                SELECT DISTINCT m2.conv_id, cai.type, cai.canon AS value_norm
+            anchor_freq AS (
+                -- Distinct conversations referencing each anchor globally. An anchor
+                -- shared across too many conversations is not actor-specific (a
+                -- reused mule / exchange-deposit / processor account) and is dropped
+                -- so it never merges unrelated actors into one cluster.
+                SELECT i.type, ({$canonCai}) AS canon, COUNT(DISTINCT m.conv_id) AS conv_count
+                FROM indicator i
+                JOIN observed_ioc oi ON i.indicator_id = oi.indicator_id
+                JOIN message m ON oi.msg_id = m.msg_id
+                WHERE i.type IN ({$placeholders})
+                GROUP BY i.type, ({$canonCai})
+            ),
+            eligible_anchors AS (
+                SELECT cai.type, cai.canon
                 FROM conv_anchor_iocs cai
-                JOIN indicator i2 ON i2.type = cai.type AND ({$canonI2}) = cai.canon
+                JOIN anchor_freq af ON af.type = cai.type AND af.canon = cai.canon
+                -- Type weighting: phones (weak, easily shared) hit a tighter
+                -- frequency cap than financial anchors (IBAN/wallets weigh more).
+                WHERE (
+                    (cai.type = 'phone' AND af.conv_count <= ?)
+                    OR (cai.type <> 'phone' AND af.conv_count <= ?)
+                  )
+                  -- Structural specificity (mirrors VerifyClusterQualityCommand,
+                  -- previously report-only): a too-short/generic anchor never forms
+                  -- an edge. Canon is stripped, so length == digits for phone.
+                  AND (
+                    (cai.type = 'iban' AND length(cai.canon) >= " . self::MIN_IBAN_LENGTH . ")
+                    OR (cai.type = 'phone' AND length(cai.canon) >= " . self::MIN_PHONE_DIGITS . ")
+                    OR (cai.type IN ('wallet_btc', 'wallet_eth', 'wallet_xmr') AND length(cai.canon) >= " . self::MIN_CRYPTO_LENGTH . ")
+                    OR (cai.type IN ('bank_account', 'credit_card'))
+                  )
+            ),
+            shared_conversations AS (
+                SELECT DISTINCT m2.conv_id, ea.type, ea.canon AS value_norm
+                FROM eligible_anchors ea
+                JOIN indicator i2 ON i2.type = ea.type AND ({$canonI2}) = ea.canon
                 JOIN observed_ioc oi2 ON oi2.indicator_id = i2.indicator_id
                 JOIN message m2 ON oi2.msg_id = m2.msg_id
                 WHERE m2.conv_id != ?
@@ -103,7 +149,12 @@ final readonly class IocClusteringService
             GROUP BY conv_id
         ";
 
-        $params = array_merge([$convId], $this->anchorTypes, [$convId]);
+        $params = array_merge(
+            [$convId],
+            $this->anchorTypes,
+            $this->anchorTypes,
+            [$this->maxWeakAnchorConversations, $this->maxAnchorConversations, $convId],
+        );
 
         /** @var array<int, array{conv_id: string, shared_iocs: string}> */
         return $this->conn->fetchAllAssociative($sql, $params);
@@ -114,7 +165,9 @@ final readonly class IocClusteringService
      * matching — formatting-only, per type:
      *  - iban: strip non-alphanumerics + uppercase (IBANs are case-insensitive).
      *  - wallet_eth: strip non-alphanumerics + lowercase (ETH hex is case-insensitive).
-     *  - bank_account / credit_card / phone: keep digits only (drop +, spaces, dashes).
+     *  - phone: keep digits, then drop a leading "00" international-call prefix so
+     *    +33…, 0033… and 33… collapse to one E.164-ish key (against under-merge).
+     *  - bank_account / credit_card: keep digits only (drop +, spaces, dashes).
      *  - wallet_btc / wallet_xmr (and anything else): unchanged — base58 is
      *    case-sensitive, so we never fold it (folding would corrupt the address).
      *
@@ -125,7 +178,8 @@ final readonly class IocClusteringService
         return "CASE
             WHEN {$alias}.type = 'iban' THEN upper(regexp_replace({$alias}.value_norm, '[^A-Za-z0-9]', '', 'g'))
             WHEN {$alias}.type = 'wallet_eth' THEN lower(regexp_replace({$alias}.value_norm, '[^A-Za-z0-9]', '', 'g'))
-            WHEN {$alias}.type IN ('bank_account', 'credit_card', 'phone') THEN regexp_replace({$alias}.value_norm, '[^0-9]', '', 'g')
+            WHEN {$alias}.type = 'phone' THEN regexp_replace(regexp_replace({$alias}.value_norm, '[^0-9]', '', 'g'), '^00', '')
+            WHEN {$alias}.type IN ('bank_account', 'credit_card') THEN regexp_replace({$alias}.value_norm, '[^0-9]', '', 'g')
             ELSE {$alias}.value_norm
         END";
     }

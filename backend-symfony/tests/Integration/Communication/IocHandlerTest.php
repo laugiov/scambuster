@@ -901,7 +901,7 @@ class IocHandlerTest extends KernelTestCase
     public function testRegexExtractionFindsIban(): void
     {
         $message = $this->createTestMessage(
-            bodyText: 'Transfer to FR7612345678901234567890123 immediately'
+            bodyText: 'Transfer to FR1420041010050500013M02606 immediately'
         );
 
         $iocs = $this->iocHandler->extractIocsFromMessage($message->getMsgId(), 'regex', []);
