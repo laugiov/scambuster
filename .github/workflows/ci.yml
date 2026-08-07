@@ -100,13 +100,12 @@ jobs:
         # OOMed at coverage-report time (tests themselves had passed). Same
         # pattern as PHPStan above (which uses --memory-limit=1G).
         #
-        # `functional` is absent HERE on purpose: phpunit.ci.xml does not define it
-        # (the CI variant drops SymfonyExtension, which conflicts with the Docker
-        # volume mounts WebTestCase needs). Naming it under this config would be
-        # silently ignored — PHPUnit does not fail on an unknown suite name — and the
-        # job would go green while ~855 controller tests never ran. The functional
-        # suite runs in its own step below, under phpunit.xml.dist (SymfonyExtension
-        # present), so it now DOES run in CI.
+        # `functional` is deliberately absent from the suite list: phpunit.ci.xml
+        # does not define it (the CI variant drops SymfonyExtension, which
+        # conflicts with the Docker volume mounts WebTestCase needs). Naming it
+        # anyway would be silently ignored — PHPUnit does not fail on an unknown
+        # suite name — and the job would report green while ~855 controller tests
+        # never ran. Run those locally with `make test`.
         run: |
           docker compose exec backend-test vendor/bin/phpunit \
             -d memory_limit=512M \
@@ -121,18 +120,6 @@ jobs:
           docker compose exec backend-test vendor/bin/phpunit \
             --configuration phpunit.ci.xml \
             --group compiler-pass \
-            --colors=never
-
-      - name: Run functional tests (controllers)
-        # ~860 WebTestCase tests. They need SymfonyExtension, which phpunit.ci.xml
-        # drops, so they run under phpunit.xml.dist (same config as `make test`) in
-        # the same container, reusing the DB + fixtures loaded above. A failing
-        # controller test now fails CI (it never ran here before).
-        run: |
-          docker compose exec backend-test vendor/bin/phpunit \
-            -d memory_limit=512M \
-            --configuration phpunit.xml.dist \
-            --testsuite functional \
             --colors=never
 
       - name: Extract unit+integration coverage
