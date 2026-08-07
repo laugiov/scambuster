@@ -376,6 +376,23 @@ class PolicyGuardTest extends TestCase
             'fbi agent EN' => ['I am an fbi agent and you are under investigation.'],
             'works for police EN' => ['I work for the police department here.'],
             'arrest warrant FR' => ["J'ai un mandat d'arrêt contre vous."],
+            // Commercial bank + tax-authority impersonation, and more languages.
+            'bank advisor FR' => ['Je suis votre conseiller bancaire, service sécurité.'],
+            'bank FR' => ['Je suis de votre banque et je dois vérifier votre compte.'],
+            'tax FR' => ['Je suis un agent des impôts.'],
+            'fisc FR' => ['Je suis du fisc pour un recouvrement.'],
+            'bank EN' => ['I am calling from your bank about suspicious activity.'],
+            'bank rep EN' => ['I am your bank representative and need your details.'],
+            'irs EN' => ['I am from the IRS regarding unpaid taxes.'],
+            'hmrc EN' => ['I am with HMRC about your tax return.'],
+            'police ES' => ['Soy de la policía nacional.'],
+            'bank ES' => ['Soy del banco, departamento de seguridad.'],
+            'tax ES' => ['Soy de Hacienda, la agencia tributaria.'],
+            'police DE' => ['Ich bin von der Polizei.'],
+            'bank DE' => ['Ich bin von Ihrer Bank.'],
+            'tax DE' => ['Ich bin vom Finanzamt.'],
+            'police IT' => ['Sono della polizia di stato.'],
+            'bank IT' => ['Sono della banca, ufficio sicurezza.'],
         ];
     }
 

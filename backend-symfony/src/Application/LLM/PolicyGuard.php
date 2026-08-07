@@ -100,6 +100,25 @@ final readonly class PolicyGuard
         '/\bi work for\s+(?:the police|law enforcement|interpol|europol|the fbi)\b/i',
         '/\bau nom de la loi\b/i',
         '/\bmandat d\'arrêt\b/i',
+
+        // Commercial-bank impersonation (the bait must never claim to BE the bank).
+        '/\bje suis\s+(?:votre\s+)?(?:conseill(?:er|ère)\s+bancaire|de\s+(?:la|votre)\s+banque)\b/iu',
+        '/\bi(?:\'m| am)\s+(?:calling\s+)?(?:from|with)\s+(?:your\s+)?bank\b/iu',
+        '/\bi(?:\'m| am)\s+(?:your\s+)?bank\s+(?:representative|advisor|rep)\b/iu',
+        '/\bsoy\s+del?\s+banco\b/iu',
+        '/\bich\s+bin\s+von\s+(?:der|ihrer)\s+bank\b/iu',
+        '/\bsono\s+(?:della|di)\s+banca\b/iu',
+
+        // Tax-authority impersonation (fisc / IRS / HMRC / Hacienda / Finanzamt).
+        '/\bje suis\s+(?:un\s+)?(?:agent\s+)?(?:des\s+imp[oô]ts|du\s+fisc|de\s+la\s+dgfip)\b/iu',
+        '/\bi(?:\'m| am)\s+(?:from|with)\s+(?:the\s+)?(?:irs|hmrc|tax\s+(?:office|authority|department))\b/iu',
+        '/\bsoy\s+de\s+(?:hacienda|la\s+agencia\s+tributaria)\b/iu',
+        '/\bich\s+bin\s+vom\s+finanzamt\b/iu',
+
+        // Police / law-enforcement impersonation in more languages (ES/DE/IT).
+        '/\bsoy\s+(?:de\s+la\s+)?polic[ií]a\b/iu',
+        '/\bich\s+bin\s+(?:von\s+der\s+polizei|polizist|kommissar)\b/iu',
+        '/\bsono\s+(?:un\s+)?(?:poliziotto|della\s+polizia)\b/iu',
     ];
 
     /** @var array<string> PII patterns to detect and reject.
