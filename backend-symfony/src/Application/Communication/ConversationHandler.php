@@ -86,7 +86,12 @@ class ConversationHandler
             if (!$status instanceof \App\Domain\Communication\ConversationStatus) {
                 throw new \RuntimeException('Invalid status');
             }
-            $conv->setStatus($status);
+            match ($status) {
+                \App\Domain\Communication\ConversationStatus::OPEN => $conv->reopen(),
+                \App\Domain\Communication\ConversationStatus::CLOSED => $conv->close(),
+                \App\Domain\Communication\ConversationStatus::ABANDONED => $conv->markAsAbandoned(),
+                \App\Domain\Communication\ConversationStatus::MISTAKE => $conv->markAsMistake(),
+            };
             $updated = true;
         }
 

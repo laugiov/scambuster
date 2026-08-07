@@ -132,11 +132,6 @@ class Conversation
         $this->tsLast = $tsLast;
     }
 
-    public function setStatus(ConversationStatus $status): void
-    {
-        $this->status = $status;
-    }
-
     public function setScoreRisk(int $scoreRisk): void
     {
         $this->scoreRisk = $scoreRisk;
@@ -189,6 +184,14 @@ class Conversation
     public function reopen(): void
     {
         $this->status = ConversationStatus::OPEN;
+    }
+
+    /**
+     * Mark this conversation as opened by mistake (not a real scammer thread).
+     */
+    public function markAsMistake(): void
+    {
+        $this->status = ConversationStatus::MISTAKE;
     }
 
     /**

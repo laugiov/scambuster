@@ -327,7 +327,7 @@ class MessageControllerTest extends WebTestCase
         $conv = $em->getRepository(\App\Domain\Communication\Conversation::class)->findOneBy(['status' => 'closed']);
         if (!$conv) {
             $conv = $em->getRepository(\App\Domain\Communication\Conversation::class)->findOneBy([]);
-            $conv->setStatus(ConversationStatus::CLOSED);
+            $conv->close();
             $em->flush();
         }
         $channel = $em->getRepository(\App\Domain\Communication\Channel::class)->findOneBy([]);

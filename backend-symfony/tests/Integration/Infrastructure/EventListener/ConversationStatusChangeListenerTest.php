@@ -32,7 +32,7 @@ class ConversationStatusChangeListenerTest extends KernelTestCase
         $this->em->flush();
 
         // Close directly via entity (bypassing ConversationClosureService)
-        $conv->setStatus(ConversationStatus::CLOSED);
+        $conv->close();
         $this->em->flush();
 
         // Listener should have calculated reward
@@ -51,7 +51,7 @@ class ConversationStatusChangeListenerTest extends KernelTestCase
         $this->em->flush();
 
         $conv->setRewardValue(0.75);
-        $conv->setStatus(ConversationStatus::CLOSED);
+        $conv->close();
         $this->em->flush();
 
         // Listener should skip because reward already set
@@ -74,7 +74,7 @@ class ConversationStatusChangeListenerTest extends KernelTestCase
         $this->em->flush();
 
         // Change to ABANDONED (not CLOSED)
-        $conv->setStatus(ConversationStatus::ABANDONED);
+        $conv->markAsAbandoned();
         $this->em->flush();
 
         // Listener should NOT calculate reward for ABANDONED
@@ -97,7 +97,7 @@ class ConversationStatusChangeListenerTest extends KernelTestCase
         $this->em->flush();
 
         // Close without persona -- should not throw regardless of outcome
-        $conv->setStatus(ConversationStatus::CLOSED);
+        $conv->close();
         $this->em->flush();
 
         // No exception means graceful handling

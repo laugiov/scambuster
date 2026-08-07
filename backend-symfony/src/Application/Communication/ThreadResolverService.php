@@ -358,7 +358,7 @@ class ThreadResolverService
             }
 
             $previousReward = $conversation->getRewardValue();
-            $conversation->setStatus(ConversationStatus::OPEN);
+            $conversation->reopen();
             $conversation->resetRewardValue();
             // Explicit flush. Without it, downstream
             // Doctrine UoW change-tracking does NOT emit an UPDATE on the
@@ -377,7 +377,7 @@ class ThreadResolverService
             ]);
         } else {
             $previousReward = $conversation->getRewardValue();
-            $conversation->setStatus(ConversationStatus::OPEN);
+            $conversation->reopen();
             $conversation->resetRewardValue();
             // Same persistence fix as the windowed branch.
             $this->em->flush();
