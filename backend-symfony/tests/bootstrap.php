@@ -2,6 +2,10 @@
 use Symfony\Component\Dotenv\Dotenv;
 require __DIR__ . '/../vendor/autoload.php';
 
+// Idempotent (include_once) class loading — prevents the App\Kernel double-declare
+// fatal that surfaces when the kernel is first compiled in some environments.
+require __DIR__ . '/kernel_autoload_guard.php';
+
 require __DIR__ . '/../config/bootstrap.php';
 
 
