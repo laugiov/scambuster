@@ -54,7 +54,7 @@ The system operator (deploying organization) acts as data controller. The softwa
 
 ### 2.1 Primary Legal Basis
 
-**Legitimate interest** (GDPR Article 6(1)f)):
+**Legitimate interest** (GDPR Article 6(1)(f)):
 - The legitimate interest is cybersecurity defense and threat intelligence production
 - Scammers initiate contact; the system only responds to unsolicited messages
 - The system never *contacts* third parties (inbound-only architecture,
