@@ -166,6 +166,7 @@ export interface IocDetail {
   observations: IocObservation[];
   related_iocs: IocRelated[];
   analyst_verdict?: 'confirmed' | 'false_positive' | null;
+  analyst_note?: string | null;
   export_held?: boolean;
 }
 

@@ -993,6 +993,7 @@
     "selectForConfirm": "Select for confirmation",
     "heldShort": "HELD",
     "confirmedShort": "OK",
-    "fpShort": "FP"
+    "fpShort": "FP",
+    "saved": "Verdict recorded ✓"
   }
 }

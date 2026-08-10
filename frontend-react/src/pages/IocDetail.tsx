@@ -143,6 +143,7 @@ export function IocDetail() {
       <IocVerdictPanel
         indicatorId={detail.indicator_id}
         verdict={detail.analyst_verdict}
+        note={detail.analyst_note}
         exportHeld={detail.export_held}
       />
 

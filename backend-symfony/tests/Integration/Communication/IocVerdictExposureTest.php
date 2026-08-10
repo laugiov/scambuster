@@ -113,9 +113,12 @@ final class IocVerdictExposureTest extends KernelTestCase
         self::assertNull($held['analyst_verdict']);
         self::assertTrue($held['export_held']);
 
+        self::assertNull($held['analyst_note'], 'no feedback row yet → no note');
+
         $confirmed = $this->handler->getIocDetail(self::IBAN_CONFIRMED);
         self::assertSame('confirmed', $confirmed['analyst_verdict']);
         self::assertFalse($confirmed['export_held']);
+        self::assertSame('test', $confirmed['analyst_note'], 'the recorded note must round-trip to the detail view');
 
         $fp = $this->handler->getIocDetail(self::DOMAIN_FP);
         self::assertSame('false_positive', $fp['analyst_verdict']);

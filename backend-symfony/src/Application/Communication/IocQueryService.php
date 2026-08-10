@@ -357,14 +357,16 @@ class IocQueryService
             ];
         }
 
-        // 7. Analyst-review status (verdict + export hold), so the detail view
-        // can badge the IOC and offer the release action (IocExportPolicy).
-        $verdictRow = $conn->fetchOne(
-            'SELECT verdict FROM ioc_analyst_feedback WHERE indicator_id = :id',
+        // 7. Analyst-review status (verdict + note + export hold), so the detail
+        // view can badge the IOC, show the recorded note and offer the release
+        // action (IocExportPolicy).
+        $feedbackRow = $conn->fetchAssociative(
+            'SELECT verdict, note FROM ioc_analyst_feedback WHERE indicator_id = :id',
             ['id' => $indicatorId],
         );
-        $verdictStr = is_string($verdictRow) ? $verdictRow : null;
+        $verdictStr = \is_array($feedbackRow) && is_string($feedbackRow['verdict'] ?? null) ? $feedbackRow['verdict'] : null;
         $verdict = $verdictStr !== null ? AnalystVerdict::tryFrom($verdictStr) : null;
+        $analystNote = \is_array($feedbackRow) && is_string($feedbackRow['note'] ?? null) ? $feedbackRow['note'] : null;
 
         return [
             'indicator_id' => $indicatorId,
@@ -386,6 +388,7 @@ class IocQueryService
             'observations' => $formattedObservations,
             'related_iocs' => $formattedRelated,
             'analyst_verdict' => $verdictStr,
+            'analyst_note' => $analystNote,
             'export_held' => IocExportPolicy::isHeldForReview($type, $verdict),
         ];
     }

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/Badge';
 import { useSubmitIocVerdict, type IocVerdict } from '@/hooks/useIocVerdict';
@@ -6,6 +6,7 @@ import { useSubmitIocVerdict, type IocVerdict } from '@/hooks/useIocVerdict';
 interface IocVerdictPanelProps {
   indicatorId: string;
   verdict?: 'confirmed' | 'false_positive' | null;
+  note?: string | null;
   exportHeld?: boolean;
 }
 
@@ -17,10 +18,16 @@ interface IocVerdictPanelProps {
  * (removes the IOC from every export). Inline note + inline error — the app
  * has no modal/toast system, by design.
  */
-export function IocVerdictPanel({ indicatorId, verdict, exportHeld }: IocVerdictPanelProps) {
+export function IocVerdictPanel({ indicatorId, verdict, note: existingNote, exportHeld }: IocVerdictPanelProps) {
   const { t } = useTranslation();
-  const [note, setNote] = useState('');
+  const [note, setNote] = useState(existingNote ?? '');
   const submit = useSubmitIocVerdict();
+
+  // The detail loads asynchronously: sync the input once the recorded note
+  // arrives (and after a re-submit refetches it).
+  useEffect(() => {
+    setNote(existingNote ?? '');
+  }, [existingNote]);
 
   const onSubmit = (v: IocVerdict) => {
     submit.mutate({ indicatorId, verdict: v, note: note.trim() || undefined });
@@ -57,7 +64,7 @@ export function IocVerdictPanel({ indicatorId, verdict, exportHeld }: IocVerdict
         <button
           type="button"
           onClick={() => onSubmit('confirmed')}
-          disabled={submit.isPending || verdict === 'confirmed'}
+          disabled={submit.isPending}
           className="text-xs px-3 py-1.5 rounded bg-accent text-surface-base font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           data-testid="verdict-confirm"
         >
@@ -66,13 +73,18 @@ export function IocVerdictPanel({ indicatorId, verdict, exportHeld }: IocVerdict
         <button
           type="button"
           onClick={() => onSubmit('false_positive')}
-          disabled={submit.isPending || verdict === 'false_positive'}
+          disabled={submit.isPending}
           className="text-xs px-3 py-1.5 rounded border border-surface-base text-on-surface hover:text-red-400 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
           data-testid="verdict-false-positive"
         >
           {t('iocVerdict.falsePositiveAction')}
         </button>
         {submit.isPending && <span className="text-xs text-on-surface-dim">{t('iocVerdict.saving')}</span>}
+        {submit.isSuccess && !submit.isPending && (
+          <span className="text-xs text-success" role="status" data-testid="verdict-saved">
+            {t('iocVerdict.saved')}
+          </span>
+        )}
       </div>
 
       {submit.isError && (
