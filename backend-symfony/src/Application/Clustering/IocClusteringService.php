@@ -612,7 +612,9 @@ final readonly class IocClusteringService
              FROM indicator i
              JOIN observed_ioc oi ON i.indicator_id = oi.indicator_id
              JOIN message m ON oi.msg_id = m.msg_id
-             WHERE m.conv_id = ? AND i.type IN ({$placeholders})",
+             LEFT JOIN ioc_analyst_feedback f ON i.indicator_id = f.indicator_id
+             WHERE m.conv_id = ? AND i.type IN ({$placeholders})
+               AND (f.verdict IS NULL OR f.verdict <> 'false_positive')",
             array_merge([$convId], $this->anchorTypes)
         );
 
