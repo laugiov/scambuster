@@ -71,8 +71,10 @@ final readonly class IocStixExportHandler
             LEFT JOIN conversation c ON m.conv_id = c.conv_id
             LEFT JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
             LEFT JOIN ioc_context ic ON oi.obs_id = ic.obs_id
+            LEFT JOIN ioc_analyst_feedback f ON i.indicator_id = f.indicator_id
             WHERE i.indicator_id IN ({$placeholders})
-            ORDER BY i.first_seen DESC",
+              AND " . \App\Domain\Communication\Policy\IocExportPolicy::sqlCondition('i', 'f') . '
+            ORDER BY i.first_seen DESC',
             array_values($indicatorIds)
         )->fetchAllAssociative();
 

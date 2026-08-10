@@ -580,12 +580,16 @@ final readonly class ClusterQueryService implements ClusterBehaviourReaderInterf
             $attckTechniques = array_map(fn (mixed $v): string => \is_string($v) ? $v : '', $attckTechniques);
         }
 
-        // Get full indicator data for STIX indicator objects
+        // Get full indicator data for STIX indicator objects. Export hold applies:
+        // financial IOCs without an analyst confirmation, and analyst false
+        // positives, must not leave the platform (see IocExportPolicy).
         $indicatorData = $this->conn->fetchAllAssociative(
             'SELECT taci.indicator_id, i.type, i.value, i.value_norm
              FROM threat_actor_cluster_ioc taci
              JOIN indicator i ON i.indicator_id = taci.indicator_id
-             WHERE taci.cluster_id = :id',
+             LEFT JOIN ioc_analyst_feedback f ON i.indicator_id = f.indicator_id
+             WHERE taci.cluster_id = :id
+               AND ' . \App\Domain\Communication\Policy\IocExportPolicy::sqlCondition('i', 'f'),
             ['id' => $clusterId]
         );
 
