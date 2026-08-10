@@ -11,6 +11,7 @@ use App\Application\Communication\IocHandler;
 use App\Application\Communication\TtpMispTagProvider;
 use App\Application\ThreatActor\IocFeedbackReaderInterface;
 use App\Domain\Communication\ObservedIoc;
+use App\Domain\Communication\Policy\IocExportPolicy;
 use App\Domain\ThreatActor\AnalystVerdict;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -134,6 +135,16 @@ final readonly class ExportMispController
             $tags = $this->buildTags($context);
 
             $verdict = $verdicts[$ioc->getIndicatorId()] ?? null;
+
+            // Export hold: analyst false positives never leave the platform, and
+            // financial IOCs (possible mule/victim accounts) are held until an
+            // analyst confirms them — a to_ids=false attribute still ships the
+            // value. See IocExportPolicy.
+            $iocType = \is_string($context['type'] ?? null) ? $context['type'] : '';
+
+            if (!IocExportPolicy::isExportable($iocType, $verdict)) {
+                continue;
+            }
 
             if ($verdict instanceof AnalystVerdict) {
                 $toIds = $verdict === AnalystVerdict::Confirmed;

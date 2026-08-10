@@ -147,7 +147,7 @@ class ExportMispControllerTest extends TestCase
         $this->assertSame('ScamBuster honeypot IOC', $data['Event']['Attribute'][0]['comment']);
     }
 
-    public function test_false_positive_verdict_disables_to_ids_and_tags_the_attribute(): void
+    public function test_false_positive_verdict_drops_the_attribute_entirely(): void
     {
         $ioc = $this->createMock(ObservedIoc::class);
         $ioc->method('getIndicatorId')->willReturn('ind-fp');
@@ -165,11 +165,9 @@ class ExportMispControllerTest extends TestCase
         $controller = new ExportMispController($this->iocHandler, $this->exportMapper, null, null, $reader);
         $data = json_decode($controller->__invoke('conv-123')->getContent(), true);
 
-        $attr = $data['Event']['Attribute'][0];
-        // A known false-positive must never be auto-actioned by a downstream MISP consumer.
-        $this->assertFalse($attr['to_ids']);
-        $tagNames = array_column($attr['Tag'], 'name');
-        $this->assertContains('scambuster:analyst-verdict="false_positive"', $tagNames);
+        // A known false positive never leaves the platform at all (IocExportPolicy):
+        // even a to_ids=false attribute would still ship the value.
+        $this->assertSame([], $data['Event']['Attribute']);
     }
 
     public function test_confirmed_verdict_enables_to_ids_and_tags_the_attribute(): void

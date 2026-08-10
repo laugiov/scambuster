@@ -168,7 +168,7 @@ final class ConversationStixExportWithPsychProfileTest extends WebTestCase
         }
     }
 
-    public function testFalsePositiveVerdictDropsIndicatorConfidenceInExport(): void
+    public function testFalsePositiveVerdictDropsIndicatorFromExport(): void
     {
         $row = $this->conn->fetchAssociative(
             "SELECT tacc.conv_id, i.indicator_id
@@ -202,9 +202,9 @@ final class ConversationStixExportWithPsychProfileTest extends WebTestCase
             }
         }
 
-        self::assertNotNull($matched, 'the flagged indicator should be in the bundle');
-        // false_positive → 0.05 → STIX confidence 5.
-        self::assertSame(5, $matched['confidence']);
+        // A false positive never leaves the platform at all (IocExportPolicy) —
+        // shipping it even at confidence 5 would still disseminate the value.
+        self::assertNull($matched, 'an analyst false positive must be absent from the exported bundle');
     }
 
     public function testExportedBundleContainsSightingSdos(): void

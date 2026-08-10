@@ -20,6 +20,26 @@ Operating ScamBuster is **your** responsibility. By deploying it you accept that
 - It does not generate forged documents, fake identity papers, or fraudulent financial instruments.
 - It does not impersonate real people or real organizations without operator-configured, fictional decoy identities.
 
+## On forks and the guardrails
+
+ScamBuster is MIT-licensed, and we are honest about what that means: the license
+**legally permits** a fork to remove the inbound-only enforcement, PolicyGuard,
+the payment-instigation guard, the export holds, or any other safeguard. We
+chose a permissive license so defenders can adopt and adapt the platform freely
+— not to bless weaponized derivatives.
+
+So this is stated plainly as the project's position rather than pretended as a
+license term:
+
+- The safety envelope is **load-bearing, not decorative**. A build that
+  initiates contact, targets individuals, or strips the content guards is not
+  ScamBuster — it is a different tool that its operator owns morally and
+  legally, alone.
+- Do not use the ScamBuster name, branding, or the authors' names to
+  distribute or legitimize such a derivative.
+- Upstream will not accept contributions that weaken the safety envelope, and
+  will not support, document, or debug removed-guardrail deployments.
+
 ## No warranty
 
 ScamBuster is provided **"as is"** under the [MIT License](LICENSE), without warranty of any kind, express or implied. The authors and contributors are **not liable** for any claim, damage, or other liability arising from its use or misuse, including any unlawful or unethical deployment by an operator.

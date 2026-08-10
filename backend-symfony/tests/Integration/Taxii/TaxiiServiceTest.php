@@ -788,8 +788,9 @@ class TaxiiServiceTest extends KernelTestCase
     // ------------------------------------------------------------------ //
 
     /**
-     * A human confirmed/false-positive verdict outranks the occurrence-based confidence
-     * the TAXII feed emits: confirmed pins it high, false-positive drops it near zero.
+     * A human confirmed verdict outranks the occurrence-based confidence the TAXII
+     * feed emits (pinned high); a false positive no longer ships at all — the
+     * export hold (IocExportPolicy) removes it from the feed entirely.
      */
     public function testAnalystVerdictOverridesIocConfidence(): void
     {
@@ -835,7 +836,7 @@ class TaxiiServiceTest extends KernelTestCase
 
             self::assertArrayHasKey("indicator--{$confirmed}", $byId);
             self::assertSame(99, $byId["indicator--{$confirmed}"]['confidence'], 'confirmed verdict pins TAXII confidence high');
-            self::assertSame(5, $byId["indicator--{$falsePos}"]['confidence'], 'false-positive verdict drops TAXII confidence');
+            self::assertArrayNotHasKey("indicator--{$falsePos}", $byId, 'a false positive is export-held and never ships (IocExportPolicy)');
             self::assertSame(55, $byId["indicator--{$plain}"]['confidence'], 'no verdict leaves the occurrence-based confidence untouched');
         } finally {
             $conn->executeStatement("DELETE FROM indicator WHERE value_norm LIKE 'verdict-taxii-%.example'");

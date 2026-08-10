@@ -23,6 +23,26 @@ final class IocCategory
     public const string OTHER = 'other';
 
     /**
+     * The financial IOC types, exposed as a list so SQL-level consumers
+     * (e.g. the export hold in IocExportPolicy) share the exact same set
+     * as classify().
+     *
+     * @var list<string>
+     */
+    public const array FINANCIAL_TYPES = [
+        'iban',
+        'bic',
+        'swift',
+        'bank_account',
+        'routing_number',
+        'wallet_btc',
+        'wallet_eth',
+        'wallet_xmr',
+        'wallet',
+        'credit_card',
+    ];
+
+    /**
      * Map an IOC type string (e.g. 'bic', 'iban', 'phone', 'url') to its
      * category bucket. Case-insensitive, trimmed.
      */
@@ -30,17 +50,11 @@ final class IocCategory
     {
         $normalized = strtolower(trim($type));
 
+        if (\in_array($normalized, self::FINANCIAL_TYPES, true)) {
+            return self::FINANCIAL;
+        }
+
         return match ($normalized) {
-            'iban',
-            'bic',
-            'swift',
-            'bank_account',
-            'routing_number',
-            'wallet_btc',
-            'wallet_eth',
-            'wallet_xmr',
-            'wallet',
-            'credit_card' => self::FINANCIAL,
             'phone',
             'email',
             'whatsapp',

@@ -57,16 +57,24 @@ The system operator (deploying organization) acts as data controller. The softwa
 **Legitimate interest** (GDPR Article 6(1)(f)):
 - The legitimate interest is cybersecurity defense and threat intelligence production
 - Scammers initiate contact; the system only responds to unsolicited messages
-- No processing of data from innocent third parties (inbound-only architecture)
+- The system never *contacts* third parties (inbound-only architecture,
+  code-enforced). Third-party personal data can nonetheless *enter* the store
+  through the adversary's own messages (impersonated executives, forwarded
+  threads, and above all financial identifiers whose account holders may be
+  money mules — often scam victims themselves). Such data is treated as
+  potential third-party victim data, not presumptively as threat-actor
+  infrastructure: financial identifiers are withheld from every external feed
+  until a human analyst confirms them
+  (see [mule/victim account policy](compliance/mule-victim-account-policy.md)).
 
 ### 2.2 Balancing Test
 
 | Factor | Assessment |
 |--------|------------|
 | Nature of interest | Cybersecurity defense -- strong public interest |
-| Impact on data subjects | Scammers' operational data (IBANs, wallets) used for threat intel |
+| Impact on data subjects | Scammers' operational data (IBANs, wallets) used for threat intel; identifiers that may belong to mule/victim account holders are quarantined from dissemination pending analyst review |
 | Reasonable expectation | Scammers have no reasonable expectation of privacy when sending fraudulent emails |
-| Safeguards | Two-layer validation, kill switch, inbound-only enforcement, PII filtering |
+| Safeguards | Two-layer validation, kill switch, inbound-only enforcement, PII filtering, financial-IOC export hold + analyst-confirmation gate |
 
 ### 2.3 Special Category Data
 

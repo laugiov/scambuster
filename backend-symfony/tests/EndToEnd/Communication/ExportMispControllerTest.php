@@ -166,6 +166,16 @@ final class ExportMispControllerTest extends WebTestCase
         $data = $this->createTestConversationWithIocs($client, $jwt);
         $convId = $data['conv_id'];
 
+        // Financial IOCs are export-held until an analyst confirms them (possible
+        // mule/victim accounts — see IocExportPolicy); confirm the IBAN so the
+        // export exercises the analyst release path.
+        static::getContainer()->get(\Doctrine\DBAL\Connection::class)->executeStatement(
+            "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+             SELECT indicator_id, 'confirmed', NULL, 'e2e', NOW() FROM indicator WHERE value_norm = :vn
+             ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+            ['vn' => 'FR7612345678901234567890185'],
+        );
+
         // Export MISP
         $client->request(
             'GET',

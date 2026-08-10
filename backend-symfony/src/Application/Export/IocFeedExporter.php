@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Export;
 
+use App\Domain\Communication\Policy\IocExportPolicy;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -215,7 +216,8 @@ final readonly class IocFeedExporter
             LEFT JOIN ioc_context ic ON i.indicator_id = ic.indicator_id
             LEFT JOIN ioc_analyst_feedback f ON i.indicator_id = f.indicator_id
             WHERE i.indicator_id IN ({$placeholders})
-            ORDER BY i.first_seen DESC, i.indicator_id ASC",
+              AND " . IocExportPolicy::sqlCondition('i', 'f') . '
+            ORDER BY i.first_seen DESC, i.indicator_id ASC',
             $indicatorIds
         )->fetchAllAssociative();
 

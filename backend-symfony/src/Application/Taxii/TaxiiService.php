@@ -17,6 +17,7 @@ use App\Application\Stix\ThreatActorStixBuilder;
 use App\Application\ThreatActor\ThreatActorPsychProfileReaderInterface;
 use App\Application\Ttp\TtpQueryService;
 use App\Domain\Communication\Policy\IocActionablePolicy;
+use App\Domain\Communication\Policy\IocExportPolicy;
 use App\Domain\ThreatActor\AnalystVerdict;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
@@ -283,6 +284,11 @@ final readonly class TaxiiService
         // shared feed — align with the actionability policy used elsewhere.
         $qb->andWhere('i.type NOT IN (:non_actionable)')
             ->setParameter('non_actionable', IocActionablePolicy::NON_ACTIONABLE_TYPES, ArrayParameterType::STRING);
+
+        // Export hold: analyst false positives never ship, and financial IOCs
+        // (possible mule/victim accounts) are held until analyst-confirmed.
+        // See IocExportPolicy for the rationale.
+        $qb->andWhere(IocExportPolicy::sqlCondition('i', 'f'));
 
         if ($addedAfter instanceof \DateTimeImmutable) {
             $qb->andWhere('i.updated_at > :added_after')

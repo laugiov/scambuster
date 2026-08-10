@@ -11,6 +11,7 @@ operator-specific fields.
 | [data-processing-agreements.md](data-processing-agreements.md) | LLM-provider DPAs — or avoid them with Ollama/mock |
 | [breach-notification-procedure.md](breach-notification-procedure.md) | GDPR Article 33/34 breach handling |
 | [risk-register.md](risk-register.md) | Living risk register (seeded from the security audit) |
+| [mule-victim-account-policy.md](mule-victim-account-policy.md) | Financial IOCs as potential mule/victim data — export hold until analyst confirmation |
 
 Related runbooks: [incident-response-plan.md](../runbooks/incident-response-plan.md) (NIST IRP
 + tabletop), [post-mortem-template.md](../runbooks/post-mortem-template.md),

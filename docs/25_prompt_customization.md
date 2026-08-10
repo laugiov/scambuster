@@ -202,7 +202,9 @@ activate the override first, and you never touch a command line.
 - The candidate is used **only** for this check; it is never saved or activated as a side effect.
 
 The button is `config:write`-gated and every request is audit-logged. (Background validation is
-served by the `canary-worker` container, which is part of the default deployment.)
+served by the `canary-worker` container, which sits behind the `canary` Compose profile —
+start it with `docker compose up -d canary-worker` before clicking "Validate", or drain one
+job on demand with `make guard-canary-work`.)
 
 ### From the command line (contributors / CI)
 

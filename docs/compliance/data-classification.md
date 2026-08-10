@@ -18,7 +18,7 @@ most stored content is *attacker-supplied*, not the personal data of protected i
 | Data | Class | Where | Control |
 |------|-------|-------|---------|
 | Scammer email bodies / subjects / headers | ATTACKER-SUPPLIED | `message.body_text`, `body_html`, `headers` | RBAC (`conversation:read`); PII-masked in logs. **Plaintext at rest by design** — see rationale. |
-| Extracted IOCs (wallets, IBAN, phones, URLs…) | INTERNAL | `observed_ioc`, `indicator` | RBAC (`ioc:read`), TLP marking |
+| Extracted IOCs (wallets, IBAN, phones, URLs…) | INTERNAL | `observed_ioc`, `indicator` | RBAC (`ioc:read`), TLP marking. Financial identifiers may belong to mule/victim account holders (third-party PII): export-held until analyst confirmation — see [mule/victim account policy](mule-victim-account-policy.md) |
 | Synthetic operator persona content | ATTACKER-SUPPLIED context | personas, outbound replies | Synthetic identities — not real-person PII |
 | Honeypot mailbox addresses | INTERNAL | `mail_account.email_address` | Never committed to git; OPSEC pre-commit gate |
 | Per-account SMTP DSN | **SECRET** | `mail_account.smtp_dsn_encrypted` | **Encrypted at rest** (libsodium secretbox) |

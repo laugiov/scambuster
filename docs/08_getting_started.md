@@ -515,18 +515,25 @@ scambuster/
 
 ## 10. Docker Services Reference
 
-| Container | Image | Env | Purpose |
-|-----------|-------|-----|---------|
-| `backend-dev` | Custom (PHP 8.3) | `dev` | Development API server |
-| `backend-test` | Custom (PHP 8.3) | `test` | Integration/unit test runner |
-| `backend-e2e` | Custom (PHP 8.3) | `e2e` | End-to-end test runner |
-| `backend-preprod` | Custom (PHP 8.3) | `dev` | Pre-production (port 8082) |
-| `postgres` | postgres:15-alpine | -- | Main database |
-| `postgres-preprod` | postgres:15-alpine | -- | Pre-production database (port 5433) |
-| `redis` | redis:7-alpine | -- | Cache and distributed locks |
-| `frontend` | node:20-alpine | -- | React frontend (port 3002) |
-| `n8n` | n8nio/n8n | -- | Workflow automation |
-| `scheduler` | Custom (PHP 8.3) | `dev` | Automated tasks (close stale, rewards, injection detection, embeddings, bandit report, backups) |
+A plain `docker compose up` (and `make quickstart`) starts the **default** services
+only. The others sit behind [Compose profiles](https://docs.docker.com/compose/how-tos/profiles/)
+and start when you name them explicitly (`docker compose up -d backend-test` —
+naming a service auto-activates its profile) or activate the profile
+(`docker compose --profile preprod up -d`).
+
+| Container | Image | Env | Profile | Purpose |
+|-----------|-------|-----|---------|---------|
+| `backend-dev` | Custom (PHP 8.3) | `dev` | default | Development API server |
+| `postgres` | postgres:15-alpine | -- | default | Main database |
+| `redis` | redis:7-alpine | -- | default | Cache and distributed locks |
+| `frontend` | node:20-alpine | -- | default | React frontend (port 3002) |
+| `n8n` | n8nio/n8n | -- | default | Workflow automation |
+| `scheduler` | Custom (PHP 8.3) | `dev` | default | Automated tasks (close stale, rewards, injection detection, embeddings, bandit report, backups) |
+| `backend-test` | Custom (PHP 8.3) | `test` | `test` | Integration/unit test runner (`make test` starts it) |
+| `backend-e2e` | Custom (PHP 8.3) | `e2e` | `test` | End-to-end test runner |
+| `backend-preprod` | Custom (PHP 8.3) | `dev` | `preprod` | Pre-production (port 8082) |
+| `postgres-preprod` | postgres:15-alpine | -- | `preprod` | Pre-production database (port 5433) |
+| `canary-worker` | Custom (PHP 8.3) | `dev` | `canary` | Prompt-validation job worker (UI "Validate") |
 
 ### Scheduler (Automated Tasks)
 

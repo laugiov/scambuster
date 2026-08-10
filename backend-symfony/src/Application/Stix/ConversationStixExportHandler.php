@@ -9,6 +9,7 @@ use App\Application\Communication\IocHandler;
 use App\Application\ThreatActor\ThreatActorPsychProfileReaderInterface;
 use App\Application\Ttp\TtpQueryService;
 use App\Domain\Communication\Conversation;
+use App\Domain\Communication\Policy\IocExportPolicy;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -195,9 +196,16 @@ final readonly class ConversationStixExportHandler
             return $iocs;
         }
 
+        // The export-hold filter (financial IOCs without an analyst confirmation,
+        // analyst false positives) lives HERE and not in IocHandler: the internal
+        // UI must keep showing held IOCs so an analyst can review and release
+        // them, but they must not leave the platform in a STIX bundle.
         /** @var array<int, array<string, mixed>> $rows */
         $rows = $this->em->getConnection()->fetchAllAssociative(
-            'SELECT indicator_id, occurrences, tlp FROM indicator WHERE indicator_id IN (:ids)',
+            'SELECT i.indicator_id, i.occurrences, i.tlp FROM indicator i'
+            . ' LEFT JOIN ioc_analyst_feedback f ON i.indicator_id = f.indicator_id'
+            . ' WHERE i.indicator_id IN (:ids)'
+            . ' AND ' . IocExportPolicy::sqlCondition('i', 'f'),
             ['ids' => $indicatorIds],
             ['ids' => ArrayParameterType::STRING],
         );
@@ -209,6 +217,18 @@ final readonly class ConversationStixExportHandler
                 $byId[$row['indicator_id']] = $row;
             }
         }
+
+        // Drop the held/false-positive IOCs the query excluded.
+        $iocs = array_values(array_filter(
+            $iocs,
+            static function (array $ioc) use ($byId): bool {
+                $id = \is_string($ioc['indicator_id'] ?? null) ? $ioc['indicator_id'] : '';
+
+                // IOC rows without a persisted indicator id cannot be verdict-checked;
+                // keep legacy behaviour (they were never enriched either).
+                return $id === '' || isset($byId[$id]);
+            },
+        ));
 
         foreach ($iocs as $k => $ioc) {
             $id = \is_string($ioc['indicator_id'] ?? null) ? $ioc['indicator_id'] : '';

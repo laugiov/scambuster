@@ -126,6 +126,15 @@ final class TaxiiObjectsTest extends WebTestCase
             }
         }
 
+        // Financial IOCs are export-held until an analyst confirms them (possible
+        // mule/victim accounts — see IocExportPolicy); confirm the IBAN so this
+        // test keeps proving that actionable financial intel DOES ship.
+        $conn->executeStatement(
+            "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+             VALUES ('dddd0001-0000-4000-8000-000000000001', 'confirmed', NULL, 'taxii-test', NOW())
+             ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+        );
+
         $this->client->request('GET', '/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [
             'limit' => '500',
         ], [], [
@@ -135,7 +144,7 @@ final class TaxiiObjectsTest extends WebTestCase
         $this->assertResponseIsSuccessful();
         $blob = (string) $this->client->getResponse()->getContent();
 
-        $this->assertStringContainsString('GB29NWBK60161331926819', $blob, 'Actionable IBAN must be in the feed');
+        $this->assertStringContainsString('GB29NWBK60161331926819', $blob, 'Confirmed IBAN must be in the feed');
         $this->assertStringNotContainsString('scambuster.local', $blob, 'Honeypot message_id must never reach the shared feed');
         $this->assertStringNotContainsString('NONACTIONABLE-SUBJECT-PROBE', $blob, 'subject header noise must not be exported');
     }
