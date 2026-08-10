@@ -77,6 +77,54 @@ final class FalsePositiveAnchorTest extends KernelTestCase
         );
     }
 
+    public function testFalsePositiveAnchorIsNotPersistedInClusterMetadata(): void
+    {
+        // Give a1 and a2 a SECOND, valid anchor (a shared BTC wallet) so a
+        // cluster still forms once the IBAN is a false positive.
+        $walletId = 'cccccccc-ffff-4000-8000-000000000001';
+        $this->conn->executeStatement(
+            "INSERT INTO indicator (indicator_id, type, value, value_norm, first_seen, last_seen, occurrences, tlp, created_at, updated_at)
+             VALUES (:id, 'wallet_btc', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', 'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq', NOW(), NOW(), 2, 'AMBER', NOW(), NOW())",
+            ['id' => $walletId],
+        );
+
+        foreach ([1, 2] as $n => $i) {
+            $msgId = $this->conn->fetchOne(
+                'SELECT msg_id FROM message WHERE conv_id = :c LIMIT 1',
+                ['c' => $this->convA($i)],
+            );
+            self::assertIsString($msgId, "fixtures must provide a message for conv a{$i}");
+            $this->conn->executeStatement(
+                "INSERT INTO observed_ioc (obs_id, msg_id, indicator_id, confidence_score, context_observation, ts_observed)
+                 VALUES (:obs, :msg, :ind, 0.9, '{}', NOW())",
+                ['obs' => sprintf('cccccccc-ffff-4000-8000-%012d', $n + 2), 'msg' => $msgId, 'ind' => $walletId],
+            );
+        }
+
+        $ibanId = $this->conn->fetchOne(
+            "SELECT indicator_id FROM indicator WHERE value_norm = 'GB82WEST12345698765432'",
+        );
+        self::assertIsString($ibanId);
+        $this->conn->executeStatement(
+            "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+             VALUES (:id, 'false_positive', NULL, 'fp-anchor-test', NOW())
+             ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'false_positive'",
+            ['id' => $ibanId],
+        );
+
+        $this->service->clusterConversation($this->convA(1));
+
+        $clusterId = $this->getClusterForConv($this->convA(1));
+        self::assertNotNull($clusterId, 'the valid wallet anchor must still form a cluster');
+
+        $anchorIds = $this->conn->fetchFirstColumn(
+            'SELECT indicator_id FROM threat_actor_cluster_ioc WHERE cluster_id = :id',
+            ['id' => $clusterId],
+        );
+        self::assertContains($walletId, $anchorIds, 'the valid anchor is persisted');
+        self::assertNotContains($ibanId, $anchorIds, 'a false-positive IOC must not be persisted as cluster anchor metadata');
+    }
+
     public function testConfirmedAnchorStillMerges(): void
     {
         // Control: a confirmed verdict must not break clustering.
