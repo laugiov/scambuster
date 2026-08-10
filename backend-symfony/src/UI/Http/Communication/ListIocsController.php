@@ -49,6 +49,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
                     new OA\Property(property: 'confidence', type: 'number', format: 'float'),
                     new OA\Property(property: 'decay_factor', type: 'number', format: 'float'),
                     new OA\Property(property: 'effective_score', type: 'number', format: 'float'),
+                    new OA\Property(property: 'analyst_verdict', type: 'string', nullable: true, enum: ['confirmed', 'false_positive']),
+                    new OA\Property(property: 'export_held', type: 'boolean', description: 'Financial IOC awaiting analyst review — withheld from all exports until confirmed'),
                 ])
             )
         )
