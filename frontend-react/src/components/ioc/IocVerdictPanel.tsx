@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Badge } from '@/components/ui/Badge';
 import { useSubmitIocVerdict, type IocVerdict } from '@/hooks/useIocVerdict';
@@ -21,13 +21,15 @@ interface IocVerdictPanelProps {
 export function IocVerdictPanel({ indicatorId, verdict, note: existingNote, exportHeld }: IocVerdictPanelProps) {
   const { t } = useTranslation();
   const [note, setNote] = useState(existingNote ?? '');
-  const submit = useSubmitIocVerdict();
-
-  // The detail loads asynchronously: sync the input once the recorded note
-  // arrives (and after a re-submit refetches it).
-  useEffect(() => {
+  // The detail loads asynchronously: adopt the recorded note when it arrives
+  // (and after a re-submit refetches it). Render-time state adjustment — the
+  // React-documented alternative to a setState-in-effect.
+  const [prevExistingNote, setPrevExistingNote] = useState(existingNote);
+  if (existingNote !== prevExistingNote) {
+    setPrevExistingNote(existingNote);
     setNote(existingNote ?? '');
-  }, [existingNote]);
+  }
+  const submit = useSubmitIocVerdict();
 
   const onSubmit = (v: IocVerdict) => {
     submit.mutate({ indicatorId, verdict: v, note: note.trim() || undefined });
