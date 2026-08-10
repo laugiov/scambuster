@@ -122,6 +122,8 @@ export interface Ioc {
   decay_factor?: number;
   effective_score?: number;
   has_context?: boolean;
+  analyst_verdict?: 'confirmed' | 'false_positive' | null;
+  export_held?: boolean;
 }
 
 // IOC Detail (from GET /iocs/{id}/detail)
@@ -163,6 +165,8 @@ export interface IocDetail {
   stix: { sco_type: string; pattern: string } | null;
   observations: IocObservation[];
   related_iocs: IocRelated[];
+  analyst_verdict?: 'confirmed' | 'false_positive' | null;
+  export_held?: boolean;
 }
 
 // IOC Context (from GET /iocs/{indicatorId}/context)

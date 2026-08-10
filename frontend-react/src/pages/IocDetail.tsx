@@ -8,6 +8,7 @@ import { IocGraph } from '@/components/ioc/IocGraph';
 import { IocTimeline } from '@/components/ioc/IocTimeline';
 import { ThreatActorSummaryCard } from '@/components/ioc/ThreatActorSummaryCard';
 import { IocCoOccurringTtps } from '@/components/ioc/IocCoOccurringTtps';
+import { IocVerdictPanel } from '@/components/ioc/IocVerdictPanel';
 import { useThreatActorSummary } from '@/hooks/useThreatActor';
 import { timeSince } from '@/lib/time';
 import { scamTypeLabel, scamTypeColor, humanize } from '@/lib/scamTypeLabels';
@@ -137,6 +138,13 @@ export function IocDetail() {
           </>
         )}
       </header>
+
+      {/* Analyst verdict — release path for the financial-IOC export hold */}
+      <IocVerdictPanel
+        indicatorId={detail.indicator_id}
+        verdict={detail.analyst_verdict}
+        exportHeld={detail.export_held}
+      />
 
       {/* Threat Actor attribution */}
       {threatActorSummary.data && <ThreatActorSummaryCard summary={threatActorSummary.data} />}
