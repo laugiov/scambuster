@@ -59,7 +59,9 @@ final class IocExportPolicyTest extends TestCase
         self::assertStringContainsString("f.verdict <> 'false_positive'", $sql);
         self::assertStringContainsString("f.verdict = 'confirmed'", $sql);
         self::assertStringContainsString('f.verdict IS NULL', $sql);
-        self::assertStringContainsString('i.type NOT IN', $sql);
+        // Case/padding normalization mirrors classify(): ingest stores the type
+        // verbatim, so the SQL hold must not be bypassable by 'IBAN' or ' iban '.
+        self::assertStringContainsString('LOWER(BTRIM(i.type)) NOT IN', $sql);
 
         foreach (IocCategory::FINANCIAL_TYPES as $type) {
             self::assertStringContainsString("'{$type}'", $sql, "SQL hold list must include '{$type}'");

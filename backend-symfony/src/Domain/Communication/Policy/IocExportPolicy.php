@@ -52,11 +52,16 @@ final class IocExportPolicy
      * LEFT-JOINed ioc_analyst_feedback alias. Every value inlined here is a
      * compile-time constant (enum values + IocCategory::FINANCIAL_TYPES), so
      * the fragment is safe to embed in queries using positional parameters.
+     *
+     * The stored type is compared through LOWER(BTRIM(...)) — ingest stores the
+     * caller-provided type verbatim, and the hold must match the same
+     * normalization IocCategory::classify() applies (case-insensitive, trimmed)
+     * so a mixed-case or padded financial type cannot bypass it.
      */
     public static function sqlCondition(string $indicatorAlias, string $feedbackAlias): string
     {
         $verdict = "{$feedbackAlias}.verdict";
-        $type = "{$indicatorAlias}.type";
+        $type = "LOWER(BTRIM({$indicatorAlias}.type))";
         $heldTypes = implode(', ', array_map(
             static fn (string $t): string => "'" . $t . "'",
             IocCategory::FINANCIAL_TYPES,

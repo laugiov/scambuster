@@ -20,6 +20,7 @@ final class TaxiiFinancialIocGateTest extends KernelTestCase
     private const IBAN_CONFIRMED = 'eeeeeee1-0000-4000-8000-000000000002';
     private const DOMAIN_FALSE_POSITIVE = 'eeeeeee1-0000-4000-8000-000000000003';
     private const DOMAIN_CONTROL = 'eeeeeee1-0000-4000-8000-000000000004';
+    private const IBAN_HELD_MIXED_CASE = 'eeeeeee1-0000-4000-8000-000000000005';
 
     private const IOC_COLLECTION = 'a1b2c3d4-0001-4000-8000-000000000001';
 
@@ -28,6 +29,9 @@ final class TaxiiFinancialIocGateTest extends KernelTestCase
         self::IBAN_CONFIRMED => ['iban', 'DE89370400440532013000'],
         self::DOMAIN_FALSE_POSITIVE => ['domain', 'fp-gate-test.example'],
         self::DOMAIN_CONTROL => ['domain', 'control-gate-test.example'],
+        // Ingest stores the type verbatim — the hold must not be bypassable
+        // by case or padding.
+        self::IBAN_HELD_MIXED_CASE => [' IBAN ', 'CY17002001280000001200527600'],
     ];
 
     private TaxiiService $taxiiService;
@@ -104,6 +108,10 @@ final class TaxiiFinancialIocGateTest extends KernelTestCase
         self::assertFalse(
             self::anyContains($objects, self::VALUES[self::IBAN_HELD][1]),
             'an IBAN without an analyst verdict must be HELD from the shared feed (possible mule/victim account)',
+        );
+        self::assertFalse(
+            self::anyContains($objects, self::VALUES[self::IBAN_HELD_MIXED_CASE][1]),
+            'a mixed-case/padded financial type must not bypass the export hold',
         );
     }
 
