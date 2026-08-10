@@ -101,8 +101,13 @@ final readonly class IocClusteringService
                 FROM indicator i
                 JOIN observed_ioc oi ON i.indicator_id = oi.indicator_id
                 JOIN message m ON oi.msg_id = m.msg_id
+                LEFT JOIN ioc_analyst_feedback f ON i.indicator_id = f.indicator_id
                 WHERE m.conv_id = ?
                   AND i.type IN ({$placeholders})
+                  -- An analyst false positive is not actor infrastructure: it must
+                  -- neither export (IocExportPolicy) nor keep merging conversations
+                  -- into a cluster (wrong attribution outlives the bad extraction).
+                  AND (f.verdict IS NULL OR f.verdict <> 'false_positive')
             ),
             anchor_freq AS (
                 -- Distinct conversations referencing each anchor globally. An anchor
