@@ -972,5 +972,28 @@
     "URGENCY_PRESSURE": "Pression d'urgence",
     "PASSIVE": "Passif",
     "UNKNOWN": "Inconnu"
+  },
+  "iocVerdict": {
+    "title": "Verdict analyste",
+    "confirmed": "Confirmé",
+    "falsePositive": "Faux positif",
+    "held": "Retenu de l'export",
+    "none": "Non revu",
+    "heldHint": "IOC financier en attente de revue analyste — retenu de tous les exports (compte mule/victime possible) jusqu'à confirmation.",
+    "notePlaceholder": "Note optionnelle (conservée dans la piste d'audit)",
+    "confirmAction": "Confirmer",
+    "falsePositiveAction": "Faux positif",
+    "saving": "Enregistrement…",
+    "error": "Impossible d'enregistrer le verdict. Vérifiez vos permissions et réessayez.",
+    "reviewOnly": "En attente de revue seulement (financiers retenus)",
+    "bulkNotePlaceholder": "Note obligatoire pour la piste d'audit",
+    "bulkConfirm": "Confirmer la sélection ({{count}})",
+    "bulkResult": "{{ok}} confirmé(s), {{failed}} en échec",
+    "selectColumn": "Sélection",
+    "selectForConfirm": "Sélectionner pour confirmation",
+    "heldShort": "RETENU",
+    "confirmedShort": "OK",
+    "fpShort": "FP",
+    "saved": "Verdict enregistré ✓"
   }
 }

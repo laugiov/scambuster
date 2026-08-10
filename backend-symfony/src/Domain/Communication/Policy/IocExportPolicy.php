@@ -31,6 +31,17 @@ use App\Domain\ThreatActor\AnalystVerdict;
 final class IocExportPolicy
 {
     /**
+     * A financial IOC that no analyst has reviewed yet: held from export,
+     * waiting in the review queue. Distinct from a false positive (rejected,
+     * not waiting) — the read APIs expose this so the UI can badge and filter
+     * the analyst's worklist.
+     */
+    public static function isHeldForReview(string $type, ?AnalystVerdict $verdict): bool
+    {
+        return $verdict === null && IocCategory::classify($type) === IocCategory::FINANCIAL;
+    }
+
+    /**
      * PHP-side predicate for egress paths that assemble objects in memory.
      */
     public static function isExportable(string $type, ?AnalystVerdict $verdict): bool

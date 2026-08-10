@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Domain\Communication\ObservedIoc;
+use App\Domain\Communication\Policy\IocExportPolicy;
+use App\Domain\ThreatActor\AnalystVerdict;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -104,6 +106,7 @@ class IocQueryService
                 i.type AS indicator_type,
                 i.last_seen AS indicator_last_seen,
                 st.code AS scam_type_code,
+                f.verdict AS analyst_verdict,
                 CASE WHEN ic.id IS NOT NULL AND ic.enrichment_status IN (\'structural\', \'enriched\') THEN true ELSE false END AS has_context
             FROM observed_ioc oi
             LEFT JOIN indicator i ON oi.indicator_id = i.indicator_id
@@ -111,6 +114,7 @@ class IocQueryService
             LEFT JOIN conversation c ON m.conv_id = c.conv_id
             LEFT JOIN lkp_scam_type st ON c.scam_type_id = st.scam_type_id
             LEFT JOIN ioc_context ic ON oi.obs_id = ic.obs_id
+            LEFT JOIN ioc_analyst_feedback f ON oi.indicator_id = f.indicator_id
             ORDER BY oi.ts_observed DESC
         ';
 
@@ -153,6 +157,9 @@ class IocQueryService
             $vtScore = is_numeric($scoreArr['vt'] ?? null) ? (int) $scoreArr['vt'] : 0;
             $urlscanScore = is_numeric($scoreArr['urlscan'] ?? null) ? (int) $scoreArr['urlscan'] : 0;
 
+            $verdictStr = is_string($row['analyst_verdict'] ?? null) ? $row['analyst_verdict'] : null;
+            $verdict = $verdictStr !== null ? AnalystVerdict::tryFrom($verdictStr) : null;
+
             $result[] = [
                 'obs_id' => $row['obs_id'],
                 'ioc_id' => $row['ioc_id'],
@@ -167,6 +174,10 @@ class IocQueryService
                 'effective_score' => $effectiveScore,
                 'severity' => IocConfidenceCalculator::computeSeverity($iocType, $vtScore, $urlscanScore),
                 'has_context' => !empty($row['has_context']) && $row['has_context'] !== 'f',
+                // Analyst-review status: the UI badges verdicts and filters the
+                // financial IOCs still held from export (IocExportPolicy).
+                'analyst_verdict' => $verdictStr,
+                'export_held' => IocExportPolicy::isHeldForReview($iocType, $verdict),
             ];
         }
 
@@ -346,6 +357,17 @@ class IocQueryService
             ];
         }
 
+        // 7. Analyst-review status (verdict + note + export hold), so the detail
+        // view can badge the IOC, show the recorded note and offer the release
+        // action (IocExportPolicy).
+        $feedbackRow = $conn->fetchAssociative(
+            'SELECT verdict, note FROM ioc_analyst_feedback WHERE indicator_id = :id',
+            ['id' => $indicatorId],
+        );
+        $verdictStr = \is_array($feedbackRow) && is_string($feedbackRow['verdict'] ?? null) ? $feedbackRow['verdict'] : null;
+        $verdict = $verdictStr !== null ? AnalystVerdict::tryFrom($verdictStr) : null;
+        $analystNote = \is_array($feedbackRow) && is_string($feedbackRow['note'] ?? null) ? $feedbackRow['note'] : null;
+
         return [
             'indicator_id' => $indicatorId,
             'type' => $type,
@@ -365,6 +387,9 @@ class IocQueryService
             'stix' => $exportContext['stix'] ?? null,
             'observations' => $formattedObservations,
             'related_iocs' => $formattedRelated,
+            'analyst_verdict' => $verdictStr,
+            'analyst_note' => $analystNote,
+            'export_held' => IocExportPolicy::isHeldForReview($type, $verdict),
         ];
     }
 

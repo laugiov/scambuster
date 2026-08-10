@@ -972,5 +972,28 @@
     "URGENCY_PRESSURE": "Urgency pressure",
     "PASSIVE": "Passive",
     "UNKNOWN": "Unknown"
+  },
+  "iocVerdict": {
+    "title": "Analyst verdict",
+    "confirmed": "Confirmed",
+    "falsePositive": "False positive",
+    "held": "Held from export",
+    "none": "Not reviewed",
+    "heldHint": "Financial IOC awaiting analyst review — withheld from every export (possible mule/victim account) until confirmed.",
+    "notePlaceholder": "Optional note (kept in the audit trail)",
+    "confirmAction": "Confirm",
+    "falsePositiveAction": "False positive",
+    "saving": "Saving…",
+    "error": "Could not record the verdict. Check your permissions and try again.",
+    "reviewOnly": "Awaiting review only (held financial IOCs)",
+    "bulkNotePlaceholder": "Required note for the audit trail",
+    "bulkConfirm": "Confirm selection ({{count}})",
+    "bulkResult": "{{ok}} confirmed, {{failed}} failed",
+    "selectColumn": "Select",
+    "selectForConfirm": "Select for confirmation",
+    "heldShort": "HELD",
+    "confirmedShort": "OK",
+    "fpShort": "FP",
+    "saved": "Verdict recorded ✓"
   }
 }

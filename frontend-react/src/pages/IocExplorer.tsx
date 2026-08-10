@@ -13,6 +13,7 @@ import { ExportCsvButton } from '@/components/ui/ExportCsvButton';
 import { iocSeverity as computeIocSeverityInfo } from '@/lib/iocSeverity';
 import { scamTypeLabel, scamTypeColor } from '@/lib/scamTypeLabels';
 import { iocTypeLabel } from '@/lib/iocTypeLabels';
+import { useSubmitIocVerdict } from '@/hooks/useIocVerdict';
 
 function computeIocSeverity(type: string, vt: number, urlscan: number): string {
   return computeIocSeverityInfo(type, vt, urlscan).label;
@@ -93,6 +94,13 @@ export function IocExplorer() {
   const [hasContextOnly, setHasContextOnly] = useState(false);
   const [sortKey, setSortKey] = useState<'ts_observed' | 'confidence' | 'severity'>('ts_observed');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  // Analyst review queue: financial IOCs held from export until confirmed.
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkNote, setBulkNote] = useState('');
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [bulkResult, setBulkResult] = useState<string | null>(null);
+  const submitVerdict = useSubmitIocVerdict();
 
   const toggleSort = (key: typeof sortKey) => {
     if (sortKey === key) setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
@@ -138,9 +146,11 @@ export function IocExplorer() {
 
       if (scamTypeFilter !== 'All' && (ioc.category ?? '') !== scamTypeFilter) return false;
 
+      if (reviewOnly && !ioc.export_held) return false;
+
       return true;
     });
-  }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders, hasContextOnly, scamTypeFilter]);
+  }, [iocs, typeFilter, search, severity, minConfidence, dateRange, hideHeaders, hasContextOnly, scamTypeFilter, reviewOnly]);
 
   // Available scam types in current dataset (alphabetically sorted by label)
   const availableScamTypes = useMemo(() => {
@@ -170,6 +180,39 @@ export function IocExplorer() {
     });
   }, [filtered, sortKey, sortDir]);
 
+  const toggleSelected = (iocId: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(iocId)) next.delete(iocId);
+      else next.add(iocId);
+      return next;
+    });
+  };
+
+  // Sequential loop over the single-IOC endpoint: each confirmation keeps its
+  // own audit-log row. Only selected, visible rows — no select-all-across-pages.
+  const runBulkConfirm = async () => {
+    const ids = Array.from(selected);
+    setBulkBusy(true);
+    setBulkResult(null);
+    let ok = 0;
+    const failedIds: string[] = [];
+    for (const id of ids) {
+      try {
+        await submitVerdict.mutateAsync({ indicatorId: id, verdict: 'confirmed', note: bulkNote.trim() });
+        ok += 1;
+      } catch {
+        failedIds.push(id);
+      }
+    }
+    setBulkBusy(false);
+    setBulkResult(t('iocVerdict.bulkResult', { ok, failed: failedIds.length }));
+    // Keep the failures selected so the analyst can retry them; only clear
+    // what actually succeeded.
+    setSelected(new Set(failedIds));
+    if (failedIds.length === 0) setBulkNote('');
+  };
+
   if (isLoading) return <Loading message={t('iocExplorer.loading')} />;
   if (error) return <ErrorMessage message={t('iocExplorer.failedLoad')} onRetry={() => void refetch()} />;
 
@@ -193,6 +236,8 @@ export function IocExplorer() {
                 { key: 'confidence', header: 'Confidence' },
                 { key: 'effective_score', header: 'Effective Score' },
                 { key: 'ts_observed', header: 'Observed At' },
+                { key: 'analyst_verdict', header: 'Analyst Verdict' },
+                { key: 'export_held', header: 'Export Held' },
               ]}
               filename={`scambuster-iocs-${new Date().toISOString().slice(0, 10)}.csv`}
             />
@@ -219,9 +264,46 @@ export function IocExplorer() {
         onHasContextOnlyChange={(v) => { setHasContextOnly(v); setPage(1); }}
       />
 
+      {/* Analyst review bar — financial IOCs held from export until confirmed */}
+      <div className="bg-surface-low rounded-lg px-4 py-2.5 flex items-center gap-4 flex-wrap" data-testid="review-bar">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={reviewOnly}
+            onChange={(e) => { setReviewOnly(e.target.checked); setPage(1); }}
+            className="rounded accent-accent"
+            data-testid="review-only-toggle"
+          />
+          <span className="text-xs text-on-surface-dim">{t('iocVerdict.reviewOnly')}</span>
+        </label>
+        {selected.size > 0 && (
+          <div className="flex items-center gap-2 flex-wrap ml-auto">
+            <input
+              type="text"
+              value={bulkNote}
+              onChange={(e) => setBulkNote(e.target.value)}
+              placeholder={t('iocVerdict.bulkNotePlaceholder')}
+              maxLength={1000}
+              className="bg-surface-base/60 border border-surface-base rounded px-3 py-1.5 text-xs text-on-surface placeholder-on-surface-dim focus:outline-none focus:ring-2 focus:ring-accent w-64"
+              data-testid="bulk-note"
+            />
+            <button
+              type="button"
+              onClick={() => void runBulkConfirm()}
+              disabled={bulkBusy || bulkNote.trim() === ''}
+              className="text-xs px-3 py-1.5 rounded bg-accent text-surface-base font-medium hover:opacity-90 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+              data-testid="bulk-confirm"
+            >
+              {bulkBusy ? t('iocVerdict.saving') : t('iocVerdict.bulkConfirm', { count: selected.size })}
+            </button>
+          </div>
+        )}
+        {bulkResult && <span className="text-xs text-on-surface-dim" data-testid="bulk-result">{bulkResult}</span>}
+      </div>
+
       <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={sorted.length} onPageChange={setPage} />
 
-      <IocTable iocs={sorted.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} />
+      <IocTable iocs={sorted.slice((page - 1) * IOC_PAGE_SIZE, page * IOC_PAGE_SIZE)} sortKey={sortKey} sortDir={sortDir} onSort={toggleSort} selected={selected} onToggleSelect={toggleSelected} />
       <Pagination page={page} pageSize={IOC_PAGE_SIZE} totalItems={sorted.length} onPageChange={setPage} />
     </div>
   );
@@ -375,7 +457,7 @@ function SortTh({ label, sortKey: key, current, dir, onSort }: {
   );
 }
 
-function IocTable({ iocs, sortKey, sortDir, onSort }: { iocs: Ioc[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void }) {
+function IocTable({ iocs, sortKey, sortDir, onSort, selected, onToggleSelect }: { iocs: Ioc[]; sortKey: SortKey; sortDir: 'asc' | 'desc'; onSort: (k: SortKey) => void; selected: Set<string>; onToggleSelect: (iocId: string) => void }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -384,6 +466,7 @@ function IocTable({ iocs, sortKey, sortDir, onSort }: { iocs: Ioc[]; sortKey: So
       <table className="w-full text-left">
         <thead>
           <tr className="text-xs text-on-surface-dim uppercase tracking-widest">
+            <th className="px-3 py-3 font-medium" aria-label={t('iocVerdict.selectColumn')}></th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.id')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.type')}</th>
             <th className="px-5 py-3 font-medium">{t('iocExplorer.value')}</th>
@@ -406,6 +489,18 @@ function IocTable({ iocs, sortKey, sortDir, onSort }: { iocs: Ioc[]; sortKey: So
                 role="link"
                 className="transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent hover:bg-surface-high/50"
               >
+                <td className="px-3 py-3" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+                  {ioc.export_held ? (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(ioc.ioc_id)}
+                      onChange={() => onToggleSelect(ioc.ioc_id)}
+                      className="rounded accent-accent cursor-pointer"
+                      aria-label={t('iocVerdict.selectForConfirm')}
+                      data-testid={`select-${ioc.ioc_id}`}
+                    />
+                  ) : null}
+                </td>
                 <td className="px-5 py-3 text-on-surface-dim font-mono text-xs">
                   {ioc.obs_id.slice(0, 8)}
                 </td>
@@ -413,6 +508,15 @@ function IocTable({ iocs, sortKey, sortDir, onSort }: { iocs: Ioc[]; sortKey: So
                   <span className="text-xs text-on-surface-variant">{iocTypeLabel(ioc.type)}</span>
                   {ioc.has_context && (
                     <span className="ml-1 text-[0.5rem] px-1 py-0.5 bg-accent-muted/20 text-accent rounded font-bold" title="Has contextual enrichment">CTX</span>
+                  )}
+                  {ioc.export_held && (
+                    <span className="ml-1 text-[0.5rem] px-1 py-0.5 bg-warning/20 text-warning rounded font-bold" title={t('iocVerdict.heldHint')}>{t('iocVerdict.heldShort')}</span>
+                  )}
+                  {ioc.analyst_verdict === 'confirmed' && (
+                    <span className="ml-1 text-[0.5rem] px-1 py-0.5 bg-success/20 text-success rounded font-bold">{t('iocVerdict.confirmedShort')}</span>
+                  )}
+                  {ioc.analyst_verdict === 'false_positive' && (
+                    <span className="ml-1 text-[0.5rem] px-1 py-0.5 bg-error/20 text-error rounded font-bold">{t('iocVerdict.fpShort')}</span>
                   )}
                 </td>
                 <td className="px-5 py-3 font-mono text-on-surface truncate max-w-[200px]">
