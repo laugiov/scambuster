@@ -26,7 +26,11 @@ controls; the operator is the **data controller** and owns this record.
 | Synthetic operator personas | Not data subjects — fabricated identities, no real person |
 
 **Note:** the honeypot receives only unsolicited adversary mail addressed to synthetic
-personas; it does not process customer, employee, or third-party victim data by design.
+personas; it has no customer or employee data by design. Third-party personal data can
+still arrive *inside* adversary messages (impersonated identities, forwarded threads,
+financial identifiers whose holders may be mule/victim accounts). Financial identifiers
+are therefore export-held until analyst confirmation — see the
+[mule/victim account policy](mule-victim-account-policy.md).
 
 ## 4. Recipients
 - Internal: operator's SOC/CTI analysts (RBAC-gated).
