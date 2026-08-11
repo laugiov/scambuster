@@ -302,12 +302,12 @@ subject of the most serious gap of phase 2.
 
 | # | Framework | Source + version | Status |
 |---|---|---|---|
-| R1 | **OWASP GenAI — LLM Top 10, 2026 edition** | OWASP GenAI Security Project, published on **4 August 2026**; "Prompt Injection" and "Sensitive Information Disclosure" remain in the top two places | **Engineering reference** — not normative, with no enforceable value |
-| R2 | **OWASP Top 10 for Agentic Applications (ASI)** | OWASP GenAI Security Project, first published **December 2025** | **Engineering reference**, more relevant than R1 for this system: there the model is an actor with tools and downstream consequences, which describes exactly the reply and export pipeline |
-| R3 | **MITRE ATLAS** | MITRE knowledge base of adversarial tactics and techniques against AI systems. Version not pinned in this audit | **Engineering reference** — used as the naming scheme in Part D |
-| R4 | **ISO/IEC 42001:2023** — AI management system | Published in **December 2023**; still the current version in August 2026 | **Applicable voluntarily or by contractual requirement** — not enforceable in itself |
-| R5 | **ISO/IEC 27001:2022 + Amd 1:2024** | Amendment 1 published in **February 2024** ("Climate action changes"), auditable since May 2024 | **Applicable voluntarily or by contractual requirement** — often required by an essential entity of its suppliers, without being imposed by NIS2 |
-| R6 | **NIST AI RMF** | Voluntary NIST framework, of US origin. **Version and publication reference not confirmed from this environment** | `[PARTLY SOURCED]` — **kept as vocabulary only**, excluded as a source of requirements |
+| REF-1 | **OWASP GenAI — LLM Top 10, 2026 edition** | OWASP GenAI Security Project, published on **4 August 2026**; "Prompt Injection" and "Sensitive Information Disclosure" remain in the top two places | **Engineering reference** — not normative, with no enforceable value |
+| REF-2 | **OWASP Top 10 for Agentic Applications (ASI)** | OWASP GenAI Security Project, first published **December 2025** | **Engineering reference**, more relevant than R1 for this system: there the model is an actor with tools and downstream consequences, which describes exactly the reply and export pipeline |
+| REF-3 | **MITRE ATLAS** | MITRE knowledge base of adversarial tactics and techniques against AI systems. Version not pinned in this audit | **Engineering reference** — used as the naming scheme in Part D |
+| REF-4 | **ISO/IEC 42001:2023** — AI management system | Published in **December 2023**; still the current version in August 2026 | **Applicable voluntarily or by contractual requirement** — not enforceable in itself |
+| REF-5 | **ISO/IEC 27001:2022 + Amd 1:2024** | Amendment 1 published in **February 2024** ("Climate action changes"), auditable since May 2024 | **Applicable voluntarily or by contractual requirement** — often required by an essential entity of its suppliers, without being imposed by NIS2 |
+| REF-6 | **NIST AI RMF** | Voluntary NIST framework, of US origin. **Version and publication reference not confirmed from this environment** | `[PARTLY SOURCED]` — **kept as vocabulary only**, excluded as a source of requirements |
 
 ### B.4 Not applicable — explicitly ruled out
 
@@ -456,7 +456,7 @@ none of the deletion controllers, nor 4 of the 6 export surfaces (§8.7).
 
 Method: **STRIDE** for the naming scheme, complemented by the risk-source and
 attack-path logic of **EBIOS RM** (X4). Adversary naming scheme: **MITRE
-ATLAS** (R3).
+ATLAS** (REF-3).
 
 ### D.1 Zoning — the working assumption
 

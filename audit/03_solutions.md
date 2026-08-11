@@ -20,8 +20,8 @@
 > flagged.
 >
 > **Zones** — in the sense of the zoning established in `01_scope.md` §D.1:
-> **ZE** = exposed engagement zone (IMAP, n8n, SMTP) ·
-> **ZT** = isolated processing zone (backend, PostgreSQL, Redis).
+> **EZ** = exposed engagement zone (IMAP, n8n, SMTP) ·
+> **PZ** = isolated processing zone (backend, PostgreSQL, Redis).
 
 ---
 
@@ -180,7 +180,7 @@ make `LLM_PROVIDER=ollama` a genuinely total switchover.
 | Effort | **Medium and bounded.** 7 sites (`ReplyValidator.php:103`, `OperationalLeakageDetector.php:28`, `PaymentInstigationGuard.php:50`, `ConversationAnalyzer.php:27`, `ConversationHistoryService.php:229`, `ConversationQualityAuditor.php:77`, `EmbeddingService.php:18`) + one embeddings interface + removing one DI alias |
 | Debt introduced | **A quality regression to measure** — dealt with below. The `LLMClientInterface` port and the `OllamaClient` adapter already exist |
 | Running cost, team of 1–3 | **Moderate.** An inference server to administer. [INFERRED] At a few messages per minute at peak, a single instance on an entry-level GPU is enough; there is **no need at all** for a scaling service, an inference queue or a cluster. Reasoning: 200 LLM calls/hour at the configured cap, i.e. ~3/min, against a throughput of several requests per second for a single instance |
-| New attack surface | **Low and internal.** An inference service inside the ZT. In exchange, three Internet destinations are removed from the ZT |
+| New attack surface | **Low and internal.** An inference service inside the PZ. In exchange, three Internet destinations are removed from the PZ |
 
 ### Option 2 — An inference gateway with a single egress point
 
@@ -285,9 +285,9 @@ and it is settled by the measurement above, not by architecture.
 
 ### Option 1 — Two Docker networks and an explicit flow matrix
 
-Separate `net-engagement` (n8n, IMAP/SMTP transports) and `net-traitement`
-(backend, PostgreSQL, Redis, local inference); mark `net-traitement` as
-`internal: true`; expose from the backend to the ZE only the routes n8n needs.
+Separate `net-engagement` (n8n, IMAP/SMTP transports) and `net-processing`
+(backend, PostgreSQL, Redis, local inference); mark `net-processing` as
+`internal: true`; expose from the backend to the EZ only the routes n8n needs.
 
 | Criterion | Assessment |
 |---|---|
@@ -295,11 +295,11 @@ Separate `net-engagement` (n8n, IMAP/SMTP transports) and `net-traitement`
 | Debt introduced | None — this is the standard move |
 | Running cost, team of 1–3 | Low. One flow matrix to keep up to date |
 | New attack surface | None. A **major reduction**: a compromised n8n loses direct access to PostgreSQL and Redis (threat T4) |
-| Limitation | `internal: true` on the ZT is compatible with the G-03 recommendation (local inference) but **incompatible with keeping an external provider** — the two files must be settled together |
+| Limitation | `internal: true` on the PZ is compatible with the G-03 recommendation (local inference) but **incompatible with keeping an external provider** — the two files must be settled together |
 
 ### Option 2 — Segmentation by separate hosts and a filtering egress proxy
 
-ZE and ZT on two separate machines, with an explicit allowlist proxy.
+EZ and PZ on two separate machines, with an explicit allowlist proxy.
 
 | Criterion | Assessment |
 |---|---|
@@ -323,7 +323,7 @@ an example segmentation without imposing it.
 
 ### Recommendation — Option 1, completed by the option 3 deliverable
 
-Option 1 addresses the main threat — pivoting from the ZE to the data
+Option 1 addresses the main threat — pivoting from the EZ to the data
 store — for the cost of a few lines of configuration. Option 2 is
 over-engineered at this cadence. The documentation deliverable from option 3 remains
 necessary: without a published flow matrix, the deployer cannot build its
@@ -452,12 +452,12 @@ indifferent to the identity of the provider.
 
 | Gap | Recommendation | Effort | Added operational load | Zone concerned |
 |---|---|---|---|---|
-| **G-01/02** | Option 3 — engagement disabled by default, enabled on declaration of a legal basis | Low | None | ZE — removes the sending path |
-| **G-21** | Option 1 — separate `reply:send` permission | Very low | None | ZT |
-| **G-03/04/05** | Option 1 — full switchover to local inference, after measurement | Medium | Moderate — one service to administer | ZT |
-| **G-07/08** | Option 1 + the documentation deliverable from option 3 | Low | Low | ZE/ZT boundary |
+| **G-01/02** | Option 3 — engagement disabled by default, enabled on declaration of a legal basis | Low | None | EZ — removes the sending path |
+| **G-21** | Option 1 — separate `reply:send` permission | Very low | None | PZ |
+| **G-03/04/05** | Option 1 — full switchover to local inference, after measurement | Medium | Moderate — one service to administer | PZ |
+| **G-07/08** | Option 1 + the documentation deliverable from option 3 | Low | Low | EZ/PZ boundary |
 | **G-24/25** | Option 1 — versioned releases with an attached SBOM | Low | **Low and recurring** | Outside the zones — build chain |
-| **G-30** | Option 1 — circuit breaker on provider health | Low | Low | ZT |
+| **G-30** | Option 1 — circuit breaker on provider health | Low | Low | PZ |
 
 **Two observations on the whole set.**
 
@@ -496,7 +496,7 @@ service — a cadence of a few messages per minute rules them all out.
    way, or is a tolerance layer needed?
 8. How long does a full campaign of 85 slots take with a local model,
    given that it takes ~35 min with `gpt-4o-mini`?
-9. Is there an operational constraint preventing `net-traitement` from being
+9. Is there an operational constraint preventing `net-processing` from being
    `internal: true` — an egress need I have not listed?
 10. Does removing `LLMServiceInterface` break the preproduction
     generator, and is that generator still used?
