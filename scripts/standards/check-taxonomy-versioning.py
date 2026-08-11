@@ -110,9 +110,17 @@ def taxonomy_content(ref: str) -> dict[str, object] | None:
     return content
 
 
-def describe_changes(before: dict, after: dict) -> list[str]:
-    """Human-readable summary of what moved, so the failure message is actionable."""
+def describe_changes(before: dict, after: dict) -> tuple[list[str], list[str]]:
+    """Summarise what moved, split into notes and outright violations.
+
+    Returns (notes, violations). A violation is a change no version bump can make
+    acceptable — today that is deleting a code, which Constitution VI forbids
+    outright: historical observations reference it, and a consumer that resolved it
+    yesterday must still resolve it tomorrow. Deprecation sets active=false and
+    keeps the row.
+    """
     notes: list[str] = []
+    violations: list[str] = []
 
     for path in sorted(set(before) | set(after)):
         old = before.get(path)
@@ -122,7 +130,11 @@ def describe_changes(before: dict, after: dict) -> list[str]:
             notes.append(f"{Path(path).name}: new taxonomy artifact")
             continue
         if new is None:
-            notes.append(f"{Path(path).name}: artifact removed")
+            violations.append(
+                f"{Path(path).name}: the artifact for a published taxonomy version was"
+                " removed. Consumers pin these files; a version's artifact is never"
+                " withdrawn."
+            )
             continue
         if old == new:
             continue
@@ -141,9 +153,11 @@ def describe_changes(before: dict, after: dict) -> list[str]:
         if added:
             notes.append(f"{Path(path).name}: codes added — {', '.join(added)} (MINOR at least)")
         if removed:
-            notes.append(
-                f"{Path(path).name}: codes REMOVED — {', '.join(removed)}."
-                " Codes are deprecated with active=false, never deleted (Constitution VI)"
+            violations.append(
+                f"{Path(path).name}: codes deleted — {', '.join(removed)}."
+                " Codes are deprecated (active=false), never deleted (Constitution VI):"
+                " existing observations reference them and a consumer that resolved them"
+                " once must keep resolving them."
             )
         if modified:
             notes.append(f"{Path(path).name}: codes modified — {', '.join(modified)}")
@@ -157,7 +171,7 @@ def describe_changes(before: dict, after: dict) -> list[str]:
         if not (added or removed or modified):
             notes.append(f"{Path(path).name}: content changed")
 
-    return notes
+    return notes, violations
 
 
 def read_version(ref: str | None) -> str | None:
@@ -199,11 +213,15 @@ def main() -> int:
         print("No taxonomy content change in this diff.")
         return 0
 
-    print("Taxonomy content changed in this diff:")
-    for note in describe_changes(before, after or {}):
-        print(f"  - {note}")
+    notes, violations = describe_changes(before, after or {})
 
-    problems: list[str] = []
+    print("Taxonomy content changed in this diff:")
+    for note in notes:
+        print(f"  - {note}")
+    for violation in violations:
+        print(f"  - {violation}")
+
+    problems: list[str] = list(violations)
 
     base_version = read_version(merge_base)
     head_version = read_version(None)
@@ -227,7 +245,7 @@ def main() -> int:
         print("\nOK: the taxonomy change carries a version bump and a changelog entry.")
         return 0
 
-    print("\nFAIL: unversioned taxonomy change.")
+    print("\nFAIL: this taxonomy change cannot ship as it stands.")
     for problem in problems:
         print(f"  - {problem}")
     print(
