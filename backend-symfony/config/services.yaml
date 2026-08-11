@@ -146,6 +146,7 @@ services:
         arguments:
             $enabled: '%env(default:ttp_extraction.enabled.default:bool:TTP_EXTRACTION_ENABLED)%'
             $confidenceThreshold: '%env(default:ttp_extraction.confidence.default:float:TTP_CONFIDENCE_THRESHOLD)%'
+            $model: '%llm.model%'
 
     # GUARD smoke runner — invokes the reply-objective smoke command in-process for the worker.
     App\Infrastructure\Guard\InProcessSmokeRunner:
@@ -389,6 +390,30 @@ services:
     App\Application\Communication\ConversationHistoryService:
         arguments:
             $excludedEmails: '%conversation_history.excluded_emails%'
+            $model: '%llm.model%'
+        autowire: true
+        autoconfigure: true
+
+    # LLM sovereignty: bind the provider-configured model so a non-OpenAI
+    # provider is never handed an OpenAI slug. Strong-reasoning services use
+    # %llm.model_strong%; the rest use the base %llm.model%.
+    App\Application\Audit\ConversationQualityAuditor:
+        arguments:
+            $model: '%llm.model_strong%'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\Scambaiting\PersonaMirrorGenerator:
+        arguments:
+            $model: '%llm.model%'
+            $provider: '%llm.provider%'
+        autowire: true
+        autoconfigure: true
+
+    App\Application\ThreatActor\ThreatActorPsychProfileGenerator:
+        arguments:
+            $model: '%llm.model%'
+            $provider: '%llm.provider%'
         autowire: true
         autoconfigure: true
     ###< Conversation History Services ###
@@ -531,6 +556,7 @@ services:
             $apiKey: '%env(LLM_API_KEY)%'
             $model: '%env(LLM_MODEL)%'
             $logger: '@logger'
+            $apiUrl: '%llm.api_url%'
         autowire: true
 
     App\Infrastructure\Preprod\IocGenerator:

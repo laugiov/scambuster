@@ -16,7 +16,11 @@ class OpenAIService implements LLMServiceInterface
         private readonly HttpClientInterface $httpClient,
         private readonly string $apiKey,
         private readonly string $model,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        // Derived from %llm.api_url% so this legacy path is not hardwired to
+        // OpenAI's host (an OpenAI-compatible gateway / self-hosted endpoint
+        // works). Required — DI always supplies the configured base URL.
+        private readonly string $apiUrl,
     ) {
     }
 
@@ -27,7 +31,7 @@ class OpenAIService implements LLMServiceInterface
         $maxTokens = $options['max_tokens'] ?? 1024;
 
         try {
-            $response = $this->httpClient->request('POST', 'https://api.openai.com/v1/chat/completions', [
+            $response = $this->httpClient->request('POST', rtrim($this->apiUrl, '/') . '/chat/completions', [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $this->apiKey,
                     'Content-Type' => 'application/json',

@@ -24,7 +24,6 @@ use Psr\Log\LoggerInterface;
  */
 final class ConversationAnalyzer
 {
-    private const ANALYZER_MODEL = 'gpt-4o'; // Upgraded from mini for better repetition detection
     private const ANALYZER_TEMPERATURE = 0.3; // Low temperature for consistent analysis
     private const MAX_TOKENS = 3000; // Increased for structured instructions JSON (was 2500)
     private const MAX_MESSAGES_WITHOUT_SUMMARY = 10;
@@ -39,6 +38,10 @@ final class ConversationAnalyzer
         // resolves the operator-overridable director strategy/tone blocks, else the shipped
         // catalog default is used verbatim (byte-identical to the previous inline text).
         private readonly ?PromptProvider $prompts = null,
+        // Strong-reasoning model (%llm.model_strong%): the analyzer uses a
+        // stronger model than the base pipeline for repetition detection.
+        // Default is the OpenAI backstop; DI supplies the configured value.
+        private readonly string $model = 'gpt-4o',
     ) {
     }
 
@@ -96,7 +99,7 @@ final class ConversationAnalyzer
             $this->logger->info('[ConversationAnalyzer] Calling LLM for conversation analysis', [
                 'conv_id' => $context['conversation_id'],
                 'messages_count' => count($context['all_messages']),
-                'model' => self::ANALYZER_MODEL,
+                'model' => $this->model,
                 'scam_type' => $context['scam_type'],
                 'persona' => $context['persona_code'],
                 'iocs_extracted' => count($context['extracted_iocs'] ?? []),
@@ -113,7 +116,7 @@ final class ConversationAnalyzer
                     ['role' => 'user', 'content' => $prompt],
                 ],
                 [
-                    'model' => self::ANALYZER_MODEL,
+                    'model' => $this->model,
                     'temperature' => self::ANALYZER_TEMPERATURE,
                     'max_tokens' => self::MAX_TOKENS,
                     'response_format' => ['type' => 'json_object'],

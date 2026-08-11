@@ -47,7 +47,6 @@ use Psr\Log\LoggerInterface;
 // Non-final so unit tests can stub ::check() without a DB or LLM call.
 readonly class PaymentInstigationGuard
 {
-    private const MODEL = 'gpt-4o-mini';
     private const TEMPERATURE = 0.0;
     private const MAX_TOKENS = 30;
     private const PURPOSE = 'payment_instigation_check';
@@ -94,6 +93,8 @@ readonly class PaymentInstigationGuard
         private EntityManagerInterface $em,
         private LLMClientInterface $llmClient,
         private LoggerInterface $logger,
+        // Provider-configured model (%llm.model%); default is the OpenAI backstop.
+        private string $model = 'gpt-4o-mini',
     ) {
     }
 
@@ -123,7 +124,7 @@ readonly class PaymentInstigationGuard
 
         try {
             $response = $this->llmClient->chat($messages, [
-                'model' => self::MODEL,
+                'model' => $this->model,
                 'temperature' => self::TEMPERATURE,
                 'max_tokens' => self::MAX_TOKENS,
                 'purpose' => self::PURPOSE,
@@ -225,7 +226,7 @@ readonly class PaymentInstigationGuard
 
         try {
             $response = $this->llmClient->chat($messages, [
-                'model' => self::MODEL,
+                'model' => $this->model,
                 'temperature' => self::TEMPERATURE,
                 'max_tokens' => self::MAX_TOKENS,
                 'purpose' => self::PURPOSE,

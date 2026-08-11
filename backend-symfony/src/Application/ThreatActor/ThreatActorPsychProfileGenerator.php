@@ -26,7 +26,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  */
 final readonly class ThreatActorPsychProfileGenerator
 {
-    private const MODEL = 'gpt-4o-mini';
     private const PROMPT_VERSION = 'v1';
     private const MAX_MESSAGES = 25;
     private const MAX_MESSAGE_CHARS = 400;
@@ -39,6 +38,9 @@ final readonly class ThreatActorPsychProfileGenerator
         private ClusterBehaviourReaderInterface $clusterBehaviour,
         private EventDispatcherInterface $dispatcher,
         private LoggerInterface $logger,
+        // Provider-configured model (%llm.model%); default is the OpenAI backstop.
+        private string $model = 'gpt-4o-mini',
+        private string $provider = 'openai',
     ) {
     }
 
@@ -66,7 +68,7 @@ final readonly class ThreatActorPsychProfileGenerator
                 ['role' => 'system', 'content' => self::SYSTEM_PROMPT],
                 ['role' => 'user', 'content' => $userPrompt],
             ], [
-                'model'       => self::MODEL,
+                'model'       => $this->model,
                 'temperature' => 0.3,
                 'max_tokens'  => 500,
                 'purpose'     => 'threat_actor_psych_profile',
@@ -84,8 +86,8 @@ final readonly class ThreatActorPsychProfileGenerator
             $this->persist($profile);
 
             $this->dispatcher->dispatch(new LlmCallCompletedEvent(
-                provider: 'openai',
-                model: self::MODEL,
+                provider: $this->provider,
+                model: $this->model,
                 purpose: 'threat_actor_psych_profile',
                 promptTokens: (int) ceil(\strlen($userPrompt) / 4),
                 completionTokens: (int) ceil(\strlen($response) / 4),
@@ -308,7 +310,7 @@ final readonly class ThreatActorPsychProfileGenerator
             languageSwitches: $context['behaviour']['language_switch_count'],
             conversationCount: $context['conversation_count'],
             messageCount: $context['message_count'],
-            generatedByModel: self::MODEL,
+            generatedByModel: $this->model,
             promptVersion: self::PROMPT_VERSION,
             generatedAt: new \DateTimeImmutable(),
         );

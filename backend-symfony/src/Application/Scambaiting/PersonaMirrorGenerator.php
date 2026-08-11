@@ -35,7 +35,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  */
 final readonly class PersonaMirrorGenerator
 {
-    private const MODEL = 'gpt-4o-mini';
     private const PROMPT_VERSION = 'v1';
     private const SYSTEM_PROMPT = 'You are a cybersecurity analyst writing victim-profile framing for a scambaiting honeypot platform. Respond with strict JSON only — no markdown, no preamble, no extra prose outside the JSON.';
 
@@ -44,6 +43,9 @@ final readonly class PersonaMirrorGenerator
         private Connection $connection,
         private EventDispatcherInterface $dispatcher,
         private LoggerInterface $logger,
+        // Provider-configured model (%llm.model%); default is the OpenAI backstop.
+        private string $model = 'gpt-4o-mini',
+        private string $provider = 'openai',
     ) {
     }
 
@@ -67,7 +69,7 @@ final readonly class PersonaMirrorGenerator
                 ['role' => 'system', 'content' => self::SYSTEM_PROMPT],
                 ['role' => 'user', 'content' => $userPrompt],
             ], [
-                'model' => self::MODEL,
+                'model' => $this->model,
                 'temperature' => 0.3,
                 'max_tokens' => 350,
                 'purpose' => 'persona_mirror_generation',
@@ -86,8 +88,8 @@ final readonly class PersonaMirrorGenerator
             $costEstimate = 0.001;
 
             $this->dispatcher->dispatch(new LlmCallCompletedEvent(
-                provider: 'openai',
-                model: self::MODEL,
+                provider: $this->provider,
+                model: $this->model,
                 purpose: 'persona_mirror_generation',
                 promptTokens: (int) ceil(\strlen($userPrompt) / 4),
                 completionTokens: (int) ceil(\strlen($response) / 4),
@@ -271,7 +273,7 @@ final readonly class PersonaMirrorGenerator
             'lever' => $payload['cognitive_lever'],
             'mirror' => $payload['mirror_explanation'],
             'ts' => $now,
-            'model' => self::MODEL,
+            'model' => $this->model,
             'pv' => self::PROMPT_VERSION,
         ]);
     }

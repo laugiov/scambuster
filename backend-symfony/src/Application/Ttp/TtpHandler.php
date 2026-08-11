@@ -28,7 +28,6 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class TtpHandler
 {
-    private const MODEL = 'gpt-4o-mini';
     private const PROMPT_VERSION = 'v1';
 
     public function __construct(
@@ -41,6 +40,9 @@ final readonly class TtpHandler
         private ?AuditLoggerInterface $auditLogger = null,
         private bool $enabled = true,
         private float $confidenceThreshold = 0.55,
+        // Provider-configured model (%llm.model%), recorded as extraction
+        // provenance metadata. Default is the OpenAI backstop.
+        private string $model = 'gpt-4o-mini',
     ) {
     }
 
@@ -142,7 +144,7 @@ final readonly class TtpHandler
                     'evidence_end' => $item['evidence_end'],
                     'status' => $status,
                     'taxonomy_version' => Ttp::TAXONOMY_VERSION,
-                    'extraction_model' => self::MODEL,
+                    'extraction_model' => $this->model,
                     'prompt_version' => self::PROMPT_VERSION,
                 ]);
             } catch (\Throwable $e) {
