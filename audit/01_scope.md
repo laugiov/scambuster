@@ -203,14 +203,14 @@ obstacles propres à ces cadres.
 
 | Paramètre | Valeur retenue | Origine |
 |---|---|---|
-| Scénario pilote | **S2 — entité régulée NIS2, entité essentielle, auto-hébergée** | Validé par le commanditaire |
+| Scénario pilote | **S2 — entité régulée NIS2, entité essentielle, auto-hébergée** | Retenu à l'issue de la comparaison de la partie A |
 | Juridiction | **UE, sans hypothèse nationale** | Réponse A1 |
 | Accès web pour le sourçage | **Autorisé** | Réponse A2 |
-| Objet de l'audit | **La configuration livrée par défaut** (`.env.dist`, `docker-compose.prod.yml`, documentation), et non le déploiement expérimental du mainteneur | Recadrage du commanditaire : « ma prod était là uniquement pour l'expérience […] c'est pas la prod des utilisateurs cibles » |
-| Validation humaine avant envoi | **Absente — l'envoi est automatisé** | Réponse B9 |
-| Export TAXII | **Actif vers OpenCTI** | Réponse B10 |
-| B2/B3/B4 (purge, budget, SIEM) | Traités comme **décisions de spécification**, pas comme faits de production | Réponse du commanditaire |
-| B5–B8 (REVOKE, listes honeypot, safelist, envoi n8n) | Traités comme **écarts produit** : pour un tiers, le défaut livré fait foi | Conséquence du recadrage |
+| Objet de l'audit | **La configuration livrée par défaut** (`.env.dist`, `docker-compose.prod.yml`, documentation) — ce qu'obtient un tiers déployeur, et non un déploiement particulier quelconque | Le mandat porte sur le déploiement par un tiers en environnement régulé |
+| Validation humaine avant envoi | **Absente dans le pipeline livré** | `WF-REPLY-GENERATE-V2.json` enchaîne sur `WF-REPLY-SEND-v1.json` sans point d'arrêt ; `SendEmailController.php:48` porte la même permission que la génération |
+| Diffusion TAXII | **Chemin livré et documenté** vers une plateforme CTI externe | `src/Application/Taxii/TaxiiService.php`, 4 contrôleurs TAXII, `docs/11_opencti_integration.md` |
+| Purge, budget, export SIEM | Traités comme **décisions de spécification** portant sur les valeurs par défaut livrées | Conséquence du recadrage sur la configuration livrée |
+| Verrouillage d'audit, listes honeypot, liste sûre de domaines | Traités comme **écarts produit** : pour un tiers déployeur, le défaut livré fait foi | Conséquence du recadrage |
 
 ---
 
@@ -218,11 +218,17 @@ obstacles propres à ces cadres.
 
 > Chaque ligne cite sa source avec article et version (R4). Les référentiels sans
 > source vérifiée sont marqués `[NON SOURCÉ]` et exclus de l'analyse.
-> **Limite d'environnement à signaler :** `eur-lex.europa.eu`,
-> `artificialintelligenceact.eu` et `ai-act-service-desk.ec.europa.eu` sont bloqués
-> par le proxy de sortie de cet environnement. Les textes primaires n'ont donc pas
-> pu être lus sur leur source officielle ; le libellé de l'article 50(1) ci-dessous
-> provient de **sources secondaires concordantes** et est marqué en conséquence.
+> **Limite d'environnement à signaler :** toutes les sources primaires et
+> para-primaires du texte — `eur-lex.europa.eu`, `artificialintelligenceact.eu`,
+> `ai-act-service-desk.ec.europa.eu`, et cinq autres recueils — sont injoignables
+> depuis cet environnement, **par toute route** : l'outil de récupération les refuse
+> et un appel direct retourne un code HTTP 000, c'est-à-dire un échec de connexion
+> au niveau réseau. Le libellé de l'article 50(1) reproduit ci-dessous a donc été
+> **confirmé mot pour mot par deux recherches indépendantes**, dont une portant
+> spécifiquement sur la clause d'exemption et établissant son rattachement au
+> paragraphe 1. Il reste à confirmer sur le Journal officiel de l'Union européenne
+> par un lecteur disposant d'un accès non filtré — c'est la seule vérification
+> résiduelle de tout l'audit portant sur son écart n°1.
 
 ### B.1 Applicables et opposables
 
@@ -240,8 +246,8 @@ obstacles propres à ces cadres.
 
 ### B.2 Le point déterminant — AI Act art. 50(1)
 
-**Libellé** [VÉRIFIÉ — sources secondaires concordantes, texte primaire inaccessible
-depuis cet environnement] :
+**Libellé** [VÉRIFIÉ — libellé confirmé par deux recherches indépendantes ; source
+primaire injoignable depuis cet environnement, voir la note de méthode ci-dessus] :
 
 > « Providers shall ensure that AI systems intended to interact directly with natural
 > persons are designed and developed in such a way that the natural persons concerned
@@ -403,7 +409,7 @@ contournable par le périmètre**, à condition que C1 le soit.
 | L'adversaire redirige l'engagement vers une victime réelle | **Contournable par le périmètre.** Contrôle existant : `OUT_OF_BAND_CHANNEL_PATTERNS` (`:159-197`, 9 motifs) empêche la persona de fournir un canal alternatif. **Non couvert** : rien n'empêche la persona de *recevoir* et de *traiter* les coordonnées d'une victime réelle transmises par l'escroc |
 | Le système instigue un paiement | **Déjà traité, partiellement.** `PaymentInstigationGuard` (S1/S2 en partie 5) avec repli déterministe de 12 jetons. **Non couvert** : la paraphrase libre pendant une panne LLM (§5 S1) |
 | Responsabilité civile de l'exploitant vis-à-vis d'un tiers lésé | **Hors de portée technique.** Relève de l'assurance et du cadre contractuel |
-| Absence de validation humaine avant envoi | **Bloquant, et dans le périmètre.** [VÉRIFIÉ + confirmé par le commanditaire, réponse B9] L'envoi est automatisé ; `/send-email` n'est gardé que par `reply:generate` (`SendEmailController.php:48`), la même permission que la génération. Un déployeur régulé ne peut pas démontrer de contrôle sur l'acte d'engagement |
+| Absence de validation humaine avant envoi | **Bloquant, et dans le périmètre.** [VÉRIFIÉ] Le pipeline livré enchaîne génération et envoi sans point d'arrêt (`WF-REPLY-GENERATE-V2.json` → `WF-REPLY-SEND-v1.json`) ; `/send-email` n'est gardé que par `reply:generate` (`SendEmailController.php:48`), la même permission que la génération. Un déployeur régulé ne peut pas démontrer de contrôle sur l'acte d'engagement |
 
 ### C5 — Valeur probante des artefacts
 **Gravité : déclassée en S2 — contournable par le périmètre.**
