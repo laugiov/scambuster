@@ -1,150 +1,150 @@
-# Plan — architecture cible
+# Plan — target architecture
 
-> **Portée.** Comment satisfaire `audit/spec.md`. Les technologies sont nommées ici, et
-> chaque brique est justifiée contre une contrainte mesurée.
+> **Scope.** How to satisfy `audit/spec.md`. Technologies are named here, and
+> every building block is justified against a measured constraint.
 >
-> **Contrainte de dimensionnement (R5).** Trafic courriel humain, quelques messages par
-> minute au pic. Plafonds configurés : 50 conversations actives/jour, 200 appels LLM/h
-> (`config/packages/rate_limiter.yaml:33-41`). Toute brique dont la justification
-> reposerait sur un débit supérieur est écartée et signalée.
+> **Sizing constraint (R5).** Human email traffic, a few messages per
+> minute at peak. Configured caps: 50 active conversations/day, 200 LLM calls/h
+> (`config/packages/rate_limiter.yaml:33-41`). Any building block whose justification
+> would rest on a higher throughput is set aside and flagged.
 >
-> **Principe directeur.** L'écrasante majorité des exigences se satisfait avec des
-> mécanismes **déjà présents dans le code**. Le plan privilégie systématiquement leur
-> réemploi à l'introduction d'un composant.
+> **Guiding principle.** The vast majority of requirements can be satisfied with
+> mechanisms **already present in the code**. The plan systematically favours
+> reusing them over introducing a component.
 
 ---
 
-## 1. Les deux zones
+## 1. The two zones
 
-| | **Zone d'engagement (ZE)** | **Zone de traitement (ZT)** |
+| | **Engagement zone (EZ)** | **Processing zone (PZ)** |
 |---|---|---|
-| Rôle | Dialogue avec des correspondants non maîtrisés | Détient les données et la logique métier |
-| Composants | Orchestrateur de flux, transports de réception et d'émission | Application, base de données, magasin d'état volatil, moteur d'inférence |
-| Hypothèse de sécurité | **Compromissible** — traite des pièces jointes adverses | À protéger d'un pivot depuis la ZE |
-| Sortie Internet | Réception et émission uniquement | **Aucune** en cible |
-| Détient des identifiants | Ceux des boîtes de réception et d'émission | Ceux de la base et de l'inférence interne |
+| Role | Talks to uncontrolled correspondents | Holds the data and the business logic |
+| Components | Flow orchestrator, receiving and sending transports | Application, database, volatile state store, inference engine |
+| Security assumption | **Can be compromised** — processes adversary attachments | To be protected from a pivot out of the EZ |
+| Internet egress | Receiving and sending only | **None** in the target |
+| Holds credentials | Those of the inbound and outbound mailboxes | Those of the database and of internal inference |
 
-La frontière est **unidirectionnelle en initiative** : la ZE appelle un jeu restreint
-de points d'entrée de la ZT ; la ZT n'initie jamais de connexion vers la ZE.
+The boundary is **one-way in terms of initiative**: the EZ calls a restricted set
+of PZ endpoints; the PZ never initiates a connection towards the EZ.
 
 ---
 
-## 2. Contexte — niveau 1 (C4)
+## 2. Context — level 1 (C4)
 
 ```mermaid
 C4Context
-  title Contexte — ScamBuster déployé par une entité essentielle NIS2
+  title Context — ScamBuster deployed by a NIS2 essential entity
 
-  Person(adv, "Correspondant non maîtrisé", "Expéditeur de courriel non sollicité")
-  Person(analyste, "Analyste CTI", "Exploite, arbitre les indicateurs retenus")
-  Person(dir, "Organe de direction", "Approuve et supervise les mesures — NIS2 art. 20")
+  Person(adv, "Uncontrolled correspondent", "Sender of unsolicited email")
+  Person(analyste, "CTI analyst", "Operates the system, arbitrates the indicators kept")
+  Person(dir, "Management body", "Approves and oversees the measures — NIS2 art. 20")
 
-  System_Boundary(ent, "Périmètre de l'entité") {
-    System(sb, "ScamBuster", "Réception, analyse, extraction, corrélation, diffusion.<br/>Engagement INACTIF par défaut.")
-    System_Ext(siem, "SIEM de l'entité", "Consomme les événements de sécurité")
-    System_Ext(inf, "Moteur d'inférence interne", "Exécuté dans le périmètre")
+  System_Boundary(ent, "Entity perimeter") {
+    System(sb, "ScamBuster", "Receiving, analysis, extraction, correlation, distribution.<br/>Engagement INACTIVE by default.")
+    System_Ext(siem, "Entity SIEM", "Consumes the security events")
+    System_Ext(inf, "Internal inference engine", "Runs inside the perimeter")
   }
 
-  System_Ext(cti, "Plateforme CTI", "Reçoit les indicateurs retenus")
+  System_Ext(cti, "CTI platform", "Receives the indicators kept")
 
-  Rel(adv, sb, "Courriel entrant", "SMTP/IMAP")
-  Rel(sb, inf, "Inférence", "HTTP interne")
-  Rel(sb, siem, "Événements de sécurité", "syslog ou fichier")
-  Rel(sb, cti, "Indicateurs après arbitrage", "TAXII")
-  Rel(analyste, sb, "Arbitrage, supervision", "HTTPS")
-  Rel(dir, sb, "Approuve l'activation de l'engagement", "Décision consignée")
+  Rel(adv, sb, "Incoming email", "SMTP/IMAP")
+  Rel(sb, inf, "Inference", "internal HTTP")
+  Rel(sb, siem, "Security events", "syslog or file")
+  Rel(sb, cti, "Indicators after arbitration", "TAXII")
+  Rel(analyste, sb, "Arbitration, monitoring", "HTTPS")
+  Rel(dir, sb, "Approves enabling engagement", "Recorded decision")
 ```
 
-**Ce que ce niveau fixe.** Le moteur d'inférence est **dans** le périmètre de
-l'entité — c'est EX-03. L'engagement est inactif par défaut — c'est EX-01, et cela
-supprime la flèche de sortie vers le correspondant à l'installation.
+**What this level fixes.** The inference engine is **inside** the entity's
+perimeter — that is EX-03. Engagement is inactive by default — that is EX-01, and it
+removes the outgoing arrow towards the correspondent at installation time.
 
 ---
 
-## 3. Conteneurs — niveau 2 (C4)
+## 3. Containers — level 2 (C4)
 
 ```mermaid
 C4Container
-  title Conteneurs et frontières de sécurité
+  title Containers and security boundaries
 
-  Person(adv, "Correspondant non maîtrisé")
-  Person(analyste, "Analyste CTI")
+  Person(adv, "Uncontrolled correspondent")
+  Person(analyste, "CTI analyst")
 
-  Container_Boundary(ze, "ZONE D'ENGAGEMENT — exposée") {
-    Container(mail, "Transports courriel", "IMAP / SMTP", "Réception. Émission SEULEMENT si engagement actif")
-    Container(orch, "Orchestrateur de flux", "n8n", "Détient les identifiants de boîte. AUCUN accès au magasin de données")
+  Container_Boundary(ze, "ENGAGEMENT ZONE — exposed") {
+    Container(mail, "Email transports", "IMAP / SMTP", "Receiving. Sending ONLY if engagement is active")
+    Container(orch, "Flow orchestrator", "n8n", "Holds the mailbox credentials. NO access to the data store")
   }
 
-  Container_Boundary(zt, "ZONE DE TRAITEMENT — isolée, sans sortie Internet") {
-    Container(api, "Application", "Symfony / PHP 8.3", "Analyse, extraction, corrélation, contrôles, arbitrage")
-    ContainerDb(db, "Magasin de données", "PostgreSQL 15", "Messages, indicateurs, journal d'audit chaîné")
-    ContainerDb(kv, "Magasin d'état volatil", "Redis 7", "Compteurs de débit, état du coupe-circuit")
-    Container(llm, "Moteur d'inférence", "Serveur local", "Toutes les fonctions faisant appel à un modèle")
+  Container_Boundary(zt, "PROCESSING ZONE — isolated, no Internet egress") {
+    Container(api, "Application", "Symfony / PHP 8.3", "Analysis, extraction, correlation, checks, arbitration")
+    ContainerDb(db, "Data store", "PostgreSQL 15", "Messages, indicators, chained audit log")
+    ContainerDb(kv, "Volatile state store", "Redis 7", "Rate counters, circuit breaker state")
+    Container(llm, "Inference engine", "Local server", "All functions that call a model")
   }
 
-  Container_Boundary(aval, "AVAL") {
-    Container(siem, "Collecteur SIEM", "syslog / fichier", "Événements de sécurité")
-    Container(cti, "Plateforme CTI", "TAXII", "Indicateurs après arbitrage")
+  Container_Boundary(aval, "DOWNSTREAM") {
+    Container(siem, "SIEM collector", "syslog / file", "Security events")
+    Container(cti, "CTI platform", "TAXII", "Indicators after arbitration")
   }
 
-  Rel(adv, mail, "1. Courriel entrant")
-  Rel(mail, orch, "2. Relève")
-  Rel(orch, api, "3. Points d'entrée restreints", "HTTPS — liste explicite")
-  Rel(api, db, "4. Persistance")
-  Rel(api, kv, "5. Compteurs, coupe-circuit")
-  Rel(api, llm, "6. Inférence — jamais vers l'extérieur")
-  Rel(analyste, api, "7. Arbitrage des indicateurs")
-  Rel(api, siem, "8. Événements")
-  Rel(api, cti, "9. Indicateurs retenus")
-  Rel(orch, mail, "10. Émission — CONDITIONNÉE à l'engagement actif")
-  Rel(mail, adv, "11. Réponse")
+  Rel(adv, mail, "1. Incoming email")
+  Rel(mail, orch, "2. Fetch")
+  Rel(orch, api, "3. Restricted endpoints", "HTTPS — explicit list")
+  Rel(api, db, "4. Persistence")
+  Rel(api, kv, "5. Counters, circuit breaker")
+  Rel(api, llm, "6. Inference — never outbound")
+  Rel(analyste, api, "7. Indicator arbitration")
+  Rel(api, siem, "8. Events")
+  Rel(api, cti, "9. Indicators kept")
+  Rel(orch, mail, "10. Sending — CONDITIONAL on engagement being active")
+  Rel(mail, adv, "11. Reply")
 
   UpdateRelStyle(orch, api, $offsetY="-20")
   UpdateRelStyle(api, llm, $offsetY="-10")
   UpdateRelStyle(orch, mail, $offsetY="-30")
 ```
 
-**Frontières de sécurité, et ce qu'elles portent.**
+**Security boundaries, and what they carry.**
 
-| Frontière | Exigence | Moyen |
+| Boundary | Requirement | Means |
 |---|---|---|
-| ZE → ZT | EX-05 | Réseaux distincts ; ZT en `internal: true` ; seuls les points d'entrée du flux joignables depuis la ZE |
-| ZT → Internet | EX-03, EX-05 | Aucune sortie. Le moteur d'inférence étant interne, la ZT n'a plus de destination externe légitime |
-| Émission | EX-01, EX-02 | Double condition : engagement actif **et** privilège d'émission détenu |
-| Inférence | EX-03 | Réglage unique, aucune destination ni identifiant de modèle en dur |
-| Arbitrage | *(existant)* | Le blocage d'export financier reste en place, inchangé |
+| EZ → PZ | EX-05 | Separate networks; PZ set to `internal: true`; only the flow endpoints reachable from the EZ |
+| PZ → Internet | EX-03, EX-05 | No egress. Since the inference engine is internal, the PZ no longer has any legitimate external destination |
+| Sending | EX-01, EX-02 | Two conditions: engagement active **and** the sending privilege held |
+| Inference | EX-03 | Single setting, no hard-coded destination or model identifier |
+| Arbitration | *(existing)* | The financial export block stays in place, unchanged |
 
 ---
 
-## 4. Flux de données — de l'entrant au SIEM
+## 4. Data flow — from incoming message to SIEM
 
 ```mermaid
 flowchart TB
-  A["Courriel entrant<br/>correspondant non maîtrisé"] --> B["Relève — ZE<br/>orchestrateur"]
-  B --> C["Ingestion — ZT<br/>IngestController"]
-  C --> D["Analyse MIME<br/>+ plafonds de taille<br/>+ liste blanche MIME (nouveau)"]
-  D --> E["Persistance<br/>message, pièces jointes"]
-  E --> F["Post-traitement<br/>classification · extraction d'indicateurs<br/>· score de risque · détection d'injection"]
-  F --> G{"Moteur d'inférence<br/>disponible ?"}
-  G -->|non| H["COUPE-CIRCUIT<br/>suspension de l'engagement<br/>+ audit + alerte"]
-  G -->|oui| I["Inférence interne<br/>ZT — jamais vers l'extérieur"]
-  I --> J["Indicateurs normalisés<br/>validés, défangués"]
-  J --> K{"Type financier<br/>ou faux positif ?"}
-  K -->|oui| L["RETENU<br/>file d'arbitrage analyste"]
-  K -->|non| M["Éligible à la diffusion"]
-  L -->|verdict Confirmé| M
-  M --> N["Diffusion CTI<br/>TAXII — filtre TLP:RED"]
-  F --> O["Événements d'audit<br/>chaînés par HMAC"]
-  O --> P["Export SIEM<br/>ACTIF par défaut (EX-11)"]
-  P --> Q[("SIEM de l'entité")]
+  A["Incoming email<br/>uncontrolled correspondent"] --> B["Fetch — EZ<br/>orchestrator"]
+  B --> C["Ingestion — PZ<br/>IngestController"]
+  C --> D["MIME parsing<br/>+ size caps<br/>+ MIME allowlist (new)"]
+  D --> E["Persistence<br/>message, attachments"]
+  E --> F["Post-processing<br/>classification · indicator extraction<br/>· risk score · injection detection"]
+  F --> G{"Inference engine<br/>available?"}
+  G -->|no| H["CIRCUIT BREAKER<br/>engagement suspended<br/>+ audit + alert"]
+  G -->|yes| I["Internal inference<br/>PZ — never outbound"]
+  I --> J["Normalised indicators<br/>validated, defanged"]
+  J --> K{"Financial type<br/>or false positive?"}
+  K -->|yes| L["HELD<br/>analyst arbitration queue"]
+  K -->|no| M["Eligible for distribution"]
+  L -->|Confirmed verdict| M
+  M --> N["CTI distribution<br/>TAXII — TLP:RED filter"]
+  F --> O["Audit events<br/>chained by HMAC"]
+  O --> P["SIEM export<br/>ACTIVE by default (EX-11)"]
+  P --> Q[("Entity SIEM")]
 
-  F --> R{"Engagement<br/>actif ?"}
-  R -->|non — DÉFAUT| S["Fin — pas de réponse"]
-  R -->|oui, base légale déclarée| T["Production de réponse<br/>+ contrôles de sortie"]
-  T --> U{"Privilège<br/>d'émission ?"}
-  U -->|non| V["Refus + audit"]
-  U -->|oui| W["Émission — ZE"]
-  W --> X["Réponse au correspondant"]
+  F --> R{"Engagement<br/>active?"}
+  R -->|no — DEFAULT| S["End — no reply"]
+  R -->|yes, legal basis declared| T["Reply production<br/>+ output checks"]
+  T --> U{"Sending<br/>privilege?"}
+  U -->|no| V["Denial + audit"]
+  U -->|yes| W["Sending — EZ"]
+  W --> X["Reply to the correspondent"]
 
   classDef ze fill:#7f1d1d,stroke:#ef4444,color:#fff
   classDef zt fill:#1e3a5f,stroke:#3b82f6,color:#fff
@@ -156,63 +156,63 @@ flowchart TB
   class N,P,Q,M out
 ```
 
-**Trois points de contrôle nouveaux, en jaune.** Le coupe-circuit sur la disponibilité
-du moteur (EX-09), la porte d'engagement (EX-01) et la porte de privilège d'émission
-(EX-02). Les deux autres portes — arbitrage des indicateurs financiers, filtre
-TLP:RED — **existent déjà** et sont conservées telles quelles.
+**Three new control points, in yellow.** The circuit breaker on engine
+availability (EX-09), the engagement gate (EX-01) and the sending privilege gate
+(EX-02). The two other gates — financial indicator arbitration, TLP:RED
+filter — **already exist** and are kept as they are.
 
 ---
 
-## 5. Choix de briques, justifiés
+## 5. Building-block choices, justified
 
-| # | Décision | Justification contre une contrainte mesurée | Alternative écartée |
+| # | Decision | Justification against a measured constraint | Alternative set aside |
 |---|---|---|---|
-| B1 | **Réemployer le kill switch existant** comme porte d'engagement, en inversant son défaut et en étendant sa portée à l'émission | Le mécanisme existe (`ReplyCadenceService.php:55-77`), il est déjà exposé en supervision (`scambuster_kill_switch`) et déjà alerté. Coût quasi nul | Construire un drapeau d'activation distinct — dupliquerait un état existant |
-| B2 | **Séparer la porte d'engagement du kill switch d'urgence** en deux états distincts, la première étant une décision de configuration, le second une bascule d'exploitation | Confondre les deux rendrait impossible de distinguer « non autorisé » de « suspendu temporairement », alors que EX-01 et EX-09 exigent des journaux distincts | Un état unique à trois valeurs — moins lisible en supervision |
-| B3 | **Ajouter une permission `reply:send`** au modèle existant | `PermissionVoter` fonctionne déjà par permission ; passer de 14 à 15 cas est une modification triviale (`Permission.php:19-40`) | File d'approbation humaine — coût d'exploitation prohibitif pour 1 à 3 personnes à 50 conversations/jour |
-| B4 | **Serveur d'inférence local, instance unique, sans mise à l'échelle** | 200 appels/h au plafond configuré, soit ~3/min. Une instance unique traite plusieurs requêtes par seconde | Grappe, file d'inférence, équilibrage : **sur-dimensionnés d'au moins deux ordres de grandeur** |
-| B5 | **Réemployer le port `LLMClientInterface` et l'adaptateur Ollama existants** | Le port et l'adaptateur sont écrits (`OllamaClient.php`) ; le travail est de supprimer les contournements, pas d'écrire un client | Nouvelle couche d'abstraction — le port existant est adéquat |
-| B6 | **Supprimer la seconde interface `LLMServiceInterface`** plutôt que la faire coexister | Deux abstractions concurrentes rendent EX-03 indémontrable : un contrôle automatisé ne peut pas garantir l'exhaustivité si deux chemins existent | La conserver pour la préproduction — la préproduction peut utiliser le port unique |
-| B7 | **Doter le service d'embeddings du port existant** | C'est le seul appel qui court-circuite toute abstraction (`EmbeddingService.php:20`, `HttpClientInterface` direct). Sans lui, EX-03 est faux | Laisser les embeddings sortir — contredit A3.1 |
-| B8 | **Deux réseaux Docker, ZT en `internal: true`** | Traite le pivot latéral (menace T4) pour quelques lignes de configuration, sans composant nouveau | Hôtes séparés + proxy : **sur-dimensionné** à cette cadence, double la charge d'administration pour un gain marginal |
-| B9 | **Aucun proxy sortant applicatif** | La ZT n'ayant plus de destination externe après B4, un proxy n'aurait rien à filtrer. Le filtrage résiduel porte sur la ZE et relève de l'hôte | Proxy filtrant en ZT — composant sans objet, et qui verrait tout le trafic en clair |
-| B10 | **Attacher le SBOM déjà produit à une publication versionnée** | Le SBOM CycloneDX est généré à chaque intégration (`ci.yml:332-337`) mais jeté après 30 jours. Le travail est la distribution, pas la production | Chaîne de signature et attestation de provenance : **sur-dimensionnée** au regard des sources citées |
-| B11 | **Piloter le coupe-circuit depuis un compteur d'échecs consécutifs, dans le magasin d'état volatil** | Redis est déjà présent et porte déjà l'état du kill switch. Un compteur de plus est gratuit | Sonde de santé dédiée, service de disjoncteur : composants nouveaux pour un état trivial |
-| B12 | **Liste blanche de types MIME sur les pièces jointes** | EX-05 et la menace T4 : le composant le plus exposé traite aujourd'hui tout type sans restriction (`EmailParsingService.php:275`) | Bac à sable d'analyse : sur-dimensionné, et sans objet puisque le binaire n'est pas persisté |
-| B13 | **`SIEM_PROVIDER` par défaut à `file`**, et refus de démarrage en production si laissé à `none` sans déclaration explicite | EX-11. Un défaut `none` prive le déployeur de tout événement à l'installation ; `file` n'exige aucune infrastructure et n'écrit vers aucun collecteur non configuré | Défaut `syslog` — écrirait vers une destination non configurée |
+| B1 | **Reuse the existing kill switch** as the engagement gate, inverting its default and extending its scope to sending | The mechanism exists (`ReplyCadenceService.php:55-77`), it is already exposed in monitoring (`scambuster_kill_switch`) and already alerted on. Almost zero cost | Building a separate enablement flag — would duplicate an existing state |
+| B2 | **Separate the engagement gate from the emergency kill switch** into two distinct states, the first being a configuration decision, the second an operating switch | Conflating the two would make it impossible to tell "not authorised" from "temporarily suspended", whereas EX-01 and EX-09 require distinct logs | A single three-valued state — less readable in monitoring |
+| B3 | **Add a `reply:send` permission** to the existing model | `PermissionVoter` already works permission by permission; going from 14 to 15 cases is a trivial change (`Permission.php:19-40`) | A human approval queue — prohibitive operating cost for 1 to 3 people at 50 conversations/day |
+| B4 | **Local inference server, single instance, no scaling** | 200 calls/h at the configured cap, i.e. ~3/min. A single instance handles several requests per second | Cluster, inference queue, load balancing: **over-engineered by at least two orders of magnitude** |
+| B5 | **Reuse the `LLMClientInterface` port and the existing Ollama adapter** | The port and the adapter are written (`OllamaClient.php`); the work is to remove the bypasses, not to write a client | A new abstraction layer — the existing port is adequate |
+| B6 | **Remove the second `LLMServiceInterface` interface** rather than let it coexist | Two competing abstractions make EX-03 impossible to demonstrate: an automated check cannot guarantee completeness if two paths exist | Keeping it for pre-production — pre-production can use the single port |
+| B7 | **Give the embedding service the existing port** | It is the only call that bypasses every abstraction (`EmbeddingService.php:20`, `HttpClientInterface` directly). Without it, EX-03 is false | Letting embeddings leave the perimeter — contradicts A3.1 |
+| B8 | **Two Docker networks, PZ set to `internal: true`** | Addresses lateral pivoting (threat T4) for a few lines of configuration, with no new component | Separate hosts + proxy: **over-engineered** at this rate, doubles the administration effort for a marginal gain |
+| B9 | **No application-level outbound proxy** | Since the PZ no longer has an external destination after B4, a proxy would have nothing to filter. The residual filtering concerns the EZ and belongs to the host | A filtering proxy in the PZ — a component with no purpose, and one that would see all traffic in clear text |
+| B10 | **Attach the SBOM already produced to a versioned release** | The CycloneDX SBOM is generated on every integration (`ci.yml:332-337`) but discarded after 30 days. The work is distribution, not production | A signing chain and provenance attestation: **over-engineered** given the sources cited |
+| B11 | **Drive the circuit breaker from a consecutive-failure counter, in the volatile state store** | Redis is already present and already carries the kill switch state. One more counter is free | A dedicated health probe, a circuit breaker service: new components for a trivial state |
+| B12 | **MIME type allowlist on attachments** | EX-05 and threat T4: the most exposed component today processes any type without restriction (`EmailParsingService.php:275`) | An analysis sandbox: over-engineered, and pointless since the binary is not persisted |
+| B13 | **`SIEM_PROVIDER` defaulting to `file`**, and refusal to start in production if left at `none` without an explicit declaration | EX-11. A `none` default deprives the deployer of any event at installation time; `file` requires no infrastructure and writes to no unconfigured collector | A `syslog` default — would write to an unconfigured destination |
 
 ---
 
-## 6. Ce qui est explicitement **conservé sans modification**
+## 6. What is explicitly **kept unchanged**
 
-Rappel de la règle R2 : ces composants existent, ils ne sont pas dupliqués.
+A reminder of rule R2: these components exist, they are not duplicated.
 
-| Composant | Motif de conservation |
+| Component | Reason for keeping it |
 |---|---|
-| `PolicyGuard` et ses 6 jeux de motifs | Contrôle de sortie déterministe opérant. **Réserve** : si EX-01 conduit un jour à activer l'engagement avec divulgation, `FORBIDDEN_PATTERNS` devra être réexaminé — mais pas avant |
-| Blocage d'export des indicateurs financiers et chemin de libération par verdict | Répond déjà, pour la classe qu'il couvre, au besoin d'arbitrage humain |
-| Chaîne d'audit HMAC et vérification quotidienne | Conservée. Le durcissement (application du `REVOKE`) relève d'écarts déclassés en S2 |
-| Les 8 limiteurs de débit | **Largement dimensionnés** pour la cadence mesurée ; aucun ajustement justifié |
-| Porte GUARD, oracle et baseline gelé | Deviennent l'instrument de mesure de EX-04 ; aucune modification, sous peine d'invalider la comparaison |
-| Filtre TLP:RED sur la diffusion TAXII | Conservé |
-| `SignatureStripper`, `PaymentInstigationGuard`, détection d'injection | Conservés. Leur comportement en défaillance est corrigé par EX-09, pas leur logique |
+| `PolicyGuard` and its 6 pattern sets | A working deterministic output check. **Caveat**: if EX-01 one day leads to enabling engagement with disclosure, `FORBIDDEN_PATTERNS` will have to be reviewed — but not before |
+| Financial indicator export block and the verdict-based release path | Already meets, for the class it covers, the need for human arbitration |
+| HMAC audit chain and daily verification | Kept. The hardening (applying the `REVOKE`) belongs to gaps downgraded in S2 |
+| The 8 rate limiters | **Generously sized** for the measured rate; no adjustment justified |
+| GUARD gate, oracle and frozen baseline | They become the measuring instrument for EX-04; no change, on pain of invalidating the comparison |
+| TLP:RED filter on TAXII distribution | Kept |
+| `SignatureStripper`, `PaymentInstigationGuard`, injection detection | Kept. Their behaviour on failure is corrected by EX-09, not their logic |
 
 ---
 
-## 7. Dépendances entre exigences
+## 7. Dependencies between requirements
 
 ```mermaid
 flowchart LR
-  EX07["EX-07<br/>Version identifiable"] --> EX08["EX-08<br/>SBOM publié"]
-  EX07 --> TOUT["Toute livraison<br/>identifiable"]
-  EX03["EX-03<br/>Inférence démontrable"] --> EX04["EX-04<br/>Régression mesurée"]
-  EX04 --> BASCULE["Décision<br/>de bascule"]
-  EX03 --> EX05["EX-05<br/>Cloisonnement"]
-  EX01["EX-01<br/>Engagement inactif<br/>par défaut"] --> EX02["EX-02<br/>Privilège d'émission"]
-  EX01 --> EX09["EX-09<br/>Coupe-circuit"]
-  EX06["EX-06<br/>Flux recensés"] --> EX05
-  EX10["EX-10<br/>Documentation vraie"] --> ACCEPT["Acceptation<br/>de risque signée"]
-  EX11["EX-11<br/>Défauts sûrs"] --> EX01
+  EX07["EX-07<br/>Identifiable version"] --> EX08["EX-08<br/>Published SBOM"]
+  EX07 --> TOUT["Every release<br/>identifiable"]
+  EX03["EX-03<br/>Demonstrable inference"] --> EX04["EX-04<br/>Regression measured"]
+  EX04 --> BASCULE["Switchover<br/>decision"]
+  EX03 --> EX05["EX-05<br/>Segmentation"]
+  EX01["EX-01<br/>Engagement inactive<br/>by default"] --> EX02["EX-02<br/>Sending privilege"]
+  EX01 --> EX09["EX-09<br/>Circuit breaker"]
+  EX06["EX-06<br/>Flows listed"] --> EX05
+  EX10["EX-10<br/>Documentation true"] --> ACCEPT["Signed risk<br/>acceptance"]
+  EX11["EX-11<br/>Safe defaults"] --> EX01
   EX11 --> ACCEPT
   EX05 --> ACCEPT
   EX08 --> ACCEPT
@@ -223,40 +223,40 @@ flowchart LR
   class ACCEPT,BASCULE fin
 ```
 
-**Deux préalables sans dépendance amont**, en jaune : EX-07 (version) et EX-11
-(défauts sûrs). Ils conditionnent le reste et doivent être traités en premier.
+**Two prerequisites with no upstream dependency**, in yellow: EX-07 (version) and EX-11
+(safe defaults). They condition the rest and must be handled first.
 
-**Une dépendance non évidente** : EX-03 conditionne EX-05. [DÉDUIT] Tant que
-l'inférence sort vers Internet, la zone de traitement ne peut pas être déclarée
-`internal: true` — le cloisonnement casserait le produit. Raisonnement : les appels
-d'inférence partent de l'application, qui est en ZT ; les rapatrier est le préalable
-technique de l'isolement.
+**One non-obvious dependency**: EX-03 conditions EX-05. [INFERRED] As long as
+inference goes out to the Internet, the processing zone cannot be declared
+`internal: true` — segmentation would break the product. Reasoning: the inference
+calls start from the application, which is in the PZ; bringing them back inside is the
+technical prerequisite for isolation.
 
 ---
 
-## 8. Ordre de traitement retenu
+## 8. Order of work chosen
 
-| Rang | Exigences | Motif |
+| Rank | Requirements | Reason |
 |---|---|---|
-| 1 | EX-07, EX-11 | Préalables sans dépendance ; effort faible ; rendent tout le reste livrable et identifiable |
-| 2 | EX-01, EX-02 | Effort très faible, réemploi direct de mécanismes existants ; lèvent les deux écarts bloquants les plus graves |
-| 3 | EX-10 | Peut avancer en parallèle ; sans coût technique ; conditionne l'acceptation de risque |
-| 4 | EX-06 | Livrable documentaire ; préalable de EX-05 |
-| 5 | EX-03 puis EX-04 | Le poste de travail réel. EX-04 ne peut pas précéder EX-03 |
-| 6 | EX-05 | Nécessite EX-03 achevée |
-| 7 | EX-09 | Après EX-03 : le coupe-circuit reste nécessaire, mais son seuil se règle sur le comportement du moteur retenu |
-| 8 | EX-08 | Après EX-07 ; s'automatise dans la chaîne de publication |
+| 1 | EX-07, EX-11 | Prerequisites with no dependency; low effort; make everything else deliverable and identifiable |
+| 2 | EX-01, EX-02 | Very low effort, direct reuse of existing mechanisms; close the two most serious blocking gaps |
+| 3 | EX-10 | Can progress in parallel; no technical cost; conditions the risk acceptance |
+| 4 | EX-06 | A documentation deliverable; a prerequisite of EX-05 |
+| 5 | EX-03 then EX-04 | The real workload. EX-04 cannot come before EX-03 |
+| 6 | EX-05 | Requires EX-03 to be complete |
+| 7 | EX-09 | After EX-03: the circuit breaker is still needed, but its threshold is set from the behaviour of the chosen engine |
+| 8 | EX-08 | After EX-07; becomes automated in the release chain |
 
 ---
 
-## 9. Ce que ce plan ne construit pas, et pourquoi
+## 9. What this plan does not build, and why
 
-| Non construit | Motif |
+| Not built | Reason |
 |---|---|
-| File de messages ou bus asynchrone | Aucun besoin mesuré. Les conteneurs à boucle shell existants suffisent à quelques messages par minute |
-| Maillage de services, politiques réseau fines | Deux réseaux Docker couvrent la menace identifiée. Au-delà : sur-dimensionné |
-| Infrastructure de signature d'artefacts | Aucune source citée ne l'exige pour ce scénario |
-| Stockage WORM pour le journal d'audit | Déclassé avec le scénario S1 ; l'exigence retenue est la fiabilité, non la preuve opposable |
-| Détection automatique de données sensibles à l'ingestion | Écart réel, mais l'argument de non-traitement retenu en phase 2 tient : la réponse passe par la minimisation, non par une détection peu fiable |
-| Multi-tenance, identité de nœud, provenance signée des flux | Relèvent du scénario S3, non retenu |
-| Anonymisation du contenu libre | Substitut plus sûr retenu : la suppression |
+| Message queue or asynchronous bus | No measured need. The existing shell-loop containers are enough for a few messages per minute |
+| Service mesh, fine-grained network policies | Two Docker networks cover the identified threat. Beyond that: over-engineered |
+| Artefact signing infrastructure | No cited source requires it for this scenario |
+| WORM storage for the audit log | Downgraded with scenario S1; the requirement kept is reliability, not evidence admissible against a party |
+| Automatic detection of sensitive data at ingestion | A real gap, but the non-processing argument kept in phase 2 holds: the answer lies in minimisation, not in unreliable detection |
+| Multi-tenancy, node identity, signed flow provenance | Belong to scenario S3, which was not selected |
+| Anonymisation of free-text content | A safer substitute was chosen: deletion |
