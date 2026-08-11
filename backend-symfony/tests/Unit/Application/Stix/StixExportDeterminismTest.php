@@ -245,6 +245,59 @@ final class StixExportDeterminismTest extends TestCase
     }
 
     /**
+     * The fixture builder tells a clock reading from a fixture date by ordering:
+     * anything at or after FIXTURE_TIMESTAMP was stamped at export time and gets
+     * frozen. The invariant that makes that sound is that no timestamp in a
+     * finished bundle is ever *after* the boundary.
+     *
+     * Two ways it could break, both silent:
+     *
+     * - a "now" that escaped the freeze — the bundles stop being byte-stable, and
+     *   whether the determinism tests notice depends on how fast the clock ticks
+     *   between two calls in the same test;
+     * - a fixture date moved past the boundary — it gets frozen as though it were
+     *   a clock reading, producing a bundle that still validates and no longer
+     *   means what it says.
+     *
+     * Checked on the output rather than on a hand-maintained list of input dates,
+     * so there is nothing to keep in sync.
+     *
+     * @dataProvider bundleNames
+     */
+    public function testNoTimestampInABundleIsAfterTheFreezeBoundary(string $bundleName): void
+    {
+        $bundle = (new ConformanceFixtureBuilder())->buildAll()[$bundleName];
+        $boundary = ConformanceFixtureBuilder::FIXTURE_TIMESTAMP;
+
+        /** @var list<array<string, mixed>> $objects */
+        $objects = $bundle['objects'];
+
+        foreach ($objects as $object) {
+            foreach (['created', 'modified', 'valid_from', 'first_seen', 'last_seen', 'start_time', 'stop_time'] as $field) {
+                if (!isset($object[$field]) || !\is_string($object[$field])) {
+                    continue;
+                }
+
+                // Both sides are zero-padded ISO-8601 in UTC, so string ordering
+                // is date ordering.
+                $this->assertLessThanOrEqual(
+                    $boundary,
+                    $object[$field],
+                    sprintf(
+                        '%s.%s is %s, after the freeze boundary %s. Either a runtime timestamp'
+                        . ' escaped freeze(), or a fixture date was moved past the boundary and is'
+                        . ' now being overwritten by it.',
+                        (string) ($object['id'] ?? '?'),
+                        $field,
+                        $object[$field],
+                        $boundary,
+                    )
+                );
+            }
+        }
+    }
+
+    /**
      * @param array<string, mixed> $bundle
      *
      * @return list<string>

@@ -151,6 +151,10 @@ sbom-*.json
 ###############################################################################
 local/
 
+# Build output of the standard-track guards: the STIX conformance bundles and the
+# stix2-validator virtualenv. Regenerated on every run; nothing here is source.
+/var/
+
 ###############################################################################
 #  ✅  End --------------------------------------------------------------------
 ###############################################################################

@@ -33,6 +33,12 @@ cd "$REPO_ROOT"
 
 VENV_DIR="${STIX_VALIDATOR_VENV:-$REPO_ROOT/var/stix-validator}"
 SCHEMA_REPO="https://github.com/oasis-open/cti-stix2-json-schemas"
+
+# Pinned. A conformance gate that silently follows upstream turns a green build
+# red with no change on our side, and nobody can tell a real regression from a
+# new upstream release. Bump these deliberately, and re-run the gate when you do.
+VALIDATOR_VERSION="3.3.1"
+SCHEMA_REVISION="9af1db41b7b86c06324f899649ae83480134f66e"
 BUNDLE_DIR="$(mktemp -d)"
 KEEP_DIR=""
 
@@ -66,7 +72,7 @@ if [ ! -x "$VENV_DIR/bin/stix2_validator" ]; then
     python3 -m venv "$VENV_DIR"
     # cpe (a transitive dependency) cannot build under modern setuptools.
     "$VENV_DIR/bin/pip" install --quiet "setuptools<67" wheel
-    "$VENV_DIR/bin/pip" install --quiet stix2-validator
+    "$VENV_DIR/bin/pip" install --quiet "stix2-validator==$VALIDATOR_VERSION"
 fi
 
 VALIDATOR_PKG="$("$VENV_DIR/bin/python" -c 'import os, stix2validator; print(os.path.dirname(stix2validator.__file__))')"
@@ -75,7 +81,10 @@ SCHEMA_DIR="$VALIDATOR_PKG/schemas-2.1/schemas"
 if [ ! -d "$SCHEMA_DIR" ]; then
     echo "Fetching the OASIS STIX 2.1 JSON schemas ..."
     SCHEMA_CLONE="$(mktemp -d)"
-    git clone --depth 1 --quiet "$SCHEMA_REPO" "$SCHEMA_CLONE"
+    git init --quiet "$SCHEMA_CLONE"
+    git -C "$SCHEMA_CLONE" remote add origin "$SCHEMA_REPO"
+    git -C "$SCHEMA_CLONE" fetch --quiet --depth 1 origin "$SCHEMA_REVISION"
+    git -C "$SCHEMA_CLONE" checkout --quiet FETCH_HEAD
     mkdir -p "$VALIDATOR_PKG/schemas-2.1"
     cp -r "$SCHEMA_CLONE/schemas" "$VALIDATOR_PKG/schemas-2.1/"
     rm -rf "$SCHEMA_CLONE"
@@ -149,9 +158,9 @@ import json, sys
 with open(sys.argv[1], encoding="utf-8") as handle:
     bundle = json.load(handle)
 
-# Remove a required property from the first SDO that has one. `type` is required on
-# every STIX object, so its absence is an unambiguous, spec-level error rather than
-# a best-practice warning.
+# Drop `pattern` from an indicator. STIX 2.1 makes it required, so its absence is an
+# unambiguous spec-level error rather than a best-practice warning — which is what
+# makes a rejection here proof that the gate checks the spec and not just JSON syntax.
 for obj in bundle["objects"]:
     if obj.get("type") == "indicator":
         del obj["pattern"]

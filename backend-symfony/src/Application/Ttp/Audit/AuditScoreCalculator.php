@@ -160,7 +160,8 @@ final class AuditScoreCalculator
     {
         return array_values(array_filter(
             $rows,
-            static fn (array $row): bool => $row['verdict_a'] !== '' && $row['verdict_b'] !== ''
+            static fn (array $row): bool => \in_array($row['verdict_a'], self::VERDICTS, true)
+                && \in_array($row['verdict_b'], self::VERDICTS, true)
         ));
     }
 
@@ -173,7 +174,11 @@ final class AuditScoreCalculator
         $unscored = 0;
 
         foreach ($rows as $row) {
-            if ($row['verdict_final'] === '') {
+            // The reader already drops verdicts outside the vocabulary, but this
+            // guard does not rely on that: an unrecognised label counted into no
+            // bucket would shrink the denominator the published precision is
+            // computed from, without anything in the output saying so.
+            if (!\in_array($row['verdict_final'], self::VERDICTS, true)) {
                 ++$unscored;
 
                 continue;

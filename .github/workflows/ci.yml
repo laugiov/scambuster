@@ -195,14 +195,21 @@ jobs:
         with:
           fetch-depth: 0
 
+      # In a virtualenv rather than the system interpreter: recent runner images
+      # ship a PEP 668 externally-managed Python, where a plain `pip install`
+      # fails. Pinned so a jsonschema release cannot turn a green build red with
+      # no change on our side.
       - name: Install JSON Schema validator
-        run: python3 -m pip install --quiet jsonschema
+        run: |
+          python3 -m venv "$RUNNER_TEMP/schema-venv"
+          "$RUNNER_TEMP/schema-venv/bin/pip" install --quiet 'jsonschema==4.26.0'
+          echo "$RUNNER_TEMP/schema-venv/bin" >> "$GITHUB_PATH"
 
       # Validated with a third-party implementation rather than the project's own
       # code: a generator checking its own output with its own assumptions proves
       # very little. This is the check a consumer would run.
       - name: Validate the taxonomy artifact against its schema
-        run: python3 scripts/standards/validate-taxonomy-artifact.py
+        run: "$RUNNER_TEMP/schema-venv/bin/python" scripts/standards/validate-taxonomy-artifact.py
 
       # Fails when the taxonomy's meaning changed without a version bump and a
       # changelog entry, and fails outright on a deleted code (Constitution VI).

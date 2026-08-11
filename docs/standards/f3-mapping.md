@@ -76,7 +76,7 @@ one rather than a guess at what they will find.
 
 **To unblock**: place the F3 v1 technique list in the repository (or work from
 `https://ctid.mitre.org/fraud/#/matrix` on a machine that can reach it), then fill
-`config/standards/f3-mapping.json` and run:
+`backend-symfony/config/standards/f3-mapping.json` and run:
 
 ```bash
 php bin/console scambuster:ttp:f3-mapping
@@ -91,7 +91,7 @@ release invalidates this document visibly rather than silently (FR-006).
 
 ## 3. Mapping table
 
-Generated from `config/standards/f3-mapping.json`. Do not edit by hand: edit the JSON
+Generated from `backend-symfony/config/standards/f3-mapping.json`. Do not edit by hand: edit the JSON
 and re-run the command. CI runs `scambuster:ttp:f3-mapping --check` and fails when this
 block is stale.
 

@@ -51,12 +51,21 @@ it as `MISP_KEY`.
 
 ## Step 1 — export an event
 
-From a ScamBuster instance with at least one conversation carrying confirmed TTPs:
+The MISP event export is an API endpoint, not a console command
+(`scambuster:misp:test` only checks connectivity to a MISP instance). Pick a
+conversation that carries confirmed TTPs, or the tags this procedure exists to check
+will not be in the event.
 
 ```bash
-docker compose exec backend-dev bin/console app:misp:test --conversation=<conv_id> \
-  > /tmp/scambuster-event.json
+TOKEN=$(curl -sS -X POST http://localhost:8081/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"<admin email>","password":"<password>"}' | jq -r '.access_token')
+
+curl -sS "http://localhost:8081/api/v1/conversations/<conv_id>/export/misp" \
+  -H "Authorization: Bearer $TOKEN" > /tmp/scambuster-event.json
 ```
+
+See `docs/13_misp_integration.md` for the full export documentation.
 
 Check before going further:
 

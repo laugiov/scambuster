@@ -243,6 +243,44 @@ final class AuditScoreCalculatorTest extends TestCase
         );
     }
 
+    /**
+     * A verdict outside the vocabulary reaches the calculator only when a sheet is
+     * scored with --force, which is precisely the path taken when the sheet is
+     * known to be imperfect. Counting such a row into no bucket would shrink the
+     * denominator the published precision is computed from, silently — so it is
+     * counted as unscored, and stays visible in the row total.
+     */
+    public function testAnUnrecognisedVerdictIsCountedAsUnscoredRatherThanDropped(): void
+    {
+        $result = $this->calculator->calculate([
+            $this->row('SB-T001', final: 'correct'),
+            $this->row('SB-T001', a: 'probably', b: 'correct', final: 'probably'),
+        ]);
+
+        $this->assertSame(1, $result->overall->correct);
+        $this->assertSame(1, $result->overall->unscored);
+        $this->assertSame(2, $result->overall->total(), 'the row must not vanish from the sheet total');
+        $this->assertSame(1.0, $result->overall->precision(), 'an unscorable row must not move precision');
+    }
+
+    /**
+     * And it must not reach the agreement figures either: an unrecognised label is
+     * not evidence that two scorers agreed or disagreed.
+     */
+    public function testAnUnrecognisedVerdictIsExcludedFromAgreementAndKappa(): void
+    {
+        $result = $this->calculator->calculate([
+            $this->row('SB-T001', a: 'correct', b: 'correct', final: 'correct'),
+            $this->row('SB-T002', a: 'incorrect', b: 'incorrect', final: 'incorrect'),
+            $this->row('SB-T003', a: 'probably', b: 'correct', final: 'correct'),
+        ]);
+
+        // Two comparable rows, both agreed.
+        $this->assertSame(1.0, $result->rawAgreement);
+        $this->assertSame(2, $result->agreedRows);
+        $this->assertSame([], $result->disagreements);
+    }
+
     public function testEmptySheetProducesNoFiguresRatherThanZeroes(): void
     {
         $result = $this->calculator->calculate([]);

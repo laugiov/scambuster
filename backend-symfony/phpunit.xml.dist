@@ -51,6 +51,12 @@
             <file>src/Infrastructure/Preprod/IocGenerator.php</file>
             <file>src/Infrastructure/Preprod/ScamTemplates.php</file>
             <directory suffix=".php">src/UI/Console</directory>
+            <!-- Synthetic fixture data for the external STIX conformance gate.
+                 Exercised end to end by scripts/standards/validate-stix-bundles.sh
+                 and by StixExportDeterminismTest, but it is build scaffolding
+                 rather than shipped behaviour, so it does not belong in the
+                 coverage denominator. -->
+            <file>src/Application/Stix/ConformanceFixtureBuilder.php</file>
             <file>src/Command/VaultAddImapSecretCommand.php</file>
             <file>src/Command/VaultDeleteImapSecretCommand.php</file>
             <file>src/Command/MailAccountOnboardCommand.php</file>

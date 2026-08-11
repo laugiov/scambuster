@@ -134,11 +134,14 @@ final class AuditSheetReader
                 $flag = '';
             }
 
-            foreach (['verdict_a' => $verdictA, 'verdict_b' => $verdictB, 'verdict_final' => $verdictFinal] as $column => $verdict) {
-                if ($verdict !== '' && !\in_array($verdict, AuditScoreCalculator::VERDICTS, true)) {
-                    $problems[] = sprintf('line %d: %s carries unknown verdict "%s"', $lineNumber, $column, $verdict);
-                }
-            }
+            // An unrecognised verdict is reported and then dropped to empty rather
+            // than passed on. Everything downstream counts by verdict label, so a
+            // value outside the vocabulary would land in no bucket and silently
+            // shrink the denominators the figures are computed from — a quieter
+            // and worse failure than the row simply reading as unscored.
+            $verdictA = $this->normaliseVerdict($verdictA, 'verdict_a', $lineNumber, $problems);
+            $verdictB = $this->normaliseVerdict($verdictB, 'verdict_b', $lineNumber, $problems);
+            $verdictFinal = $this->normaliseVerdict($verdictFinal, 'verdict_final', $lineNumber, $problems);
 
             if ($flag !== self::FLAG_UNSAMPLABLE) {
                 if ($verdictA === '' || $verdictB === '') {
@@ -170,6 +173,27 @@ final class AuditSheetReader
         }
 
         return new AuditSheet($rows, $problems);
+    }
+
+    /**
+     * A verdict from the closed vocabulary, or an empty string.
+     *
+     * @param list<string> $problems Appended to when the value is outside the vocabulary
+     */
+    private function normaliseVerdict(string $verdict, string $column, int $lineNumber, array &$problems): string
+    {
+        if ($verdict === '' || \in_array($verdict, AuditScoreCalculator::VERDICTS, true)) {
+            return $verdict;
+        }
+
+        $problems[] = sprintf(
+            'line %d: %s carries unknown verdict "%s" — the row is counted as unscored',
+            $lineNumber,
+            $column,
+            $verdict
+        );
+
+        return '';
     }
 
     /**

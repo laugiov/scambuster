@@ -37,7 +37,19 @@ final class ConformanceFixtureBuilder
     private const CONVERSATION_BUNDLE_ID = 'bundle--1a2b3c4d-0000-4000-8000-000000000003';
 
     private const CLUSTER_ID = 'cccccccc-0000-4000-8000-00000000c001';
-    private const FIXTURE_TIMESTAMP = '2026-07-30T12:00:00.000Z';
+
+    /**
+     * The stamp that replaces every "now" the exporters write, and the boundary
+     * {@see isRuntimeTimestamp} uses to tell a runtime clock reading from a
+     * fixture date.
+     *
+     * Every date in this class must therefore stay strictly before it, or that
+     * date would be frozen as though it came from the clock — silently changing
+     * what the fixture means while the bundle still validates.
+     * StixExportDeterminismTest::testNoTimestampInABundleIsAfterTheFreezeBoundary
+     * checks that on the finished bundles, so the trap cannot spring unnoticed.
+     */
+    public const FIXTURE_TIMESTAMP = '2026-07-30T12:00:00.000Z';
 
     public function __construct(
         private readonly StixBundleBuilder $bundleBuilder = new StixBundleBuilder(new IocExportMapper()),
@@ -153,7 +165,7 @@ final class ConformanceFixtureBuilder
             }
 
             foreach (['created', 'modified', 'valid_from'] as $field) {
-                if (isset($object[$field]) && $this->isRecentTimestamp($object[$field])) {
+                if (isset($object[$field]) && $this->isRuntimeTimestamp($object[$field])) {
                     $object[$field] = self::FIXTURE_TIMESTAMP;
                 }
             }
@@ -167,11 +179,19 @@ final class ConformanceFixtureBuilder
     }
 
     /**
-     * Whether a timestamp was produced by "now" rather than carried from fixture
-     * data. Fixture timestamps are all in 2026-06 or earlier; anything at or after
-     * the fixture stamp is a runtime clock reading.
+     * Whether a timestamp came from the clock rather than from fixture data.
+     *
+     * The two are told apart by ordering: every fixture date is strictly before
+     * {@see FIXTURE_TIMESTAMP}, so anything at or after it was stamped at export
+     * time. Lexicographic comparison is sound here because both sides are
+     * zero-padded ISO-8601 in UTC.
+     *
+     * The invariant this rests on is checked by a test rather than trusted: a
+     * fixture date moved past the boundary would be frozen as though it were a
+     * clock reading, which is the kind of change that produces a bundle that still
+     * validates and no longer means what it says.
      */
-    private function isRecentTimestamp(mixed $value): bool
+    private function isRuntimeTimestamp(mixed $value): bool
     {
         return \is_string($value) && $value >= self::FIXTURE_TIMESTAMP;
     }

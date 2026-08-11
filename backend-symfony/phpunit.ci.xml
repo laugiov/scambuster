@@ -49,6 +49,9 @@
             <file>src/Infrastructure/Preprod/IocGenerator.php</file>
             <file>src/Infrastructure/Preprod/ScamTemplates.php</file>
             <directory suffix=".php">src/UI/Console</directory>
+            <!-- Build scaffolding for the STIX conformance gate, not shipped
+                 behaviour. Mirrors phpunit.xml.dist. -->
+            <file>src/Application/Stix/ConformanceFixtureBuilder.php</file>
             <file>src/Command/VaultAddImapSecretCommand.php</file>
             <file>src/Command/VaultDeleteImapSecretCommand.php</file>
             <file>src/Command/MailAccountOnboardCommand.php</file>

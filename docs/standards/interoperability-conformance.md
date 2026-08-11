@@ -173,7 +173,7 @@ When one is earned, it moves up into §1, §2 or §3 with its proving test named
 scripts/standards/validate-stix-bundles.sh
 
 # Determinism, uniqueness and reference resolution
-make testOne FILTER=StixExportDeterminism
+make testOne q=StixExportDeterminism
 
 # Everything the standards CI job runs
 make standards-check
