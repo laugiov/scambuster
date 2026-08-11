@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Standard-track work (taxonomy as a published contract)
+- **The TTP taxonomy is now a generated, versioned, schema-validated artifact.** The 27
+  entries were PHP constants behind an authenticated endpoint; they are now also
+  `config/standards/taxonomy-v1.0.json`, generated deterministically from a single
+  canonical seed (`TtpTaxonomySeed`) by `scambuster:ttp:taxonomy-export`. Byte-stable
+  across runs, so a third party can regenerate it and compare rather than trust it.
+  `docs/standards/taxonomy-versioning.md` states the stability contract: what MAJOR,
+  MINOR and PATCH mean in terms of meaning rather than diff size, why codes are
+  deprecated and never deleted, and why a new major mints fresh STIX ids instead of
+  silently redefining objects consumers already hold. CI fails a taxonomy change with
+  no version bump and no changelog entry, and fails a deleted code outright.
+- **Extraction quality is measurable rather than merely honest about being unmeasured.**
+  The audit command exported a sheet and computed nothing. A frozen scoring codebook
+  (`docs/standards/ttp-codebook-v1.md`, shared with the dataset work) and
+  `scambuster:ttp:audit-score` now turn a double-scored sheet into raw agreement,
+  Cohen's kappa, precision and per-code counts. An incomplete sheet exits non-zero, so
+  a partial round cannot quietly become a published number. No figure has been produced
+  yet: the "no published metric applies to the TTP module" notices stay until one is.
+- **STIX 2.1 conformance is proven by an external validator.** All three exported bundle
+  types are checked in CI against the OASIS-community `stix2-validator` and the OASIS
+  schemas, and the check ends by breaking a bundle on purpose to prove the gate can
+  fail. Export determinism — the property that makes a re-import deduplicate instead of
+  duplicating — is asserted rather than assumed, with `bundle` and `report` named as the
+  two deliberate exceptions. `docs/standards/interoperability-conformance.md` lists every
+  claim next to its proving test, and keeps a separate section for the claims not yet
+  earned.
+- **MITRE F3 mapping scaffolding.** `TtpAttackPatternBuilder` takes a source-name
+  allowlist instead of one hard-coded value, and emits a URL only where the format is
+  verified. A machine-readable mapping file is the source of truth for the decisions and
+  a test asserts it agrees with the taxonomy's `external_refs` in both directions, so no
+  unverified external-framework claim can reach a STIX export. The 27 decisions are
+  recorded as `pending`: the F3 v1 technique list is not available to this repository, so
+  each row states what a reviewer must check rather than a guess.
+- **Reference dataset labelling.** `dataset/` carries a slot for each of the 134 inbound
+  messages in the public sample, with a validator that checks codes against the taxonomy
+  artifact and offsets against the message text. Annotation itself has not started.
+- **Audit CSV export moved to RFC 4180 quoting.** Evidence cells hold arbitrary scammer
+  text, and under PHP's legacy backslash escaping a quote preceded by a backslash stops
+  terminating its field — silently shifting every column in the row a human is about to
+  score.
+
 ### Threat-intelligence taxonomy & extraction fixes
 - **ATT&CK mapping for `CEO_FRAUD` and `INVOICE_FRAUD` corrected to `T1656` (Impersonation)**,
   aligning them with the other impersonation-first scam types — MITRE ATT&CK T1656 explicitly
