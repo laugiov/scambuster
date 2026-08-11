@@ -1,0 +1,155 @@
+{
+    "namespace": "scambuster",
+    "description": "Scammer-side tactics, techniques and procedures observable in the messages of a fraud conversation, across a six-phase scam kill chain. Generated from the ScamBuster TTP taxonomy; see https://github.com/laugiov/scambuster.",
+    "version": 10,
+    "expanded": "ScamBuster Scam TTP",
+    "predicates": [
+        {
+            "value": "ttp",
+            "expanded": "Scam TTP",
+            "description": "A behaviour from the closed ScamBuster TTP taxonomy, observed in a scammer message."
+        }
+    ],
+    "values": [
+        {
+            "predicate": "ttp",
+            "entry": [
+                {
+                    "value": "SB-T001",
+                    "expanded": "Unsolicited opportunity lure",
+                    "description": "Presents an unsolicited windfall or business opportunity (inheritance, lottery, contract, compensation) as the reason for contact."
+                },
+                {
+                    "value": "SB-T002",
+                    "expanded": "Institutional authority impersonation",
+                    "description": "Claims to represent a government body, bank, court, police or international organization to command compliance."
+                },
+                {
+                    "value": "SB-T003",
+                    "expanded": "Commercial brand impersonation",
+                    "description": "Poses as a known company or consumer service (courier, marketplace, vendor) to exploit its established trust."
+                },
+                {
+                    "value": "SB-T004",
+                    "expanded": "Malicious resource delivery",
+                    "description": "Sends a link or attachment the target must open to proceed (portal, form, document, tracking page)."
+                },
+                {
+                    "value": "SB-T005",
+                    "expanded": "Legitimacy document display",
+                    "description": "Volunteers official-looking documents (certificates, IDs, receipts, contracts) to prove authenticity."
+                },
+                {
+                    "value": "SB-T006",
+                    "expanded": "Rapport personalization",
+                    "description": "Builds an emotional or personal bond (affection, flattery, shared life details) unrelated to the transaction itself."
+                },
+                {
+                    "value": "SB-T007",
+                    "expanded": "Religious or moral appeal",
+                    "description": "Invokes God, faith or moral duty to frame the exchange as righteous and the target as chosen."
+                },
+                {
+                    "value": "SB-T008",
+                    "expanded": "Fabricated social proof",
+                    "description": "Cites invented third parties who already benefited from or vouched for the scheme."
+                },
+                {
+                    "value": "SB-T009",
+                    "expanded": "Secrecy demand",
+                    "description": "Instructs the target to keep the transaction confidential from family, banks or authorities."
+                },
+                {
+                    "value": "SB-T010",
+                    "expanded": "Intermediary introduction",
+                    "description": "Introduces an additional persona (lawyer, banker, diplomat, agent) who must now be dealt with."
+                },
+                {
+                    "value": "SB-T011",
+                    "expanded": "Plausibility repair",
+                    "description": "Explains away inconsistencies, delays or contradictions the target has noticed."
+                },
+                {
+                    "value": "SB-T012",
+                    "expanded": "Advance fee demand",
+                    "description": "Requires an upfront payment to unlock a larger promised value (transfer charge, tax, insurance)."
+                },
+                {
+                    "value": "SB-T013",
+                    "expanded": "Payment instrument designation",
+                    "description": "Provides concrete payment coordinates the target must pay to (bank account, crypto wallet, money-transfer recipient)."
+                },
+                {
+                    "value": "SB-T014",
+                    "expanded": "Victim data harvesting",
+                    "description": "Requests the target's personal, financial or authentication data (identity documents, bank details, credentials, verification codes, address, phone)."
+                },
+                {
+                    "value": "SB-T015",
+                    "expanded": "Overpayment refund scheme",
+                    "description": "Claims an overpayment or presents fake payment proof, then asks part of the money back."
+                },
+                {
+                    "value": "SB-T016",
+                    "expanded": "Payment method shift",
+                    "description": "Changes the demanded payment rail mid-conversation (bank → crypto → gift cards → cash agent)."
+                },
+                {
+                    "value": "SB-T017",
+                    "expanded": "Urgency deadline pressure",
+                    "description": "Imposes a hard deadline or countdown to force immediate action."
+                },
+                {
+                    "value": "SB-T018",
+                    "expanded": "Fee laddering",
+                    "description": "Adds new, previously unmentioned fees after an earlier payment or agreement."
+                },
+                {
+                    "value": "SB-T019",
+                    "expanded": "Bureaucratic obstacle fabrication",
+                    "description": "Invents official procedures, codes or certificates that block progress until resolved (the narrative around the fee)."
+                },
+                {
+                    "value": "SB-T020",
+                    "expanded": "Threat of loss or legal action",
+                    "description": "Threatens forfeiture, arrest, account closure or legal consequences for non-compliance."
+                },
+                {
+                    "value": "SB-T021",
+                    "expanded": "Emotional pressure appeal",
+                    "description": "Leverages pity, guilt or personal hardship to compel action."
+                },
+                {
+                    "value": "SB-T022",
+                    "expanded": "Verification deflection",
+                    "description": "Refuses, evades or disqualifies the target's verification requests (contract, company registry, statement of work)."
+                },
+                {
+                    "value": "SB-T023",
+                    "expanded": "Off-channel solicitation",
+                    "description": "Asks to continue the exchange on another channel (WhatsApp, Telegram, phone, personal email)."
+                },
+                {
+                    "value": "SB-T024",
+                    "expanded": "Contact exclusivity demand",
+                    "description": "Restricts communication to a single designated contact, address or channel and forbids others."
+                },
+                {
+                    "value": "SB-T025",
+                    "expanded": "Final ultimatum",
+                    "description": "Issues a last demand with the threatened termination of the deal or relationship."
+                },
+                {
+                    "value": "SB-T026",
+                    "expanded": "Re-engagement attempt",
+                    "description": "Returns after silence, refusal or a stalled exchange with a new angle, discount or persona."
+                },
+                {
+                    "value": "SB-T027",
+                    "expanded": "Fabricated gains display",
+                    "description": "Shows fabricated profits, balances or returns as proof the scheme works, to induce further payment."
+                }
+            ]
+        }
+    ]
+}

@@ -170,6 +170,10 @@ services:
     App\UI\Console\StixConformanceFixturesCommand:
         arguments:
             $defaultOutputDirectory: '%kernel.project_dir%/var/conformance'
+
+    App\UI\Console\TtpMispMachineTagCommand:
+        arguments:
+            $artifactDirectory: '%kernel.project_dir%/config/standards'
     ###< Standard-track artifacts ###
 
     # GUARD smoke runner — invokes the reply-objective smoke command in-process for the worker.

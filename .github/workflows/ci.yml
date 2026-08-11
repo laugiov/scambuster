@@ -244,6 +244,11 @@ jobs:
       - name: F3 mapping is consistent and its document is current
         run: docker compose exec backend-dev bin/console scambuster:ttp:f3-mapping --check
 
+      # The MISP taxonomy file is generated from the same seed, never hand-edited.
+      # Filing it is gated on the container decision; keeping it correct is not.
+      - name: MISP machine tag file is not stale
+        run: docker compose exec backend-dev bin/console scambuster:ttp:misp-machinetag --check
+
       # Every exported bundle type against the OASIS-community stix2-validator and
       # the OASIS schemas — neither of them ours. The script ends by breaking a
       # bundle on purpose and confirming the validator rejects it, so a green run

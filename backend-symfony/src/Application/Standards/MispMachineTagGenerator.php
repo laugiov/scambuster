@@ -1,0 +1,90 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Application\Standards;
+
+use App\Domain\Communication\Ttp;
+use App\Domain\Communication\TtpTaxonomySeed;
+
+/**
+ * Generates the MISP taxonomy file (`machinetag.json`) for the `scambuster`
+ * namespace, from the canonical taxonomy seed (Spec 006 FR-004).
+ *
+ * The platform already emits `scambuster:ttp="SB-Txxx"` tags. They are well-formed
+ * machine tags, but no MISP instance can resolve them to a meaning, because the
+ * namespace is not registered in the MISP taxonomies repository. Registering it is
+ * what turns a tag a consumer sees as free text into one their instance
+ * understands.
+ *
+ * GATED. Filing this file anywhere public is blocked on the container decision
+ * (Constitution IV): a registered public taxonomy is a normative artifact, and a
+ * merged MISP taxonomy PR is hard to retract. Generating and testing it is not
+ * blocked, and that is all this class does — it produces bytes on disk, and a human
+ * decides whether they ever leave the repository.
+ *
+ * Generated, never hand-written (FR-004): a hand-maintained copy of 27 definitions
+ * would drift from the taxonomy within one release, and the drift would be
+ * invisible until a consumer noticed their tag meant something else.
+ */
+final class MispMachineTagGenerator
+{
+    public const NAMESPACE_NAME = 'scambuster';
+    public const PREDICATE = 'ttp';
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function generate(): array
+    {
+        $entries = [];
+
+        foreach (TtpTaxonomySeed::ENTRIES as $entry) {
+            $entries[] = [
+                'value' => $entry['code'],
+                'expanded' => $entry['label'],
+                'description' => $entry['definition'],
+            ];
+        }
+
+        return [
+            'namespace' => self::NAMESPACE_NAME,
+            'description' => 'Scammer-side tactics, techniques and procedures observable in the messages of a'
+                . ' fraud conversation, across a six-phase scam kill chain. Generated from the ScamBuster TTP'
+                . ' taxonomy; see https://github.com/laugiov/scambuster.',
+            'version' => $this->versionInteger(Ttp::TAXONOMY_VERSION),
+            'expanded' => 'ScamBuster Scam TTP',
+            'predicates' => [[
+                'value' => self::PREDICATE,
+                'expanded' => 'Scam TTP',
+                'description' => 'A behaviour from the closed ScamBuster TTP taxonomy, observed in a scammer message.',
+            ]],
+            'values' => [[
+                'predicate' => self::PREDICATE,
+                'entry' => $entries,
+            ]],
+        ];
+    }
+
+    public function generateJson(): string
+    {
+        return json_encode(
+            $this->generate(),
+            JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR
+        ) . "\n";
+    }
+
+    /**
+     * MISP taxonomy versions are integers, not semver strings. The taxonomy's own
+     * "1.0" becomes 10, "1.1" becomes 11, so the MISP-side version still moves
+     * monotonically with the taxonomy and a consumer can tell two releases apart.
+     */
+    private function versionInteger(string $taxonomyVersion): int
+    {
+        $parts = explode('.', $taxonomyVersion);
+        $major = (int) ($parts[0] ?? 0);
+        $minor = (int) ($parts[1] ?? 0);
+
+        return $major * 10 + $minor;
+    }
+}

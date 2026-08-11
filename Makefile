@@ -494,7 +494,7 @@ testOne: ##@test Run a single integration/unit test (q=filter)
         fixtures-e2e fixtures-dev \
         endToEndTest endToEndTestOne testOne \
         audit-quality audit-deep \
-        ttp-audit-sample ttp-audit-score taxonomy-export f3-mapping stix-conformance dataset-labels standards-check \
+        ttp-audit-sample ttp-audit-score taxonomy-export f3-mapping stix-conformance dataset-labels misp-machinetag standards-check \
         fix-semantic-roles fix-risk-scores compute-sophistication \
         respawn-all
 
@@ -578,9 +578,13 @@ stix-conformance: ##@standards Validate every exported STIX bundle type against 
 dataset-labels: ##@standards Validate the dataset TTP labels (COMPLETE=1 for the release gate)
 	python3 scripts/standards/validate-dataset-labels.py $(if $(COMPLETE),--complete,)
 
+misp-machinetag: ##@standards Regenerate the MISP taxonomy file (internal only; filing is gated)
+	$(CONSOLE_DEV) scambuster:ttp:misp-machinetag
+
 standards-check: ##@standards Run every standard-track guard exactly as CI does
 	$(CONSOLE_DEV) scambuster:ttp:taxonomy-export --check
 	$(CONSOLE_DEV) scambuster:ttp:f3-mapping --check
+	$(CONSOLE_DEV) scambuster:ttp:misp-machinetag --check
 	python3 scripts/standards/validate-taxonomy-artifact.py
 	python3 scripts/standards/check-taxonomy-versioning.py
 	python3 scripts/standards/validate-dataset-labels.py
