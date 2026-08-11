@@ -494,6 +494,7 @@ testOne: ##@test Run a single integration/unit test (q=filter)
         fixtures-e2e fixtures-dev \
         endToEndTest endToEndTestOne testOne \
         audit-quality audit-deep \
+        ttp-audit-sample ttp-audit-score taxonomy-export f3-mapping standards-check \
         fix-semantic-roles fix-risk-scores compute-sophistication \
         respawn-all
 
@@ -549,6 +550,33 @@ audit-deep:      ##@audit Run complete audit suite (screening + LLM quality)
 	$(MAKE) verify-clusters
 	$(MAKE) verify-classification
 	$(MAKE) audit-quality
+
+# ======================================================================
+#  STANDARD-TRACK ARTIFACTS
+#  Generated taxonomy artifact, external framework mapping and the manual
+#  TTP extraction quality audit. See docs/standards/.
+# ======================================================================
+ttp-audit-sample: ##@standards Export a seeded TTP sample to score by hand (SEED=4242 LIMIT=100 [STRATIFIED=1])
+	$(CONSOLE_DEV) scambuster:ttp:audit-sample \
+	  --seed=$(or $(SEED),4242) --limit=$(or $(LIMIT),100) \
+	  $(if $(STRATIFIED),--stratified,) \
+	  --output=var/audit/ttp-sample.csv
+
+ttp-audit-score: ##@standards Compute precision, agreement and kappa from a scored sheet (SHEET=path)
+	$(CONSOLE_DEV) scambuster:ttp:audit-score $(or $(SHEET),var/audit/ttp-sample-scored.csv) \
+	  $(if $(SEED),--seed=$(SEED),) $(if $(DRAW),--draw=$(DRAW),)
+
+taxonomy-export: ##@standards Regenerate the machine-readable taxonomy artifact from the canonical seed
+	$(CONSOLE_DEV) scambuster:ttp:taxonomy-export
+
+f3-mapping: ##@standards Validate the MITRE F3 mapping and regenerate its document table
+	$(CONSOLE_DEV) scambuster:ttp:f3-mapping
+
+standards-check: ##@standards Run every standard-track guard exactly as CI does
+	$(CONSOLE_DEV) scambuster:ttp:taxonomy-export --check
+	$(CONSOLE_DEV) scambuster:ttp:f3-mapping --check
+	python3 scripts/standards/validate-taxonomy-artifact.py
+	python3 scripts/standards/check-taxonomy-versioning.py
 
 # ======================================================================
 #  BATCH FIX / RECOMPUTE

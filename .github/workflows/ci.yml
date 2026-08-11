@@ -184,6 +184,59 @@ jobs:
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
+  standards:
+    name: Standards-Track Guards
+    runs-on: ubuntu-latest
+
+    steps:
+      # The taxonomy versioning check compares the artifact between the merge base
+      # and HEAD, so it needs enough history to find one.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Install JSON Schema validator
+        run: python3 -m pip install --quiet jsonschema
+
+      # Validated with a third-party implementation rather than the project's own
+      # code: a generator checking its own output with its own assumptions proves
+      # very little. This is the check a consumer would run.
+      - name: Validate the taxonomy artifact against its schema
+        run: python3 scripts/standards/validate-taxonomy-artifact.py
+
+      # Fails when the taxonomy's meaning changed without a version bump and a
+      # changelog entry, and fails outright on a deleted code (Constitution VI).
+      - name: Taxonomy versioning contract
+        run: |
+          python3 scripts/standards/check-taxonomy-versioning.py \
+            --base-ref "origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
+
+      - name: Create environment files
+        run: bash .github/scripts/create-ci-env.sh
+
+      - name: Start containers
+        run: docker compose up -d --build postgres redis backend-dev
+
+      - name: Wait for services
+        run: make wait-healthy
+
+      - name: Install dependencies
+        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+
+      - name: Fix permissions
+        run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
+
+      # The committed artifact must match a fresh generation from the seed, or the
+      # file and the database tell a consumer two different things.
+      - name: Taxonomy artifact is not stale
+        run: docker compose exec backend-dev bin/console scambuster:ttp:taxonomy-export --check
+
+      # The mapping document is generated from the mapping JSON. This fails when
+      # someone hand-edited the table instead of the source of truth, and when a
+      # mapping decision is internally inconsistent.
+      - name: F3 mapping is consistent and its document is current
+        run: docker compose exec backend-dev bin/console scambuster:ttp:f3-mapping --check
+
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
