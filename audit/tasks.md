@@ -1,62 +1,62 @@
-# Tâches — ordonnancement et dépendances
+# Tasks — sequencing and dependencies
 
-> **Portée.** Décomposition de `audit/spec.md` selon `audit/plan.md`. Chaque tâche
-> porte l'exigence dont elle dérive et l'écart d'origine.
+> **Scope.** Breakdown of `audit/spec.md` following `audit/plan.md`. Every task
+> carries the requirement it derives from and the originating gap.
 >
-> **Charge.** Notation relative : **XS** ≈ moins d'une demi-journée · **S** ≈ 1 à 2 jours ·
-> **M** ≈ 3 à 5 jours · **L** ≈ 1 à 2 semaines. Estimations pour une personne
-> connaissant le code.
+> **Effort.** Relative scale: **XS** ≈ less than half a day · **S** ≈ 1 to 2 days ·
+> **M** ≈ 3 to 5 days · **L** ≈ 1 to 2 weeks. Estimates for one person
+> who knows the code.
 >
-> **Aucune tâche ne modifie un contrôle existant** sauf mention explicite.
+> **No task modifies an existing control** unless explicitly stated.
 
 ---
 
-## Vue d'ensemble des dépendances
+## Dependency overview
 
 ```mermaid
 flowchart TB
-  subgraph L0["Lot 0 — Préalables"]
-    T01["T-01 Versionner"]
-    T02["T-02 Politique de versions"]
-    T03["T-03 Défauts sûrs"]
+  subgraph L0["Batch 0 — Prerequisites"]
+    T01["T-01 Version tagging"]
+    T02["T-02 Supported-versions policy"]
+    T03["T-03 Safe defaults"]
   end
-  subgraph L1["Lot 1 — Portes d'engagement"]
-    T04["T-04 Porte d'engagement"]
-    T05["T-05 Étendre à l'émission"]
-    T06["T-06 Permission reply:send"]
-    T07["T-07 Tests de non-émission"]
+  subgraph L1["Batch 1 — Engagement gates"]
+    T04["T-04 Engagement gate"]
+    T05["T-05 Extend to sending"]
+    T06["T-06 reply:send permission"]
+    T07["T-07 No-send tests"]
   end
-  subgraph L2["Lot 2 — Documentation"]
-    T08["T-08 Corriger 25 contradictions"]
-    T09["T-09 Procédures manquantes"]
-    T10["T-10 Contrôle de cohérence"]
-    T11["T-11 Matrice des flux"]
+  subgraph L2["Batch 2 — Documentation"]
+    T08["T-08 Fix 25 contradictions"]
+    T09["T-09 Missing procedures"]
+    T10["T-10 Consistency check"]
+    T11["T-11 Flow matrix"]
   end
-  subgraph L3["Lot 3 — Souveraineté"]
-    T12["T-12 Port pour embeddings"]
-    T13["T-13 Retirer les 7 modèles en dur"]
-    T14["T-14 Supprimer la 2e interface"]
-    T15["T-15 Diagnostic de résolution"]
-    T16["T-16 Garde anti-réintroduction"]
-    T17["T-17 Baseline de référence"]
-    T18["T-18 Campagne générateur seul"]
-    T19["T-19 Campagne cumulée"]
-    T20["T-20 Décision de bascule"]
+  subgraph L3["Batch 3 — Sovereignty"]
+    T12["T-12 Port for embeddings"]
+    T13["T-13 Remove the 7 hard-coded models"]
+    T14["T-14 Remove the 2nd interface"]
+    T15["T-15 Resolution diagnostic"]
+    T16["T-16 Anti-reintroduction guard"]
+    T17["T-17 Reference baseline"]
+    T18["T-18 Generator-only campaign"]
+    T19["T-19 Combined campaign"]
+    T20["T-20 Switchover decision"]
   end
-  subgraph L4["Lot 4 — Cloisonnement"]
-    T21["T-21 Deux réseaux"]
-    T22["T-22 Liste blanche MIME"]
-    T23["T-23 Tests de cloisonnement"]
+  subgraph L4["Batch 4 — Segmentation"]
+    T21["T-21 Two networks"]
+    T22["T-22 MIME allowlist"]
+    T23["T-23 Segmentation tests"]
   end
-  subgraph L5["Lot 5 — Mode dégradé"]
-    T24["T-24 Compteur d'échecs"]
-    T25["T-25 Coupe-circuit"]
-    T26["T-26 Supervision et alerte"]
+  subgraph L5["Batch 5 — Degraded mode"]
+    T24["T-24 Failure counter"]
+    T25["T-25 Circuit breaker"]
+    T26["T-26 Monitoring and alert"]
   end
-  subgraph L6["Lot 6 — Publication"]
-    T27["T-27 Chaîne de publication"]
-    T28["T-28 Attacher le SBOM"]
-    T29["T-29 Étendre la portée du SBOM"]
+  subgraph L6["Batch 6 — Release"]
+    T27["T-27 Release pipeline"]
+    T28["T-28 Attach the SBOM"]
+    T29["T-29 Extend the SBOM scope"]
   end
 
   T01 --> T02
@@ -89,212 +89,212 @@ flowchart TB
   class T13,T20,T21 crit
 ```
 
-**Chemin critique** en rouge : T-13 → T-15 → T-17 → T-18 → T-19 → T-20 → T-21 → T-23.
-Tout le reste peut avancer en parallèle.
+**Critical path** in red: T-13 → T-15 → T-17 → T-18 → T-19 → T-20 → T-21 → T-23.
+Everything else can progress in parallel.
 
 ---
 
-## Lot 0 — Préalables
+## Batch 0 — Prerequisites
 
-Sans dépendance amont. À traiter en premier : ils rendent tout le reste identifiable.
+No upstream dependency. To be handled first: they make everything else identifiable.
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-01** | Poser un premier tag de version conforme au versionnement sémantique ; clore la section `[Unreleased]` du journal des changements ; exposer la version à l'exécution en la lisant depuis la publication et non depuis une constante | EX-07 | G-24 | **XS** | — |
-| **T-02** | Remplacer « main \| Yes » de `SECURITY.md` par une politique de versions supportées énonçant la durée de support et le délai de correction visé | EX-07 | G-24 | **XS** | T-01 |
-| **T-03** | Inventorier les réglages dont la valeur permissive affaiblit une propriété de sécurité, et pour chacun : soit inverser le défaut, soit ajouter un refus de démarrage en production. **Portée minimale** : `SIEM_PROVIDER` (`none` → `file`), `SCAMBUSTER_SAFE_DOMAINS` (`*` → liste vide + refus), `LLM_BUDGET_ENFORCEMENT_MODE` (`warning` → `enforce`), planification de la commande de purge conforme à la conservation annoncée | EX-11 | G-15, G-22, G-34 | **S** | — |
+| **T-01** | Set a first version tag following semantic versioning; close the `[Unreleased]` section of the change log; expose the version at runtime by reading it from the release and not from a constant | EX-07 | G-24 | **XS** | — |
+| **T-02** | Replace "main \| Yes" in `SECURITY.md` with a supported-versions policy stating the support duration and the target fix lead time | EX-07 | G-24 | **XS** | T-01 |
+| **T-03** | List the settings whose permissive value weakens a security property, and for each one: either invert the default, or add a refusal to start in production. **Minimum scope**: `SIEM_PROVIDER` (`none` → `file`), `SCAMBUSTER_SAFE_DOMAINS` (`*` → empty list + refusal), `LLM_BUDGET_ENFORCEMENT_MODE` (`warning` → `enforce`), scheduling of the purge command in line with the announced retention | EX-11 | G-15, G-22, G-34 | **S** | — |
 
-**Critère de sortie du lot.** Une installation issue de la configuration livrée
-n'expose plus aucune propriété de sécurité dépendant d'une action que le déployeur
-devrait deviner (A11.1), et la version exécutée est identifiable (A7.1).
+**Exit criterion for the batch.** An installation built from the shipped configuration
+no longer exposes any security property that depends on an action the deployer
+would have to guess (A11.1), and the running version is identifiable (A7.1).
 
 ---
 
-## Lot 1 — Portes d'engagement
+## Batch 1 — Engagement gates
 
-Le lot le plus rentable : effort très faible, il lève les deux écarts bloquants les
-plus graves.
+The most profitable batch: very low effort, it closes the two most serious blocking
+gaps.
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-04** | Introduire un état d'**activation de l'engagement**, distinct du kill switch d'urgence. Inactif par défaut. Son activation exige une déclaration consignée de la base sur laquelle le déployeur l'active, et produit une entrée d'audit | EX-01 | G-01 | **S** | T-03 |
-| **T-05** | Étendre la porte à **tous** les points d'entrée d'émission — pas seulement à la génération, que le kill switch actuel couvre seul. Recenser les points d'entrée concernés avant de commencer | EX-01 | G-01, G-02 | **S** | T-04 |
-| **T-06** | Ajouter une permission d'émission distincte du droit de production ; l'exiger sur les points d'entrée d'émission et de marquage comme émis ; retirer ce droit au principal d'orchestration dans les jeux de données de référence | EX-02 | G-21 | **XS** | — |
-| **T-07** | Écrire les tests prouvant qu'aucun chemin n'émet lorsque l'engagement est inactif, et qu'un principal sans droit d'émission est refusé sur **tous** les points d'entrée concernés. Vérifier également qu'avec engagement inactif, le volume d'indicateurs extraits est inchangé | EX-01, EX-02 | G-01, G-21 | **S** | T-05, T-06 |
+| **T-04** | Introduce an **engagement enablement** state, distinct from the emergency kill switch. Inactive by default. Enabling it requires a recorded declaration of the basis on which the deployer enables it, and produces an audit entry | EX-01 | G-01 | **S** | T-03 |
+| **T-05** | Extend the gate to **all** sending endpoints — not only to generation, which is all the current kill switch covers. List the endpoints concerned before starting | EX-01 | G-01, G-02 | **S** | T-04 |
+| **T-06** | Add a sending permission distinct from the production right; require it on the sending endpoints and on those marking a message as sent; remove that right from the orchestration principal in the reference data sets | EX-02 | G-21 | **XS** | — |
+| **T-07** | Write the tests proving that no path sends while engagement is inactive, and that a principal without the sending right is denied on **all** the endpoints concerned. Also check that, with engagement inactive, the volume of extracted indicators is unchanged | EX-01, EX-02 | G-01, G-21 | **S** | T-05, T-06 |
 
-**Critère de sortie du lot.** Une campagne de 20 messages entrants sur installation
-neuve produit 0 message sortant (A1.1) et le même volume d'indicateurs extraits
-qu'avec engagement actif (A1.3).
+**Exit criterion for the batch.** A campaign of 20 incoming messages on a fresh
+installation produces 0 outgoing message (A1.1) and the same volume of extracted
+indicators as with engagement active (A1.3).
 
 ---
 
-## Lot 2 — Documentation véridique et recensement des flux
+## Batch 2 — Truthful documentation and flow inventory
 
-Sans dépendance technique ; peut avancer entièrement en parallèle des lots 1 et 3.
+No technical dependency; can progress entirely in parallel with batches 1 and 3.
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-08** | Traiter les **25 contradictions** recensées en `00_inventory.md` §11, chacune par correction de la documentation ou par implémentation du contrôle annoncé. Traiter en priorité celles portant sur des contrôles inexistants : catégories de blocage absentes, politiques d'isolation de base absentes, chiffrement de contenu annoncé et absent, rétention annoncée automatique et non planifiée | EX-10 | G-40 | **M** | — |
-| **T-09** | Écrire les deux procédures d'exploitation référencées et inexistantes : l'application du verrouillage en écriture de la table d'audit, et le script de reconstruction de chaîne mentionné par la procédure de rotation de clé | EX-10 | G-41 | **S** | — |
-| **T-10** | Ajouter un contrôle automatisé vérifiant que les valeurs numériques citées dans la documentation — comptages de motifs, de permissions, durées de conservation, seuils — correspondent à celles du code | EX-10 | G-40 | **S** | T-08 |
-| **T-11** | Publier la **matrice des flux sortants** : destination, protocole, déclencheur, nature des données, caractère obligatoire ou facultatif. Signaler explicitement les flux transmettant une donnée d'origine adverse à un tiers, et les rendre désactivables indépendamment. **Le recensement de départ existe** en `00_inventory.md` §2 | EX-06 | G-07, G-08, G-14 | **S** | — |
+| **T-08** | Handle the **25 contradictions** listed in `00_inventory.md` §11, each one either by correcting the documentation or by implementing the announced control. Handle first those about controls that do not exist: missing blocking categories, missing database isolation policies, content encryption announced and absent, retention announced as automatic and not scheduled | EX-10 | G-40 | **M** | — |
+| **T-09** | Write the two operating procedures that are referenced but do not exist: applying the write lock on the audit table, and the chain rebuild script mentioned by the key rotation procedure | EX-10 | G-41 | **S** | — |
+| **T-10** | Add an automated check verifying that the numeric values quoted in the documentation — pattern counts, permission counts, retention durations, thresholds — match those in the code | EX-10 | G-40 | **S** | T-08 |
+| **T-11** | Publish the **outbound flow matrix**: destination, protocol, trigger, nature of the data, mandatory or optional. Explicitly flag the flows transmitting adversary-originated data to a third party, and make them independently disableable. **The starting inventory exists** in `00_inventory.md` §2 | EX-06 | G-07, G-08, G-14 | **S** | — |
 
-**Critère de sortie du lot.** Aucune affirmation documentaire portant sur un contrôle
-implémenté n'est contredite par le code (A10.1), et la matrice suffit à construire une
-politique de filtrage sans lire le code (A6.2).
+**Exit criterion for the batch.** No documentation statement about an implemented
+control is contradicted by the code (A10.1), and the matrix is enough to build a
+filtering policy without reading the code (A6.2).
 
 ---
 
-## Lot 3 — Souveraineté de l'inférence
+## Batch 3 — Inference sovereignty
 
-Le poste de travail réel, et le chemin critique.
+The real workload, and the critical path.
 
-### 3a — Refactorisation
+### 3a — Refactoring
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-12** | Faire passer le service de vectorisation par le port d'inférence existant, au lieu du client HTTP direct avec destination et modèle figés | EX-03 | G-05 | **S** | — |
-| **T-13** | Retirer les **7 identifiants de modèle figés** des sites d'appel, et les faire résoudre par la configuration. Traiter en même temps les paramètres de température et de longueur associés | EX-03 | G-04 | **M** | — |
-| **T-14** | Supprimer la seconde interface d'inférence héritée et son adaptateur à destination figée ; faire passer le générateur de préproduction par le port unique | EX-03 | G-06 | **S** | T-13 |
-| **T-15** | Ajouter une commande de diagnostic restituant, pour chaque fonction faisant appel à un modèle, la destination et le modèle effectivement résolus | EX-03 | G-04 | **S** | T-12, T-13, T-14 |
-| **T-16** | Ajouter un contrôle d'intégration échouant si un identifiant de modèle ou une destination d'inférence est réintroduit en dur | EX-03 | G-04 | **XS** | T-15 |
+| **T-12** | Route the vectorisation service through the existing inference port, instead of the direct HTTP client with a hard-coded destination and model | EX-03 | G-05 | **S** | — |
+| **T-13** | Remove the **7 hard-coded model identifiers** from the call sites, and have them resolved by configuration. Handle the associated temperature and length parameters at the same time | EX-03 | G-04 | **M** | — |
+| **T-14** | Remove the second, legacy inference interface and its hard-coded-destination adapter; route the pre-production generator through the single port | EX-03 | G-06 | **S** | T-13 |
+| **T-15** | Add a diagnostic command reporting, for every function that calls a model, the destination and the model actually resolved | EX-03 | G-04 | **S** | T-12, T-13, T-14 |
+| **T-16** | Add an integration check that fails if a model identifier or an inference destination is reintroduced hard-coded | EX-03 | G-04 | **XS** | T-15 |
 
-### 3b — Mesure de la régression
+### 3b — Measuring the regression
 
-Aucune de ces tâches ne modifie l'oracle ni le baseline : toute modification
-invaliderait la comparaison (A4.2).
+None of these tasks modifies the oracle or the baseline: any change
+would invalidate the comparison (A4.2).
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-17** | Regeler un **baseline de référence** sur le modèle actuel avec le corpus courant, en vérifiant que l'empreinte de l'oracle est inchangée | EX-04 | G-03 | **S** | T-15 |
-| **T-18** | Campagne candidate avec le moteur interne **en production seulement**, les fonctions de contrôle restant sur le moteur de référence. Produire le rapport : taux d'approbation, taux de repli, tentatives moyennes, taux par code de violation, précision et rappel d'extraction | EX-04 | G-03 | **M** | T-17 |
-| **T-19** | Campagne cumulée : moteur interne également pour les fonctions de contrôle. Comparer à T-18 pour isoler la part de régression imputable aux contrôles | EX-04 | G-03 | **S** | T-18 |
-| **T-20** | **Décision de bascule**, prononcée sur le seul critère de non-régression déjà en vigueur. En cas d'échec : documenter l'écart mesuré et arbitrer entre un modèle plus grand et le maintien du moteur externe sous contrat | EX-04 | G-03 | **S** | T-19 |
+| **T-17** | Refreeze a **reference baseline** on the current model with the current corpus, checking that the oracle fingerprint is unchanged | EX-04 | G-03 | **S** | T-15 |
+| **T-18** | Candidate campaign with the internal engine **in production only**, the checking functions staying on the reference engine. Produce the report: approval rate, fallback rate, average attempts, rate by violation code, extraction precision and recall | EX-04 | G-03 | **M** | T-17 |
+| **T-19** | Combined campaign: internal engine for the checking functions as well. Compare with T-18 to isolate the share of regression attributable to the checks | EX-04 | G-03 | **S** | T-18 |
+| **T-20** | **Switchover decision**, taken on the single non-regression criterion already in force. If it fails: document the measured gap and arbitrate between a larger model and keeping the external engine under contract | EX-04 | G-03 | **S** | T-19 |
 
-**Critère de sortie du lot.** La commande de diagnostic montre une résolution unique
-pour toutes les fonctions (A3.3), et la campagne complète ne produit aucune requête
-externe portant du contenu de message (A3.1).
+**Exit criterion for the batch.** The diagnostic command shows a single resolution
+for all functions (A3.3), and the complete campaign produces no external
+request carrying message content (A3.1).
 
-**Point de vigilance.** T-18 est le cœur du protocole. Si les fonctions de contrôle
-basculent en même temps que la production, la mesure est confondue et peut paraître
-favorable : un contrôle affaibli approuve davantage, ce qui fait monter le taux
-d'approbation alors que la qualité baisse.
+**Point of attention.** T-18 is the heart of the protocol. If the checking functions
+switch at the same time as production, the measurement is confounded and may look
+favourable: a weakened check approves more, which pushes the approval rate up
+while quality goes down.
 
 ---
 
-## Lot 4 — Cloisonnement
+## Batch 4 — Segmentation
 
-Ne peut pas précéder T-20 : tant que l'inférence sort, isoler la zone de traitement
-casse le produit.
+Cannot come before T-20: as long as inference goes out, isolating the processing zone
+breaks the product.
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-21** | Séparer les deux zones en deux domaines réseau ; marquer la zone de traitement sans accès sortant ; n'exposer vers la zone d'engagement que les points d'entrée du flux, recensés explicitement | EX-05 | G-07, G-08 | **M** | T-20, T-11 |
-| **T-22** | Introduire une liste blanche de types de pièces jointes à l'analyse ; journaliser et écarter les types non listés | EX-05 | G-10 | **S** | — |
-| **T-23** | Tests prouvant qu'aucune connexion directe au magasin de données ni au magasin d'état n'est possible depuis la zone d'engagement, et que le flux nominal fonctionne après cloisonnement | EX-05 | G-07 | **S** | T-21, T-22 |
+| **T-21** | Separate the two zones into two network domains; mark the processing zone as having no outbound access; expose to the engagement zone only the flow endpoints, explicitly listed | EX-05 | G-07, G-08 | **M** | T-20, T-11 |
+| **T-22** | Introduce an allowlist of attachment types for parsing; log and discard unlisted types | EX-05 | G-10 | **S** | — |
+| **T-23** | Tests proving that no direct connection to the data store or the state store is possible from the engagement zone, and that the nominal flow works after segmentation | EX-05 | G-07 | **S** | T-21, T-22 |
 
-**Critère de sortie du lot.** A5.1 et A5.3 satisfaits.
+**Exit criterion for the batch.** A5.1 and A5.3 satisfied.
 
 ---
 
-## Lot 5 — Mode dégradé sûr
+## Batch 5 — Safe degraded mode
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-24** | Compter les échecs consécutifs du moteur d'inférence dans le magasin d'état volatil ; seuil configurable et documenté, distinguant l'erreur transitoire de l'indisponibilité | EX-09 | G-30 | **S** | — |
-| **T-25** | Au franchissement du seuil, suspendre l'engagement plutôt que de poursuivre avec des contrôles dégradés. Reprise explicite au rétablissement. Suspension et reprise produisent chacune une entrée d'audit | EX-09 | G-30 | **S** | T-24, T-20 |
-| **T-26** | Exposer l'état de suspension en supervision et le rattacher à une alerte. **Réemployer** l'indicateur et la règle d'alerte existants du kill switch plutôt que d'en créer | EX-09 | G-30 | **XS** | T-25 |
+| **T-24** | Count consecutive inference engine failures in the volatile state store; threshold configurable and documented, distinguishing a transient error from unavailability | EX-09 | G-30 | **S** | — |
+| **T-25** | When the threshold is crossed, suspend engagement rather than continuing with degraded checks. Explicit resumption on recovery. Suspension and resumption each produce an audit entry | EX-09 | G-30 | **S** | T-24, T-20 |
+| **T-26** | Expose the suspended state in monitoring and attach it to an alert. **Reuse** the existing kill switch metric and alerting rule rather than creating new ones | EX-09 | G-30 | **XS** | T-25 |
 
-**Critère de sortie du lot.** En indisponibilité simulée, 0 message sortant (A9.1) et
-l'état est visible en supervision dans un délai inférieur à une période de collecte
+**Exit criterion for the batch.** With unavailability simulated, 0 outgoing message (A9.1) and
+the state is visible in monitoring within less than one collection period
 (A9.2).
 
 ---
 
-## Lot 6 — Chaîne de publication
+## Batch 6 — Release pipeline
 
-| ID | Tâche | Exigence | Écart | Charge | Dépend de |
+| ID | Task | Requirement | Gap | Effort | Depends on |
 |---|---|---|---|---|---|
-| **T-27** | Ajouter une chaîne de publication déclenchée par la pose d'un tag, produisant une publication identifiée avec son journal des changements | EX-07 | G-24 | **S** | T-01 |
-| **T-28** | Attacher à chaque publication la nomenclature de composants **déjà produite** par la chaîne d'intégration, au lieu de la laisser expirer en artefact temporaire | EX-08 | G-25 | **XS** | T-27 |
-| **T-29** | Vérifier la portée de la nomenclature et l'étendre si elle ne couvre pas les dépendances des deux chaînes applicatives en plus des paquets du socle | EX-08 | G-25 | **S** | T-28 |
+| **T-27** | Add a release pipeline triggered by the pushing of a tag, producing an identified release with its change log | EX-07 | G-24 | **S** | T-01 |
+| **T-28** | Attach to every release the SBOM **already produced** by the integration pipeline, instead of letting it expire as a temporary artefact | EX-08 | G-25 | **XS** | T-27 |
+| **T-29** | Check the scope of the SBOM and extend it if it does not cover the dependencies of both application chains in addition to the base packages | EX-08 | G-25 | **S** | T-28 |
 
-**Critère de sortie du lot.** La nomenclature publiée correspond à l'artefact publié
-sous la même version (A8.2) et couvre directes et transitives (A8.1).
+**Exit criterion for the batch.** The published SBOM matches the artefact published
+under the same version (A8.2) and covers direct and transitive dependencies (A8.1).
 
 ---
 
-## Séquencement proposé
+## Proposed sequencing
 
-| Jalon | Contenu | Effet obtenu |
+| Milestone | Content | Effect obtained |
 |---|---|---|
-| **J1** | Lot 0 + Lot 1 + T-06 | **Les deux écarts bloquants les plus graves sont levés.** Un tiers peut déployer en S2 sans engagement, avec une version identifiable et des défauts sûrs. Charge cumulée : ~S à M |
-| **J2** | Lot 2 + Lot 6 | Le dossier documentaire devient utilisable pour une acceptation de risque ; la nomenclature est distribuée. **Échéance de signalement produit atteinte** |
-| **J3** | Lot 3a puis 3b | L'inférence est démontrable et la régression est mesurée. Poste de travail principal |
-| **J4** | Lot 4 + Lot 5 | Cloisonnement effectif et mode dégradé sûr |
+| **J1** | Batch 0 + Batch 1 + T-06 | **The two most serious blocking gaps are closed.** A third party can deploy in S2 without engagement, with an identifiable version and safe defaults. Cumulative effort: ~S to M |
+| **J2** | Batch 2 + Batch 6 | The documentation file becomes usable for a risk acceptance; the SBOM is distributed. **Product reporting deadline met** |
+| **J3** | Batch 3a then 3b | Inference is demonstrable and the regression is measured. Main workload |
+| **J4** | Batch 4 + Batch 5 | Effective segmentation and safe degraded mode |
 
-[DÉDUIT] **J1 et J2 n'ont aucune dépendance sur J3.** Un déployeur peut donc mettre en
-service à l'issue de J2, en mode sans engagement, sans attendre la souveraineté de
-l'inférence — puisque sans engagement, les fonctions appelant un modèle se réduisent à
-la classification, l'extraction et la corrélation, dont le déployeur peut accepter
-contractuellement le transfert le temps de J3. Raisonnement : la porte d'engagement de
-T-04 supprime les appels de production et de contrôle de sortie, qui sont les plus
-volumineux et ceux qui transportent le contenu le plus complet.
+[INFERRED] **J1 and J2 have no dependency on J3.** A deployer can therefore go into
+service at the end of J2, in no-engagement mode, without waiting for inference
+sovereignty — since without engagement, the functions calling a model come down to
+classification, extraction and correlation, whose transfer the deployer can accept
+contractually for the duration of J3. Reasoning: the engagement gate of
+T-04 removes the production and output-check calls, which are the largest in
+volume and the ones carrying the most complete content.
 
 ---
 
-## Tâches délibérément non planifiées
+## Deliberately unplanned tasks
 
-Rappel des arbitrages, pour qu'aucune ne soit reprise par inadvertance.
+A reminder of the trade-offs, so that none is picked up again by mistake.
 
-| Non planifié | Écart | Motif |
+| Not planned | Gap | Reason |
 |---|---|---|
-| Divulgation de la nature artificielle dans le message sortant | G-01 | La recommandation retenue est de désactiver l'engagement par défaut, pas de le rendre conforme. À rouvrir seulement si un déployeur relevant de l'exemption demande la fonction |
-| Retrait des motifs anti-divulgation de `PolicyGuard` | G-01 | Conséquence de la ligne précédente : ils restent pertinents pour un déployeur couvert par l'exemption |
-| File d'approbation humaine avant chaque émission | G-21 | Coût d'exploitation prohibitif pour 1 à 3 personnes ; la séparation de privilèges suffit à l'exigence citée |
-| Verrouillage en écriture de la table d'audit | G-16 | Déclassé avec le scénario S1. **Sauf** la procédure documentaire, qui est T-09 |
-| Élargissement du repli déterministe de vocabulaire de paiement | G-30 | Le code déclare lui-même la complétude inatteignable ; T-25 traite la cause |
-| Arbitrage humain sur les indicateurs non financiers | G-11 | Rendrait le produit inexploitable à une personne. À traiter par une réponse graduée, hors périmètre de ce lot |
-| Anonymisation du contenu conservé | G-35 | La suppression est un substitut plus sûr. L'écart porte sur l'annonce documentaire, traité par T-08 |
-| Signature d'artefacts et attestation de provenance | G-26 | Sur-dimensionné au regard des sources citées et de la taille de l'équipe |
-| Épinglage des images par empreinte | G-26 | Arbitrage ouvert : fige aussi les correctifs du socle, alors que la construction applique déjà les mises à jour. Laissé en avis, non en tâche |
-| Multi-tenance, identité de nœud, provenance signée des flux | — | Relèvent du scénario S3, non retenu |
-| Masquage des identifiants dans l'export SIEM | G-42 | Un SIEM d'entreprise est un destinataire de confiance. **La contradiction documentaire associée (DOC-25) est traitée par T-08** |
-| Validation de l'URI de redirection OIDC et retrait des jetons du fragment d'URL | G-43 | Module opt-in désactivé par défaut ; à traiter au premier cycle, hors des six écarts retenus |
-| Jeu de règles d'alerte de sécurité de référence | G-44 | Relève classiquement de la supervision du déployeur ; le produit expose déjà les événements |
+| Disclosure of the artificial nature in the outgoing message | G-01 | The recommendation kept is to disable engagement by default, not to make it compliant. To be reopened only if a deployer covered by the exemption asks for the function |
+| Removal of the anti-disclosure patterns from `PolicyGuard` | G-01 | A consequence of the previous line: they remain relevant for a deployer covered by the exemption |
+| Human approval queue before every send | G-21 | Prohibitive operating cost for 1 to 3 people; the privilege separation is enough for the requirement cited |
+| Write lock on the audit table | G-16 | Downgraded with scenario S1. **Except** the documented procedure, which is T-09 |
+| Broadening the deterministic payment vocabulary fallback | G-30 | The code itself declares completeness unreachable; T-25 addresses the cause |
+| Human arbitration on non-financial indicators | G-11 | Would make the product unusable by one person. To be handled by a graduated response, outside the scope of this batch |
+| Anonymisation of retained content | G-35 | Deletion is a safer substitute. The gap is about the documentation claim, handled by T-08 |
+| Artefact signing and provenance attestation | G-26 | Over-engineered given the sources cited and the size of the team |
+| Pinning images by digest | G-26 | Open trade-off: it also freezes the base fixes, whereas the build already applies updates. Left as advice, not as a task |
+| Multi-tenancy, node identity, signed flow provenance | — | Belong to scenario S3, which was not selected |
+| Masking identifiers in the SIEM export | G-42 | An enterprise SIEM is a trusted recipient. **The associated documentation contradiction (DOC-25) is handled by T-08** |
+| OIDC redirect URI validation and removal of tokens from the URL fragment | G-43 | Opt-in module, disabled by default; to be handled in the first cycle, outside the six gaps selected |
+| Reference security alerting rule set | G-44 | Classically a matter for the deployer's monitoring; the product already exposes the events |
 
 ---
 
-## Ce que je n'ai pas pu vérifier — phase 4
+## What I could not verify — phase 4
 
-1. La pose d'un premier tag doit-elle refléter la maturité réelle du produit, ou
-   partir d'une version initiale conventionnelle — le choix engage la lecture qu'en
-   feront les déployeurs ?
-2. Quel délai de correction l'éditeur peut-il tenir avec un seul mainteneur, sachant
-   que la politique de versions supportées l'engage ?
-3. Le principal d'orchestration utilise-t-il un compte applicatif dédié, ou le compte
-   d'un opérateur — ce qui déterminerait la portée réelle de T-06 ?
-4. Combien de points d'entrée provoquent effectivement une émission ? Le recensement
-   de T-05 doit être fait avant de dimensionner la tâche.
-5. La suppression de la seconde interface d'inférence casse-t-elle le générateur de
-   préproduction, et ce générateur est-il encore utilisé ?
-6. Le format de réponse structuré exigé par plusieurs appels est-il supporté à
-   l'identique par le moteur interne envisagé ?
-7. Quelle est la durée d'une campagne complète avec un moteur interne, sachant qu'elle
-   prend environ 35 minutes avec le moteur actuel — cela dimensionne T-18 et T-19 ?
-8. Le jeu annoté de référence servant à la mesure de précision et de rappel est-il
-   présent dans le dépôt, et de quelle taille ?
-9. Existe-t-il une contrainte de flux sortant en zone de traitement que la matrice de
-   T-11 révélerait et qui empêcherait l'isolement de T-21 ?
-10. Quels types de pièces jointes sont effectivement rencontrés en réception ? Une
-    liste blanche mal calibrée écarterait du renseignement utile.
-11. Quel seuil d'échecs consécutifs correspond à une indisponibilité réelle plutôt qu'à
-    une erreur transitoire du moteur ?
-12. La nomenclature produite aujourd'hui couvre-t-elle les dépendances applicatives, ou
-    seulement les paquets du socle — ce qui décide si T-29 est une vérification ou un
-    développement ?
-13. Un déployeur accepterait-il une mise en service à l'issue de J2, en mode sans
-    engagement et avec inférence externe sous contrat, ou exigerait-il J3 au
-    préalable ?
-14. Le corpus de 99 fixtures est-il représentatif du trafic réel en distribution de
-    langues et de types, condition de validité de toute la mesure du lot 3b ?
+1. Should setting a first tag reflect the real maturity of the product, or
+   start from a conventional initial version — the choice shapes how
+   deployers will read it?
+2. What fix lead time can the publisher hold with a single maintainer, given
+   that the supported-versions policy commits it?
+3. Does the orchestration principal use a dedicated application account, or an
+   operator's account — which would determine the real scope of T-06?
+4. How many endpoints actually trigger a send? The inventory
+   in T-05 must be done before sizing the task.
+5. Does removing the second inference interface break the pre-production
+   generator, and is that generator still used?
+6. Is the structured response format required by several calls supported
+   identically by the internal engine under consideration?
+7. How long does a complete campaign take with an internal engine, given that it
+   takes about 35 minutes with the current engine — this sizes T-18 and T-19?
+8. Is the annotated reference set used for the precision and recall measurement
+   present in the repository, and how large is it?
+9. Is there an outbound flow constraint in the processing zone that the matrix in
+   T-11 would reveal and that would prevent the isolation in T-21?
+10. Which attachment types are actually encountered on receiving? A poorly
+    calibrated allowlist would discard useful intelligence.
+11. Which consecutive-failure threshold corresponds to real unavailability rather than
+    a transient error from the engine?
+12. Does the SBOM produced today cover the application dependencies, or
+    only the base packages — which decides whether T-29 is a check or a
+    development task?
+13. Would a deployer accept going into service at the end of J2, in no-engagement
+    mode and with external inference under contract, or would it require J3
+    first?
+14. Is the corpus of 99 fixtures representative of real traffic in its distribution of
+    languages and types, a validity condition for the whole measurement in batch 3b?

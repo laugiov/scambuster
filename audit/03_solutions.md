@@ -1,516 +1,514 @@
 # Phase 3 — Solutions
 
-> **Périmètre.** Les écarts bloquants validés en phase 2, **plus G-30 réintégré**.
-> Six dossiers de solution.
+> **Scope.** The blocking gaps confirmed in phase 2, **plus G-30 brought back in**.
+> Six solution files.
 >
-> **Correction apportée au raisonnement de la phase 2.** G-30 y était écarté au motif
-> qu'il dépendait de G-01. Ce motif était trop fort : sur les trois gardes qui
-> s'ouvrent, `PaymentInstigationGuard` et le brief du director sont entièrement
-> indépendants de la transparence, et `OperationalLeakageDetector` ne l'est que
-> partiellement — la fuite d'un nom d'hôte interne reste un problème quelle que soit
-> la divulgation. G-30 est donc traité ici.
+> **Correction to the phase 2 reasoning.** G-30 was set aside there on the grounds
+> that it depended on G-01. That reason was too strong: of the three guards that open
+> up, `PaymentInstigationGuard` and the director brief are entirely independent of
+> transparency, and `OperationalLeakageDetector` is only partly dependent — leaking an
+> internal host name remains a problem whatever the disclosure. G-30 is therefore
+> handled here.
 >
-> **Grille de comparaison** appliquée à chaque option : effort · dette introduite ·
-> coût d'exploitation pour une équipe de 1 à 3 personnes · nouvelle surface d'attaque
-> créée.
+> **Comparison grid** applied to each option: effort · debt introduced ·
+> running cost for a team of 1 to 3 people · new attack surface created.
 >
-> **Contrainte de dimensionnement (R5).** Cadence réelle : trafic courriel humain,
-> quelques messages par minute au pic ; plafonds configurés à 50 conversations
-> actives/jour et 200 appels LLM/heure (`config/packages/rate_limiter.yaml:33-41`).
-> Toute proposition est confrontée à cette mesure, et le sur-dimensionnement est
-> signalé.
+> **Sizing constraint (R5).** Real cadence: human email traffic, a few messages per
+> minute at peak; caps configured at 50 active conversations/day and 200 LLM calls/hour
+> (`config/packages/rate_limiter.yaml:33-41`).
+> Every proposal is checked against this measurement, and over-engineering is
+> flagged.
 >
-> **Zones** — au sens du zonage établi en `01_scope.md` §D.1 :
-> **ZE** = zone d'engagement exposée (IMAP, n8n, SMTP) ·
-> **ZT** = zone de traitement isolée (backend, PostgreSQL, Redis).
+> **Zones** — in the sense of the zoning established in `01_scope.md` §D.1:
+> **ZE** = exposed engagement zone (IMAP, n8n, SMTP) ·
+> **ZT** = isolated processing zone (backend, PostgreSQL, Redis).
 
 ---
 
-## G-01/02 — Transparence du système d'IA
+## G-01/02 — AI system transparency
 
-**Exigence.** Règlement (UE) 2024/1689 art. 50(1) : le fournisseur conçoit le système
-de façon que la personne physique soit informée qu'elle interagit avec un système
-d'IA. Exemption réservée aux systèmes autorisés par la loi à rechercher des
-infractions pénales.
+**Requirement.** Regulation (EU) 2024/1689 Art. 50(1): the provider designs the system
+so that the natural person is informed they are interacting with an AI system.
+Exemption reserved for systems authorised by law to investigate criminal
+offences.
 
-### Option 1 — Divulguer dans le courriel sortant
+### Option 1 — Disclose in the outgoing email
 
-Insérer une mention perceptible dans chaque réponse (première ligne du corps ou bloc
-de pied non retirable), et **inverser** les trois mécanismes qui s'y opposent :
-retirer les 3 motifs pertinents de `FORBIDDEN_PATTERNS`, réécrire la règle CORE
-`BasePromptRules.php:41`, retirer le code `automation_reveal` des codes surveillés de
-l'oracle.
+Insert a perceptible notice in every reply (first line of the body, or a footer block
+that cannot be removed), and **reverse** the three mechanisms that oppose it:
+remove the 3 relevant patterns from `FORBIDDEN_PATTERNS`, rewrite the CORE rule
+`BasePromptRules.php:41`, remove the `automation_reveal` code from the codes watched by
+the oracle.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Faible techniquement — quelques dizaines de lignes, plus une regénération du baseline GUARD |
-| Dette introduite | **Maximale sur le plan fonctionnel.** [DÉDUIT] L'escroc se désengage dès le premier message : la valeur produite par le système — 85 créneaux d'enregistrement, `attempts_avg 1.894`, des conversations à 25–50 tours selon le type — repose entièrement sur la crédibilité de l'échange. Raisonnement : `ConversationLifecycleConfig.php:22-55` dimensionne des politiques allant jusqu'à 50 tours et 60 jours ; aucune n'a de sens face à un interlocuteur qui sait |
-| Coût d'exploitation 1–3 pers. | Nul en exploitation, mais l'appareil de sécurité anti-divulgation devient sans objet et doit être démantelé proprement plutôt qu'abandonné en place |
-| Nouvelle surface d'attaque | Aucune |
+| Effort | Technically low — a few dozen lines, plus a regeneration of the GUARD baseline |
+| Debt introduced | **Maximal in functional terms.** [INFERRED] The scammer disengages at the first message: the value produced by the system — 85 recording slots, `attempts_avg 1.894`, conversations of 25–50 turns depending on type — rests entirely on the credibility of the exchange. Reasoning: `ConversationLifecycleConfig.php:22-55` sizes policies running up to 50 turns and 60 days; none of them makes sense against a counterpart who knows |
+| Running cost, team of 1–3 | Zero in operation, but the anti-disclosure security apparatus becomes pointless and must be dismantled cleanly rather than left in place |
+| New attack surface | None |
 
-### Option 2 — Divulgation hors du corps, dans les en-têtes techniques
+### Option 2 — Disclosure outside the body, in the technical headers
 
-Ajouter un en-tête de message signalant la nature artificielle, sans modifier le corps
-ni les garde-fous.
+Add a message header signalling the artificial nature, without changing the body
+or the safeguards.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Très faible — un en-tête ajouté dans `ReplyCompositionService.php:311` |
-| Dette introduite | **Conformité douteuse.** [DÉDUIT] Les lignes directrices de la Commission du 20 juillet 2026 exigent une divulgation perceptible dans l'interaction elle-même et écartent explicitement l'enfouissement dans des mentions annexes. Un en-tête que ni un client de messagerie ni un lecteur humain n'affiche relève de la même logique. Raisonnement : le critère retenu est la perceptibilité par la personne, pas la présence technique de l'information |
-| Coût d'exploitation | Nul |
-| Nouvelle surface d'attaque | Aucune — mais l'en-tête devient un marqueur de détection du honeypot, exploitable par tout adversaire qui lit les sources de message |
+| Effort | Very low — one header added in `ReplyCompositionService.php:311` |
+| Debt introduced | **Doubtful compliance.** [INFERRED] The Commission guidelines of 20 July 2026 require disclosure that is perceptible within the interaction itself and explicitly rule out burying it in ancillary notices. A header that neither an email client nor a human reader displays falls under the same logic. Reasoning: the criterion retained is perceptibility by the person, not the technical presence of the information |
+| Running cost | Zero |
+| New attack surface | None — but the header becomes a honeypot detection marker, exploitable by any adversary who reads message sources |
 
-### Option 3 — Ne rien construire : restreindre le périmètre du produit et le documenter
+### Option 3 — Build nothing: restrict the product's scope and document it
 
-Reconnaître que **la fonction d'engagement n'est pas déployable en S2**, et rendre le
-produit déployable en S2 **sans elle**.
+Acknowledge that **the engagement function is not deployable in S2**, and make the
+product deployable in S2 **without it**.
 
-Le système comporte deux fonctions séparables :
+The system has two separable functions:
 
-| Fonction | Interagit avec une personne physique ? | Art. 50(1) applicable ? |
+| Function | Interacts with a natural person? | Art. 50(1) applicable? |
 |---|---|---|
-| Ingestion, extraction d'IOC et de TTP, classification, clustering, profilage, export STIX/MISP/TAXII | **Non** — traitement de courriels reçus | **Non** |
-| Génération et envoi de réponses | **Oui** | **Oui** |
+| Ingestion, IOC and TTP extraction, classification, clustering, profiling, STIX/MISP/TAXII export | **No** — processing of received emails | **No** |
+| Generating and sending replies | **Yes** | **Yes** |
 
-La mesure : faire de l'engagement une fonction **désactivée par défaut**, activable
-seulement par un déployeur déclarant relever de l'exemption, et le documenter comme
-tel dans `SECURITY.md` et `DISCLAIMER.md`.
+The measure: make engagement a function that is **disabled by default**, enabled only
+by a deployer who declares that it falls under the exemption, and document it as
+such in `SECURITY.md` and `DISCLAIMER.md`.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | **Faible — le mécanisme existe déjà.** `SCAMBUSTER_KILL_SWITCH` bloque la génération (`ReplyCadenceService.php:55-77` → `ReplyHandler.php:137-139`). Le travail consiste à inverser son défaut, à en faire une décision de configuration explicite plutôt qu'un interrupteur d'urgence, et à étendre son effet à `/send-email`, qu'il ne couvre pas aujourd'hui |
-| Dette introduite | Faible. Le produit conserve l'essentiel de sa valeur CTI : les 148 routes, le clustering, les TTP, les exports et le blocage financier restent opérants |
-| Coût d'exploitation 1–3 pers. | Nul. Un déployeur S2 exploite une plateforme de honeypot passif ; un déployeur relevant de l'exemption active l'engagement |
-| Nouvelle surface d'attaque | Aucune. **Réduction** de surface : sans engagement, `SMTP`, les gardes LLM sortants et la moitié du pipeline ne sont plus exposés |
+| Effort | **Low — the mechanism already exists.** `SCAMBUSTER_KILL_SWITCH` blocks generation (`ReplyCadenceService.php:55-77` → `ReplyHandler.php:137-139`). The work consists of inverting its default, turning it into an explicit configuration decision rather than an emergency switch, and extending its effect to `/send-email`, which it does not cover today |
+| Debt introduced | Low. The product keeps most of its CTI value: the 148 routes, clustering, TTPs, exports and the financial block all remain operational |
+| Running cost, team of 1–3 | Zero. An S2 deployer runs a passive honeypot platform; a deployer covered by the exemption enables engagement |
+| New attack surface | None. A **reduction** of surface: with no engagement, `SMTP`, the outbound LLM guards and half the pipeline are no longer exposed |
 
-### Recommandation — Option 3
+### Recommendation — Option 3
 
-Trois raisons.
+Three reasons.
 
-**1. C'est la seule option qui préserve à la fois la conformité et la valeur.**
-L'option 1 rend le produit conforme et inopérant ; l'option 2 ne le rend probablement
-pas conforme. L'option 3 le rend conforme **en S2** et le laisse pleinement opérant
-**en S1**, cadre pour lequel l'exemption existe précisément.
+**1. It is the only option that preserves both compliance and value.**
+Option 1 makes the product compliant and useless; option 2 probably does not make it
+compliant. Option 3 makes it compliant **in S2** and leaves it fully operational
+**in S1**, the setting for which the exemption exists precisely.
 
-**2. Elle est cohérente avec ce que le projet affirme déjà de lui-même.**
-`DISCLAIMER.md:34-37` qualifie l'enveloppe de sécurité de « load-bearing, not
-decorative ». Rendre l'engagement conditionnel à une base légale est le prolongement
-exact de cette position, pas une concession.
+**2. It is consistent with what the project already says about itself.**
+`DISCLAIMER.md:34-37` calls the security envelope "load-bearing, not
+decorative". Making engagement conditional on a legal basis is the exact extension
+of that position, not a concession.
 
-**3. Elle coûte le moins et supprime le plus.** [DÉDUIT] Désactiver l'engagement par
-défaut retire de la zone exposée l'ensemble du chemin d'envoi et rend sans objet, pour
-un déployeur S2, six des dix menaces du modèle — T1, T3 partiellement, T5, T6, T9 et
-une partie de T2. Raisonnement : ces menaces ont toutes pour vecteur la génération ou
-l'envoi d'une réponse, ou l'enrichissement déclenché par le pipeline de réponse.
+**3. It costs the least and removes the most.** [INFERRED] Disabling engagement by
+default takes the whole sending path out of the exposed zone and makes six of the ten
+threats in the model moot for an S2 deployer — T1, T3 partly, T5, T6, T9 and
+part of T2. Reasoning: all these threats have as their vector the generation or
+sending of a reply, or the enrichment triggered by the reply pipeline.
 
-**Ce qui reste à construire, et qui est modeste** : un paramètre d'activation
-explicite distinct du kill switch d'urgence ; un refus de démarrage si l'engagement
-est activé sans déclaration de base légale ; l'extension du blocage à
-`SendEmailController` ; la mise à jour de `SECURITY.md` et `DISCLAIMER.md`.
+**What remains to be built, and it is modest**: an explicit enablement setting distinct
+from the emergency kill switch; a refusal to start if engagement is enabled without a
+declared legal basis; extending the block to
+`SendEmailController`; updating `SECURITY.md` and `DISCLAIMER.md`.
 
 ---
 
-## G-21 — Aucune séparation entre générer et envoyer
+## G-21 — No separation between generating and sending
 
-**Exigence.** Directive (UE) 2022/2555 art. 20 (approbation et supervision par
-l'organe de direction) et art. 21(2)(i) (politiques de contrôle d'accès).
+**Requirement.** Directive (EU) 2022/2555 Art. 20 (approval and supervision by the
+management body) and Art. 21(2)(i) (access control policies).
 
-### Option 1 — Permission d'envoi distincte
+### Option 1 — A separate send permission
 
-Créer une permission `reply:send` distincte de `reply:generate` ; l'exiger sur
-`SendEmailController` et `MarkReplySentController` ; ne pas l'accorder au principal
-n8n.
+Create a `reply:send` permission distinct from `reply:generate`; require it on
+`SendEmailController` and `MarkReplySentController`; do not grant it to the n8n
+principal.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | **Très faible.** Un cas ajouté à `src/Domain/User/Permission.php:19-40` (14 → 15), deux attributs `#[IsGranted]` modifiés, un jeu de fixtures. `PermissionVoter` fonctionne déjà par permission |
-| Dette introduite | Nulle — c'est l'usage prévu du modèle de permissions existant |
-| Coût d'exploitation 1–3 pers. | **Nul en régime nominal.** L'envoi reste automatisé ; c'est le porteur de la permission qui change, pas le débit |
-| Nouvelle surface d'attaque | Aucune. Réduction : un n8n compromis ne peut plus envoyer |
+| Effort | **Very low.** One case added to `src/Domain/User/Permission.php:19-40` (14 → 15), two `#[IsGranted]` attributes changed, one fixture set. `PermissionVoter` already works permission by permission |
+| Debt introduced | None — this is the intended use of the existing permission model |
+| Running cost, team of 1–3 | **Zero under normal operation.** Sending stays automated; what changes is who holds the permission, not the throughput |
+| New attack surface | None. A reduction: a compromised n8n can no longer send |
 
-### Option 2 — File d'approbation analyste avant envoi
+### Option 2 — An analyst approval queue before sending
 
-Chaque brouillon attend un verdict humain, sur le modèle de la file de revue des IOC
-financiers.
+Every draft waits for a human verdict, on the model of the review queue for financial
+IOCs.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Moyen — le patron existe (`SubmitIocFeedbackController`, `IocFeedbackService`, écran de revue), à transposer aux réponses |
-| Dette introduite | **Élevée.** Rend l'exploitation dépendante d'une présence humaine continue |
-| Coût d'exploitation 1–3 pers. | **Prohibitif.** [DÉDUIT] À 50 conversations actives par jour et une cadence minimale de 6 h entre réponses, la file produit un flux d'approbations réparti sur toute la journée que 1 à 3 personnes ne peuvent pas tenir sans devenir le facteur limitant. Raisonnement : `rate_limiter.yaml:38-41` et `ReplyCadenceService.php:27` |
-| Nouvelle surface d'attaque | Faible |
+| Effort | Medium — the pattern exists (`SubmitIocFeedbackController`, `IocFeedbackService`, review screen), to be transposed to replies |
+| Debt introduced | **High.** Makes operation dependent on continuous human presence |
+| Running cost, team of 1–3 | **Prohibitive.** [INFERRED] At 50 active conversations per day and a minimum cadence of 6 h between replies, the queue produces a stream of approvals spread across the whole day that 1 to 3 people cannot keep up with without becoming the limiting factor. Reasoning: `rate_limiter.yaml:38-41` and `ReplyCadenceService.php:27` |
+| New attack surface | Low |
 
-### Option 3 — Ne rien construire : documenter et faire acter le risque
+### Option 3 — Build nothing: document and have the risk formally accepted
 
-Documenter que la génération et l'envoi partagent une permission, et fournir un
-modèle d'acceptation de risque signé par l'organe de direction.
+Document that generation and sending share a permission, and provide a
+risk acceptance template signed by the management body.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
 | Effort | Minimal |
-| Dette introduite | **Reporte l'écart sur chaque déployeur**, indéfiniment |
-| Coût d'exploitation | Nul |
-| Nouvelle surface d'attaque | Aucune |
+| Debt introduced | **Pushes the gap onto every deployer**, indefinitely |
+| Running cost | Zero |
+| New attack surface | None |
 
-### Recommandation — Option 1
+### Recommendation — Option 1
 
-Elle satisfait l'exigence de séparation des rôles pour un coût quasi nul, sans
-toucher au débit. [DÉDUIT] L'option 2 confond deux besoins distincts : la séparation
-des privilèges — ce qu'exige l'art. 21(2)(i) — et la validation humaine de chaque
-acte, qu'aucune source citée n'impose en S2. Raisonnement : l'art. 20 exige que
-l'organe de direction approuve et supervise **les mesures**, pas chaque message.
+It satisfies the separation of roles requirement at almost no cost, without
+touching throughput. [INFERRED] Option 2 conflates two distinct needs: separation
+of privileges — what Art. 21(2)(i) requires — and human validation of every
+act, which no cited source imposes in S2. Reasoning: Art. 20 requires that
+the management body approve and supervise **the measures**, not each message.
 
-L'option 1 se combine naturellement à la recommandation G-01 : lorsque l'engagement
-est désactivé, la permission `reply:send` n'est accordée à personne.
+Option 1 combines naturally with the G-01 recommendation: when engagement
+is disabled, the `reply:send` permission is granted to nobody.
 
 ---
 
-## G-03/04/05 — Souveraineté de l'inférence
+## G-03/04/05 — Inference sovereignty
 
-**Exigence.** Règlement (UE) 2016/679 art. 32(1) et 28(1) ; Directive (UE) 2022/2555
-art. 21(2)(d).
+**Requirement.** Regulation (EU) 2016/679 Art. 32(1) and 28(1); Directive (EU) 2022/2555
+Art. 21(2)(d).
 
-### Option 1 — Bascule complète vers une inférence locale
+### Option 1 — Full switchover to local inference
 
-Refactoriser les 7 sites qui codent un modèle en dur, doter `EmbeddingService` d'une
-abstraction de fournisseur, retirer la seconde interface `LLMServiceInterface`, et
-faire de `LLM_PROVIDER=ollama` une bascule réellement totale.
+Refactor the 7 sites that hard-code a model, give `EmbeddingService` a
+provider abstraction, remove the second `LLMServiceInterface` interface, and
+make `LLM_PROVIDER=ollama` a genuinely total switchover.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | **Moyen et borné.** 7 sites (`ReplyValidator.php:103`, `OperationalLeakageDetector.php:28`, `PaymentInstigationGuard.php:50`, `ConversationAnalyzer.php:27`, `ConversationHistoryService.php:229`, `ConversationQualityAuditor.php:77`, `EmbeddingService.php:18`) + une interface d'embeddings + le retrait d'un alias DI |
-| Dette introduite | **Une régression de qualité à mesurer** — traitée ci-dessous. Le port `LLMClientInterface` et l'adaptateur `OllamaClient` existent déjà |
-| Coût d'exploitation 1–3 pers. | **Modéré.** Un serveur d'inférence à administrer. [DÉDUIT] À quelques messages par minute au pic, une seule instance sur un GPU d'entrée de gamme suffit ; il n'y a **aucun besoin** de service de mise à l'échelle, de file d'inférence ni de grappe. Raisonnement : 200 appels LLM/heure au plafond configuré, soit ~3/min, contre un débit de plusieurs requêtes par seconde pour une instance unique |
-| Nouvelle surface d'attaque | **Faible et interne.** Un service d'inférence dans la ZT. En contrepartie, suppression de trois destinations Internet depuis la ZT |
+| Effort | **Medium and bounded.** 7 sites (`ReplyValidator.php:103`, `OperationalLeakageDetector.php:28`, `PaymentInstigationGuard.php:50`, `ConversationAnalyzer.php:27`, `ConversationHistoryService.php:229`, `ConversationQualityAuditor.php:77`, `EmbeddingService.php:18`) + one embeddings interface + removing one DI alias |
+| Debt introduced | **A quality regression to measure** — dealt with below. The `LLMClientInterface` port and the `OllamaClient` adapter already exist |
+| Running cost, team of 1–3 | **Moderate.** An inference server to administer. [INFERRED] At a few messages per minute at peak, a single instance on an entry-level GPU is enough; there is **no need at all** for a scaling service, an inference queue or a cluster. Reasoning: 200 LLM calls/hour at the configured cap, i.e. ~3/min, against a throughput of several requests per second for a single instance |
+| New attack surface | **Low and internal.** An inference service inside the ZT. In exchange, three Internet destinations are removed from the ZT |
 
-### Option 2 — Passerelle d'inférence à point de sortie unique
+### Option 2 — An inference gateway with a single egress point
 
-Conserver le fournisseur externe, mais imposer que **tout** appel transite par un
-composant interne unique, seul autorisé à sortir, avec liste blanche et journalisation.
+Keep the external provider, but require that **every** call go through a single
+internal component, the only one allowed to egress, with an allowlist and logging.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Moyen — un composant à écrire, plus le même refactor des 7 sites (sans quoi la passerelle est contournée) |
-| Dette introduite | Un composant maison de plus à maintenir |
-| Coût d'exploitation | Faible |
-| Nouvelle surface d'attaque | **Réelle** : la passerelle voit tout le trafic en clair et détient la clé d'API |
-| Limite de fond | [DÉDUIT] **Elle rend le flux démontrable mais ne l'arrête pas.** Le contenu de tiers sort toujours. L'écart G-03 subsiste ; seul G-04 est traité |
+| Effort | Medium — one component to write, plus the same refactor of the 7 sites (without which the gateway is bypassed) |
+| Debt introduced | One more in-house component to maintain |
+| Running cost | Low |
+| New attack surface | **Real**: the gateway sees all traffic in the clear and holds the API key |
+| Fundamental limitation | [INFERRED] **It makes the flow demonstrable but does not stop it.** Third-party content still leaves. Gap G-03 remains; only G-04 is addressed |
 
-### Option 3 — Ne rien construire : contractualiser et documenter
+### Option 3 — Build nothing: contract and document instead
 
-Fournir un accord de sous-traitance type, une clause de non-entraînement, et une
-matrice exhaustive des flux sortants avec leurs déclencheurs.
+Provide a model processing agreement, a no-training clause, and an exhaustive
+matrix of outbound flows with their triggers.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Faible — la matrice des flux existe déjà : `00_inventory.md` §2 la dresse (17 sorties backend, 11 nœuds n8n) |
-| Dette introduite | Reporte la charge sur chaque déployeur |
-| Coût d'exploitation | Nul |
-| Nouvelle surface d'attaque | Aucune |
-| Limite de fond | Ne traite ni G-04 ni G-05 : même contractualisé, le déployeur ne peut pas **démontrer** qu'aucune donnée ne sort, puisque les 7 sites en dur restent |
+| Effort | Low — the flow matrix already exists: `00_inventory.md` §2 lays it out (17 backend egress points, 11 n8n nodes) |
+| Debt introduced | Pushes the burden onto every deployer |
+| Running cost | Zero |
+| New attack surface | None |
+| Fundamental limitation | Addresses neither G-04 nor G-05: even under contract, the deployer cannot **demonstrate** that no data leaves, since the 7 hard-coded sites remain |
 
-### Recommandation — Option 1
+### Recommendation — Option 1
 
-L'option 3 laisse l'entité incapable de démontrer sa maîtrise, ce qui est précisément
-l'exigence de l'art. 32(1)(d). L'option 2 exige le même refactor que l'option 1 tout
-en laissant le contenu sortir : elle coûte autant et livre moins. L'option 1 est la
-seule qui referme les trois écarts.
+Option 3 leaves the entity unable to demonstrate control, which is precisely
+the requirement of Art. 32(1)(d). Option 2 requires the same refactor as option 1 while
+still letting content leave: it costs as much and delivers less. Option 1 is the
+only one that closes all three gaps.
 
-**Précision de dimensionnement (R5).** Le refactor des 7 sites est requis **dans les
-trois options** — il conditionne toute affirmation de maîtrise du flux. C'est le
-travail structurant ; le choix du fournisseur vient après.
+**Sizing note (R5).** The refactor of the 7 sites is required **in all
+three options** — it conditions any claim of control over the flow. That is the
+structuring work; the choice of provider comes afterwards.
 
-### Protocole de mesure de la régression de qualité
+### Protocol for measuring the quality regression
 
-Exigé explicitement par la commande. Le point remarquable est que **le harnais de
-mesure existe déjà** et n'a pas à être construit.
+Explicitly required by the brief. The remarkable point is that **the measurement
+harness already exists** and does not have to be built.
 
-**Corpus disponible** [VÉRIFIÉ] : 99 fixtures `.eml` — 65 dans
-`tests/Smoke/ReplyObjectiveFixtures/`, 34 dans `tests/Smoke/CialdiniMirrorFixtures/`
-(couvrant EN/FR/DE/ES) ; baseline gelé `tests/Smoke/guard-baseline.json` avec
-`recording_slots 85`, `out_texts_scored 85`, `errors 0`, empreinte d'oracle
-`374f95367add`, somme de contrôle `.sha256` associée.
+**Corpus available** [VERIFIED]: 99 `.eml` fixtures — 65 in
+`tests/Smoke/ReplyObjectiveFixtures/`, 34 in `tests/Smoke/CialdiniMirrorFixtures/`
+(covering EN/FR/DE/ES); frozen baseline `tests/Smoke/guard-baseline.json` with
+`recording_slots 85`, `out_texts_scored 85`, `errors 0`, oracle fingerprint
+`374f95367add`, and an associated `.sha256` checksum.
 
-**Instruments existants** : `scambuster:smoke:reply-objective` →
-`CanaryAggregate` → `scambuster:guard:check` avec comparaison au baseline et
-tolérance de 0,05 ; `app:eval:ioc-extraction-metrics` (précision/rappel/F1 sur jeu
-annoté) ; `app:evaluate:reply-quality` ; `app:eval:run-judge`.
+**Existing instruments**: `scambuster:smoke:reply-objective` →
+`CanaryAggregate` → `scambuster:guard:check` with comparison against the baseline and
+a tolerance of 0.05; `app:eval:ioc-extraction-metrics` (precision/recall/F1 on an
+annotated set); `app:evaluate:reply-quality`; `app:eval:run-judge`.
 
-**Protocole en cinq étapes.**
+**A five-step protocol.**
 
-| Étape | Action | Sortie attendue |
+| Step | Action | Expected output |
 |---|---|---|
-| 1 | Regeler un baseline de référence sur `gpt-4o-mini` avec le corpus courant, en vérifiant que l'empreinte d'oracle est inchangée | Baseline de contrôle |
-| 2 | **Figer le modèle juge.** Exécuter la campagne candidate avec le modèle local **en génération seulement**, `ReplyValidator` et `OperationalLeakageDetector` restant sur le modèle de référence | Isole la régression du générateur |
-| 3 | Exécuter `scambuster:smoke:reply-objective` puis `guard:check` sur le candidat | Deltas par code de violation + `approved_rate`, `fallback_rate`, `attempts_avg` |
-| 4 | Exécuter `app:eval:ioc-extraction-metrics` sur le même corpus, avant et après | Précision/rappel/F1 d'extraction |
-| 5 | Rejouer les étapes 2 à 4 avec le modèle local **également en juge** | Mesure l'effet cumulé générateur + juges |
+| 1 | Re-freeze a reference baseline on `gpt-4o-mini` with the current corpus, checking that the oracle fingerprint is unchanged | A control baseline |
+| 2 | **Freeze the judge model.** Run the candidate campaign with the local model **for generation only**, with `ReplyValidator` and `OperationalLeakageDetector` staying on the reference model | Isolates the generator's regression |
+| 3 | Run `scambuster:smoke:reply-objective` then `guard:check` on the candidate | Deltas per violation code + `approved_rate`, `fallback_rate`, `attempts_avg` |
+| 4 | Run `app:eval:ioc-extraction-metrics` on the same corpus, before and after | Extraction precision/recall/F1 |
+| 5 | Replay steps 2 to 4 with the local model **as judge as well** | Measures the combined generator + judges effect |
 
-**Pourquoi l'étape 2 est le point critique.** [DÉDUIT] Basculer `LLM_PROVIDER` change
-le modèle du générateur **et** celui des deux juges LLM simultanément, puisque tous
-héritent du même fournisseur. Une campagne naïve mesurerait donc une composée de deux
-régressions et pourrait produire un résultat trompeusement bon : un juge affaibli
-approuve davantage, ce qui fait *monter* `approved_rate` alors même que la qualité
-baisse. Raisonnement : `approved_rate` est calculé à partir des décisions du
-validateur (`CanaryAggregate.php:29-83`), lui-même un appel LLM
+**Why step 2 is the critical point.** [INFERRED] Switching `LLM_PROVIDER` changes
+the generator's model **and** that of the two LLM judges at the same time, since they
+all inherit the same provider. A naive campaign would therefore measure a compound of two
+regressions and could produce a misleadingly good result: a weakened judge
+approves more, which pushes `approved_rate` *up* even as quality
+falls. Reasoning: `approved_rate` is computed from the validator's decisions
+(`CanaryAggregate.php:29-83`), and the validator is itself an LLM call
 (`ReplyValidator.php:109`).
 
-**Régression attendue, et indicateurs qui la révéleront.**
+**Expected regression, and the indicators that will reveal it.**
 
-| Indicateur | Valeur de référence | Sens attendu | Pourquoi |
+| Indicator | Reference value | Expected direction | Why |
 |---|---|---|---|
-| `attempts_avg` | **1,894** | **Hausse** | Un modèle plus faible franchit moins souvent PolicyGuard et le seuil `iocScore` du premier coup ; plafond à 3 tentatives |
-| `fallback_rate` | **0,0** | **Hausse** | Conséquence directe de l'épuisement des 3 tentatives |
-| `language_mismatch` | **0,0353** | **Hausse marquée** | Point le plus exposé : le corpus est multilingue et les modèles locaux quantifiés perdent d'abord en tenue de langue |
-| `word_band` | 0,0 | Hausse | Respect moins fiable des bandes 12–150 mots de `PolicyGuardConfig` |
-| `payment_token` | **0,294** | Instable | Rappel : code **informationnel**, non bloquant — il ne fera pas échouer la porte quel que soit le résultat |
-| Rappel d'extraction d'IOC | à mesurer à l'étape 4 | **Baisse** | Tâche d'extraction structurée en JSON, sensible à la taille du modèle |
+| `attempts_avg` | **1.894** | **Up** | A weaker model passes PolicyGuard and the `iocScore` threshold first time less often; capped at 3 attempts |
+| `fallback_rate` | **0.0** | **Up** | A direct consequence of exhausting the 3 attempts |
+| `language_mismatch` | **0.0353** | **Sharply up** | The most exposed point: the corpus is multilingual and quantised local models lose language consistency first |
+| `word_band` | 0.0 | Up | Less reliable compliance with the 12–150 word bands of `PolicyGuardConfig` |
+| `payment_token` | **0.294** | Unstable | Reminder: an **informational** code, non-blocking — it will not fail the gate whatever the result |
+| IOC extraction recall | to be measured at step 4 | **Down** | A structured JSON extraction task, sensitive to model size |
 
-**Critère d'acceptation proposé.** Le `fallback_rate` étant bilatéral dans le
-comparateur avec une tolérance de 0,05 (`CanaryBaselineComparator.php:107-109`), et
-les codes de violation à baseline nul étant signalés dès toute valeur non nulle, le
-seuil de décision est déjà défini par l'outil. **Il n'y a pas de nouveau critère à
-inventer** : la bascule est acceptable si `guard:check` sort en zéro contre le
-baseline de référence, avec l'empreinte d'oracle inchangée.
+**Proposed acceptance criterion.** Since `fallback_rate` is two-sided in the
+comparator with a tolerance of 0.05 (`CanaryBaselineComparator.php:107-109`), and
+violation codes with a zero baseline are flagged on any non-zero value, the
+decision threshold is already defined by the tool. **There is no new criterion to
+invent**: the switchover is acceptable if `guard:check` exits zero against the
+reference baseline, with the oracle fingerprint unchanged.
 
-**Signalement de sur-dimensionnement.** [DÉDUIT] Aucune infrastructure de service de
-modèle — grappe, équilibrage, quantification dynamique, mise en cache de préfixes —
-n'est justifiée à 3 appels/minute. Le seul choix dimensionnant est celui de la taille
-du modèle, et il se tranche par la mesure ci-dessus, pas par l'architecture.
-
----
-
-## G-07/08 — Zonage et filtrage de sortie
-
-**Exigence.** Directive (UE) 2022/2555 art. 21(2)(a).
-
-### Option 1 — Deux réseaux Docker et une matrice de flux explicite
-
-Séparer `net-engagement` (n8n, transports IMAP/SMTP) et `net-traitement`
-(backend, PostgreSQL, Redis, inférence locale) ; marquer `net-traitement` en
-`internal: true` ; n'exposer du backend vers la ZE que les routes nécessaires à n8n.
-
-| Critère | Évaluation |
-|---|---|
-| Effort | **Faible.** Modification de `docker-compose.prod.yml` ; aucun code applicatif |
-| Dette introduite | Nulle — c'est le geste standard |
-| Coût d'exploitation 1–3 pers. | Faible. Une matrice de flux à tenir à jour |
-| Nouvelle surface d'attaque | Aucune. **Réduction majeure** : un n8n compromis perd l'accès direct à PostgreSQL et Redis (menace T4) |
-| Limite | `internal: true` sur la ZT est compatible avec la recommandation G-03 (inférence locale) mais **incompatible avec le maintien d'un fournisseur externe** — les deux dossiers doivent être tranchés ensemble |
-
-### Option 2 — Segmentation par hôtes séparés et proxy sortant filtrant
-
-ZE et ZT sur deux machines distinctes, avec un proxy explicite à liste blanche.
-
-| Critère | Évaluation |
-|---|---|
-| Effort | Élevé |
-| Dette introduite | Deux hôtes à administrer, un proxy à maintenir |
-| Coût d'exploitation 1–3 pers. | **Élevé, et sur-dimensionné.** [DÉDUIT] À quelques messages par minute, deux hôtes doublent la charge d'administration sans bénéfice proportionné pour une équipe de cette taille. Raisonnement : le gain de sécurité par rapport à l'option 1 est marginal — deux réseaux Docker distincts couvrent déjà le pivot latéral, qui est la menace identifiée |
-| Nouvelle surface d'attaque | Le proxy lui-même |
-
-### Option 3 — Ne rien construire : livrer la matrice de flux et laisser segmenter
-
-Documenter les 17 sorties backend et 11 nœuds n8n avec leurs déclencheurs, et fournir
-un exemple de segmentation sans l'imposer.
-
-| Critère | Évaluation |
-|---|---|
-| Effort | Très faible — la matrice existe (`00_inventory.md` §2) |
-| Dette introduite | Chaque déployeur refait le travail |
-| Coût d'exploitation | Nul |
-| Nouvelle surface d'attaque | Aucune |
-| Limite | `docker-compose.prod.yml` restant présenté comme cible de production, un déployeur le prendra tel quel |
-
-### Recommandation — Option 1, complétée par le livrable de l'option 3
-
-L'option 1 traite la menace principale — le pivot depuis la ZE vers le magasin de
-données — pour un coût de quelques lignes de configuration. L'option 2 est
-sur-dimensionnée à cette cadence. Le livrable documentaire de l'option 3 reste
-nécessaire : sans matrice de flux publiée, le déployeur ne peut pas construire sa
-propre liste blanche de sortie, quelle que soit la segmentation livrée.
+**Over-engineering flag.** [INFERRED] No model serving infrastructure —
+cluster, load balancing, dynamic quantisation, prefix caching —
+is justified at 3 calls/minute. The only sizing choice is that of the model size,
+and it is settled by the measurement above, not by architecture.
 
 ---
 
-## G-24/25 — Version identifiable et SBOM distribué
+## G-07/08 — Zoning and egress filtering
 
-**Exigence.** Règlement (UE) 2024/2847, signalement par produit et par version,
-premier jalon au **11 septembre 2026** ; Directive (UE) 2022/2555 art. 21(2)(d).
+**Requirement.** Directive (EU) 2022/2555 Art. 21(2)(a).
 
-### Option 1 — Publication versionnée avec SBOM attaché
+### Option 1 — Two Docker networks and an explicit flow matrix
 
-Poser des tags SemVer, ajouter un workflow de publication qui attache le SBOM
-CycloneDX déjà produit, et remplacer « main | Yes » de `SECURITY.md:5-7` par une
-politique de versions supportées.
+Separate `net-engagement` (n8n, IMAP/SMTP transports) and `net-traitement`
+(backend, PostgreSQL, Redis, local inference); mark `net-traitement` as
+`internal: true`; expose from the backend to the ZE only the routes n8n needs.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | **Faible.** Le SBOM est déjà généré (`ci.yml:332-337`) ; il n'est pas distribué. Il s'agit de l'attacher à une publication, pas de le produire |
-| Dette introduite | Une discipline de publication à tenir. `CHANGELOG.md` est déjà au format Keep a Changelog |
-| Coût d'exploitation 1–3 pers. | **Faible et récurrent.** C'est le seul poste qui ajoute une charge permanente, de l'ordre de quelques minutes par publication |
-| Nouvelle surface d'attaque | Aucune |
+| Effort | **Low.** A change to `docker-compose.prod.yml`; no application code |
+| Debt introduced | None — this is the standard move |
+| Running cost, team of 1–3 | Low. One flow matrix to keep up to date |
+| New attack surface | None. A **major reduction**: a compromised n8n loses direct access to PostgreSQL and Redis (threat T4) |
+| Limitation | `internal: true` on the ZT is compatible with the G-03 recommendation (local inference) but **incompatible with keeping an external provider** — the two files must be settled together |
 
-### Option 2 — Chaîne d'approvisionnement complète
+### Option 2 — Segmentation by separate hosts and a filtering egress proxy
 
-Ajouter la signature d'artefacts, l'attestation de provenance, les constructions
-reproductibles et l'épinglage par empreinte.
+ZE and ZT on two separate machines, with an explicit allowlist proxy.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Élevé |
-| Dette introduite | Élevée — clés de signature à gérer et à faire tourner |
-| Coût d'exploitation 1–3 pers. | **Sur-dimensionné.** [DÉDUIT] Aucune source citée n'exige la signature d'artefacts ni l'attestation de provenance pour ce scénario ; l'art. 21(2)(d) demande de tenir compte des risques de la chaîne, ce que la publication versionnée avec SBOM satisfait. Raisonnement : l'exigence porte sur la connaissance et la maîtrise des composants, pas sur leur attestation cryptographique |
-| Nouvelle surface d'attaque | Gestion de clés |
+| Effort | High |
+| Debt introduced | Two hosts to administer, one proxy to maintain |
+| Running cost, team of 1–3 | **High, and over-engineered.** [INFERRED] At a few messages per minute, two hosts double the administration load with no proportionate benefit for a team of this size. Reasoning: the security gain over option 1 is marginal — two separate Docker networks already cover lateral pivoting, which is the identified threat |
+| New attack surface | The proxy itself |
 
-### Option 3 — Ne rien construire : documenter le commit déployé
+### Option 3 — Build nothing: ship the flow matrix and let deployers segment
 
-Indiquer au déployeur de consigner l'empreinte de commit qu'il exécute.
+Document the 17 backend egress points and 11 n8n nodes with their triggers, and provide
+an example segmentation without imposing it.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Nul |
-| Dette introduite | L'éditeur reste incapable de désigner une version affectée par une vulnérabilité |
-| Coût d'exploitation | Nul |
-| Nouvelle surface d'attaque | Aucune |
-| Limite | Ne satisfait pas l'obligation de signalement du CRA, qui s'exprime par produit et par version |
+| Effort | Very low — the matrix exists (`00_inventory.md` §2) |
+| Debt introduced | Every deployer redoes the work |
+| Running cost | Zero |
+| New attack surface | None |
+| Limitation | With `docker-compose.prod.yml` still presented as the production target, a deployer will take it as it stands |
 
-### Recommandation — Option 1
+### Recommendation — Option 1, completed by the option 3 deliverable
 
-Coût le plus faible du dossier, effet de levier le plus élevé : sans version, aucune
-des cinq autres recommandations n'est livrable de façon identifiable. L'option 2 est
-écartée comme sur-dimensionnée au regard des sources citées et de la taille de
-l'équipe. L'épinglage des images par empreinte (G-26), qui en fait partie, reste un
-arbitrage ouvert que je place en avis plutôt qu'en recommandation : il fige aussi les
-correctifs de l'image de base, et les Dockerfiles exécutent déjà `apt-get upgrade`
-à la construction.
+Option 1 addresses the main threat — pivoting from the ZE to the data
+store — for the cost of a few lines of configuration. Option 2 is
+over-engineered at this cadence. The documentation deliverable from option 3 remains
+necessary: without a published flow matrix, the deployer cannot build its
+own egress allowlist, whatever segmentation is shipped.
 
 ---
 
-## G-30 — Échecs ouverts corrélés sur une cause unique
+## G-24/25 — Identifiable version and distributed SBOM
 
-**Exigence.** Directive (UE) 2022/2555 art. 21(2)(c).
+**Requirement.** Regulation (EU) 2024/2847, reporting per product and per version,
+first milestone on **11 September 2026**; Directive (EU) 2022/2555 Art. 21(2)(d).
 
-**Rappel du constat.** Trois contrôles s'ouvrent sur l'indisponibilité du fournisseur
-d'inférence : `OperationalLeakageDetector.php:59-89` (retourne « pas de fuite »),
-`PaymentInstigationGuard.php:162-179` (approuve hors des 12 jetons de repli),
-`ReplyHandler.php:104-110` (le brief du director retourne `null`). Le repli
-déterministe résiduel se limite à 12 motifs de vocabulaire de paiement.
+### Option 1 — Versioned releases with an attached SBOM
 
-### Option 1 — Coupe-circuit sur la santé du fournisseur
+Add SemVer tags, add a release workflow that attaches the CycloneDX SBOM
+already produced, and replace "main | Yes" in `SECURITY.md:5-7` with a
+supported-versions policy.
 
-Instrumenter la disponibilité de l'inférence et, en cas d'indisponibilité,
-**suspendre la génération** au lieu de générer avec des gardes dégradées.
-
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | **Faible.** Le mécanisme d'arrêt existe : couche cache du kill switch (`ReplyCadenceService.php:30`, clé `llm.killswitch.active`). Il s'agit de le piloter depuis un compteur d'échecs fournisseur plutôt que depuis la seule bascule d'administration |
-| Dette introduite | Faible. Un état de plus à superviser — déjà exposé par la jauge `scambuster_kill_switch` (`MetricsController.php:97-100`) |
-| Coût d'exploitation 1–3 pers. | Faible. Une alerte Prometheus existe déjà pour le kill switch (`ScamBusterKillSwitchActive`) |
-| Nouvelle surface d'attaque | **Une, à traiter** : un adversaire capable de provoquer des échecs d'inférence — saturation du budget, charges utiles pathologiques — obtient un déni de service sur la génération. [DÉDUIT] Conséquence acceptable : l'arrêt de la génération est le mode dégradé sûr, l'inverse du risque actuel. Raisonnement : ne pas répondre n'expose personne ; répondre avec trois gardes ouvertes expose l'entité |
+| Effort | **Low.** The SBOM is already generated (`ci.yml:332-337`); it is just not distributed. The job is to attach it to a release, not to produce it |
+| Debt introduced | A release discipline to keep up. `CHANGELOG.md` is already in Keep a Changelog format |
+| Running cost, team of 1–3 | **Low and recurring.** This is the only item that adds a permanent load, of the order of a few minutes per release |
+| New attack surface | None |
 
-### Option 2 — Élargir le repli déterministe
+### Option 2 — A full supply chain
 
-Étendre les 12 motifs de `PAYMENT_INFRA_TOKEN_PATTERNS` et ajouter un repli
-déterministe à `OperationalLeakageDetector`.
+Add artefact signing, provenance attestation, reproducible builds
+and pinning by digest.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
 |---|---|
-| Effort | Moyen, et **sans fin**. L'oracle GUARD porte déjà 16 motifs contre 12 dans le garde, et son propre docblock reconnaît que « Residual free-paraphrase … is an inherent limit » (`SafetyInvariantOracle.php:84-85`) |
-| Dette introduite | **Élevée.** Chaque motif ajouté doit être répliqué dans l'oracle sous peine de faire échouer les tests de dérive (`SafetyInvariantOracleTest.php:219-246`) |
-| Coût d'exploitation | Faible |
-| Nouvelle surface d'attaque | Aucune |
-| Limite de fond | Traite le symptôme. La classe de contenu visée par le détecteur de fuite est précisément la paraphrase, que par construction aucune liste de motifs ne couvre |
+| Effort | High |
+| Debt introduced | High — signing keys to manage and rotate |
+| Running cost, team of 1–3 | **Over-engineered.** [INFERRED] No cited source requires artefact signing or provenance attestation for this scenario; Art. 21(2)(d) asks that supply chain risks be taken into account, which versioned releases with an SBOM satisfy. Reasoning: the requirement is about knowing and controlling the components, not about attesting them cryptographically |
+| New attack surface | Key management |
 
-### Option 3 — Ne rien construire : documenter le mode dégradé
+### Option 3 — Build nothing: document the deployed commit
 
-Décrire explicitement dans la documentation d'exploitation que l'indisponibilité de
-l'inférence dégrade trois contrôles, et laisser le déployeur décider de couper.
+Tell the deployer to record the commit hash it is running.
 
-| Critère | Évaluation |
+| Criterion | Assessment |
+|---|---|
+| Effort | Zero |
+| Debt introduced | The publisher remains unable to designate a version affected by a vulnerability |
+| Running cost | Zero |
+| New attack surface | None |
+| Limitation | Does not satisfy the CRA reporting obligation, which is expressed per product and per version |
+
+### Recommendation — Option 1
+
+The lowest cost in the whole set, the highest leverage: with no version, none
+of the five other recommendations can be delivered in an identifiable way. Option 2 is
+ruled out as over-engineered given the cited sources and the size of
+the team. Pinning images by digest (G-26), which is part of it, remains an
+open trade-off that I place among the opinions rather than the recommendations: it also
+freezes the base image's fixes, and the Dockerfiles already run `apt-get upgrade`
+at build time.
+
+---
+
+## G-30 — Correlated fail opens on a single cause
+
+**Requirement.** Directive (EU) 2022/2555 Art. 21(2)(c).
+
+**Recap of the finding.** Three controls open up when the inference provider is
+unavailable: `OperationalLeakageDetector.php:59-89` (returns "no leak"),
+`PaymentInstigationGuard.php:162-179` (approves outside the 12 fallback tokens),
+`ReplyHandler.php:104-110` (the director brief returns `null`). The residual
+deterministic fallback is limited to 12 payment vocabulary patterns.
+
+### Option 1 — A circuit breaker on provider health
+
+Instrument inference availability and, when it is unavailable,
+**suspend generation** instead of generating with degraded guards.
+
+| Criterion | Assessment |
+|---|---|
+| Effort | **Low.** The stop mechanism exists: the kill switch cache layer (`ReplyCadenceService.php:30`, key `llm.killswitch.active`). The job is to drive it from a provider failure counter rather than from the administration toggle alone |
+| Debt introduced | Low. One more state to monitor — already exposed by the `scambuster_kill_switch` gauge (`MetricsController.php:97-100`) |
+| Running cost, team of 1–3 | Low. A Prometheus alert already exists for the kill switch (`ScamBusterKillSwitchActive`) |
+| New attack surface | **One, to be addressed**: an adversary able to cause inference failures — budget exhaustion, pathological payloads — gets a denial of service on generation. [INFERRED] An acceptable consequence: stopping generation is the safe degraded mode, the opposite of the current risk. Reasoning: not replying exposes nobody; replying with three guards open exposes the entity |
+
+### Option 2 — Widen the deterministic fallback
+
+Extend the 12 patterns of `PAYMENT_INFRA_TOKEN_PATTERNS` and add a deterministic
+fallback to `OperationalLeakageDetector`.
+
+| Criterion | Assessment |
+|---|---|
+| Effort | Medium, and **endless**. The GUARD oracle already carries 16 patterns against 12 in the guard, and its own docblock acknowledges that "Residual free-paraphrase … is an inherent limit" (`SafetyInvariantOracle.php:84-85`) |
+| Debt introduced | **High.** Every pattern added has to be replicated in the oracle or the drift tests fail (`SafetyInvariantOracleTest.php:219-246`) |
+| Running cost | Low |
+| New attack surface | None |
+| Fundamental limitation | Treats the symptom. The class of content targeted by the leak detector is precisely paraphrase, which by construction no pattern list covers |
+
+### Option 3 — Build nothing: document the degraded mode
+
+State explicitly in the operations documentation that unavailability of
+inference degrades three controls, and let the deployer decide whether to cut off.
+
+| Criterion | Assessment |
 |---|---|
 | Effort | Minimal |
-| Dette introduite | L'écart demeure, et il n'est même pas observable : rien ne signale à l'exploitant que les gardes sont ouvertes |
-| Coût d'exploitation | Nul |
-| Nouvelle surface d'attaque | Aucune |
+| Debt introduced | The gap remains, and it is not even observable: nothing tells the operator that the guards are open |
+| Running cost | Zero |
+| New attack surface | None |
 
-### Recommandation — Option 1
+### Recommendation — Option 1
 
-Elle réutilise un mécanisme existant, transforme une dégradation silencieuse en état
-observable et alerté, et retient le seul mode dégradé sûr pour un système dont la
-fonction est d'écrire à des tiers. L'option 2 poursuit une complétude que le code
-lui-même déclare inatteignable. L'option 3 laisse une dégradation invisible, ce qui
-est le point précis que l'art. 21(2)(c) vise.
+It reuses an existing mechanism, turns a silent degradation into a state that is
+observable and alerted on, and keeps the only safe degraded mode for a system whose
+function is to write to third parties. Option 2 pursues a completeness that the code
+itself declares unreachable. Option 3 leaves a degradation invisible, which
+is the precise point Art. 21(2)(c) targets.
 
-**Interaction avec la recommandation G-03.** [DÉDUIT] Une inférence locale déplace le
-mode de défaillance sans le supprimer : la panne devient interne et mieux maîtrisée,
-mais reste une cause unique pour les trois gardes. Le coupe-circuit reste donc
-nécessaire après la bascule. Raisonnement : les trois `catch (\Throwable)` sont
-indifférents à l'identité du fournisseur.
+**Interaction with the G-03 recommendation.** [INFERRED] Local inference moves the
+failure mode without removing it: the outage becomes internal and better controlled,
+but remains a single cause for all three guards. The circuit breaker therefore remains
+necessary after the switchover. Reasoning: the three `catch (\Throwable)` blocks are
+indifferent to the identity of the provider.
 
 ---
 
-## Synthèse des recommandations
+## Summary of recommendations
 
-| Écart | Recommandation | Effort | Charge d'exploitation ajoutée | Zone concernée |
+| Gap | Recommendation | Effort | Added operational load | Zone concerned |
 |---|---|---|---|---|
-| **G-01/02** | Option 3 — engagement désactivé par défaut, activable sur déclaration de base légale | Faible | Nulle | ZE — retire le chemin d'envoi |
-| **G-21** | Option 1 — permission `reply:send` distincte | Très faible | Nulle | ZT |
-| **G-03/04/05** | Option 1 — bascule complète vers l'inférence locale, après mesure | Moyen | Modérée — un service à administrer | ZT |
-| **G-07/08** | Option 1 + livrable documentaire de l'option 3 | Faible | Faible | Frontière ZE/ZT |
-| **G-24/25** | Option 1 — publication versionnée avec SBOM attaché | Faible | **Faible et récurrente** | Hors zone — chaîne de production |
-| **G-30** | Option 1 — coupe-circuit sur la santé du fournisseur | Faible | Faible | ZT |
+| **G-01/02** | Option 3 — engagement disabled by default, enabled on declaration of a legal basis | Low | None | ZE — removes the sending path |
+| **G-21** | Option 1 — separate `reply:send` permission | Very low | None | ZT |
+| **G-03/04/05** | Option 1 — full switchover to local inference, after measurement | Medium | Moderate — one service to administer | ZT |
+| **G-07/08** | Option 1 + the documentation deliverable from option 3 | Low | Low | ZE/ZT boundary |
+| **G-24/25** | Option 1 — versioned releases with an attached SBOM | Low | **Low and recurring** | Outside the zones — build chain |
+| **G-30** | Option 1 — circuit breaker on provider health | Low | Low | ZT |
 
-**Deux observations sur l'ensemble.**
+**Two observations on the whole set.**
 
-**Le coût total est modeste, et concentré sur un seul poste.** Cinq des six
-recommandations sont d'effort faible à très faible et réutilisent des mécanismes déjà
-présents — kill switch, modèle de permissions, harnais GUARD, générateur de SBOM.
-Seule la souveraineté de l'inférence représente un travail de conception réel, et son
-poste dimensionnant est la mesure de régression, non l'infrastructure.
+**The total cost is modest, and concentrated on a single item.** Five of the six
+recommendations are low to very low effort and reuse mechanisms already
+present — kill switch, permission model, GUARD harness, SBOM generator.
+Only inference sovereignty represents real design work, and its
+sizing item is the regression measurement, not the infrastructure.
 
-**Aucune technologie nouvelle n'est introduite.** [DÉDUIT] Les six dossiers se
-résolvent avec le port `LLMClientInterface` existant, l'adaptateur `OllamaClient`
-existant, les réseaux Docker, le modèle de permissions Symfony et le SBOM déjà
-généré. Conformément à R5, aucun besoin mesuré ne justifie une file de messages, un
-maillage de services, une infrastructure de signature ni un service d'inférence
-distribué — la cadence de quelques messages par minute les exclut tous.
-
----
-
-## Ce que je n'ai pas pu vérifier — phase 3
-
-1. Désactiver l'engagement suffit-il à écarter l'art. 50(1), ou l'ingestion d'un
-   courriel et la production d'un accusé de réception automatique constitueraient-ils
-   déjà une « interaction directe » ?
-2. Un déployeur relevant de l'exemption doit-il en apporter la preuve à l'éditeur, et
-   sous quelle forme, pour que l'activation de l'engagement soit défendable côté
-   fournisseur ?
-3. Quel matériel d'inférence le déployeur cible est-il prêt à provisionner — ce qui
-   borne la taille de modèle et donc l'ampleur de la régression mesurée ?
-4. Le corpus de 99 fixtures est-il représentatif du trafic réel en distribution de
-   langues et de types d'arnaque, ou sur-représente-t-il certains cas ?
-5. Le jeu annoté de référence utilisé par `app:eval:ioc-extraction-metrics` est-il
-   présent dans le dépôt, et quelle est sa taille ?
-6. `OllamaClient` a-t-il déjà été exercé contre un serveur réel, ou seulement en test
-   unitaire — l'adaptateur est-il éprouvé ?
-7. Le format de réponse JSON structuré exigé par plusieurs appels
-   (`response_format: json_object`) est-il supporté par l'API Ollama de la même
-   manière, ou faut-il prévoir une couche de tolérance ?
-8. Combien de temps prend une campagne complète de 85 créneaux avec un modèle local,
-   sachant qu'elle prend ~35 min avec `gpt-4o-mini` ?
-9. Existe-t-il une contrainte opérationnelle empêchant `net-traitement` d'être
-   `internal: true` — un besoin de sortie que je n'aurais pas recensé ?
-10. La suppression de `LLMServiceInterface` casse-t-elle le générateur de
-    préproduction, et ce générateur est-il encore utilisé ?
-11. Le SBOM produit par Trivy couvre-t-il les dépendances PHP et npm, ou seulement
-    les paquets système — ce qui déterminerait si l'option G-24/25 est suffisante ?
-12. Une politique de versions supportées à une seule branche est-elle acceptable au
-    regard du CRA, ou faut-il maintenir une branche de correctifs ?
-13. Le coupe-circuit doit-il suspendre aussi l'extraction d'IOC et la classification,
-    qui appellent également le LLM, ou seulement la génération de réponses ?
-14. Quel seuil d'échecs consécutifs déclenche le coupe-circuit sans le rendre
-    hypersensible aux erreurs transitoires du fournisseur ?
+**No new technology is introduced.** [INFERRED] The six files are
+resolved with the existing `LLMClientInterface` port, the existing `OllamaClient`
+adapter, Docker networks, the Symfony permission model and the SBOM already
+generated. In line with R5, no measured need justifies a message queue, a
+service mesh, a signing infrastructure or a distributed inference
+service — a cadence of a few messages per minute rules them all out.
 
 ---
 
-*Fin de la phase 3.*
+## What I could not verify — phase 3
+
+1. Is disabling engagement enough to escape Art. 50(1), or would ingesting an
+   email and producing an automatic acknowledgement of receipt already constitute
+   a "direct interaction"?
+2. Must a deployer covered by the exemption provide proof of it to the publisher, and
+   in what form, for enabling engagement to be defensible on the provider's side?
+3. What inference hardware is the target deployer prepared to provision — which
+   bounds the model size and therefore the scale of the measured regression?
+4. Is the corpus of 99 fixtures representative of real traffic in its distribution of
+   languages and scam types, or does it over-represent certain cases?
+5. Is the annotated reference set used by `app:eval:ioc-extraction-metrics`
+   present in the repository, and how large is it?
+6. Has `OllamaClient` ever been exercised against a real server, or only in unit
+   tests — is the adapter battle-tested?
+7. Is the structured JSON response format required by several calls
+   (`response_format: json_object`) supported by the Ollama API in the same
+   way, or is a tolerance layer needed?
+8. How long does a full campaign of 85 slots take with a local model,
+   given that it takes ~35 min with `gpt-4o-mini`?
+9. Is there an operational constraint preventing `net-traitement` from being
+   `internal: true` — an egress need I have not listed?
+10. Does removing `LLMServiceInterface` break the preproduction
+    generator, and is that generator still used?
+11. Does the SBOM produced by Trivy cover the PHP and npm dependencies, or only
+    the system packages — which would determine whether the G-24/25 option is sufficient?
+12. Is a supported-versions policy limited to a single branch acceptable under
+    the CRA, or must a patch branch be maintained?
+13. Should the circuit breaker also suspend IOC extraction and classification,
+    which also call the LLM, or only reply generation?
+14. What threshold of consecutive failures should trip the circuit breaker without making
+    it hypersensitive to transient provider errors?
+
+---
+
+*End of phase 3.*
