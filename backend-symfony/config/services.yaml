@@ -148,6 +148,24 @@ services:
             $confidenceThreshold: '%env(default:ttp_extraction.confidence.default:float:TTP_CONFIDENCE_THRESHOLD)%'
             $model: '%llm.model%'
 
+    ###> Standard-track artifacts ###
+    # Paths to the standard-track files (scalars cannot be autowired). The mapping
+    # decisions and the generated taxonomy artifact live under config/standards/;
+    # the human-readable mapping document lives in the repo-wide docs/ tree, one
+    # level above the Symfony project dir.
+    App\Application\Standards\F3MappingLoader:
+        arguments:
+            $mappingPath: '%kernel.project_dir%/config/standards/f3-mapping.json'
+
+    App\UI\Console\TtpF3MappingCommand:
+        arguments:
+            $mappingDocumentPath: '%kernel.project_dir%/../docs/standards/f3-mapping.md'
+
+    App\UI\Console\TtpTaxonomyExportCommand:
+        arguments:
+            $artifactDirectory: '%kernel.project_dir%/config/standards'
+    ###< Standard-track artifacts ###
+
     # GUARD smoke runner — invokes the reply-objective smoke command in-process for the worker.
     App\Infrastructure\Guard\InProcessSmokeRunner:
         arguments:

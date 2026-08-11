@@ -80,6 +80,42 @@ final class TtpMispTagProviderTest extends KernelTestCase
         self::assertSame([], $this->provider->tagsForConversation(self::CONV));
     }
 
+    /**
+     * Spec 002 FR-005. MITRE F3 references may reach `external_refs` and the STIX
+     * export, but they must NOT become MISP tags: a galaxy tag has to resolve in a
+     * consumer's instance, and no public F3 MISP galaxy exists. Any string this
+     * project invented would resolve nowhere.
+     *
+     * The provider filters on `mitre-attack` and this test pins that, so a later
+     * change to the source-name handling cannot start fabricating F3 tags by
+     * accident — the same fail-safe the unmapped-ATT&CK-id case already has.
+     */
+    public function testF3ReferencesNeverBecomeMispTags(): void
+    {
+        $this->connection->executeStatement(
+            "UPDATE lkp_ttp
+             SET external_refs = :refs
+             WHERE code = 'SB-T001'",
+            ['refs' => json_encode([
+                ['source_name' => 'mitre-attack', 'external_id' => 'T1566'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020.001'],
+            ], JSON_THROW_ON_ERROR)],
+        );
+
+        $this->seed($this->inboundMessageId(), 'SB-T001', 'confirmed');
+
+        $tags = $this->provider->tagsForConversation(self::CONV);
+
+        // The first-party tag and the verified ATT&CK galaxy tag still ship.
+        self::assertContains('scambuster:ttp="SB-T001"', $tags);
+        self::assertContains('misp-galaxy:mitre-attack-pattern="Phishing - T1566"', $tags);
+
+        foreach ($tags as $tag) {
+            self::assertStringNotContainsString('F1020', $tag, 'No MISP tag may carry an F3 technique id.');
+            self::assertStringNotContainsString('f3', strtolower($tag), 'No MISP tag may name the F3 knowledge base.');
+        }
+    }
+
     private function inboundMessageId(): string
     {
         $msgId = $this->connection->fetchOne(

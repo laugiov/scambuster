@@ -1,0 +1,191 @@
+{
+  "$comment": "Source of truth for the ScamBuster -> MITRE F3 mapping (Spec 002). Never hand-edit the generated markdown table in docs/standards/f3-mapping.md; edit this file and re-run scambuster:ttp:f3-mapping-report. Validated by F3MappingTest.",
+  "framework": "mitre-f3",
+  "framework_version": null,
+  "checked_on": null,
+  "checked_against": null,
+  "status": "blocked",
+  "blocked_reason": "The F3 v1 technique list (f3-v1.json) is not in this repository and ctid.mitre.org is unreachable from the build environment. Every decision below is therefore 'pending': recording a relation without reading the F3 technique description it cites would be an unverified claim (Constitution I and II).",
+  "relations": {
+    "equivalent": "The F3 technique and the ScamBuster entry describe the same behaviour at the same granularity. Written to external_refs.",
+    "narrower-than": "The ScamBuster entry describes a subset of what the F3 technique covers. Written to external_refs.",
+    "broader-than": "The ScamBuster entry covers more than the F3 technique. NOT written to external_refs: a broader entry pointing at a narrower id tells a consumer the wrong thing about scope.",
+    "related": "Adjacent behaviour, neither containing the other. NOT written to external_refs.",
+    "none": "F3 v1 does not describe this behaviour. Candidate material for a Spec 006 technique proposal.",
+    "pending": "Not yet checked against the F3 technique descriptions. Not a decision."
+  },
+  "entries": [
+    {
+      "code": "SB-T001",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: the opening pretext that names a windfall or business opportunity as the reason for contact. Nearest known anchor is ATT&CK T1566 (phishing), already carried. Check F3's initial-contact and social-engineering tactics for a lure-content technique."
+    },
+    {
+      "code": "SB-T002",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: impersonation of a public body (government, court, police, central bank, international organization) to command compliance. Nearest known anchor is ATT&CK T1656 (impersonation), already carried. F3 is likely to separate authority impersonation from brand impersonation; check both."
+    },
+    {
+      "code": "SB-T003",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: impersonation of a private company or consumer service (courier, marketplace, vendor). Nearest known anchor is ATT&CK T1656. If F3 carries a single impersonation technique covering both public and private entities, this entry and SB-T002 are both narrower-than it."
+    },
+    {
+      "code": "SB-T004",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: delivery of a link or attachment the target must open to proceed. Nearest known anchors are ATT&CK T1566.001 and T1566.002, already carried. This is the entry most likely to be equivalent to an existing F3 technique, since it is the most conventional cyber behaviour in the taxonomy."
+    },
+    {
+      "code": "SB-T005",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: volunteering official-looking documents mid-conversation as proof of authenticity. F3 is expected to cover the manufacture of fake documents under a resource-development tactic; the ScamBuster entry is about the conversational act of showing one at a chosen turn, which is a different observation point. Check whether F3 separates producing from presenting."
+    },
+    {
+      "code": "SB-T006",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: building an emotional or personal bond unrelated to the transaction. Check F3's social-engineering tactic for a rapport or grooming technique; romance-fraud coverage would be the likely home."
+    },
+    {
+      "code": "SB-T007",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: invoking faith or moral duty to frame the exchange as righteous. Likely absent as a distinct technique; if so it may be narrower-than a general pretext or persuasion technique rather than none."
+    },
+    {
+      "code": "SB-T008",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: citing invented third parties who already benefited, as social proof. Check for a testimonial or social-proof technique; adjacent to fake-review and shill behaviours F3 may cover under a different tactic."
+    },
+    {
+      "code": "SB-T009",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: instructing the target to keep the transaction confidential from family, banks or authorities. This is a well-documented fraud behaviour (it defeats third-party intervention), so F3 coverage is plausible. Check the tactic covering victim isolation or detection evasion."
+    },
+    {
+      "code": "SB-T010",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: introducing an additional persona (lawyer, banker, diplomat, agent) the target must now deal with. Check for a multi-persona or accomplice technique."
+    },
+    {
+      "code": "SB-T011",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: explaining away inconsistencies, delays or contradictions the target has noticed. This is a reactive, turn-level behaviour and is a strong 'none' candidate: F3 techniques describe actor goals, and repairing a damaged pretext mid-conversation may have no equivalent."
+    },
+    {
+      "code": "SB-T012",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: requiring an upfront payment to unlock a larger promised value. Advance-fee fraud is a named fraud category, so F3 coverage is very likely. Check the monetization tactic."
+    },
+    {
+      "code": "SB-T013",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: providing concrete payment coordinates (bank account, crypto wallet, money-transfer recipient). F3 is expected to cover payment rails in detail under monetization or cash-out; this entry may be broader-than several F3 techniques at once, one per rail."
+    },
+    {
+      "code": "SB-T014",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: requesting the target's identity documents, bank details, credentials or verification codes. Nearest known anchor is ATT&CK T1598 (phishing for information), already carried. Note the edge case: F3 reuses ATT&CK technique ids, so the same external_id may legitimately appear under both source names."
+    },
+    {
+      "code": "SB-T015",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: claiming an overpayment or showing fake payment proof, then asking for part of the money back. A named fraud pattern; F3 coverage likely under monetization."
+    },
+    {
+      "code": "SB-T016",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: changing the demanded payment rail mid-conversation (bank to crypto to gift cards). F3 may describe each rail as its own technique without describing the switch between them; if so this entry is a 'none' candidate on the switching behaviour specifically."
+    },
+    {
+      "code": "SB-T017",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: imposing a hard deadline or countdown to force immediate action. Urgency is a standard social-engineering lever; check whether F3 models it as its own technique or as a property of others."
+    },
+    {
+      "code": "SB-T018",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: adding new, previously unmentioned fees after an earlier payment. The escalation pattern (not the first fee, which is SB-T012) is the distinguishing part. Strong 'none' candidate if F3 models advance fees without modelling their repetition."
+    },
+    {
+      "code": "SB-T019",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: inventing official procedures, codes or certificates that block progress until resolved. This is the narrative wrapper around a fee rather than the fee itself. Check whether F3 separates the pretext from the demand."
+    },
+    {
+      "code": "SB-T020",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: threatening forfeiture, arrest, account closure or legal consequences for non-compliance. Coercion is a standard lever; F3 coverage plausible."
+    },
+    {
+      "code": "SB-T021",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: leveraging pity, guilt or personal hardship to compel action. Check the social-engineering tactic for an emotional-manipulation technique."
+    },
+    {
+      "code": "SB-T022",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: refusing, evading or disqualifying the target's verification requests. This is a defensive conversational move and a strong 'none' candidate: it is only observable in a two-way exchange, which is the part of the problem space this taxonomy was built for."
+    },
+    {
+      "code": "SB-T023",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: moving the exchange to another channel (WhatsApp, Telegram, phone, personal email). F3 coverage plausible: channel migration is a documented fraud behaviour and defeats email-side controls."
+    },
+    {
+      "code": "SB-T024",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: restricting communication to one designated contact and forbidding others. Adjacent to SB-T009 (secrecy) and to victim isolation; check whether F3 folds the two together."
+    },
+    {
+      "code": "SB-T025",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: a last demand with the threatened termination of the deal or relationship. Terminal-turn behaviour; likely absent as a distinct F3 technique."
+    },
+    {
+      "code": "SB-T026",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: returning after silence or refusal with a new angle, discount or persona. Re-victimisation and recovery-scam behaviour may cover part of this; check whether F3 models re-engagement within the same scheme as opposed to a follow-on scheme."
+    },
+    {
+      "code": "SB-T027",
+      "relation": "pending",
+      "f3_ids": [],
+      "rationale": "Behaviour to look for in F3: showing fabricated profits, balances or returns to induce further payment. Central to investment fraud, so F3 coverage is very likely. Check the tactic covering fake platforms and dashboards."
+    }
+  ],
+  "reverse_check": {
+    "status": "pending",
+    "note": "F3 techniques that describe conversation-visible behaviour absent from the ScamBuster taxonomy (Spec 002 FR-002). Filled in the same pass as the forward direction; blocked on the same input.",
+    "techniques": []
+  },
+  "hve": {
+    "status": "blocked",
+    "gate": "The Charm Security HVE specification has not been obtained. The HVE mapping reuses this file's structure and relation vocabulary when it is (Spec 002 FR-007).",
+    "entries": []
+  }
+}
