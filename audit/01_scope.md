@@ -1,255 +1,255 @@
-# Phase 1 — Cadre cible et menaces
+# Phase 1 — Target framework and threats
 
-> Statuts : `[VÉRIFIÉ]` lu dans un fichier (chemin + ligne). `[DÉDUIT]` inférence,
-> raisonnement explicité. `[INCONNU]` non déterminable. `[NON SOURCÉ]` exigence
-> normative dont la source n'a pas été vérifiée (R4).
+> Statuses: `[VERIFIED]` read in a file (path + line). `[INFERRED]` inference,
+> with the reasoning stated. `[UNKNOWN]` not determinable. `[UNSOURCED]` regulatory
+> requirement whose source has not been verified (R4).
 >
-> **Note de méthode sur R4.** La partie A ci-dessous compare des *cadres de
-> déploiement*. Elle nomme des régimes juridiques pour situer qui autorise et qui
-> répond, mais **n'en tire aucune conclusion normative** : chaque référence porte
-> la marque `[À SOURCER — 1B]`. La vérification texte par texte, avec article et
-> version, est l'objet de la partie B, exécutée après validation du scénario
-> pilote.
+> **Method note on R4.** Part A below compares *deployment frameworks*. It names
+> legal regimes in order to place who authorises and who answers, but **draws no
+> normative conclusion from them**: every reference carries the mark
+> `[TO BE SOURCED — 1B]`. Text-by-text verification, with article and version, is
+> the subject of Part B, carried out once the pilot scenario has been
+> validated.
 
 ---
 
-## A. Trois scénarios de déploiement
+## A. Three deployment scenarios
 
-### Rappels factuels de la phase 0 qui contraignent les trois scénarios
+### Factual reminders from phase 0 that constrain the three scenarios
 
-Ces faits ne sont pas rediscutés ; ils sont repris de `audit/00_inventory.md`.
+These facts are not reopened; they are taken from `audit/00_inventory.md`.
 
-| Fait | Référence phase 0 |
+| Fact | Phase 0 reference |
 |---|---|
-| Le système répond par courriel à des adversaires, sous **identité fictive d'opérateur** | §1.10, `ReplyHandler.php:126` → `SendEmailController.php:47` ; personas `PersonaFixtures` (27) |
-| L'engagement est **entrant seulement** : la réponse suppose un message reçu | §4.5 D50 « Verrou A » (`ReplyHandler.php:168-186`), `DISCLAIMER.md:12` |
-| L'inférence par défaut sort vers **`https://api.openai.com`** | §2.1 E1, `.env.dist:307` ; 7 sites d'appel codent un modèle OpenAI **en dur** (§3.2) |
-| Les embeddings sortent vers OpenAI, **endpoint en dur, sans abstraction** | §2.1 E4, `EmbeddingService.php:20,68` |
-| Les **valeurs d'IOC fournies par l'adversaire** sont soumises à urlscan.io et VirusTotal | §2.3 E23–E25, `WF-EXTRACT-AND-ENRICH-IOC.json:114` |
-| **Aucune liste blanche de sortie, aucun proxy sortant, un seul réseau Docker** | §2.6, `framework.yaml:17-18`, `docker-compose.yml:261-262` |
-| Le corps brut RFC822 des courriels de tiers est **conservé intégralement** | §7.2, `Message.php:23-24`, `IngestHandler.php:180` |
-| Des **profils psychologiques de tiers** générés par LLM sont persistés, **sans purge** | §7.2, §7.7, `Version2026070600000000.php:29-36` |
-| La rétention 6/12 mois **n'est pas planifiée** ; la purge automatique ne supprime rien physiquement | §7.6, `scheduler.sh:16-24` contre `PurgeService.php:25,55` |
-| **Aucune anonymisation n'existe** dans le chemin de purge | §7.7 |
-| Le journal d'audit est **chaîné par HMAC mais non immuable** : le `REVOKE` n'est ni appliqué ni documenté | §8.9, `Version2026041200100000.php:20-24`, `rg REVOKE docs/` → ∅ |
-| La clé HMAC d'audit est une **variable d'environnement en clair** | §6.1, `AuditHmacChainer.php:19-20` |
-| **12 contrôleurs sur 145 émettent un audit** ; 4 des 6 surfaces d'export n'en émettent aucun | §8.7 |
-| **Blocage d'export des IOC financiers** avec libération par verdict d'analyste — contrôle réel et fonctionnel | §4.8 D66–D73 |
-| **Aucun tag git, aucun processus de publication, historique public écrasé** (10 commits, 6 jours) | §0, §9.11 |
-| **Un seul mainteneur** ; licence MIT sans garantie | §0, `LICENSE`, `GOVERNANCE.md:5` |
-| Aucun SBOM publié hors artefact CI à 30 jours ; **aucune image épinglée par empreinte** | §9.7, §9.8, §10.3 |
-| Cadence réelle : trafic courriel humain — les limiteurs plafonnent à **50 conversations/jour, 200 appels LLM/heure** | §4.5 D44 |
+| The system replies by email to adversaries, under a **fictitious operator identity** | §1.10, `ReplyHandler.php:126` → `SendEmailController.php:47`; personas `PersonaFixtures` (27) |
+| Engagement is **inbound only**: a reply presupposes a received message | §4.5 D50 "Lock A" (`ReplyHandler.php:168-186`), `DISCLAIMER.md:12` |
+| Inference by default goes out to **`https://api.openai.com`** | §2.1 E1, `.env.dist:307`; 7 call sites **hard-code** an OpenAI model (§3.2) |
+| Embeddings go out to OpenAI, **hard-coded endpoint, no abstraction** | §2.1 E4, `EmbeddingService.php:20,68` |
+| The **IOC values supplied by the adversary** are submitted to urlscan.io and VirusTotal | §2.3 E23–E25, `WF-EXTRACT-AND-ENRICH-IOC.json:114` |
+| **No egress allowlist, no outbound proxy, a single Docker network** | §2.6, `framework.yaml:17-18`, `docker-compose.yml:261-262` |
+| The raw RFC822 body of third-party emails is **kept in full** | §7.2, `Message.php:23-24`, `IngestHandler.php:180` |
+| **Psychological profiles of third parties** generated by an LLM are persisted, **with no purge** | §7.2, §7.7, `Version2026070600000000.php:29-36` |
+| The 6/12-month retention is **not scheduled**; the automatic purge deletes nothing physically | §7.6, `scheduler.sh:16-24` vs `PurgeService.php:25,55` |
+| **No anonymisation exists** in the purge path | §7.7 |
+| The audit log is **HMAC-chained but not immutable**: the `REVOKE` is neither applied nor documented | §8.9, `Version2026041200100000.php:20-24`, `rg REVOKE docs/` → ∅ |
+| The audit HMAC key is a **plaintext environment variable** | §6.1, `AuditHmacChainer.php:19-20` |
+| **12 controllers out of 145 emit an audit record**; 4 of the 6 export surfaces emit none | §8.7 |
+| **Export blocking for financial IOCs** with release by analyst verdict — a real, working control | §4.8 D66–D73 |
+| **No git tag, no release process, public history overwritten** (10 commits, 6 days) | §0, §9.11 |
+| **A single maintainer**; MIT licence with no warranty | §0, `LICENSE`, `GOVERNANCE.md:5` |
+| No SBOM published beyond a 30-day CI artefact; **no image pinned by digest** | §9.7, §9.8, §10.3 |
+| Real pace: human email traffic — the rate limiters cap at **50 conversations/day, 200 LLM calls/hour** | §4.5 D44 |
 
 ---
 
-### S1 — Unité d'investigation *law enforcement*, auto-hébergée
+### S1 — Law-enforcement investigation unit, self-hosted
 
-**Description.** Un service d'enquête (police judiciaire, gendarmerie, service à
-compétence nationale) déploie ScamBuster sur son infrastructure pour engager des
-escrocs qui sollicitent des boîtes-appâts, en extraire des IOC et alimenter des
-procédures.
+**Description.** An investigation service (criminal police, gendarmerie, national
+specialist unit) deploys ScamBuster on its own infrastructure to engage scammers
+who solicit honeypot mailboxes, extract IOCs from them and feed criminal
+proceedings.
 
-| Axe | Analyse |
+| Dimension | Analysis |
 |---|---|
-| **Qui autorise l'engagement** | Une autorité judiciaire, pas l'exploitant technique. L'échange sous identité d'emprunt avec une personne soupçonnée relève en France du régime de l'**enquête sous pseudonyme** [À SOURCER — 1B], qui réserve l'acte à des agents individuellement **habilités et affectés**, sous autorisation et contrôle du parquet ou du juge. [DÉDUIT] Le point dur n'est pas technique : le code exécute l'acte d'enquête **sans agent dans la boucle**. Raisonnement : le pipeline n8n `WF-INTAKE → WF-REPLY-GENERATE → WF-REPLY-SEND` enchaîne réception, génération et envoi sans point d'arrêt humain (§1.10), et `/send-email` n'est gardé que par `reply:generate` — la même permission que la génération (§12 Q8, `SendEmailController.php:48`). L'habilitation individuelle n'a aucune contrepartie dans le modèle de permissions (14 permissions, `Permission.php:19-40`), qui ne distingue ni l'agent habilité ni l'autorisation dossier par dossier |
-| **Qui porte la responsabilité juridique** | L'État, via le service et son chef de service ; l'agent pour l'acte d'enquête. L'éditeur est hors de la chaîne : `LICENSE` (MIT) et `DISCLAIMER.md:43-45` excluent toute garantie |
-| **Quelle autorité homologue** | Homologation de sécurité interne au ministère, prononcée par l'autorité qualifiée du système ; instruction et référentiels d'État [À SOURCER — 1B]. Si le système est rattaché à un périmètre d'importance vitale, l'autorité nationale de sécurité des systèmes d'information intervient [À SOURCER — 1B] |
-| **Livrable attendu de l'éditeur** | Dossier d'homologation complet : analyse de risque formelle, description exhaustive des flux et des zones, **preuve du caractère déterministe des contrôles opposables**, chaîne de preuve des artefacts, SBOM, engagement de correction des vulnérabilités, versions supportées. [VÉRIFIÉ] Aucun de ces livrables n'existe : pas de tag ni de version (§0), pas de SBOM publié (§9.8), pas de politique de versions supportées au-delà de `SECURITY.md:5-7` (« main \| Yes ») |
-| **Point de rupture propre à S1** | La **valeur probante**. Le journal d'audit est chaîné par HMAC mais reste physiquement modifiable : le `REVOKE UPDATE/DELETE` est explicitement renvoyé à une étape d'exploitation (`Version2026041200100000.php:20-24`) qui **n'est documentée nulle part** (§8.9, DOC-23), et la clé HMAC est une variable d'environnement lisible par le même processus qui écrit les lignes (§6.1). [DÉDUIT] Un opérateur disposant du conteneur peut réécrire une ligne **et** recalculer la chaîne : la propriété obtenue est une détection d'altération accidentelle, pas une preuve opposable contre l'exploitant lui-même. Raisonnement : `AuditHmacChainer.php:19-20` lit `AUDIT_HMAC_KEY` dans l'environnement du processus applicatif, et `VerifyAuditChainCommand` recalcule avec cette même clé |
+| **Who authorises engagement** | A judicial authority, not the technical operator. In France, exchanging under an assumed identity with a suspected person falls under the **investigation under pseudonym** regime [TO BE SOURCED — 1B], which restricts the act to officers individually **cleared and assigned**, under the authorisation and supervision of the prosecutor or the judge. [INFERRED] The hard point is not technical: the code carries out the investigative act **with no officer in the loop**. Reasoning: the n8n pipeline `WF-INTAKE → WF-REPLY-GENERATE → WF-REPLY-SEND` chains reception, generation and sending with no human stop point (§1.10), and `/send-email` is guarded only by `reply:generate` — the same permission as generation (§12 Q8, `SendEmailController.php:48`). Individual clearance has no counterpart in the permission model (14 permissions, `Permission.php:19-40`), which distinguishes neither the cleared officer nor case-by-case authorisation |
+| **Who bears legal liability** | The State, through the service and its head of service; the officer for the investigative act. The publisher is outside the chain: `LICENSE` (MIT) and `DISCLAIMER.md:43-45` exclude any warranty |
+| **Which authority accredits** | Security accreditation internal to the ministry, granted by the system's designated authority; State instructions and frameworks [TO BE SOURCED — 1B]. If the system is attached to a vital-importance perimeter, the national information systems security authority steps in [TO BE SOURCED — 1B] |
+| **Deliverable expected from the publisher** | A complete accreditation file: formal risk analysis, exhaustive description of flows and zones, **proof that the enforceable controls are deterministic**, chain of evidence for the artefacts, SBOM, commitment to fix vulnerabilities, supported versions. [VERIFIED] None of these deliverables exists: no tag and no version (§0), no published SBOM (§9.8), no supported-versions policy beyond `SECURITY.md:5-7` ("main \| Yes") |
+| **Breaking point specific to S1** | **Evidentiary value.** The audit log is HMAC-chained but remains physically modifiable: the `REVOKE UPDATE/DELETE` is explicitly deferred to an operations step (`Version2026041200100000.php:20-24`) that is **documented nowhere** (§8.9, DOC-23), and the HMAC key is an environment variable readable by the very process that writes the rows (§6.1). [INFERRED] An operator with access to the container can rewrite a row **and** recompute the chain: what you get is detection of accidental tampering, not evidence that holds against the operator itself. Reasoning: `AuditHmacChainer.php:19-20` reads `AUDIT_HMAC_KEY` from the application process environment, and `VerifyAuditChainCommand` recomputes with that same key |
 
 ---
 
-### S2 — Entité régulée NIS2, entité essentielle, auto-hébergée
+### S2 — NIS2-regulated essential entity, self-hosted
 
-**Description.** Une entité soumise à NIS2 en tant qu'entité essentielle (opérateur
-d'énergie, de transport, de santé, banque, fournisseur d'infrastructure numérique)
-déploie ScamBuster dans son propre SOC/CERT, sur ses propres boîtes-appâts, pour
-produire du renseignement sur les campagnes qui la visent et alimenter son SIEM et
-ses partages sectoriels.
+**Description.** An entity subject to NIS2 as an essential entity (energy,
+transport or health operator, bank, digital infrastructure provider) deploys
+ScamBuster in its own SOC/CERT, on its own honeypot mailboxes, to produce
+intelligence on the campaigns targeting it and to feed its SIEM and its
+sector-level sharing.
 
-| Axe | Analyse |
+| Dimension | Analysis |
 |---|---|
-| **Qui autorise l'engagement** | L'entité elle-même. NIS2 place la responsabilité de l'approbation et du suivi des mesures de gestion des risques sur l'**organe de direction** [À SOURCER — 1B]. L'engagement relève de la défense du système d'information de l'entité, pas d'un acte d'enquête pénale : aucune habilitation judiciaire n'est requise. [DÉDUIT] C'est la différence structurante avec S1 — l'autorisation est un acte de gouvernance interne, que le système peut matérialiser (verdict d'analyste, journal, kill switch), et non une habilitation nominative que le code ne modélise pas |
-| **Qui porte la responsabilité juridique** | L'entité, seule et sans ambiguïté, sur deux fondements cumulés : responsable de traitement au sens du RGPD pour les données personnelles de tiers ingérées [À SOURCER — 1B], et entité essentielle au titre de NIS2 pour la sécurité du système lui-même. `DISCLAIMER.md:13` place explicitement cette qualité sur l'exploitant : « You are the data controller » |
-| **Quelle autorité homologue** | **Aucune homologation externe préalable.** Le régime est celui de la supervision : mesures de gestion des risques sous la responsabilité de l'entité, contrôle *a posteriori* par l'autorité nationale compétente [À SOURCER — 1B]. Ce qui est attendu est une **acceptation de risque formalisée en interne**, opposable en cas de contrôle, et non un agrément préalable |
-| **Livrable attendu de l'éditeur** | Un produit documenté et vérifiable, pas une garantie : SBOM par version, politique de versions supportées et de correction des vulnérabilités, description exacte et à jour des contrôles (ce que chacun couvre **et ne couvre pas**), capacité à fonctionner sans dépendance à une API d'inférence externe, et éléments de preuve exploitables par le SIEM de l'entité. [DÉDUIT] Ce livrable est **de même nature** que ce que le projet produit déjà — il en manque la discipline de publication, pas la substance. Raisonnement : les contrôles existent et sont testés (83 contrôles déterministes recensés au §4, 572 tests backend au §9.1, porte GUARD au §5.1) ; ce qui manque est un tag, un SBOM attaché à ce tag, et une documentation qui ne contredise pas le code sur 24 points (§11) |
-| **Point de rupture propre à S2** | La **souveraineté de l'inférence** et le **zonage**. Le contenu intégral de courriels de tiers part vers un fournisseur d'inférence hors zone de l'entité (§2.1 E1, E4) sans qu'aucune liste blanche de sortie n'existe (§2.6) ; sept sites d'appel codent un modèle OpenAI en dur (§3.2) ; les embeddings n'ont **aucune abstraction de fournisseur** (`EmbeddingService.php:20`). [DÉDUIT] Une entité essentielle peut accepter ce transfert par contrat, mais elle ne peut pas *démontrer* qu'elle le maîtrise : rien dans le code ne permet de garantir qu'aucun contenu ne sort, puisque `LLM_PROVIDER=ollama` ne déroute ni les embeddings ni les enrichissements urlscan/VirusTotal du workflow n8n |
+| **Who authorises engagement** | The entity itself. NIS2 places responsibility for approving and monitoring risk management measures on the **management body** [TO BE SOURCED — 1B]. Engagement is part of defending the entity's information system, not a criminal investigative act: no judicial clearance is required. [INFERRED] This is the structuring difference with S1 — the authorisation is an act of internal governance, which the system can express (analyst verdict, log, kill switch), and not a named clearance that the code does not model |
+| **Who bears legal liability** | The entity, alone and unambiguously, on two cumulative grounds: controller within the meaning of the GDPR for the personal data of third parties ingested [TO BE SOURCED — 1B], and essential entity under NIS2 for the security of the system itself. `DISCLAIMER.md:13` explicitly places that capacity on the operator: "You are the data controller" |
+| **Which authority accredits** | **No prior external accreditation.** The regime is one of supervision: risk management measures under the entity's responsibility, *a posteriori* review by the competent national authority [TO BE SOURCED — 1B]. What is expected is a **formalised internal risk acceptance**, enforceable in the event of an inspection, not a prior approval |
+| **Deliverable expected from the publisher** | A documented and verifiable product, not a warranty: SBOM per version, supported-versions and vulnerability-fixing policy, accurate and up-to-date description of the controls (what each one does **and does not** cover), the ability to run without depending on an external inference API, and evidence usable by the entity's SIEM. [INFERRED] This deliverable is **of the same nature** as what the project already produces — what is missing is the publishing discipline, not the substance. Reasoning: the controls exist and are tested (83 deterministic controls listed in §4, 572 backend tests in §9.1, the GUARD gate in §5.1); what is missing is a tag, an SBOM attached to that tag, and documentation that does not contradict the code on 24 points (§11) |
+| **Breaking point specific to S2** | **Inference sovereignty** and **zoning**. The full content of third-party emails leaves for an inference provider outside the entity's zone (§2.1 E1, E4) with no egress allowlist in place (§2.6); seven call sites hard-code an OpenAI model (§3.2); the embeddings have **no provider abstraction** (`EmbeddingService.php:20`). [INFERRED] An essential entity can accept that transfer by contract, but it cannot *demonstrate* that it controls it: nothing in the code makes it possible to guarantee that no content leaves, since `LLM_PROVIDER=ollama` reroutes neither the embeddings nor the urlscan/VirusTotal enrichments of the n8n workflow |
 
 ---
 
-### S3 — Nœud d'un observatoire fédéré opéré par des tiers
+### S3 — Node in a federated observatory operated by third parties
 
-**Description.** Plusieurs organisations exploitent chacune un nœud ScamBuster et
-mettent en commun leurs IOC, clusters et TTP via TAXII/STIX dans un observatoire
-partagé.
+**Description.** Several organisations each run a ScamBuster node and pool their
+IOCs, clusters and TTPs through TAXII/STIX in a shared observatory.
 
-| Axe | Analyse |
+| Dimension | Analysis |
 |---|---|
-| **Qui autorise l'engagement** | Chaque opérateur de nœud pour son propre nœud, dans le cadre d'une charte de fédération. [DÉDUIT] Aucune autorité ne peut autoriser l'engagement pour l'ensemble : la fédération partage des **sorties**, pas des actes |
-| **Qui porte la responsabilité juridique** | **Ambiguë, et c'est le problème central.** Chaque nœud est responsable de traitement pour ce qu'il ingère, mais la mise en commun d'IOC contenant des données personnelles de tiers (adresses, IBAN, numéros de téléphone — §7.2, table `indicator`) crée une question de responsabilité conjointe entre nœuds [À SOURCER — 1B]. [DÉDUIT] Le code n'offre aucune prise sur ce point : la table `indicator` n'a **aucune purge** (§7.7), et un IOC exporté vers la fédération devient irrécupérable — il n'existe ni identifiant de nœud d'origine, ni mécanisme de rétractation, ni signature de flux |
-| **Quelle autorité homologue** | Aucune. Il faudrait construire un cadre de confiance : certification des nœuds, identité de nœud, signature et provenance des flux, procédure d'exclusion |
-| **Livrable attendu de l'éditeur** | Tout ce que demande S2, **plus** : identité et attestation de nœud, provenance signée des IOC, constructions reproductibles, multi-tenance, et une gouvernance qui survive à une personne. [VÉRIFIÉ] Le projet est à un mainteneur (`git shortlog -sne` : 2 identités, une personne), sans tag ni processus de publication (§9.11), et le seul artefact multi-tenant du code a été **retiré** (`Version2026041112000000.php:35` — `ALTER TABLE app_users DROP COLUMN tenant_id`) |
-| **Point de rupture propre à S3** | L'**empoisonnement du flux** et l'**intégrité de bout en bout**. Les IOC sont enrichis par soumission de la valeur fournie par l'adversaire à urlscan.io et VirusTotal (§2.3 E23–E25) : un adversaire qui a compris l'automatisation choisit ses IOC pour piloter l'enrichissement, donc le clustering, donc ce que reçoit toute la fédération. [VÉRIFIÉ] Le seul filtre humain existant, le blocage d'export financier (§4.8), ne couvre que **10 types financiers** — les domaines, URL, IP et adresses courriel, c'est-à-dire l'essentiel du flux CTI, partent **sans verdict d'analyste** |
+| **Who authorises engagement** | Each node operator for its own node, under a federation charter. [INFERRED] No authority can authorise engagement for the whole: the federation shares **outputs**, not acts |
+| **Who bears legal liability** | **Ambiguous, and that is the central problem.** Each node is controller for what it ingests, but pooling IOCs that contain personal data of third parties (addresses, IBANs, phone numbers — §7.2, `indicator` table) raises a question of joint controllership between nodes [TO BE SOURCED — 1B]. [INFERRED] The code gives no handle on this point: the `indicator` table has **no purge** (§7.7), and an IOC exported to the federation becomes unrecoverable — there is no originating node identifier, no retraction mechanism, and no feed signature |
+| **Which authority accredits** | None. A trust framework would have to be built: node certification, node identity, feed signing and provenance, exclusion procedure |
+| **Deliverable expected from the publisher** | Everything S2 asks for, **plus**: node identity and attestation, signed IOC provenance, reproducible builds, multi-tenancy, and governance that survives one person. [VERIFIED] The project has one maintainer (`git shortlog -sne`: 2 identities, one person), with no tag and no release process (§9.11), and the only multi-tenant artefact in the code has been **removed** (`Version2026041112000000.php:35` — `ALTER TABLE app_users DROP COLUMN tenant_id`) |
+| **Breaking point specific to S3** | **Feed poisoning** and **end-to-end integrity**. IOCs are enriched by submitting the adversary-supplied value to urlscan.io and VirusTotal (§2.3 E23–E25): an adversary who has worked out the automation picks his IOCs so as to steer the enrichment, therefore the clustering, therefore what the whole federation receives. [VERIFIED] The only human filter that exists, the financial export block (§4.8), covers only **10 financial types** — domains, URLs, IPs and email addresses, that is, the bulk of the CTI feed, leave **without an analyst verdict** |
 
 ---
 
-### Tableau comparatif
+### Comparison table
 
-| Critère | **S1 — Law enforcement** | **S2 — Entité NIS2 essentielle** | **S3 — Observatoire fédéré** |
+| Criterion | **S1 — Law enforcement** | **S2 — NIS2 essential entity** | **S3 — Federated observatory** |
 |---|---|---|---|
-| Autorise l'engagement | Autorité judiciaire, agent habilité nominativement | Organe de direction de l'entité | Chaque opérateur de nœud, sous charte |
-| Nature de l'autorisation | **Habilitation individuelle par acte** — non modélisée dans le code | **Gouvernance interne** — modélisable avec l'existant | **Contractuelle** — sans effet technique |
-| Porte la responsabilité | État / service / agent | **L'entité, seule et sans ambiguïté** | **Distribuée, responsabilité conjointe non résolue** |
-| Homologue | Autorité qualifiée ministérielle, homologation préalable | **Aucune homologation externe** ; acceptation de risque interne, contrôle *a posteriori* | Aucune ; cadre de confiance à créer *ex nihilo* |
-| Livrable exigé de l'éditeur | Dossier d'homologation, preuve de déterminisme, chaîne de preuve | **SBOM, versions supportées, doc exacte, inférence locale, preuves SIEM** | Tout S2 + identité de nœud, flux signés, multi-tenance, gouvernance pluri-personnes |
-| Écart le plus dur | **Valeur probante** du journal (§8.9) et absence d'humain habilité dans la boucle | **Souveraineté de l'inférence** (§2.1) et zonage (§2.6) | **Empoisonnement du flux** (§2.3) et intégrité inter-nœuds |
-| Nature de l'écart dominant | **Institutionnelle** — le logiciel ne peut pas produire l'habilitation | **Technique et bornée** | **Institutionnelle + technique**, cumulées |
-| Compatible avec un mainteneur unique | Non — exige un engagement de support | **Oui** — l'entité assume l'exploitation | Non — la fédération dépend de la pérennité de l'éditeur |
-| Le blocage d'export financier existant (§4.8) suffit-il ? | Non — il faut une traçabilité par acte | **Oui pour la classe qu'il couvre**, à étendre | Non — 10 types couverts sur ~36 |
-| Les artefacts produits servent-ils aux autres scénarios ? | Sur-spécifiés pour S2/S3 | **Oui — sous-ensemble commun de S1 et S3** | Sur-spécifiés, inatteignables d'abord |
+| Authorises engagement | Judicial authority, individually named cleared officer | The entity's management body | Each node operator, under a charter |
+| Nature of the authorisation | **Individual clearance per act** — not modelled in the code | **Internal governance** — can be modelled with what exists | **Contractual** — with no technical effect |
+| Bears liability | State / service / officer | **The entity, alone and unambiguously** | **Distributed, joint controllership unresolved** |
+| Accredits | Ministerial designated authority, prior accreditation | **No external accreditation**; internal risk acceptance, *a posteriori* review | None; a trust framework to be created *ex nihilo* |
+| Deliverable required from the publisher | Accreditation file, proof of determinism, chain of evidence | **SBOM, supported versions, accurate docs, local inference, SIEM evidence** | All of S2 + node identity, signed feeds, multi-tenancy, multi-person governance |
+| Hardest gap | **Evidentiary value** of the log (§8.9) and no cleared human in the loop | **Inference sovereignty** (§2.1) and zoning (§2.6) | **Feed poisoning** (§2.3) and inter-node integrity |
+| Nature of the dominant gap | **Institutional** — software cannot produce the clearance | **Technical and bounded** | **Institutional + technical**, combined |
+| Compatible with a single maintainer | No — requires a support commitment | **Yes** — the entity takes on operations | No — the federation depends on the publisher's longevity |
+| Is the existing financial export block (§4.8) enough? | No — per-act traceability is needed | **Yes for the class it covers**, to be extended | No — 10 types covered out of ~36 |
+| Do the artefacts produced serve the other scenarios? | Over-specified for S2/S3 | **Yes — a common subset of S1 and S3** | Over-specified, unreachable first |
 
 ---
 
-### Recommandation : **S2, entité régulée NIS2 essentielle, auto-hébergée**
+### Recommendation: **S2, NIS2-regulated essential entity, self-hosted**
 
-Cinq arguments, dans l'ordre de force.
+Five arguments, in order of strength.
 
-**1. C'est le seul scénario dont la chaîne d'autorisation ne demande pas au logiciel
-ce qu'un logiciel ne peut pas produire.** S1 exige qu'un agent individuellement
-habilité porte l'acte d'engagement. [DÉDUIT] Aucune évolution technique ne crée une
-habilitation : au mieux on ajoute une porte d'approbation humaine — que le pipeline
-n'a d'ailleurs pas aujourd'hui (§12 Q8) — mais l'obstacle est la qualité de la
-personne, pas l'existence de la porte. En S2, l'autorisation est un acte de
-gouvernance interne, et cela, le système sait le matérialiser : verdict d'analyste
-(§4.8 D71), kill switch (§4.5 D47), journal chaîné (§8.3).
+**1. It is the only scenario whose authorisation chain does not ask software for
+what software cannot produce.** S1 requires an individually cleared officer to
+carry the act of engagement. [INFERRED] No technical change creates a clearance:
+at best you add a human approval gate — which the pipeline does not have today
+anyway (§12 Q8) — but the obstacle is the standing of the person, not the
+existence of the gate. In S2, the authorisation is an act of internal governance,
+and that the system does know how to express: analyst verdict
+(§4.8 D71), kill switch (§4.5 D47), chained log (§8.3).
 
-**2. La responsabilité y est mono-partie, donc opposable.** S2 place l'entité en
-responsable de traitement unique. S3 laisse ouverte une responsabilité conjointe
-entre nœuds sur des données personnelles de tiers, alors même que la table
-`indicator` n'a **aucune purge** (§7.7) et qu'aucun mécanisme de rétractation
-n'existe. [DÉDUIT] Traiter la souveraineté et la rétention est déjà exigeant ;
-y ajouter une question de responsabilité conjointe non résolue rendrait l'analyse
-d'écart indécidable, puisque l'obligation elle-même serait indéterminée.
+**2. Liability there rests with a single party, so it is enforceable.** S2 makes
+the entity the sole controller. S3 leaves open a question of joint controllership
+between nodes over the personal data of third parties, even though the
+`indicator` table has **no purge** (§7.7) and no retraction mechanism
+exists. [INFERRED] Dealing with sovereignty and retention is already demanding;
+adding an unresolved joint controllership question would make the gap
+analysis undecidable, since the obligation itself would be indeterminate.
 
-**3. Les écarts de S2 sont techniques et bornés ; ceux de S1 et S3 sont
-institutionnels.** Les trois points durs de S2 — souveraineté de l'inférence, zonage
-de la couche d'engagement, immuabilité du journal — sont des travaux de conception
-dont le périmètre est mesurable depuis le code : 7 sites de modèle en dur (§3.2),
-1 service d'embeddings sans abstraction, 2 nœuds n8n d'enrichissement externe,
-1 étape `REVOKE` non appliquée. La valeur probante exigée par S1 et le cadre de
-confiance exigé par S3 ne sont pas des travaux de conception logicielle.
+**3. The S2 gaps are technical and bounded; those of S1 and S3 are
+institutional.** The three hard points of S2 — inference sovereignty, zoning of
+the engagement layer, log immutability — are design work whose scope can be
+measured from the code: 7 hard-coded model sites (§3.2),
+1 embedding service with no abstraction, 2 external enrichment n8n nodes,
+1 `REVOKE` step not applied. The evidentiary value required by S1 and the trust
+framework required by S3 are not software design work.
 
-**4. Le scénario est compatible avec la réalité du projet.** [VÉRIFIÉ] Un mainteneur,
-aucun tag, historique public écrasé sur 6 jours, licence MIT sans garantie. S1 et S3
-supposent tous deux un éditeur qui s'engage : support, correction sous délai,
-pérennité. S2 est le seul où **l'exploitant assume l'exploitation** et où l'éditeur
-doit seulement livrer un produit documenté et vérifiable.
+**4. The scenario is compatible with the reality of the project.** [VERIFIED] One
+maintainer, no tag, public history overwritten over 6 days, MIT licence with no
+warranty. S1 and S3 both assume a publisher that commits: support, fixes within a
+deadline, longevity. S2 is the only one where **the operator takes on
+operations** and where the publisher only has to deliver a documented and
+verifiable product.
 
-**5. S2 est un sous-ensemble, pas un détour.** SBOM par version, politique de
-versions supportées, inférence locale, journal immuable, chaîne de preuve jusqu'au
-SIEM, documentation exacte : ces livrables sont exigés par S2 **et** sont des
-préalables de S1 et de S3. [DÉDUIT] Choisir S2 ne ferme aucune porte ; choisir S1
-d'abord conduirait à construire une chaîne de preuve judiciaire avant d'avoir réglé
-la question de savoir si le contenu des courriels sort du périmètre de l'entité —
-c'est-à-dire à durcir la preuve d'un flux dont la licéité n'est pas encore établie.
+**5. S2 is a subset, not a detour.** SBOM per version, supported-versions
+policy, local inference, immutable log, chain of evidence through to the
+SIEM, accurate documentation: these deliverables are required by S2 **and** are
+prerequisites for S1 and S3. [INFERRED] Choosing S2 closes no doors; choosing S1
+first would mean building a judicial chain of evidence before settling the
+question of whether email content leaves the entity's perimeter —
+that is, hardening the evidence of a flow whose lawfulness is not yet established.
 
-**Réserve explicite.** S2 ne supprime pas les blocages non techniques ; il les
-réduit à un ensemble traitable. Trois subsistent et sont analysés en partie C :
-la base légale du traitement des données personnelles de tiers apparaissant dans
-les échanges, l'usage d'identités synthétiques par une entité soumise à obligation
-de loyauté, et le risque d'escalade. [DÉDUIT] Ces trois points ne dépendent pas du
-scénario retenu : ils existent identiquement en S1 et S3, où ils s'ajoutent aux
-obstacles propres à ces cadres.
-
----
-
-### Ce que je n'ai pas pu vérifier — partie A
-
-1. Le déploiement de production actuel relève-t-il déjà de l'un de ces trois cadres,
-   ou d'un quatrième — recherche académique, exploitation individuelle — dont les
-   obligations diffèrent ?
-2. L'exploitant actuel est-il lui-même une entité régulée, ou une personne physique
-   agissant à titre de recherche ?
-3. Dans quelle juridiction les boîtes-appâts de production sont-elles hébergées, et
-   dans laquelle l'exploitant est-il établi ?
-4. Le tiers déployeur visé par cet audit est-il identifié, ou le besoin est-il
-   générique ?
-5. Existe-t-il un engagement de support ou un contrat de service envisagé entre
-   l'éditeur et un déployeur, qui modifierait la répartition des livrables ?
-6. Les boîtes-appâts sont-elles des adresses créées de toutes pièces, ou des adresses
-   ayant appartenu à des personnes réelles — ce qui changerait la nature des données
-   reçues ?
-7. Le volume réel de conversations simultanées en production est-il proche des
-   plafonds configurés (50 conversations actives/jour, `rate_limiter.yaml:38-41`) ou
-   d'un ordre de grandeur en dessous ?
-8. Une analyse d'impact relative à la protection des données a-t-elle été
-   effectivement conduite et validée, ou `docs/09_dpia_template.md` est-il resté à
-   l'état de gabarit — son nom de fichier comporte « template » ?
-9. Des artefacts produits par le système ont-ils déjà été transmis à une autorité,
-   un CERT ou un tiers, et sous quelle forme ?
-10. Le partage TAXII est-il activé en production (`TAXII_API_KEY` a un défaut vide,
-    `.env.dist:396`), et si oui, avec quels destinataires ?
-11. L'exploitant a-t-il déjà reçu une réclamation, une demande d'accès ou une
-    contestation d'une personne concernée apparaissant dans les échanges ?
-12. Le scénario pilote doit-il être choisi pour un déployeur français, européen, ou
-    sans hypothèse de juridiction — ce qui détermine directement la liste de
-    référentiels applicables en partie B ?
+**Explicit reservation.** S2 does not remove the non-technical blockers; it
+reduces them to a tractable set. Three remain and are analysed in Part C:
+the legal basis for processing the personal data of third parties appearing in
+the exchanges, the use of synthetic identities by an entity bound by a fairness
+obligation, and escalation risk. [INFERRED] These three points do not depend on
+the scenario chosen: they exist identically in S1 and S3, where they add to the
+obstacles specific to those frameworks.
 
 ---
 
+### What I could not verify — Part A
+
+1. Does the current production deployment already fall under one of these three
+   frameworks, or under a fourth — academic research, individual operation — whose
+   obligations differ?
+2. Is the current operator itself a regulated entity, or a natural person
+   acting for research purposes?
+3. In which jurisdiction are the production honeypot mailboxes hosted, and
+   in which is the operator established?
+4. Is the third-party deployer targeted by this audit identified, or is the need
+   generic?
+5. Is there a support commitment or a service contract envisaged between the
+   publisher and a deployer, which would change how the deliverables are split?
+6. Are the honeypot mailboxes addresses created from scratch, or addresses
+   that once belonged to real people — which would change the nature of the data
+   received?
+7. Is the real volume of simultaneous conversations in production close to the
+   configured caps (50 active conversations/day, `rate_limiter.yaml:38-41`) or
+   an order of magnitude below?
+8. Has a data protection impact assessment actually been carried out and
+   approved, or has `docs/09_dpia_template.md` remained at
+   template stage — its filename contains "template"?
+9. Have artefacts produced by the system already been passed to an authority,
+   a CERT or a third party, and in what form?
+10. Is TAXII sharing enabled in production (`TAXII_API_KEY` has an empty default,
+    `.env.dist:396`), and if so, with which recipients?
+11. Has the operator already received a complaint, an access request or a
+    challenge from a data subject appearing in the exchanges?
+12. Must the pilot scenario be chosen for a French deployer, a European one, or
+    with no jurisdiction assumption — which directly determines the list of
+    applicable frameworks in Part B?
+
 ---
 
-## Cadrage acté après STOP 1
+---
 
-| Paramètre | Valeur retenue | Origine |
+## Framing settled after STOP 1
+
+| Parameter | Value adopted | Origin |
 |---|---|---|
-| Scénario pilote | **S2 — entité régulée NIS2, entité essentielle, auto-hébergée** | Retenu à l'issue de la comparaison de la partie A |
-| Juridiction | **UE, sans hypothèse nationale** | Réponse A1 |
-| Accès web pour le sourçage | **Autorisé** | Réponse A2 |
-| Objet de l'audit | **La configuration livrée par défaut** (`.env.dist`, `docker-compose.prod.yml`, documentation) — ce qu'obtient un tiers déployeur, et non un déploiement particulier quelconque | Le mandat porte sur le déploiement par un tiers en environnement régulé |
-| Validation humaine avant envoi | **Absente dans le pipeline livré** | `WF-REPLY-GENERATE-V2.json` enchaîne sur `WF-REPLY-SEND-v1.json` sans point d'arrêt ; `SendEmailController.php:48` porte la même permission que la génération |
-| Diffusion TAXII | **Chemin livré et documenté** vers une plateforme CTI externe | `src/Application/Taxii/TaxiiService.php`, 4 contrôleurs TAXII, `docs/11_opencti_integration.md` |
-| Purge, budget, export SIEM | Traités comme **décisions de spécification** portant sur les valeurs par défaut livrées | Conséquence du recadrage sur la configuration livrée |
-| Verrouillage d'audit, listes honeypot, liste sûre de domaines | Traités comme **écarts produit** : pour un tiers déployeur, le défaut livré fait foi | Conséquence du recadrage |
+| Pilot scenario | **S2 — NIS2-regulated essential entity, self-hosted** | Chosen at the end of the Part A comparison |
+| Jurisdiction | **EU, with no national assumption** | Answer A1 |
+| Web access for sourcing | **Allowed** | Answer A2 |
+| Subject of the audit | **The configuration shipped by default** (`.env.dist`, `docker-compose.prod.yml`, documentation) — what a third-party deployer gets, and not any particular deployment | The mandate covers deployment by a third party in a regulated environment |
+| Human validation before sending | **Absent from the shipped pipeline** | `WF-REPLY-GENERATE-V2.json` chains into `WF-REPLY-SEND-v1.json` with no stop point; `SendEmailController.php:48` carries the same permission as generation |
+| TAXII dissemination | **Shipped and documented path** to an external CTI platform | `src/Application/Taxii/TaxiiService.php`, 4 TAXII controllers, `docs/11_opencti_integration.md` |
+| Purge, budget, SIEM export | Treated as **specification decisions** bearing on the shipped default values | Consequence of the refocus on the shipped configuration |
+| Audit locking, honeypot lists, safe domain list | Treated as **product gaps**: for a third-party deployer, the shipped default is what counts | Consequence of the refocus |
 
 ---
 
-## B. Référentiels applicables au scénario S2
+## B. Frameworks applicable to scenario S2
 
-> Chaque ligne cite sa source avec article et version (R4). Les référentiels sans
-> source vérifiée sont marqués `[NON SOURCÉ]` et exclus de l'analyse.
-> **Limite d'environnement à signaler :** toutes les sources primaires et
-> para-primaires du texte — `eur-lex.europa.eu`, `artificialintelligenceact.eu`,
-> `ai-act-service-desk.ec.europa.eu`, et cinq autres recueils — sont injoignables
-> depuis cet environnement, **par toute route** : l'outil de récupération les refuse
-> et un appel direct retourne un code HTTP 000, c'est-à-dire un échec de connexion
-> au niveau réseau. Le libellé de l'article 50(1) reproduit ci-dessous a donc été
-> **confirmé mot pour mot par deux recherches indépendantes**, dont une portant
-> spécifiquement sur la clause d'exemption et établissant son rattachement au
-> paragraphe 1. Il reste à confirmer sur le Journal officiel de l'Union européenne
-> par un lecteur disposant d'un accès non filtré — c'est la seule vérification
-> résiduelle de tout l'audit portant sur son écart n°1.
+> Every row cites its legal source with article and version (R4). Frameworks with
+> no verified source are marked `[UNSOURCED]` and excluded from the analysis.
+> **Environment limitation to flag:** all the primary and near-primary sources of
+> the text — `eur-lex.europa.eu`, `artificialintelligenceact.eu`,
+> `ai-act-service-desk.ec.europa.eu`, and five other collections — are unreachable
+> from this environment, **by any route**: the fetch tool refuses them
+> and a direct call returns HTTP code 000, that is, a connection failure at
+> network level. The wording of Article 50(1) reproduced below was therefore
+> **confirmed word for word by two independent searches**, one of them bearing
+> specifically on the exemption clause and establishing that it belongs to
+> paragraph 1. It still has to be confirmed against the Official Journal of the
+> European Union by a reader with unfiltered access — it is the only verification
+> left in the whole audit that bears on its gap no. 1.
 
-### B.1 Applicables et opposables
+### B.1 Applicable and enforceable
 
-| # | Référentiel | Source + version | Statut | Motif |
+| # | Framework | Source + version | Status | Reason |
 |---|---|---|---|---|
-| **N1** | **Règlement (UE) 2024/1689 (« AI Act »), art. 50(1)** — transparence des systèmes interagissant directement avec des personnes physiques | Règlement (UE) 2024/1689. Art. 50 **applicable depuis le 2 août 2026**. Lignes directrices de la Commission sur l'art. 50 publiées le **20 juillet 2026** | **APPLICABLE — et déterminant** | Voir B.2 |
-| **N2** | **Directive (UE) 2022/2555 (« NIS2 »), art. 20** — l'organe de direction approuve les mesures, en supervise la mise en œuvre et **peut être tenu responsable** des manquements | Directive (UE) 2022/2555, art. 20 | **APPLICABLE** | Fonde l'autorisation d'engagement en S2 : elle est un acte de gouvernance, ce qui distingue S2 de S1 |
-| **N3** | **NIS2, art. 21(1) et 21(2)** — mesures techniques, opérationnelles et organisationnelles appropriées et proportionnées ; **10 mesures minimales**, neutres technologiquement et orientées résultat | Directive (UE) 2022/2555, art. 21 | **APPLICABLE** | Fonde les exigences de gestion des risques, de sécurité de la chaîne d'approvisionnement, de traitement des incidents et de journalisation |
-| **N4** | **NIS2, art. 23** — obligations de notification d'incident | Directive (UE) 2022/2555, art. 23 | **APPLICABLE** | Voir partie C |
-| **N5** | **RGPD, Règlement (UE) 2016/679, art. 6(1)(f)** — intérêt légitime | Règlement (UE) 2016/679 | **APPLICABLE** | Base légale la plus plausible pour S2 ; à mettre en balance, voir C2 |
-| **N6** | **RGPD art. 9** — catégories particulières de données | Règlement (UE) 2016/679 | **APPLICABLE** | Le corps brut des courriels et l'OCR des pièces jointes peuvent contenir des données de l'art. 9 sans que rien ne les détecte ni ne les écarte (§7.2) |
-| **N7** | **RGPD art. 14(1), 14(2), 14(5)(b)** — information des personnes lorsque les données n'ont pas été collectées auprès d'elles ; exception d'**effort disproportionné**, d'interprétation stricte, assortie de mesures appropriées dont la mise à disposition publique de l'information | Règlement (UE) 2016/679, art. 14 | **APPLICABLE** | Concerne les **tiers cités dans les échanges** (victimes, mules, comptes bancaires), pas seulement l'escroc |
-| **N8** | **RGPD art. 35** — analyse d'impact relative à la protection des données | Règlement (UE) 2016/679, art. 35 | **APPLICABLE** | Traitement systématique à grande échelle, profilage, personnes vulnérables → AIPD requise |
-| **N9** | **Règlement (UE) 2024/2847 (« CRA »)** — produits comportant des éléments numériques | Règlement (UE) 2024/2847. Entrée en vigueur **10 décembre 2024** ; **obligations de signalement des vulnérabilités activement exploitées et des incidents graves à partir du 11 septembre 2026** ; application pleine **11 décembre 2027** | **APPLICABLE À L'ÉDITEUR — à confirmer sur l'exemption** | Le CRA prévoit une exemption pour le logiciel libre non commercial et crée la notion d'**« open source steward »**. Le statut exact de ScamBuster dépend de sa mise à disposition sur le marché de l'UE. **Le premier jalon tombe dans un mois** |
+| **N1** | **Regulation (EU) 2024/1689 ("AI Act"), Art. 50(1)** — transparency of systems interacting directly with natural persons | Regulation (EU) 2024/1689. Art. 50 **applicable since 2 August 2026**. Commission guidelines on Art. 50 published on **20 July 2026** | **APPLICABLE — and decisive** | See B.2 |
+| **N2** | **Directive (EU) 2022/2555 ("NIS2"), Art. 20** — the management body approves the measures, oversees their implementation and **can be held liable** for failures | Directive (EU) 2022/2555, Art. 20 | **APPLICABLE** | Grounds the engagement authorisation in S2: it is an act of governance, which is what separates S2 from S1 |
+| **N3** | **NIS2, Art. 21(1) and 21(2)** — appropriate and proportionate technical, operational and organisational measures; **10 minimum measures**, technology-neutral and outcome-oriented | Directive (EU) 2022/2555, Art. 21 | **APPLICABLE** | Grounds the requirements on risk management, supply chain security, incident handling and logging |
+| **N4** | **NIS2, Art. 23** — incident notification obligations | Directive (EU) 2022/2555, Art. 23 | **APPLICABLE** | See Part C |
+| **N5** | **GDPR, Regulation (EU) 2016/679, Art. 6(1)(f)** — legitimate interest | Regulation (EU) 2016/679 | **APPLICABLE** | The most plausible legal basis for S2; requires a balancing test, see C2 |
+| **N6** | **GDPR Art. 9** — special categories of data | Regulation (EU) 2016/679 | **APPLICABLE** | The raw email body and the OCR of attachments can contain Art. 9 data, with nothing to detect or strip it (§7.2) |
+| **N7** | **GDPR Art. 14(1), 14(2), 14(5)(b)** — informing individuals when the data was not collected from them; the **disproportionate effort** exception, strictly interpreted, coupled with appropriate measures including making the information publicly available | Regulation (EU) 2016/679, Art. 14 | **APPLICABLE** | Concerns the **third parties named in the exchanges** (victims, mules, bank accounts), not only the scammer |
+| **N8** | **GDPR Art. 35** — data protection impact assessment | Regulation (EU) 2016/679, Art. 35 | **APPLICABLE** | Systematic large-scale processing, profiling, vulnerable people → DPIA required |
+| **N9** | **Regulation (EU) 2024/2847 ("CRA")** — products with digital elements | Regulation (EU) 2024/2847. Entry into force **10 December 2024**; **obligations to report actively exploited vulnerabilities and severe incidents from 11 September 2026**; full application **11 December 2027** | **APPLICABLE TO THE PUBLISHER — to be confirmed on the exemption** | The CRA provides an exemption for non-commercial free software and creates the notion of an **"open source steward"**. ScamBuster's exact status depends on whether it is made available on the EU market. **The first milestone falls in one month** |
 
-### B.2 Le point déterminant — AI Act art. 50(1)
+### B.2 The decisive point — AI Act Art. 50(1)
 
-**Libellé** [VÉRIFIÉ — libellé confirmé par deux recherches indépendantes ; source
-primaire injoignable depuis cet environnement, voir la note de méthode ci-dessus] :
+**Wording** [VERIFIED — wording confirmed by two independent searches; primary
+source unreachable from this environment, see the method note above]:
 
-> « Providers shall ensure that AI systems intended to interact directly with natural
+> "Providers shall ensure that AI systems intended to interact directly with natural
 > persons are designed and developed in such a way that the natural persons concerned
 > are informed that they are interacting with an AI system, unless this is obvious
 > from the point of view of a natural person who is reasonably well-informed,
@@ -257,246 +257,247 @@ primaire injoignable depuis cet environnement, voir la note de méthode ci-dessu
 > use. **This obligation shall not apply to AI systems authorised by law to detect,
 > prevent, investigate or prosecute criminal offences**, subject to appropriate
 > safeguards for the rights and freedoms of third parties, unless those systems are
-> available for the public to report a criminal offence. »
+> available for the public to report a criminal offence."
 
-Trois constats s'enchaînent.
+Three findings follow on from one another.
 
-**1. L'obligation pèse sur le *fournisseur*, pas sur l'exploitant.** L'article 50(1)
-vise les *providers* et impose que le système soit « designed and developed » de
-manière à informer. [DÉDUIT] Le destinataire de cette obligation est donc **l'éditeur
-de ScamBuster**, pas le tiers déployeur : c'est une exigence de conception, pas de
-paramétrage. Raisonnement : le verbe porte sur la conception et le développement, et
-l'obligation de marquage relève du fournisseur là où l'obligation de divulgation aux
-utilisateurs finaux relève du déployeur (lignes directrices du 20 juillet 2026).
+**1. The obligation falls on the *provider*, not on the operator.** Article 50(1)
+targets *providers* and requires the system to be "designed and developed" so as
+to inform. [INFERRED] The addressee of this obligation is therefore **the
+ScamBuster publisher**, not the third-party deployer: it is a design requirement,
+not a configuration one. Reasoning: the verb bears on design and development, and
+the marking obligation belongs to the provider where the obligation to disclose to
+end users belongs to the deployer (guidelines of 20 July 2026).
 
-**2. L'exemption ne couvre pas S2.** Elle est réservée aux systèmes « authorised by
-law to detect, prevent, investigate or prosecute criminal offences ». [DÉDUIT] Une
-entité essentielle NIS2 de droit privé — banque, énergéticien, opérateur de santé —
-n'est pas autorisée par la loi à enquêter sur des infractions pénales ; elle défend
-son propre système d'information. L'exemption vise le cadre S1, précisément celui que
-nous avons écarté. Raisonnement : l'exemption est rédigée par la qualité du système au
-regard de la loi pénale, pas par la finalité défensive de son exploitant.
+**2. The exemption does not cover S2.** It is reserved for systems "authorised by
+law to detect, prevent, investigate or prosecute criminal offences". [INFERRED] A
+NIS2 essential entity under private law — a bank, an energy company, a health
+operator — is not authorised by law to investigate criminal offences; it defends
+its own information system. The exemption targets the S1 framework, precisely the
+one we ruled out. Reasoning: the exemption is written around the status of the
+system under criminal law, not around the defensive purpose of its operator.
 
-**3. Le code impose activement le contraire de l'obligation.** [VÉRIFIÉ]
-`PolicyGuard::FORBIDDEN_PATTERNS` (`src/Application/LLM/PolicyGuard.php:47-54`) bloque
-une réponse contenant `/\bI am (?:a |an )?(?:bot|automated|AI)\b/i`,
-`/\bautomated system\b/i` ou `/\bartificial intelligence\b/i`. La règle CORE de prompt
-non surchargeable interdit toute connaissance de la nature automatisée
-(`BasePromptRules.php:41`), et l'oracle GUARD traite l'auto-divulgation comme une
-**violation** à faire échouer (`SafetyInvariantOracle.php:153-165`, code
+**3. The code actively enforces the opposite of the obligation.** [VERIFIED]
+`PolicyGuard::FORBIDDEN_PATTERNS` (`src/Application/LLM/PolicyGuard.php:47-54`) blocks
+a reply containing `/\bI am (?:a |an )?(?:bot|automated|AI)\b/i`,
+`/\bautomated system\b/i` or `/\bartificial intelligence\b/i`. The non-overridable
+CORE prompt rule forbids any awareness of the automated nature
+(`BasePromptRules.php:41`), and the GUARD oracle treats self-disclosure as a
+**violation** that must fail (`SafetyInvariantOracle.php:153-165`, code
 `automation_reveal`, gated).
 
-[DÉDUIT] **C'est une contradiction frontale entre le produit et une obligation
-applicable depuis neuf jours, et elle n'est pas paramétrable :** il ne s'agit pas d'un
-réglage laissé à l'exploitant mais d'un invariant que trois mécanismes indépendants —
-un garde-fou déterministe, une règle de prompt déclarée non surchargeable, et une
-porte de non-régression — sont conçus pour préserver. Raisonnement : les trois
-mécanismes cités traitent l'auto-divulgation comme un défaut à corriger, ce qui est
-l'inverse exact de l'exigence de l'art. 50(1).
+[INFERRED] **This is a head-on contradiction between the product and an obligation
+that has applied for nine days, and it is not configurable:** it is not a
+setting left to the operator but an invariant that three independent mechanisms —
+a deterministic guardrail, a prompt rule declared non-overridable, and a
+non-regression gate — are designed to preserve. Reasoning: the three
+mechanisms cited treat self-disclosure as a defect to be fixed, which is
+the exact opposite of the Art. 50(1) requirement.
 
-Cette contradiction n'est **pas** un défaut de mise en œuvre : elle est constitutive
-du produit. Elle est portée en partie C comme blocage de rang 1 et fera l'objet de
-l'écart le plus grave de la phase 2.
+This contradiction is **not** an implementation defect: it is constitutive
+of the product. It is carried into Part C as the rank 1 blocker and will be the
+subject of the most serious gap of phase 2.
 
-### B.3 Applicables comme référence d'ingénierie, non opposables
+### B.3 Applicable as engineering references, not enforceable
 
-| # | Référentiel | Source + version | Statut |
+| # | Framework | Source + version | Status |
 |---|---|---|---|
-| R1 | **OWASP GenAI — LLM Top 10, édition 2026** | OWASP GenAI Security Project, publiée le **4 août 2026** ; « Prompt Injection » et « Sensitive Information Disclosure » demeurent aux deux premiers rangs | **Référence d'ingénierie** — non normative, sans valeur opposable |
-| R2 | **OWASP Top 10 for Agentic Applications (ASI)** | OWASP GenAI Security Project, première publication **décembre 2025** | **Référence d'ingénierie**, plus pertinente que R1 pour ce système : le modèle y est un acteur disposant d'outils et de conséquences en aval, ce qui décrit exactement le pipeline de réponse et d'export |
-| R3 | **MITRE ATLAS** | Base de connaissances MITRE des tactiques et techniques adverses contre les systèmes d'IA. Version non épinglée dans cet audit | **Référence d'ingénierie** — sert de nomenclature en partie D |
-| R4 | **ISO/IEC 42001:2023** — système de management de l'IA | Publiée en **décembre 2023** ; demeure la version courante en août 2026 | **Applicable en volontaire ou par exigence contractuelle** — non opposable en soi |
-| R5 | **ISO/IEC 27001:2022 + Amd 1:2024** | Amendement 1 publié en **février 2024** (« Climate action changes »), auditable depuis mai 2024 | **Applicable en volontaire ou par exigence contractuelle** — souvent exigé par une entité essentielle de ses fournisseurs, sans être imposé par NIS2 |
-| R6 | **NIST AI RMF** | Cadre volontaire du NIST, d'origine états-unienne. **Version et référence de publication non confirmées depuis cet environnement** | `[PARTIELLEMENT SOURCÉ]` — **retenu à titre de vocabulaire uniquement**, exclu comme source d'exigence |
+| R1 | **OWASP GenAI — LLM Top 10, 2026 edition** | OWASP GenAI Security Project, published on **4 August 2026**; "Prompt Injection" and "Sensitive Information Disclosure" remain in the top two places | **Engineering reference** — not normative, with no enforceable value |
+| R2 | **OWASP Top 10 for Agentic Applications (ASI)** | OWASP GenAI Security Project, first published **December 2025** | **Engineering reference**, more relevant than R1 for this system: there the model is an actor with tools and downstream consequences, which describes exactly the reply and export pipeline |
+| R3 | **MITRE ATLAS** | MITRE knowledge base of adversarial tactics and techniques against AI systems. Version not pinned in this audit | **Engineering reference** — used as the naming scheme in Part D |
+| R4 | **ISO/IEC 42001:2023** — AI management system | Published in **December 2023**; still the current version in August 2026 | **Applicable voluntarily or by contractual requirement** — not enforceable in itself |
+| R5 | **ISO/IEC 27001:2022 + Amd 1:2024** | Amendment 1 published in **February 2024** ("Climate action changes"), auditable since May 2024 | **Applicable voluntarily or by contractual requirement** — often required by an essential entity of its suppliers, without being imposed by NIS2 |
+| R6 | **NIST AI RMF** | Voluntary NIST framework, of US origin. **Version and publication reference not confirmed from this environment** | `[PARTLY SOURCED]` — **kept as vocabulary only**, excluded as a source of requirements |
 
-### B.4 Non applicables — écartés explicitement
+### B.4 Not applicable — explicitly ruled out
 
-| # | Référentiel | Source + version | Motif d'exclusion |
+| # | Framework | Source + version | Reason for exclusion |
 |---|---|---|---|
-| X1 | **LPM 2013 art. 22 et code de la défense (régime OIV/SIIV)** | Régime national français | **ÉCARTÉ.** Régime national, réservé aux opérateurs d'importance vitale **désignés par arrêté**. Le périmètre retenu est « UE sans hypothèse nationale » (A1), et rien n'indique que le déployeur cible soit un OIV désigné. Réintroduire ce référentiel exigerait de fixer la juridiction **et** la désignation |
-| X2 | **ReCyF — Référentiel Cyber France** | ANSSI, **version de travail 2.5 du 17 mars 2026**, 20 objectifs de sécurité | **ÉCARTÉ.** Référentiel national français de déclinaison de NIS2. Non applicable au périmètre UE-générique. Redeviendrait applicable si le déployeur cible était français — et il est le meilleur candidat pour cela, ce qui justifie de le garder en réserve documentaire plutôt que de l'oublier |
-| X3 | **SecNumCloud** | Qualification ANSSI d'hébergeur cloud, version 3.2 `[PARTIELLEMENT SOURCÉ]` | **ÉCARTÉ pour deux motifs cumulés** : qualification nationale française, et qualification d'un **prestataire d'informatique en nuage** alors que S2 est un déploiement **auto-hébergé** par l'entité. Sans objet ici |
-| X4 | **EBIOS Risk Manager** | Méthode ANSSI, publiée en 2018, mise à jour en 2024 `[PARTIELLEMENT SOURCÉ]` | **ÉCARTÉ comme référentiel opposable** — c'est une méthode d'analyse de risque, pas un corpus d'exigences. **Retenu comme méthode** : la partie D en emprunte la logique de sources de risque et de chemins d'attaque, en complément de STRIDE |
-| X5 | **Règles de preuve numérique** | — | **ÉCARTÉ pour S2.** La valeur probante devant une juridiction pénale est la contrainte structurante de S1, écarté au STOP 1. En S2 la finalité est le renseignement défensif et l'alimentation d'un SIEM, pas la constitution d'une preuve. **Réserve :** l'intégrité et la traçabilité restent exigées, mais au titre de NIS2 art. 21(2) et non d'un régime probatoire — l'exigence est donc « journal fiable et auditable », pas « preuve opposable ». Cette distinction déclasse plusieurs écarts que S1 aurait rendus bloquants |
+| X1 | **LPM 2013 Art. 22 and the code de la défense (OIV/SIIV regime)** | French national regime | **RULED OUT.** National regime, reserved for operators of vital importance **designated by ministerial order**. The scope adopted is "EU with no national assumption" (A1), and nothing indicates that the target deployer is a designated OIV. Reintroducing this framework would require fixing the jurisdiction **and** the designation |
+| X2 | **ReCyF — Référentiel Cyber France** | ANSSI, **working version 2.5 of 17 March 2026**, 20 security objectives | **RULED OUT.** French national framework implementing NIS2. Not applicable to a generic EU scope. It would become applicable again if the target deployer were French — and it is the best candidate for that, which justifies keeping it in documentary reserve rather than forgetting it |
+| X3 | **SecNumCloud** | ANSSI qualification for cloud hosting providers, version 3.2 `[PARTLY SOURCED]` | **RULED OUT on two cumulative grounds**: a French national qualification, and a qualification of a **cloud computing provider** whereas S2 is a deployment **self-hosted** by the entity. Moot here |
+| X4 | **EBIOS Risk Manager** | ANSSI method, published in 2018, updated in 2024 `[PARTLY SOURCED]` | **RULED OUT as an enforceable framework** — it is a risk analysis method, not a body of requirements. **Kept as a method**: Part D borrows its risk-source and attack-path logic, alongside STRIDE |
+| X5 | **Digital evidence rules** | — | **RULED OUT for S2.** Evidentiary value before a criminal court is the structuring constraint of S1, ruled out at STOP 1. In S2 the purpose is defensive intelligence and feeding a SIEM, not building evidence. **Reservation:** integrity and traceability are still required, but under NIS2 Art. 21(2) and not under an evidentiary regime — so the requirement is a "reliable and auditable log", not "evidence that holds in court". This distinction downgrades several gaps that S1 would have made blocking |
 
-### B.5 Statut réel de la transposition française de NIS2
+### B.5 Actual status of the French transposition of NIS2
 
-Question posée explicitement dans la commande, traitée bien qu'elle ne soit pas
-déterminante pour le périmètre retenu.
+A question explicitly raised in the brief, handled even though it is not
+decisive for the scope adopted.
 
-| Fait | Date |
+| Fact | Date |
 |---|---|
-| Échéance de transposition fixée par la directive (art. 41) | **17 octobre 2024** — non tenue par la France |
-| Avis motivé de la Commission européenne à la France pour défaut de notification de transposition complète | **7 mai 2025** |
-| Adoption du projet de loi relatif à la résilience des infrastructures critiques et au renforcement de la cybersécurité par le Sénat, première lecture | **12 mars 2025** |
-| Adoption d'un texte modifié par la commission spéciale de l'Assemblée nationale | **10 septembre 2025** |
-| Passage en séance publique | programmé pour **juillet 2026**, sous réserve de session extraordinaire |
-| **État au 6 août 2026** | **Transposition non achevée ; aucune loi de transposition promulguée** |
-| Périmètre annoncé | ANSSI désignée autorité nationale ; environ **15 000 entités** contre ~500 sous NIS1 |
+| Transposition deadline set by the directive (Art. 41) | **17 October 2024** — missed by France |
+| Reasoned opinion from the European Commission to France for failure to notify full transposition | **7 May 2025** |
+| Adoption by the Senate, first reading, of the bill on the resilience of critical infrastructure and the strengthening of cybersecurity | **12 March 2025** |
+| Adoption of an amended text by the special committee of the National Assembly | **10 September 2025** |
+| Debate in public session | scheduled for **July 2026**, subject to an extraordinary session |
+| **Status as of 6 August 2026** | **Transposition not complete; no transposition law enacted** |
+| Announced scope | ANSSI designated as national authority; about **15 000 entities** vs ~500 under NIS1 |
 
-[DÉDUIT] Conséquence pour l'audit : un déployeur **français** n'est pas encore
-juridiquement soumis aux obligations NIS2 en droit interne, mais le sera, et le texte
-de transposition est stabilisé sur l'essentiel. Un déployeur d'un autre État membre
-ayant transposé l'est déjà. Le périmètre retenu — UE sans hypothèse nationale —
-conduit donc à traiter NIS2 comme **applicable via la transposition de l'État membre du
-déployeur**, sans dépendre du calendrier français. Raisonnement : la directive lie les
-États membres quant au résultat ; l'exigence produit qui en découle est identique quel
-que soit l'État de transposition.
+[INFERRED] Consequence for the audit: a **French** deployer is not yet
+legally subject to the NIS2 obligations under domestic law, but will be, and the
+transposition text is settled on the essentials. A deployer in another Member State
+that has transposed is already subject to them. The scope adopted — EU with no
+national assumption — therefore leads to treating NIS2 as **applicable through the
+transposition of the deployer's Member State**, without depending on the French
+timetable. Reasoning: the directive binds the Member States as to the result; the
+product requirement that follows is identical whatever the
+transposing State.
 
 ---
 
-## C. Blocages non techniques, classés par gravité
+## C. Non-technical blockers, ranked by severity
 
-Trois qualifications, comme demandé : **bloquant**, **contournable par le périmètre**,
-**hors de portée technique**.
+Three qualifications, as requested: **blocking**, **can be worked around by narrowing scope**,
+**outside technical reach**.
 
-### C1 — Obligation de transparence sur la nature artificielle du système
-**Gravité : BLOQUANT. Rang 1.**
+### C1 — Transparency obligation about the artificial nature of the system
+**Severity: BLOCKING. Rank 1.**
 
-| Élément | Contenu |
+| Item | Content |
 |---|---|
-| Source | Règlement (UE) 2024/1689, art. 50(1), applicable depuis le 2 août 2026 |
-| Qui est tenu | **L'éditeur**, en tant que fournisseur : obligation de conception et de développement |
-| Réalité du code | Trois mécanismes indépendants imposent l'inverse : `PolicyGuard.php:47-54` (6 motifs bloquants), `BasePromptRules.php:41` (règle CORE non surchargeable), `SafetyInvariantOracle.php:153-165` (violation `automation_reveal` surveillée par la porte GUARD) |
-| L'exemption joue-t-elle ? | **Non en S2.** Réservée aux systèmes autorisés par la loi à détecter, prévenir, rechercher ou poursuivre des infractions pénales — c'est le cadre S1 |
-| Qualification | **Bloquant, et non contournable par le périmètre.** Réduire le périmètre ne fait pas disparaître l'interaction directe avec une personne physique : c'est la fonction même du produit |
-| Ce qui reste ouvert | La clause « unless this is obvious […] to a reasonably well-informed, observant and circumspect natural person » est le seul angle d'argumentation. [DÉDUIT] Il est faible ici : le produit est explicitement conçu pour que ce ne soit **pas** évident — c'est l'objet des 36 formules de politesse retirées par `SignatureStripper` et des bandes de longueur contextuelles de `PolicyGuardConfig` |
+| Legal source | Regulation (EU) 2024/1689, Art. 50(1), applicable since 2 August 2026 |
+| Who is bound | **The publisher**, as provider: a design and development obligation |
+| What the code does | Three independent mechanisms enforce the opposite: `PolicyGuard.php:47-54` (6 blocking patterns), `BasePromptRules.php:41` (non-overridable CORE rule), `SafetyInvariantOracle.php:153-165` (`automation_reveal` violation watched by the GUARD gate) |
+| Does the exemption apply? | **Not in S2.** Reserved for systems authorised by law to detect, prevent, investigate or prosecute criminal offences — that is the S1 framework |
+| Qualification | **Blocking, and cannot be worked around by narrowing scope.** Narrowing the scope does not remove the direct interaction with a natural person: that is the very function of the product |
+| What remains open | The clause "unless this is obvious […] to a reasonably well-informed, observant and circumspect natural person" is the only line of argument. [INFERRED] It is weak here: the product is explicitly designed so that it is **not** obvious — that is the purpose of the 36 politeness formulas removed by `SignatureStripper` and of the contextual length bands in `PolicyGuardConfig` |
 
-[DÉDUIT] C'est le seul blocage de tout l'audit qui remette en cause la **viabilité du
-produit** dans le scénario retenu, et non sa qualité d'ingénierie. Raisonnement : tous
-les autres écarts se corrigent par de la conception ; celui-ci oppose une obligation
-de conception à la fonction constitutive du système.
+[INFERRED] This is the only blocker in the whole audit that calls into question the
+**viability of the product** in the chosen scenario, rather than its engineering
+quality. Reasoning: all the other gaps can be fixed by design work; this one sets a
+design obligation against the constitutive function of the system.
 
-### C2 — Base légale du traitement des données personnelles de tiers
-**Gravité : BLOQUANT en l'état, contournable par le périmètre.**
+### C2 — Legal basis for processing the personal data of third parties
+**Severity: BLOCKING as it stands, can be worked around by narrowing scope.**
 
-Distinguer deux populations, ce que le code ne fait pas.
+Two populations must be distinguished, which the code does not do.
 
-| Population | Analyse |
+| Population | Analysis |
 |---|---|
-| **L'escroc** | Intérêt légitime (art. 6(1)(f)) défendable : sécurité du système d'information de l'entité, prévention de la fraude. La mise en balance penche du côté du responsable de traitement |
-| **Les tiers cités dans les échanges** — victimes, mules, titulaires de comptes bancaires, personnes mentionnées dans les pièces jointes | [VÉRIFIÉ] Ces données sont massivement collectées : `message.raw_source` conserve le RFC822 intégral (`Message.php:23-24`), `attachment.ocr_text` le texte océrisé (`:41-42`), la table `indicator` les IBAN, téléphones et adresses (§7.2). **La mise en balance de l'art. 6(1)(f) n'a pas été faite pour eux**, et l'information de l'art. 14 ne leur est pas délivrée |
-| Données de l'art. 9 | [VÉRIFIÉ] Rien dans le code ne détecte ni n'écarte des données de santé, d'opinion ou d'orientation présentes dans un corps de courriel ou une pièce jointe océrisée. `MessageAnonymizer` (`:23-37`) masque 5 motifs — email, IBAN, BTC, ETH, téléphone — et **uniquement pour la construction de prompt**, jamais pour le stockage |
-| Contournement par le périmètre | **Oui, partiellement.** Le blocage d'export financier (§4.8 D66–D73) est déjà l'amorce du bon geste : il retient les 10 types financiers derrière un verdict humain. L'extension de cette logique aux types « contact » et la mise en place d'une minimisation à l'ingestion réduiraient la population de tiers concernés |
-| Qualification | **Bloquant en l'état** — un tiers déployeur ne peut pas documenter sa base légale pour cette population. **Contournable par le périmètre** — c'est un travail de conception borné, traité en phase 3 |
+| **The scammer** | Legitimate interest (Art. 6(1)(f)) is defensible: security of the entity's information system, fraud prevention. The balancing test leans towards the controller |
+| **The third parties named in the exchanges** — victims, mules, bank account holders, people mentioned in attachments | [VERIFIED] This data is collected on a massive scale: `message.raw_source` keeps the full RFC822 (`Message.php:23-24`), `attachment.ocr_text` the OCR'd text (`:41-42`), the `indicator` table the IBANs, phone numbers and addresses (§7.2). **The Art. 6(1)(f) balancing test has not been done for them**, and the Art. 14 information is not given to them |
+| Art. 9 data | [VERIFIED] Nothing in the code detects or strips health, opinion or orientation data present in an email body or an OCR'd attachment. `MessageAnonymizer` (`:23-37`) masks 5 patterns — email, IBAN, BTC, ETH, phone — and **only for prompt building**, never for storage |
+| Working around it by narrowing scope | **Yes, partly.** The financial export block (§4.8 D66–D73) is already the start of the right move: it holds the 10 financial types behind a human verdict. Extending that logic to the "contact" types and putting minimisation in place at ingestion would reduce the population of third parties concerned |
+| Qualification | **Blocking as it stands** — a third-party deployer cannot document its legal basis for this population. **Can be worked around by narrowing scope** — it is bounded design work, handled in phase 3 |
 
-### C3 — Usage d'identités synthétiques
-**Gravité : contournable par le périmètre. Déclassé par rapport à S1.**
+### C3 — Use of synthetic identities
+**Severity: can be worked around by narrowing scope. Downgraded compared with S1.**
 
-[DÉDUIT] En S1 ce point était structurant : l'emploi d'une identité d'emprunt par une
-entité publique face à une personne soupçonnée relève d'un régime d'habilitation.
-En S2, l'exploitant est une entité privée qui défend son propre système : aucune
-qualité de puissance publique n'est engagée, et `DISCLAIMER.md:21` borne déjà l'usage
-à des identités **fictives** configurées par l'opérateur, sans usurpation de personne
-ou d'organisation réelles.
+[INFERRED] In S1 this point was structuring: the use of an assumed identity by a
+public body facing a suspected person falls under a clearance regime.
+In S2, the operator is a private entity defending its own system: no
+public-authority capacity is engaged, and `DISCLAIMER.md:21` already limits use
+to **fictitious** identities configured by the operator, with no impersonation of
+real people or organisations.
 
-Ce qui subsiste : le principe de **loyauté** du traitement (RGPD art. 5(1)(a)) se
-combine à C1. [DÉDUIT] Une fois C1 traité — l'interlocuteur sait qu'il parle à un
-système d'IA — l'objection de loyauté perd l'essentiel de sa force. Les deux points
-doivent donc être traités ensemble, et C3 n'a pas de solution propre.
+What remains: the **fairness** principle of processing (GDPR Art. 5(1)(a))
+combines with C1. [INFERRED] Once C1 is dealt with — the other party knows they are
+talking to an AI system — the fairness objection loses most of its force. The two
+points must therefore be handled together, and C3 has no solution of its own.
 
-Reste un contrôle à vérifier plutôt qu'à construire : [VÉRIFIÉ] `PolicyGuard`
-`AUTHORITY_PATTERNS` (`:94-122`, 22 motifs en 5 langues) bloque déjà l'usurpation
-d'autorité — police, justice, banque, administration fiscale. **Qualification :
-contournable par le périmètre**, à condition que C1 le soit.
+One control is left to verify rather than build: [VERIFIED] `PolicyGuard`
+`AUTHORITY_PATTERNS` (`:94-122`, 22 patterns in 5 languages) already blocks
+authority impersonation — police, courts, banks, tax administration. **Qualification:
+can be worked around by narrowing scope**, provided C1 can be.
 
-### C4 — Risque d'escalade et responsabilité
-**Gravité : partiellement hors de portée technique.**
+### C4 — Escalation risk and liability
+**Severity: partly outside technical reach.**
 
-| Volet | Qualification |
+| Aspect | Qualification |
 |---|---|
-| L'adversaire découvre l'automatisation et se retourne contre l'exploitant | **Hors de portée technique** pour la partie « il se retourne » ; **dans le périmètre** pour la partie « il découvre » — voir la menace T1 en partie D |
-| L'adversaire redirige l'engagement vers une victime réelle | **Contournable par le périmètre.** Contrôle existant : `OUT_OF_BAND_CHANNEL_PATTERNS` (`:159-197`, 9 motifs) empêche la persona de fournir un canal alternatif. **Non couvert** : rien n'empêche la persona de *recevoir* et de *traiter* les coordonnées d'une victime réelle transmises par l'escroc |
-| Le système instigue un paiement | **Déjà traité, partiellement.** `PaymentInstigationGuard` (S1/S2 en partie 5) avec repli déterministe de 12 jetons. **Non couvert** : la paraphrase libre pendant une panne LLM (§5 S1) |
-| Responsabilité civile de l'exploitant vis-à-vis d'un tiers lésé | **Hors de portée technique.** Relève de l'assurance et du cadre contractuel |
-| Absence de validation humaine avant envoi | **Bloquant, et dans le périmètre.** [VÉRIFIÉ] Le pipeline livré enchaîne génération et envoi sans point d'arrêt (`WF-REPLY-GENERATE-V2.json` → `WF-REPLY-SEND-v1.json`) ; `/send-email` n'est gardé que par `reply:generate` (`SendEmailController.php:48`), la même permission que la génération. Un déployeur régulé ne peut pas démontrer de contrôle sur l'acte d'engagement |
+| The adversary discovers the automation and turns against the operator | **Outside technical reach** for the "turns against" part; **in scope** for the "discovers" part — see threat T1 in Part D |
+| The adversary redirects the engagement towards a real victim | **Can be worked around by narrowing scope.** Existing control: `OUT_OF_BAND_CHANNEL_PATTERNS` (`:159-197`, 9 patterns) stops the persona from giving out an alternative channel. **Not covered**: nothing stops the persona from *receiving* and *processing* the contact details of a real victim passed on by the scammer |
+| The system instigates a payment | **Already handled, partly.** `PaymentInstigationGuard` (S1/S2 in part 5) with a deterministic 12-token fallback. **Not covered**: free paraphrase during an LLM outage (§5 S1) |
+| The operator's civil liability towards an injured third party | **Outside technical reach.** A matter for insurance and the contractual framework |
+| No human validation before sending | **Blocking, and in scope.** [VERIFIED] The shipped pipeline chains generation and sending with no stop point (`WF-REPLY-GENERATE-V2.json` → `WF-REPLY-SEND-v1.json`); `/send-email` is guarded only by `reply:generate` (`SendEmailController.php:48`), the same permission as generation. A regulated deployer cannot demonstrate control over the act of engagement |
 
-### C5 — Valeur probante des artefacts
-**Gravité : déclassée en S2 — contournable par le périmètre.**
+### C5 — Evidentiary value of the artefacts
+**Severity: downgraded in S2 — can be worked around by narrowing scope.**
 
-[DÉDUIT] En S1 c'était le point de rupture. En S2, la finalité n'est pas probatoire :
-les artefacts alimentent un SIEM et un partage CTI. L'exigence applicable devient
-celle de NIS2 art. 21(2) — fiabilité, traçabilité, intégrité — et non un régime de
-preuve. Raisonnement : X5 en partie B écarte les règles de preuve numérique pour ce
-scénario.
+[INFERRED] In S1 this was the breaking point. In S2, the purpose is not evidentiary:
+the artefacts feed a SIEM and CTI sharing. The applicable requirement becomes
+that of NIS2 Art. 21(2) — reliability, traceability, integrity — and not an
+evidentiary regime. Reasoning: X5 in Part B rules out digital evidence rules for this
+scenario.
 
-Ce qui reste exigé, et qui n'est pas satisfait : [VÉRIFIÉ] le journal d'audit est
-chaîné par HMAC mais le `REVOKE UPDATE/DELETE` est renvoyé à une étape d'exploitation
-**non documentée** (`Version2026041200100000.php:20-24` ; `rg REVOKE docs/` → ∅), la
-clé HMAC est une variable d'environnement lisible par le processus écrivain
-(`AuditHmacChainer.php:19-20`), et **12 contrôleurs sur 145 émettent un audit** — dont
-aucun des contrôleurs de suppression, ni 4 des 6 surfaces d'export (§8.7).
-**Qualification : contournable par le périmètre**, travail de conception borné.
+What is still required, and is not met: [VERIFIED] the audit log is
+HMAC-chained but the `REVOKE UPDATE/DELETE` is deferred to an operations step
+that is **not documented** (`Version2026041200100000.php:20-24`; `rg REVOKE docs/` → ∅), the
+HMAC key is an environment variable readable by the writing process
+(`AuditHmacChainer.php:19-20`), and **12 controllers out of 145 emit an audit record** — including
+none of the deletion controllers, nor 4 of the 6 export surfaces (§8.7).
+**Qualification: can be worked around by narrowing scope**, bounded design work.
 
-### C6 — Obligations de notification
-**Gravité : contournable par le périmètre, avec une échéance proche.**
+### C6 — Notification obligations
+**Severity: can be worked around by narrowing scope, with a near deadline.**
 
-| Source | Obligation | État |
+| Legal source | Obligation | Status |
 |---|---|---|
-| NIS2 art. 23 | Notification des incidents significatifs à l'autorité compétente | Obligation de l'**exploitant**. L'éditeur doit fournir de quoi la remplir : détection, horodatage fiable, export exploitable. [VÉRIFIÉ] `SIEM_PROVIDER=none` par défaut (`.env.dist:421`) — le tiers déployeur n'a **aucun export d'événement actif à l'installation** |
-| RGPD art. 33 et 34 | Notification de violation à l'autorité et communication aux personnes concernées | Obligation de l'exploitant. `docs/compliance/breach-notification-procedure.md` existe |
-| **CRA, Règlement (UE) 2024/2847** | Signalement des vulnérabilités **activement exploitées** et des incidents graves | **Obligation de l'éditeur, applicable à partir du 11 septembre 2026** — dans un mois. [VÉRIFIÉ] `SECURITY.md` prévoit un canal de signalement mais **aucune politique de versions supportées** au-delà de « main \| Yes » (`SECURITY.md:5-7`), et il n'existe **aucun tag ni release** (§0) : l'éditeur ne peut pas désigner la version affectée par une vulnérabilité |
+| NIS2 Art. 23 | Notification of significant incidents to the competent authority | An **operator** obligation. The publisher must supply what is needed to meet it: detection, reliable timestamping, usable export. [VERIFIED] `SIEM_PROVIDER=none` by default (`.env.dist:421`) — the third-party deployer has **no event export active at install time** |
+| GDPR Art. 33 and 34 | Breach notification to the authority and communication to the data subjects | An operator obligation. `docs/compliance/breach-notification-procedure.md` exists |
+| **CRA, Regulation (EU) 2024/2847** | Reporting of **actively exploited** vulnerabilities and severe incidents | **A publisher obligation, applicable from 11 September 2026** — in one month. [VERIFIED] `SECURITY.md` provides a reporting channel but **no supported-versions policy** beyond "main \| Yes" (`SECURITY.md:5-7`), and there is **no tag and no release** (§0): the publisher cannot identify the version affected by a vulnerability |
 
-### Synthèse du classement
+### Ranking summary
 
-| Rang | Blocage | Qualification | Traité en phase 3 ? |
+| Rank | Blocker | Qualification | Handled in phase 3? |
 |---|---|---|---|
-| 1 | **C1 — transparence IA (art. 50(1))** | **Bloquant, non contournable par le périmètre** | Oui — c'est l'écart n°1 |
-| 2 | **C2 — base légale pour les tiers cités** | Bloquant en l'état, contournable par le périmètre | Oui |
-| 3 | **C4b — absence de validation humaine avant envoi** | Bloquant, dans le périmètre | Oui |
-| 4 | **C6 — notification CRA côté éditeur** | Contournable, échéance au 11 septembre 2026 | Oui |
-| 5 | **C5 — intégrité et auditabilité** | Contournable par le périmètre, déclassé par rapport à S1 | Oui |
-| 6 | C3 — identités synthétiques | Contournable, sans solution propre : dépend de C1 | Traité avec C1 |
-| 7 | C4a, C4d — escalade, responsabilité civile | Hors de portée technique | Non — documenté, non construit |
+| 1 | **C1 — AI transparency (Art. 50(1))** | **Blocking, cannot be worked around by narrowing scope** | Yes — it is gap no. 1 |
+| 2 | **C2 — legal basis for the third parties named** | Blocking as it stands, can be worked around by narrowing scope | Yes |
+| 3 | **C4b — no human validation before sending** | Blocking, in scope | Yes |
+| 4 | **C6 — CRA notification on the publisher side** | Can be worked around, deadline of 11 September 2026 | Yes |
+| 5 | **C5 — integrity and auditability** | Can be worked around by narrowing scope, downgraded compared with S1 | Yes |
+| 6 | C3 — synthetic identities | Can be worked around, with no solution of its own: depends on C1 | Handled with C1 |
+| 7 | C4a, C4d — escalation, civil liability | Outside technical reach | No — documented, not built |
 
 ---
 
-## D. Modèle de menace du système lui-même
+## D. Threat model of the system itself
 
-Méthode : **STRIDE** pour la nomenclature, complété par la logique de sources de
-risque et de chemins d'attaque d'**EBIOS RM** (X4). Nomenclature adverse : **MITRE
+Method: **STRIDE** for the naming scheme, complemented by the risk-source and
+attack-path logic of **EBIOS RM** (X4). Adversary naming scheme: **MITRE
 ATLAS** (R3).
 
-### D.1 Zonage — l'hypothèse de travail
+### D.1 Zoning — the working assumption
 
-Conformément à R6, l'air-gap total est écarté : le métier du système est d'échanger
-avec des adversaires sur Internet. Le raisonnement porte sur **deux zones**.
+In line with R6, a full air gap is ruled out: the system's job is to exchange
+messages with adversaries over the Internet. The reasoning covers **two zones**.
 
 ```mermaid
 flowchart LR
-  subgraph INTERNET["Internet — non maîtrisé"]
-    ADV["Adversaire<br/>(escroc)"]
+  subgraph INTERNET["Internet — uncontrolled"]
+    ADV["Adversary<br/>(scammer)"]
     VT["VirusTotal / urlscan.io"]
-    LLMAPI["API d'inférence<br/>api.openai.com"]
+    LLMAPI["Inference API<br/>api.openai.com"]
   end
 
-  subgraph ZE["ZONE D'ENGAGEMENT — exposée"]
-    IMAP["Boîte-appât IMAP"]
+  subgraph ZE["ENGAGEMENT ZONE — exposed"]
+    IMAP["IMAP honeypot mailbox"]
     N8N["n8n<br/>1.114.3"]
-    SMTP["Transport SMTP"]
+    SMTP["SMTP transport"]
   end
 
-  subgraph ZT["ZONE DE TRAITEMENT — à isoler"]
-    API["Backend Symfony<br/>148 routes"]
-    DB[("PostgreSQL<br/>raw_source, ocr_text,<br/>indicator, profils psy.")]
-    REDIS[("Redis<br/>limiteurs, kill switch")]
+  subgraph ZT["PROCESSING ZONE — to be isolated"]
+    API["Symfony backend<br/>148 routes"]
+    DB[("PostgreSQL<br/>raw_source, ocr_text,<br/>indicator, psych. profiles")]
+    REDIS[("Redis<br/>rate limiters, kill switch")]
   end
 
-  subgraph AVAL["AVAL — consommateurs"]
-    SIEM["SIEM<br/>(défaut : none)"]
-    OCTI["OpenCTI<br/>via TAXII — ACTIF"]
+  subgraph AVAL["DOWNSTREAM — consumers"]
+    SIEM["SIEM<br/>(default: none)"]
+    OCTI["OpenCTI<br/>via TAXII — ACTIVE"]
   end
 
-  ADV -->|"1. courriel entrant"| IMAP
+  ADV -->|"1. inbound email"| IMAP
   IMAP --> N8N
   N8N -->|"2. ingest/raw"| API
-  API -->|"3. corps intégral"| LLMAPI
+  API -->|"3. full body"| LLMAPI
   API --> DB
   API --> REDIS
-  N8N -->|"4. IOC fourni par l'adversaire"| VT
+  N8N -->|"4. adversary-supplied IOC"| VT
   N8N -->|"5. reply/generate + send"| API
   API --> SMTP
-  SMTP -->|"6. réponse"| ADV
+  SMTP -->|"6. reply"| ADV
   API --> SIEM
   API --> OCTI
 
@@ -508,92 +509,91 @@ flowchart LR
   class INTERNET,ADV,VT,LLMAPI external
 ```
 
-[VÉRIFIÉ] **Ce zonage n'existe pas dans la configuration livrée.** Un seul réseau
-bridge `scambuster` (`docker-compose.yml:261-262`), aucun `internal: true`, aucune
-liste blanche de sortie, aucun proxy (`framework.yaml:17-18`). Les flèches 3 et 4
-partent donc de la zone qui devrait être isolée, directement vers Internet.
+[VERIFIED] **This zoning does not exist in the shipped configuration.** A single
+`scambuster` bridge network (`docker-compose.yml:261-262`), no `internal: true`, no
+egress allowlist, no proxy (`framework.yaml:17-18`). Arrows 3 and 4
+therefore leave from the zone that should be isolated, straight to the Internet.
 
-### D.2 Menaces — nomenclature STRIDE
+### D.2 Threats — STRIDE naming scheme
 
-| ID | Menace | STRIDE | Chemin d'attaque | Éléments de preuve | Contrôle existant | Écart résiduel |
+| ID | Threat | STRIDE | Attack path | Evidence | Existing control | Residual gap |
 |---|---|---|---|---|---|---|
-| **T1** | **L'adversaire découvre l'automatisation** | *Information disclosure* | Sondage conversationnel : injection de contradictions, questions sur le contexte, tests de latence, demande explicite « es-tu un bot ? » | Bandes de longueur contextuelles déclenchées sur accusation de bot (`PolicyGuardConfig.php:70-75` : `12/70` mots) — le produit anticipe le sondage | `FORBIDDEN_PATTERNS` (6 motifs), `SignatureStripper` (36 formules), `OperationalLeakageDetector` (LLM) | **La cadence est un révélateur non traité** : `MIN_HOURS_BETWEEN_REPLIES = 6` fixe (`ReplyCadenceService.php:27`) et un délai « humain » calculé côté n8n. Aucun contrôle ne mesure la signature temporelle de l'ensemble des conversations. **Et C1 rend cette menace juridiquement obsolète** : si l'obligation de transparence s'applique, T1 cesse d'être une menace pour devenir une exigence |
-| **T2** | **Empoisonnement délibéré du flux d'IOC** | *Tampering* | L'adversaire, ayant compris l'automatisation, choisit ses IOC : domaines de tiers innocents, IP de fournisseurs légitimes, IBAN de victimes réelles. Ces valeurs sont extraites, normalisées, corrélées en clusters, puis **exportées vers OpenCTI** | [VÉRIFIÉ] Extraction sur tout message entrant (`IocExtractionPolicy.php:23-26`) ; export TAXII **actif vers OpenCTI** (réponse B10) | `IocValidator` (sommes de contrôle IBAN/Luhn/BTC/ETH), filtre IP privées (**4 plages seulement**), liste de 12 messageries gratuites, blocage d'export financier avec verdict d'analyste (**10 types**) | **Les domaines, URL, IP et adresses courriel — l'essentiel du flux CTI — sortent sans verdict humain.** Le blocage financier ne couvre que 10 types sur ~36. Un IOC exporté vers OpenCTI n'a **ni identifiant de nœud d'origine, ni mécanisme de rétractation** (§7.7 : la table `indicator` n'a aucune purge) |
-| **T3** | **Enrichissement détourné en canal de signalisation** | *Tampering* / *Information disclosure* | [VÉRIFIÉ] `WF-EXTRACT-AND-ENRICH-IOC.json:114` soumet **la valeur d'IOC fournie par l'adversaire** à urlscan.io et VirusTotal. Un adversaire qui insère une URL unique dans son courriel et surveille les soumissions publiques urlscan **détecte l'existence du honeypot, son moment d'activation et sa cadence** | Nœuds n8n `urlScanIo` et VirusTotal (§2.3 E23–E25) | **Aucun** | **Menace non traitée.** C'est un canal latéral de découverte du honeypot, indépendant du contenu des réponses — donc invisible pour PolicyGuard et pour la porte GUARD, qui n'observent que les textes sortants |
-| **T4** | **Compromission de la zone d'engagement utilisée comme pivot** | *Elevation of privilege* | n8n `1.114.3` traite des pièces jointes non filtrées provenant d'adversaires, dans **le même réseau bridge** que PostgreSQL et Redis. Depuis n8n compromis : accès direct à la base, aux limiteurs Redis, à la clé de chiffrement de son propre magasin d'identifiants | [VÉRIFIÉ] Réseau unique (`docker-compose.yml:261-262`) ; **aucune liste blanche MIME** sur les pièces jointes (`EmailParsingService.php:275`) ; images non épinglées par empreinte (§10.3) ; identifiants IMAP/SMTP de production détenus par n8n (`check-no-vault-resurrection.sh:5-8`) | `postgres` et `redis` sans ports publiés en prod (`docker-compose.prod.yml:42,58`) ; `app` et `n8n` en loopback par défaut | **Pas de segmentation.** Le composant le plus exposé — celui qui parle IMAP à des adversaires et télécharge leurs pièces jointes — partage le réseau du magasin de données, et détient les identifiants de production |
-| **T5** | **Exfiltration par le canal LLM** | *Information disclosure* | Injection de prompt dans un courriel entrant visant à faire ressortir, dans la réponse envoyée à l'adversaire, du contexte d'autres conversations, des noms de honeypot, ou de la configuration | [VÉRIFIÉ] La détection d'injection est **purement forensique** : « does not block ingestion or modify the reply pipeline » (`PromptInjectionDetector.php:18`) ; l'audit émet une issue `'blocked'` alors que **rien n'est bloqué** (`IngestPostProcessor.php:564-577`) | `PromptInjectionPatternMatcher` (25 regex, **anglais seul**), `OPERATIONAL_LEAKAGE_PATTERNS` (10 jetons), `OperationalLeakageDetector` (LLM, **échec ouvert**) | **Le détecteur ciblant la paraphrase échoue ouvert et n'a pas de filet déterministe** (§5 S3). Les 25 motifs d'injection sont anglophones alors que le corpus est multilingue (fixtures EN/FR/DE/ES). La normalisation homoglyphe **se dégrade silencieusement si l'extension intl est absente** (`:273-274`) |
-| **T6** | **Détournement de la surcharge de prompt** | *Tampering* / *Elevation of privilege* | Un opérateur — ou un compte compromis porteur de `config:write` — modifie un prompt via `PUT /api/v1/prompt-overrides/{key}` | [VÉRIFIÉ] 6 clés surchargeables ; la surcharge **est concaténée après** les règles CORE, et le code le note lui-même : « a hostile override can add text that… » (`PromptBuilder.php:98`) | Scission CORE/EDITABLE, canari GUARD sur LLM réel avec comparaison au baseline, audit `CONFIG_CHANGED` | Le canari est **asynchrone et optionnel** (profil compose `canary`, `docker-compose.yml:168`) ; `CanaryAvailability` ne peut pas voir si l'ouvrier tourne (`:21-22`). Une surcharge peut donc être active avant toute validation |
-| **T7** | **Répudiation par l'exploitant** | *Repudiation* | Un opérateur disposant du conteneur modifie une ligne d'`audit_log` **et** recalcule la chaîne, la clé étant dans son environnement | [VÉRIFIÉ] `AuditHmacChainer.php:19-20` ; `REVOKE` non appliqué ni documenté | Chaîne HMAC-SHA256, vérification quotidienne (`scheduler.sh:91-97`) | **Détection d'altération accidentelle, pas résistance à l'exploitant.** Déclassé en S2 (C5) mais reste un écart NIS2 art. 21(2) |
-| **T8** | **Déni de service par le contenu entrant** | *Denial of service* | Courriel de très grande taille, pièce jointe de 25 Mo, corps déclenchant un retour arrière catastrophique de regex | Plafonds `MAX_SCAN_BYTES = 1 Mo` (`:79`), `MAX_REGEX_BYTES = 1 Mo`, pièce jointe 25 Mo, `PayloadSizeLimitListener` | Limiteurs Redis (8 limiteurs, §4.5 D44) | **Traité, et proportionné.** [DÉDUIT] Au regard de R5 — cadence de trafic courriel humain, quelques messages par minute au pic — les 8 limiteurs configurés sont largement dimensionnés. Aucun sur-dimensionnement à corriger ici ; c'est le seul volet du modèle de menace où l'existant suffit |
-| **T9** | **Perte de disponibilité du fournisseur d'inférence** | *Denial of service* | Panne ou coupure de l'API OpenAI | [VÉRIFIÉ] `OperationalLeakageDetector` et `PaymentInstigationGuard::check()` **échouent ouvert** dans ce cas (§5) | Repli figé `FallbackProvider`, plafond de 3 tentatives | **La panne d'inférence dégrade les garde-fous avant de dégrader le service** : les deux gardes LLM s'ouvrent, et seul le repli de 12 jetons subsiste |
-| **T10** | **Compromission de la chaîne d'approvisionnement** | *Tampering* | Image de base ou dépendance altérée | [VÉRIFIÉ] **Aucune image épinglée par empreinte** ; `nginx:alpine` en tag flottant ; gitleaks téléchargé par tag sans vérification de somme (`ci.yml:252-255`) ; SBOM produit mais **jamais publié**, artefact CI à 30 jours ; aucun tag git | Trivy CRITICAL/HIGH bloquant sur 3 images, `composer audit` bloquant, dependabot mensuel | **NIS2 art. 21(2) vise explicitement la sécurité de la chaîne d'approvisionnement.** Un déployeur ne peut ni identifier la version qu'il exécute, ni en obtenir le SBOM |
+| **T1** | **The adversary discovers the automation** | *Information disclosure* | Conversational probing: injecting contradictions, questions about the context, latency tests, an explicit "are you a bot?" | Contextual length bands triggered on a bot accusation (`PolicyGuardConfig.php:70-75`: `12/70` words) — the product anticipates the probing | `FORBIDDEN_PATTERNS` (6 patterns), `SignatureStripper` (36 formulas), `OperationalLeakageDetector` (LLM) | **Pacing is an untreated giveaway**: `MIN_HOURS_BETWEEN_REPLIES = 6` is fixed (`ReplyCadenceService.php:27`) and a "human" delay is computed on the n8n side. No control measures the timing signature across all conversations. **And C1 makes this threat legally obsolete**: if the transparency obligation applies, T1 stops being a threat and becomes a requirement |
+| **T2** | **Deliberate poisoning of the IOC feed** | *Tampering* | The adversary, having worked out the automation, picks his IOCs: domains of innocent third parties, IPs of legitimate providers, IBANs of real victims. These values are extracted, normalised, correlated into clusters, then **exported to OpenCTI** | [VERIFIED] Extraction on every inbound message (`IocExtractionPolicy.php:23-26`); TAXII export **active to OpenCTI** (answer B10) | `IocValidator` (IBAN/Luhn/BTC/ETH checksums), private IP filter (**only 4 ranges**), list of 12 free email providers, financial export block with analyst verdict (**10 types**) | **Domains, URLs, IPs and email addresses — the bulk of the CTI feed — leave without a human verdict.** The financial block covers only 10 types out of ~36. An IOC exported to OpenCTI has **neither an originating node identifier nor a retraction mechanism** (§7.7: the `indicator` table has no purge) |
+| **T3** | **Enrichment turned into a signalling channel** | *Tampering* / *Information disclosure* | [VERIFIED] `WF-EXTRACT-AND-ENRICH-IOC.json:114` submits **the IOC value supplied by the adversary** to urlscan.io and VirusTotal. An adversary who puts a unique URL in his email and watches the public urlscan submissions **detects the honeypot's existence, when it activates and its pace** | n8n nodes `urlScanIo` and VirusTotal (§2.3 E23–E25) | **None** | **Threat not handled.** It is a side channel for discovering the honeypot, independent of the content of the replies — therefore invisible to PolicyGuard and to the GUARD gate, which only observe outgoing texts |
+| **T4** | **Compromise of the engagement zone used as a pivot** | *Elevation of privilege* | n8n `1.114.3` processes unfiltered attachments coming from adversaries, on **the same bridge network** as PostgreSQL and Redis. From a compromised n8n: direct access to the database, to the Redis rate limiters, to the encryption key of its own credential store | [VERIFIED] Single network (`docker-compose.yml:261-262`); **no MIME allowlist** on attachments (`EmailParsingService.php:275`); images not pinned by digest (§10.3); production IMAP/SMTP credentials held by n8n (`check-no-vault-resurrection.sh:5-8`) | `postgres` and `redis` with no published ports in prod (`docker-compose.prod.yml:42,58`); `app` and `n8n` on loopback by default | **No segmentation.** The most exposed component — the one that speaks IMAP to adversaries and downloads their attachments — shares the network with the data store, and holds the production credentials |
+| **T5** | **Exfiltration through the LLM channel** | *Information disclosure* | Prompt injection in an inbound email aiming to surface, in the reply sent to the adversary, context from other conversations, honeypot names, or configuration | [VERIFIED] Injection detection is **purely forensic**: "does not block ingestion or modify the reply pipeline" (`PromptInjectionDetector.php:18`); the audit emits a `'blocked'` issue while **nothing is blocked** (`IngestPostProcessor.php:564-577`) | `PromptInjectionPatternMatcher` (25 regexes, **English only**), `OPERATIONAL_LEAKAGE_PATTERNS` (10 tokens), `OperationalLeakageDetector` (LLM, **fails open**) | **The detector targeting paraphrase fails open and has no deterministic safety net** (§5 S3). The 25 injection patterns are English-language while the corpus is multilingual (EN/FR/DE/ES fixtures). Homoglyph normalisation **degrades silently if the intl extension is missing** (`:273-274`) |
+| **T6** | **Abuse of the prompt override** | *Tampering* / *Elevation of privilege* | An operator — or a compromised account carrying `config:write` — modifies a prompt through `PUT /api/v1/prompt-overrides/{key}` | [VERIFIED] 6 overridable keys; the override **is concatenated after** the CORE rules, and the code notes it itself: "a hostile override can add text that…" (`PromptBuilder.php:98`) | CORE/EDITABLE split, GUARD canary on a real LLM with comparison to the baseline, `CONFIG_CHANGED` audit | The canary is **asynchronous and optional** (compose profile `canary`, `docker-compose.yml:168`); `CanaryAvailability` cannot see whether the worker is running (`:21-22`). An override can therefore be live before any validation |
+| **T7** | **Repudiation by the operator** | *Repudiation* | An operator with access to the container modifies an `audit_log` row **and** recomputes the chain, the key being in his environment | [VERIFIED] `AuditHmacChainer.php:19-20`; `REVOKE` neither applied nor documented | HMAC-SHA256 chain, daily verification (`scheduler.sh:91-97`) | **Detection of accidental tampering, not resistance to the operator.** Downgraded in S2 (C5) but remains a NIS2 Art. 21(2) gap |
+| **T8** | **Denial of service through inbound content** | *Denial of service* | Very large email, 25 MB attachment, body triggering catastrophic regex backtracking | Caps `MAX_SCAN_BYTES = 1 MB` (`:79`), `MAX_REGEX_BYTES = 1 MB`, 25 MB attachment, `PayloadSizeLimitListener` | Redis rate limiters (8 limiters, §4.5 D44) | **Handled, and proportionate.** [INFERRED] Against R5 — human email traffic pace, a few messages per minute at peak — the 8 configured rate limiters are amply sized. No over-sizing to fix here; it is the only part of the threat model where what exists is enough |
+| **T9** | **Loss of availability of the inference provider** | *Denial of service* | Outage or cut-off of the OpenAI API | [VERIFIED] `OperationalLeakageDetector` and `PaymentInstigationGuard::check()` **fail open** in that case (§5) | Frozen `FallbackProvider` fallback, cap of 3 attempts | **An inference outage degrades the guardrails before it degrades the service**: the two LLM guards open, and only the 12-token fallback remains |
+| **T10** | **Supply chain compromise** | *Tampering* | Tampered base image or dependency | [VERIFIED] **No image pinned by digest**; `nginx:alpine` on a floating tag; gitleaks downloaded by tag with no checksum verification (`ci.yml:252-255`); SBOM produced but **never published**, a 30-day CI artefact; no git tag | Trivy CRITICAL/HIGH blocking on 3 images, blocking `composer audit`, monthly dependabot | **NIS2 Art. 21(2) explicitly covers supply chain security.** A deployer can neither identify the version it runs nor obtain its SBOM |
 
-### D.3 Ce que le modèle de menace révèle sur la hiérarchie
+### D.3 What the threat model reveals about the hierarchy
 
-[DÉDUIT] Trois enseignements que la lecture contrôle par contrôle ne donnait pas.
+[INFERRED] Three lessons that a control-by-control reading did not give.
 
-**Premièrement, T3 est invisible pour tout l'appareil de sécurité existant.** Les
-garde-fous, l'oracle GUARD et la porte de non-régression n'observent **que les textes
-sortants du LLM**. La soumission d'un IOC adverse à urlscan.io est une sortie réseau
-qui ne passe par aucun d'eux. Raisonnement : `CanaryAggregate.php:29-83` ne note que
-`out_texts` ; le workflow n8n d'enrichissement n'est pas dans le périmètre du backend.
+**First, T3 is invisible to the whole existing security apparatus.** The
+guardrails, the GUARD oracle and the non-regression gate observe **only the texts
+coming out of the LLM**. Submitting an adversary IOC to urlscan.io is a network
+egress that goes through none of them. Reasoning: `CanaryAggregate.php:29-83` scores only
+`out_texts`; the n8n enrichment workflow is not within the backend's scope.
 
-**Deuxièmement, les échecs ouverts s'alignent.** T9 montre que `OperationalLeakageDetector`,
-`PaymentInstigationGuard::check()` et le brief du director s'ouvrent tous sur la même
-cause — l'indisponibilité du fournisseur d'inférence. [DÉDUIT] Une panne unique dégrade
-simultanément trois gardes, et le repli déterministe résiduel se limite à 12 jetons de
-vocabulaire de paiement. Raisonnement : les trois classes capturent `\Throwable` et
-retournent une valeur permissive (§5, S1/S3/S6).
+**Second, the fail-open paths line up.** T9 shows that `OperationalLeakageDetector`,
+`PaymentInstigationGuard::check()` and the director brief all open on the same
+cause — unavailability of the inference provider. [INFERRED] A single outage degrades
+three guards at once, and the remaining deterministic fallback is limited to 12
+payment-vocabulary tokens. Reasoning: the three classes catch `\Throwable` and
+return a permissive value (§5, S1/S3/S6).
 
-**Troisièmement, C1 reconfigure T1.** Si l'obligation de transparence de l'art. 50(1)
-s'applique, la menace « l'adversaire découvre l'automatisation » cesse d'exister comme
-menace : elle devient une exigence de conception. [DÉDUIT] Une part significative de
-l'appareil de sécurité du produit — `FORBIDDEN_PATTERNS`, `SignatureStripper`, le code
-`automation_reveal` de l'oracle, les bandes contextuelles de `PolicyGuardConfig` —
-protège un invariant que le droit applicable au scénario retenu interdit. C'est
-l'observation la plus structurante de cette phase, et elle conditionne la phase 2.
-
----
-
-## Ce que je n'ai pas pu vérifier — phase 1
-
-1. Le libellé exact de l'article 50(1) n'a pas pu être lu sur EUR-Lex, bloqué par le
-   proxy de sortie : le texte cité provient de sources secondaires concordantes.
-   Quelqu'un peut-il confirmer le libellé sur le Journal officiel de l'Union européenne ?
-2. Les lignes directrices de la Commission du 20 juillet 2026 sur l'article 50
-   précisent-elles ce qu'est une divulgation « perceptible dans l'interaction » pour un
-   canal **asynchrone** comme le courriel — en-tête, signature, première ligne du corps ?
-3. La clause « unless this is obvious […] » a-t-elle reçu une interprétation qui
-   pourrait couvrir un échange par courriel avec un escroc professionnel ?
-4. L'article 50(2), sur le marquage lisible par machine des contenus synthétiques,
-   s'applique-t-il à un courriel généré, et si oui l'éditeur est-il fournisseur ou
-   déployeur au sens de cette disposition ?
-5. ScamBuster relève-t-il de l'exemption logiciel libre du CRA, ou de la catégorie
-   « open source steward », et cela change-t-il l'échéance du 11 septembre 2026 ?
-6. Le déployeur cible est-il établi dans un État membre ayant achevé sa transposition
-   de NIS2, ce qui rendrait N2–N4 immédiatement exigibles ?
-7. Le déployeur cible est-il une entité **essentielle** ou **importante** au sens de
-   NIS2 — les obligations de supervision diffèrent ?
-8. Existe-t-il une doctrine d'autorité de protection des données sur la qualification
-   des boîtes-appâts et l'engagement automatisé avec un expéditeur non sollicité ?
-9. Le partage vers OpenCTI est-il unidirectionnel, ou le nœud OpenCTI redistribue-t-il
-   vers des tiers — ce qui déterminerait si la question de responsabilité conjointe de
-   S3 se pose déjà de fait dans S2 ?
-10. Les IOC déjà exportés vers OpenCTI comportent-ils des données personnelles de
-    tiers non escrocs, et existe-t-il un moyen de les retirer après coup ?
-11. La version de MITRE ATLAS et celle du NIST AI RMF n'ont pas été épinglées : cela
-    a-t-il une incidence sur des exigences que je n'aurais pas identifiées ?
-12. `SecNumCloud` en version 3.2 et `EBIOS RM` mis à jour en 2024 : ces références de
-    version, non confirmées sur source officielle, sont-elles exactes — sachant que les
-    deux sont écartés du périmètre ?
-13. Le proxy de sortie de cet environnement d'audit a bloqué trois sources normatives
-    officielles : d'autres textes ont-ils été écartés de mon analyse pour cette raison
-    sans que je m'en aperçoive ?
-14. L'entité déployeuse envisage-t-elle de qualifier le système d'IA à haut risque au
-    titre d'une autre disposition de l'AI Act que l'article 50, ce qui déclencherait un
-    corpus d'obligations bien plus lourd ?
+**Third, C1 reconfigures T1.** If the Art. 50(1) transparency obligation
+applies, the threat "the adversary discovers the automation" stops existing as a
+threat: it becomes a design requirement. [INFERRED] A significant part of
+the product's security apparatus — `FORBIDDEN_PATTERNS`, `SignatureStripper`, the
+oracle's `automation_reveal` code, the contextual bands in `PolicyGuardConfig` —
+protects an invariant that the law applicable to the chosen scenario forbids. It is
+the most structuring observation of this phase, and it conditions phase 2.
 
 ---
 
-*Fin de la phase 1.*
+## What I could not verify — phase 1
 
+1. The exact wording of Article 50(1) could not be read on EUR-Lex, blocked by the
+   egress proxy: the text quoted comes from concordant secondary sources.
+   Can someone confirm the wording against the Official Journal of the European Union?
+2. Do the Commission guidelines of 20 July 2026 on Article 50
+   specify what a disclosure "perceptible within the interaction" is for an
+   **asynchronous** channel such as email — header, signature, first line of the body?
+3. Has the clause "unless this is obvious […]" received an interpretation that
+   could cover an email exchange with a professional scammer?
+4. Does Article 50(2), on machine-readable marking of synthetic content,
+   apply to a generated email, and if so is the publisher a provider or a
+   deployer within the meaning of that provision?
+5. Does ScamBuster fall under the CRA free software exemption, or under the
+   "open source steward" category, and does that change the 11 September 2026 deadline?
+6. Is the target deployer established in a Member State that has completed its
+   NIS2 transposition, which would make N2–N4 immediately enforceable?
+7. Is the target deployer an **essential** or an **important** entity within the
+   meaning of NIS2 — the supervision obligations differ?
+8. Is there any data protection authority doctrine on how honeypot
+   mailboxes and automated engagement with an unsolicited sender are qualified?
+9. Is the sharing to OpenCTI one-way, or does the OpenCTI node redistribute
+   to third parties — which would determine whether the S3 joint controllership
+   question already arises in fact in S2?
+10. Do the IOCs already exported to OpenCTI contain personal data of
+    non-scammer third parties, and is there any way to withdraw them after the fact?
+11. The versions of MITRE ATLAS and of the NIST AI RMF were not pinned: does that
+    affect any requirements I may not have identified?
+12. `SecNumCloud` in version 3.2 and `EBIOS RM` updated in 2024: are these
+    version references, unconfirmed against an official source, accurate — knowing that
+    both are ruled out of scope?
+13. The egress proxy of this audit environment blocked three official legal
+    sources: were other texts left out of my analysis for that reason
+    without my noticing?
+14. Is the deploying entity considering qualifying the system as high-risk AI
+    under a provision of the AI Act other than Article 50, which would trigger a
+    far heavier body of obligations?
+
+---
+
+*End of phase 1.*
