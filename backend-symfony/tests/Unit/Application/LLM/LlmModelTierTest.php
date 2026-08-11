@@ -13,9 +13,10 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
 /**
- * Behaviour proof for the base/strong model tiering: a base-tier service relies
- * on the provider's configured model (no per-call override), a strong-tier
- * service uses its injected model — neither hardcodes an OpenAI slug.
+ * Behaviour proof for the base/strong model tiering: a base-tier service passes
+ * its injected base model to the call, a strong-tier service passes its injected
+ * strong model — neither hardcodes an OpenAI slug, so the resolved model always
+ * follows the configured provider.
  */
 final class LlmModelTierTest extends TestCase
 {

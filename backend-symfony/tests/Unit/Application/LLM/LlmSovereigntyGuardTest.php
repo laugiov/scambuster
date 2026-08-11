@@ -39,7 +39,13 @@ final class LlmSovereigntyGuardTest extends TestCase
     {
         $offenders = [];
 
-        foreach ($this->phpFiles(self::SRC . '/Application') as $path) {
+        foreach ($this->phpFiles(self::SRC) as $path) {
+            // Provider clients legitimately name their own default model; the
+            // pricing table maps model→price. Neither selects a model for a call.
+            if (str_contains($path, 'src/Infrastructure/LLM/Provider/') || str_ends_with($path, 'CostEstimator.php')) {
+                continue;
+            }
+
             $src = (string) file_get_contents($path);
 
             // A model literal placed into an options/log array reaches the
