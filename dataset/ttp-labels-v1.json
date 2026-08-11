@@ -1,0 +1,1086 @@
+{
+  "$comment": "Human-validated TTP labels for the public ScamBuster dataset sample (Spec 004). Every inbound message has a slot; `annotated` flips to true when a human has judged it, including when the judgement is 'no TTP present' and `ttps` stays empty. Validate with scripts/standards/validate-dataset-labels.py.",
+  "dataset_version": "1.0.0-unlabelled",
+  "dataset_file": "scambuster-dataset-sample.json",
+  "taxonomy_version": "1.0",
+  "codebook_version": "1.0.0",
+  "license": "CC-BY-4.0",
+  "license_status": "proposed — pending project owner confirmation (Spec 004 FR-005)",
+  "annotation_status": "not started",
+  "double_annotated": [],
+  "agreement": null,
+  "messages": [
+    {
+      "conversation_id": "317f4c27-d6e3-49a8-8045-d441c46c3cab",
+      "message_index": 0,
+      "body_sha256": "cfc7d550864d3dbb2be6aed2fe4449a3edaaa987a60389aa8359587839933805",
+      "body_length": 1221,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "317f4c27-d6e3-49a8-8045-d441c46c3cab",
+      "message_index": 2,
+      "body_sha256": "8989d7bcc06f7aa8d33e74b97a747dbe89cd788469cf8b6cbc168ff72513affb",
+      "body_length": 1078,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "317f4c27-d6e3-49a8-8045-d441c46c3cab",
+      "message_index": 4,
+      "body_sha256": "b97c9271b3daf97711927593669732b0096124cac4e7bbe1d329f10191197b11",
+      "body_length": 1164,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "317f4c27-d6e3-49a8-8045-d441c46c3cab",
+      "message_index": 6,
+      "body_sha256": "63ea5ec8f8ce69f4d32a645d534efdc36a268ddc29b3b070ad06fc9b0c5ff4e5",
+      "body_length": 1056,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "91fee0e0-f5a4-4313-816d-5a933c56f48c",
+      "message_index": 0,
+      "body_sha256": "c6f48f4298b7581d42d38b85849d153dc46b89fb87db8bfc3a21f425b1e89023",
+      "body_length": 957,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "91fee0e0-f5a4-4313-816d-5a933c56f48c",
+      "message_index": 2,
+      "body_sha256": "da0058fcfbc482575ebc2beb3c5b3ae9133e376d488eb02cd1f7ce0831b82bce",
+      "body_length": 1108,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "91fee0e0-f5a4-4313-816d-5a933c56f48c",
+      "message_index": 4,
+      "body_sha256": "e5601c37ed96fa1fdd7ab19f04fab7e99337940072522bbc5e175c3e21b3d210",
+      "body_length": 1137,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "91fee0e0-f5a4-4313-816d-5a933c56f48c",
+      "message_index": 6,
+      "body_sha256": "0cd79a0f25ecb023e770bae7ead45470536346377c22d2bf6e5c3174f4043d16",
+      "body_length": 1085,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "28232fd3-f891-4b09-8876-bdd0f2583073",
+      "message_index": 0,
+      "body_sha256": "c3b5addc1aaa77220280aa0ab7ecaeaaea828ad5ede29749192eb3c9eba000cc",
+      "body_length": 1484,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "28232fd3-f891-4b09-8876-bdd0f2583073",
+      "message_index": 2,
+      "body_sha256": "783b70c3cea5bfd02e5d5d78b667c68350d9c11414ff9b787969568bf86f60f6",
+      "body_length": 1199,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "28232fd3-f891-4b09-8876-bdd0f2583073",
+      "message_index": 4,
+      "body_sha256": "09fcda195e4638c9a99e2ca5351d1aa9641ea11638baebf3df42727b8e6b7f75",
+      "body_length": 1089,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "28232fd3-f891-4b09-8876-bdd0f2583073",
+      "message_index": 6,
+      "body_sha256": "77e7f2b00509ec03a4fd2c6e385ef35a49550ea96f60df9c96e635eb3fa1432b",
+      "body_length": 916,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "ca44c539-291e-4979-8f4c-c0af04411f8c",
+      "message_index": 0,
+      "body_sha256": "8951a2b05e638eedcf94286dee25c3bf9893a26e8511574f2fb760c7d94d7ee1",
+      "body_length": 1567,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "ca44c539-291e-4979-8f4c-c0af04411f8c",
+      "message_index": 2,
+      "body_sha256": "e755b4b35cc757222294b3d96dcf1f4d29f463662b9cd6bf6aaca11994519b8d",
+      "body_length": 1141,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "ca44c539-291e-4979-8f4c-c0af04411f8c",
+      "message_index": 4,
+      "body_sha256": "0518078ca7f3ef9ab8d2d36a7d5645b6748313e58828035fb0a604c127077e3c",
+      "body_length": 1060,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "651b3586-d5ac-4eb0-8c9a-a131dca23fd6",
+      "message_index": 0,
+      "body_sha256": "2d6a70def7926b7b2ca8421a238c547dff64b4e5c34d4f3d62c39b7f0f203abd",
+      "body_length": 1425,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "651b3586-d5ac-4eb0-8c9a-a131dca23fd6",
+      "message_index": 2,
+      "body_sha256": "bcb53b84998078cce40716858ca4876b3f489b7b1959d48b23868e4c450175a1",
+      "body_length": 1364,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "651b3586-d5ac-4eb0-8c9a-a131dca23fd6",
+      "message_index": 4,
+      "body_sha256": "2babb5ba88e1d2185ce06a65a409a0e239ed1eef8fc49d2708e917ee7bb0f00b",
+      "body_length": 976,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "651b3586-d5ac-4eb0-8c9a-a131dca23fd6",
+      "message_index": 6,
+      "body_sha256": "5ce650397ca2e95a427caf340bf92107a47f9b01e82a5ce36a9f97124ecb95eb",
+      "body_length": 1341,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "33c37806-2892-46fd-bd22-1d7818d39440",
+      "message_index": 0,
+      "body_sha256": "14dc26c2d4e617c41dbe620aabcbd563c397865b7f5d9df2e793e210ebc1970f",
+      "body_length": 1529,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "33c37806-2892-46fd-bd22-1d7818d39440",
+      "message_index": 2,
+      "body_sha256": "2d6ac4ddc8a61341a87760a9d20db0ec2f3ce92b4a12415e0c9a7382adb7202f",
+      "body_length": 1012,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "33c37806-2892-46fd-bd22-1d7818d39440",
+      "message_index": 4,
+      "body_sha256": "d46164bdcd6c3ea6b69997a2184d98239b4d503259cf433c2a0791d8f4e08fe4",
+      "body_length": 865,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "517f2b23-b417-4443-935d-0d0ea526c5b1",
+      "message_index": 0,
+      "body_sha256": "608480f44ebea927d961eb2a5e760a23ae083b892aefda2082d068f4e93071ee",
+      "body_length": 1388,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "517f2b23-b417-4443-935d-0d0ea526c5b1",
+      "message_index": 2,
+      "body_sha256": "f3d795a7816340006684b73d2e73c84281fa4b0bb4a7cc01e7bbae713b649a84",
+      "body_length": 1208,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "517f2b23-b417-4443-935d-0d0ea526c5b1",
+      "message_index": 4,
+      "body_sha256": "d8128a8acf1d438a73869778e528d0e523d3519e90a096ed3d0f4fe0228364a0",
+      "body_length": 967,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "517f2b23-b417-4443-935d-0d0ea526c5b1",
+      "message_index": 6,
+      "body_sha256": "4e7432ee2bdcc7ef26e083372f31be97943c6c8f96ccbb4da014b6fb558b5d2d",
+      "body_length": 1078,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "66b3274b-cbb7-4e70-be75-01adb6f0e7d5",
+      "message_index": 0,
+      "body_sha256": "cd22d480c8b8251a2ac50bf0f0f61373cb196a11013eb19688991e02696cf28d",
+      "body_length": 1380,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "66b3274b-cbb7-4e70-be75-01adb6f0e7d5",
+      "message_index": 2,
+      "body_sha256": "b64626c64fe2fe772cb5a97bc0fdcd28cdeb4f53e0042d04894cc6863024f020",
+      "body_length": 1098,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "66b3274b-cbb7-4e70-be75-01adb6f0e7d5",
+      "message_index": 4,
+      "body_sha256": "ef65370eba05f5ef6b767ede66bc7979be018481bb8b67f0cb3a595aeb0a2e8b",
+      "body_length": 1093,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "4529f6e8-9830-4229-97af-443e2686ec37",
+      "message_index": 0,
+      "body_sha256": "1398891c2dbfe774f1393224fe0dd92bde8f32730c79dd4abdfabdf86a80d938",
+      "body_length": 1485,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "4529f6e8-9830-4229-97af-443e2686ec37",
+      "message_index": 2,
+      "body_sha256": "4dab81d83ff053b9fffa44bb5c72e1c97b380847719be000fde83958502f8e1b",
+      "body_length": 949,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "4529f6e8-9830-4229-97af-443e2686ec37",
+      "message_index": 4,
+      "body_sha256": "55b41fd1db40e55d70e42b0ca05a42f31b20c9192860b89f0be261a562bcb993",
+      "body_length": 948,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "bd7dee3f-6c92-4dd2-8e1c-d279e1e6b2a0",
+      "message_index": 0,
+      "body_sha256": "9da156208e59e4d8495597239e8680539a5d41e8ae3b853054b8c885b8a30bbf",
+      "body_length": 1299,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "bd7dee3f-6c92-4dd2-8e1c-d279e1e6b2a0",
+      "message_index": 2,
+      "body_sha256": "d011b2f2f9a7db8cdf0e75b2d9e6943dc2a3753ba9eb707910cc0e1d10170894",
+      "body_length": 1112,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "bd7dee3f-6c92-4dd2-8e1c-d279e1e6b2a0",
+      "message_index": 4,
+      "body_sha256": "f3301e884e13f580f9deea8eb0c2836102b1b072b0521bc5b94ad194726877fa",
+      "body_length": 1147,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "bd7dee3f-6c92-4dd2-8e1c-d279e1e6b2a0",
+      "message_index": 6,
+      "body_sha256": "e6eb82ab17148e3a3229d2b9ed2fe1779f8cb5fdcd6bb7b858c869ccee4cb9c6",
+      "body_length": 190,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "c883df96-415c-49ce-a18a-5d5d924c12d9",
+      "message_index": 0,
+      "body_sha256": "e2d5b51d13573f6164a2136723b05b45948e7639d6878cd46fe737891a3b5281",
+      "body_length": 1294,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "c883df96-415c-49ce-a18a-5d5d924c12d9",
+      "message_index": 2,
+      "body_sha256": "1a8680107d2a3b10695b8f3ab58d52637833c764d2db4bb1612a05159a37da76",
+      "body_length": 1049,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "c883df96-415c-49ce-a18a-5d5d924c12d9",
+      "message_index": 4,
+      "body_sha256": "327e12578647febb551b404583fdebcba2cea4c91045214947143ca3859ec738",
+      "body_length": 1020,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "c883df96-415c-49ce-a18a-5d5d924c12d9",
+      "message_index": 6,
+      "body_sha256": "1c2df8ee421069858b458b1ca2ddcefc4dba3c07c367b2eea67f6506c3cf11df",
+      "body_length": 1135,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "72e8063e-3f8f-4178-b4a8-b4bd195893d7",
+      "message_index": 0,
+      "body_sha256": "5e73be3d684a77089624fbd7dc4fc5bc40e46842d96d766857835d22d349d728",
+      "body_length": 1552,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "72e8063e-3f8f-4178-b4a8-b4bd195893d7",
+      "message_index": 2,
+      "body_sha256": "d024036f5711ae084b082082c267f329860b54971b6f0af93a3b2520b833bdcb",
+      "body_length": 1129,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "72e8063e-3f8f-4178-b4a8-b4bd195893d7",
+      "message_index": 4,
+      "body_sha256": "e8ce483d318f2a937d956398602f1989e3df03af267e6cb7c5abad50d52bd9c6",
+      "body_length": 1055,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "72e8063e-3f8f-4178-b4a8-b4bd195893d7",
+      "message_index": 6,
+      "body_sha256": "e6745523cb3c4079fbcb12321b0667480a96e1fc819d9c64c2fc8dae38d99fd5",
+      "body_length": 247,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "61226289-cf62-4df1-be2f-2fc98502c7b5",
+      "message_index": 0,
+      "body_sha256": "4317c9c96f7c1301d95a656f4871f1866ae397b69b5d6e31da9e4cdbb8c074db",
+      "body_length": 1303,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "61226289-cf62-4df1-be2f-2fc98502c7b5",
+      "message_index": 2,
+      "body_sha256": "51dffb13924c57f7c19418950435ef2d25ef935539cb366608954e02f6e8fdcf",
+      "body_length": 943,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "61226289-cf62-4df1-be2f-2fc98502c7b5",
+      "message_index": 4,
+      "body_sha256": "cf61dd5475cecd6febe22eec904ac13a04c3fb9e2663f3fd5be7a48c4ff5b1bc",
+      "body_length": 881,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "61226289-cf62-4df1-be2f-2fc98502c7b5",
+      "message_index": 6,
+      "body_sha256": "ae1f8bc064ca8f7bdb1c2a0fb271d1ae6cff936a4d7f104f4aa67fc404fb4d39",
+      "body_length": 1155,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "dd2b890f-c975-4be2-bf6b-bbe8c31af3e6",
+      "message_index": 0,
+      "body_sha256": "17e0e5b36df6b9ff2edaaeab45d1118f4161396557237363c6e4729351176c97",
+      "body_length": 1387,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "dd2b890f-c975-4be2-bf6b-bbe8c31af3e6",
+      "message_index": 2,
+      "body_sha256": "d3d5c5c09a1146fef9ca6ee3005f82aa77ba32431d7574af0e1f8065b952a1f9",
+      "body_length": 1046,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "dd2b890f-c975-4be2-bf6b-bbe8c31af3e6",
+      "message_index": 4,
+      "body_sha256": "e52bb9a156931e290003e47f24f750b8a1590d3b1bcf7d50de3cfd6e22dc5934",
+      "body_length": 909,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "dd2b890f-c975-4be2-bf6b-bbe8c31af3e6",
+      "message_index": 6,
+      "body_sha256": "e8dc8c1a9a33260acd9dd9526e41410e5ee56280ab740b89f459633e2b1d6342",
+      "body_length": 750,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "48611676-66a9-465e-adc3-4036a454ae32",
+      "message_index": 0,
+      "body_sha256": "e19b6c8de88bcf752dabe81c85a6f629bb615709563040d851e6ee2d74c5577d",
+      "body_length": 1731,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "48611676-66a9-465e-adc3-4036a454ae32",
+      "message_index": 2,
+      "body_sha256": "c9565d5627634772ea1bb637c22a0cf6ac89c8989abd1f6cc3735444e3ecf145",
+      "body_length": 953,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "48611676-66a9-465e-adc3-4036a454ae32",
+      "message_index": 4,
+      "body_sha256": "db08bb43941a8a35f1c213c9d716b0eb4addc6348b56c157e68778af33d24b4f",
+      "body_length": 1084,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "20d91a32-9c46-477c-aee9-c7b8772fdc33",
+      "message_index": 0,
+      "body_sha256": "1a37d539a5d35a6d6c1eefc67555ded04e3df64ab68ab3735aa29702eda340c9",
+      "body_length": 1481,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "20d91a32-9c46-477c-aee9-c7b8772fdc33",
+      "message_index": 2,
+      "body_sha256": "4f2434c890cc6d0faa5b193e8db25c79542252a0d8cf492471c04a66aa654342",
+      "body_length": 1367,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "20d91a32-9c46-477c-aee9-c7b8772fdc33",
+      "message_index": 4,
+      "body_sha256": "d4f5f14aeb75a1ac526793e9f74df645fb18882af3197bff5d4d2fa44553aff9",
+      "body_length": 1047,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "20d91a32-9c46-477c-aee9-c7b8772fdc33",
+      "message_index": 6,
+      "body_sha256": "7c3c4fcff49cd2bb7287e84c28d8a744f90e7b0d34307f2af3d1d7e2f0b8db1b",
+      "body_length": 1077,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "97ba2d05-e727-48c9-a10b-c587f4d83aeb",
+      "message_index": 0,
+      "body_sha256": "21d49e5ccc825e5c4ed77b31b60e68c446c4d86e235fdacb42ffe1e771e2b79b",
+      "body_length": 1969,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "97ba2d05-e727-48c9-a10b-c587f4d83aeb",
+      "message_index": 2,
+      "body_sha256": "1ee78146f6d46d99278d414977ae51f7ceb663a32befcd9381c9092238e7e4e0",
+      "body_length": 980,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "97ba2d05-e727-48c9-a10b-c587f4d83aeb",
+      "message_index": 4,
+      "body_sha256": "09365289d4beca5ec314dfdd20e018434f129c6613db0a2de141fffca351c5ff",
+      "body_length": 895,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "97ba2d05-e727-48c9-a10b-c587f4d83aeb",
+      "message_index": 6,
+      "body_sha256": "4bc3dfadebc74dcc6065733c12bc777bc72d5a7e5a71df4023ea51dd5ed38703",
+      "body_length": 862,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "97ba2d05-e727-48c9-a10b-c587f4d83aeb",
+      "message_index": 8,
+      "body_sha256": "68a7f58c37958fc71f3e05add08eab4c9de32a1b66cf851db11ed49528979bc6",
+      "body_length": 246,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "af295f86-9721-418e-b0a9-5e3d2991e279",
+      "message_index": 0,
+      "body_sha256": "395cd06725cb0a88ec0f2ddde02df69399a60f220fa1d5ceccc15cf66d27a2c6",
+      "body_length": 1465,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "af295f86-9721-418e-b0a9-5e3d2991e279",
+      "message_index": 2,
+      "body_sha256": "4732357152bac9121e03735b063e2096f449e4e989735c3fd14ca1576189761e",
+      "body_length": 1089,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "af295f86-9721-418e-b0a9-5e3d2991e279",
+      "message_index": 4,
+      "body_sha256": "66c8ff6f4304c1877b9fdc19a2df945d0b5661e02868dbf49f74f84472993354",
+      "body_length": 1155,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "af295f86-9721-418e-b0a9-5e3d2991e279",
+      "message_index": 6,
+      "body_sha256": "57b6cbfc17a8c9ec760e204900b3b0615d08d9c6e0803430fe8cc106bc6b4e66",
+      "body_length": 1056,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b8df35d1-9d63-4f1a-b76f-10a58a1e081a",
+      "message_index": 0,
+      "body_sha256": "60f04b9b17c41ecea916e9057b19da8ed3154c145efcec6de594c84a1f17ce7a",
+      "body_length": 1809,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b8df35d1-9d63-4f1a-b76f-10a58a1e081a",
+      "message_index": 2,
+      "body_sha256": "0982940ce03eebbe8d313ebce14a233e2a07d28b564eea61d359c7c08697c68a",
+      "body_length": 1009,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b8df35d1-9d63-4f1a-b76f-10a58a1e081a",
+      "message_index": 4,
+      "body_sha256": "0a633456af28324991330e25b6bdeb0358f8094553a7764c67c18cf08e2326a5",
+      "body_length": 1261,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b8df35d1-9d63-4f1a-b76f-10a58a1e081a",
+      "message_index": 6,
+      "body_sha256": "99fab668a94d4490b07e84d8670329cd32f3f88db7bb7ca5cf0c4c8775c754c2",
+      "body_length": 1299,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b8df35d1-9d63-4f1a-b76f-10a58a1e081a",
+      "message_index": 8,
+      "body_sha256": "5f8be13ace5876d53c018048a7f5b633e47d7d5e73435a3022dcf61f4e0c78e5",
+      "body_length": 938,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "1dc8d7c1-9567-4147-86cf-d8102983d32a",
+      "message_index": 0,
+      "body_sha256": "b7b8ccb8fa2b5b8b5e2ed6c393cc62abf6c74df2f852920a716908ef0a8956f8",
+      "body_length": 1272,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "1dc8d7c1-9567-4147-86cf-d8102983d32a",
+      "message_index": 2,
+      "body_sha256": "8d489c69f4e1484c63776bf8d03c07e7b0ca06f031491a006fb8bcbc6554a346",
+      "body_length": 1214,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "1dc8d7c1-9567-4147-86cf-d8102983d32a",
+      "message_index": 4,
+      "body_sha256": "38f993e8186aef672e2e38280d81c379693cbd3b41ff2abe6099c5ac0d968cd6",
+      "body_length": 1053,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "1dc8d7c1-9567-4147-86cf-d8102983d32a",
+      "message_index": 6,
+      "body_sha256": "8e5494dae30eea7505204a5415a4ef71a164376b3c542c451c19988a82499a28",
+      "body_length": 1202,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "1dc8d7c1-9567-4147-86cf-d8102983d32a",
+      "message_index": 8,
+      "body_sha256": "92b24c5664e6d7125453401d953893d1b2c22c734b0b92b9fc432303aef9d5b5",
+      "body_length": 1058,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "8f202f3a-f0f0-4038-b056-a767e9a619c3",
+      "message_index": 0,
+      "body_sha256": "f56e270cec605fb6b4b65b995f3c8437015670cf6d4f423f7090c78634166af2",
+      "body_length": 1321,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "8f202f3a-f0f0-4038-b056-a767e9a619c3",
+      "message_index": 2,
+      "body_sha256": "c97cb60b086bc6479bd8ca3d62a4ec3c677603f1c0324054ee4ba56ecd181834",
+      "body_length": 901,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "8f202f3a-f0f0-4038-b056-a767e9a619c3",
+      "message_index": 4,
+      "body_sha256": "f3680e69eeb6955664701bed448bf3fe01dbe8f035bf79a456b9f9f7053d18f8",
+      "body_length": 869,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "8f202f3a-f0f0-4038-b056-a767e9a619c3",
+      "message_index": 6,
+      "body_sha256": "bf914b208e7cf53fac88c42ff4dbcc1a0ef345db673d29650471b9fc3d726921",
+      "body_length": 916,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b1c021cf-b597-432b-8d1b-7954b28c6429",
+      "message_index": 0,
+      "body_sha256": "98e0cd73b2275c9bb8e712a2a4625f0ef36496d40824e97b7300d9079af04be6",
+      "body_length": 1431,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b1c021cf-b597-432b-8d1b-7954b28c6429",
+      "message_index": 2,
+      "body_sha256": "74bac821d917cfef1b1883cf248e1191bb0384f2c951d31e677093165677f75c",
+      "body_length": 915,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b1c021cf-b597-432b-8d1b-7954b28c6429",
+      "message_index": 4,
+      "body_sha256": "ed8de27a8e2cf5e29091b463399b5d2a51eda52cf006c43b2c6b362140cec6f6",
+      "body_length": 927,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "b1c021cf-b597-432b-8d1b-7954b28c6429",
+      "message_index": 6,
+      "body_sha256": "e83a247985ea3caa061e725c765efb6be16d7fd1d97a3e87593ad13853f2f2a0",
+      "body_length": 1081,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "4fb5af6b-1c03-4f5f-bd2e-551eef26db48",
+      "message_index": 0,
+      "body_sha256": "50f9835278d96479c9353a9faf0d5a5e00effb171efabd739c105e62487fd1f9",
+      "body_length": 1842,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "4fb5af6b-1c03-4f5f-bd2e-551eef26db48",
+      "message_index": 2,
+      "body_sha256": "03a282f21b89dda0d372a5385425db7bbb81d1a2e46b45ea8e49e75c5507e92c",
+      "body_length": 914,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "4fb5af6b-1c03-4f5f-bd2e-551eef26db48",
+      "message_index": 4,
+      "body_sha256": "8d2141e17c7cc2ed4d2e3017e96cf6537a03bd25862d96b51d04dee971abdf9d",
+      "body_length": 1207,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "15bd6565-5340-4a97-b4aa-b165f33d0085",
+      "message_index": 0,
+      "body_sha256": "30823b33cf345c2dbafe2bc8aaebd464d0ba989824ba57463ffd5a25d6ae14d9",
+      "body_length": 1480,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "15bd6565-5340-4a97-b4aa-b165f33d0085",
+      "message_index": 2,
+      "body_sha256": "1c028a942c12d4ce0b508b934562b45f505ba90c021c47ca48005ec330ee1e86",
+      "body_length": 986,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "15bd6565-5340-4a97-b4aa-b165f33d0085",
+      "message_index": 4,
+      "body_sha256": "cd472153b1fe4c5a8d36a7d1c1859b7a045937e301cf729fca7c2adad12acc54",
+      "body_length": 938,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "15bd6565-5340-4a97-b4aa-b165f33d0085",
+      "message_index": 6,
+      "body_sha256": "59cc6aaaa659fae49bf9537608a94b0ec0a18d44e4aacdc686e1d74d8f8bbf3a",
+      "body_length": 1045,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "e94d9404-3767-4ee4-9d48-0be03315977b",
+      "message_index": 0,
+      "body_sha256": "786b321ea8addd7f4b33719c46f9a8384b0588eb00c88a550efe6773105071eb",
+      "body_length": 1555,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "e94d9404-3767-4ee4-9d48-0be03315977b",
+      "message_index": 2,
+      "body_sha256": "37ec67b624d86bd40e6cebe3383fd74bd78fd5f9303126f1364fea4ab29c6d90",
+      "body_length": 1085,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "e94d9404-3767-4ee4-9d48-0be03315977b",
+      "message_index": 4,
+      "body_sha256": "03f6a41aaa48cfeec6beba0db49c378bc8eb9449c3a178a9e98e5e2cb96ce3c9",
+      "body_length": 1183,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "e94d9404-3767-4ee4-9d48-0be03315977b",
+      "message_index": 6,
+      "body_sha256": "d70023412528449abcc848db1b6643d0cc9c34b0d09f4917e5863be49e922ba2",
+      "body_length": 847,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a6d0a8b4-3f8d-44a0-b2b9-b0d5d968446c",
+      "message_index": 0,
+      "body_sha256": "74388f1e72ba149d0a0d7a68e2104c3cf7778278f88511285d7ddedcc0b61006",
+      "body_length": 1511,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a6d0a8b4-3f8d-44a0-b2b9-b0d5d968446c",
+      "message_index": 2,
+      "body_sha256": "05aecef090a5017a683fbfe643b4275e4adfc254746ec414298aa46798578d76",
+      "body_length": 1112,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a6d0a8b4-3f8d-44a0-b2b9-b0d5d968446c",
+      "message_index": 4,
+      "body_sha256": "d825f5aac52dde0e9ca965ea88d956f70fe89fc5cda50344d4bb94af51289440",
+      "body_length": 1019,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a6d0a8b4-3f8d-44a0-b2b9-b0d5d968446c",
+      "message_index": 6,
+      "body_sha256": "31a27517517002d591e6dfba4ac9bcdf21a4a5f02abc2d616cc8ba314eaea97f",
+      "body_length": 986,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a6d0a8b4-3f8d-44a0-b2b9-b0d5d968446c",
+      "message_index": 8,
+      "body_sha256": "7e0e76da10253a60a47ff093071be2010831e03de8049299359e146c36fee5ca",
+      "body_length": 164,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "9e5e77e5-9d40-4866-a703-62d4ea8cb0a1",
+      "message_index": 0,
+      "body_sha256": "5e6a33a3795c4f277ca986feb0fae6885d3e737dfa6c94310ca24a5457561d7a",
+      "body_length": 1333,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "9e5e77e5-9d40-4866-a703-62d4ea8cb0a1",
+      "message_index": 2,
+      "body_sha256": "63f698c681bb9421f3d5262983e52a65a6adf494607285b17a56a7296ba8a3e0",
+      "body_length": 1060,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "9e5e77e5-9d40-4866-a703-62d4ea8cb0a1",
+      "message_index": 4,
+      "body_sha256": "6fb010ef51aff048f2b8d135032359db849f34f2c550dad1e311252825f64b55",
+      "body_length": 947,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "9e5e77e5-9d40-4866-a703-62d4ea8cb0a1",
+      "message_index": 6,
+      "body_sha256": "d0ef0a2d2ab5984fadd1d3cd5e53e2e185a73bf3c30897043e5dc3293ff0441d",
+      "body_length": 850,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "0271b280-e5db-474a-acc1-852a00189dd1",
+      "message_index": 0,
+      "body_sha256": "059b0b7709bfd68f0c362b033410bdc64fc0de760b98720f4ef4d11ca78fdcd8",
+      "body_length": 1420,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "0271b280-e5db-474a-acc1-852a00189dd1",
+      "message_index": 2,
+      "body_sha256": "22d55374ca8d3a90a01a75b0cf718e0aff8dd0b525171a3a8514f7d16b050ab6",
+      "body_length": 1057,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "0271b280-e5db-474a-acc1-852a00189dd1",
+      "message_index": 4,
+      "body_sha256": "bfdab49fb9c589ed26c501fa750e9976857147e9acc15faf8eb5481aab2c382a",
+      "body_length": 826,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "6c1cf81e-0ee2-4955-8a05-7666de675c36",
+      "message_index": 0,
+      "body_sha256": "39600930c031fa312a9ea7038b8a7074a842863bad19ea22546585f3dbcc22e4",
+      "body_length": 1518,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "6c1cf81e-0ee2-4955-8a05-7666de675c36",
+      "message_index": 2,
+      "body_sha256": "99e16669c4ba4b6faa25cd7470c99ea1363aa02b07fa017333c6ffb53d57255a",
+      "body_length": 1002,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "6c1cf81e-0ee2-4955-8a05-7666de675c36",
+      "message_index": 4,
+      "body_sha256": "9966580dd3726ed104a1fc03814a4f4620125d20afb33068d44d9c3f060f9e2e",
+      "body_length": 889,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "39f4b3fe-eac1-4680-8311-6ff004036a16",
+      "message_index": 0,
+      "body_sha256": "71a4b55dd616e5a2829024058a8946e053854e9dd79e39617c55ed71cbf4a93a",
+      "body_length": 1021,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "39f4b3fe-eac1-4680-8311-6ff004036a16",
+      "message_index": 2,
+      "body_sha256": "4b121aadf39d5ff354382fbbf2208f5ff8e4fe28d0456f0b395de615abba6538",
+      "body_length": 1033,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "39f4b3fe-eac1-4680-8311-6ff004036a16",
+      "message_index": 4,
+      "body_sha256": "00e773a289cb0f41b4f27c296036ea5cc854126ed213d82daa764d9e962aeeb0",
+      "body_length": 1113,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "10799919-d6f3-4a2e-a53a-daec4fbf606b",
+      "message_index": 0,
+      "body_sha256": "ff4c63ec4f7e09e40abb05947b695efc122b66f97dc659865dcd193c6d34dc22",
+      "body_length": 716,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "10799919-d6f3-4a2e-a53a-daec4fbf606b",
+      "message_index": 2,
+      "body_sha256": "4bd87b179411b94d6766fa1819f8466d98b14a442dfa3ae8caa01b01e008f2b8",
+      "body_length": 750,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "10799919-d6f3-4a2e-a53a-daec4fbf606b",
+      "message_index": 4,
+      "body_sha256": "c615794f565331dc016823503166f80f163cbade91001602ccb0e7fcac8d6edc",
+      "body_length": 905,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "10799919-d6f3-4a2e-a53a-daec4fbf606b",
+      "message_index": 6,
+      "body_sha256": "9454fe1750bee531b3b398c28b2a7e7ca4ba6c6c7ad10d2b1e9abf24ddccd977",
+      "body_length": 996,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a9802135-1d56-410b-b602-a8c17b888e6a",
+      "message_index": 0,
+      "body_sha256": "30b800ef9705e1ee2578c88339f5cd49974d3c6b41c59585a6663995d320a922",
+      "body_length": 1023,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a9802135-1d56-410b-b602-a8c17b888e6a",
+      "message_index": 2,
+      "body_sha256": "4ec44f8a630aaa91473554ff4f624a9f684909a8d1247fae0db2d1a9a5364a90",
+      "body_length": 801,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "a9802135-1d56-410b-b602-a8c17b888e6a",
+      "message_index": 4,
+      "body_sha256": "719f5a17cd3eaee0aa7afd17bf46aa289899915cad78b762c34c81b9addfca4c",
+      "body_length": 928,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "1cf7f372-faf5-487a-84b0-85b8eb7339d6",
+      "message_index": 0,
+      "body_sha256": "58634ea0ea88002d8e144ed7860a50bd7758b469fbd863d476f43139504c6f0b",
+      "body_length": 1502,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "1cf7f372-faf5-487a-84b0-85b8eb7339d6",
+      "message_index": 2,
+      "body_sha256": "744c78e38c87d349034e051197a2a8cf7f07b7cf051a303c94911f971f65a3ec",
+      "body_length": 1199,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0001-2026-4d9e-8001-000000000001",
+      "message_index": 0,
+      "body_sha256": "24ae4f27b7cc09a3c2c147bb6cfeacf93129a01dde9146677ac263dfd3cce4ee",
+      "body_length": 866,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0001-2026-4d9e-8001-000000000001",
+      "message_index": 2,
+      "body_sha256": "52be4fe4c561c44643d5e3d7b03f243c834fd9c5fc24ed4bf643e46cab1ed1ff",
+      "body_length": 761,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0001-2026-4d9e-8001-000000000001",
+      "message_index": 4,
+      "body_sha256": "3302938b2946aae1a8a48ec603ddbe56c59c6ae0c21656ef0ce9e7744cc3228f",
+      "body_length": 669,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0002-2026-4d9e-8002-000000000002",
+      "message_index": 0,
+      "body_sha256": "f39a47a881ae45828edcf8aaec0d400602d9d6b100fd4349b4e1dcfa479ada63",
+      "body_length": 871,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0002-2026-4d9e-8002-000000000002",
+      "message_index": 2,
+      "body_sha256": "14909e3bd98d39bc5795547593fc908b2415222488c3db21ac852f22f817411a",
+      "body_length": 926,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0002-2026-4d9e-8002-000000000002",
+      "message_index": 4,
+      "body_sha256": "f09c64407385a9934120849a88fd262fe196c565597857375efac7212997b094",
+      "body_length": 132,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0003-2026-4d9e-8003-000000000003",
+      "message_index": 0,
+      "body_sha256": "0a731aab24d369ee79e003215a5ce050977113e15c67da64606ae79f66ff6d42",
+      "body_length": 883,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0003-2026-4d9e-8003-000000000003",
+      "message_index": 2,
+      "body_sha256": "bc9cfd343627910324652bb43db83d31ec03464451690702483ac651020e3816",
+      "body_length": 1278,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0003-2026-4d9e-8003-000000000003",
+      "message_index": 4,
+      "body_sha256": "2abd79544edcca764351f0d8c562c21ccc706a322a8e4c9195edaf01a51d6baf",
+      "body_length": 739,
+      "annotated": false,
+      "ttps": []
+    },
+    {
+      "conversation_id": "d00d0003-2026-4d9e-8003-000000000003",
+      "message_index": 6,
+      "body_sha256": "10da34b5f838e4f8954678695ebad1d17faec0082151d8896884b5827574f047",
+      "body_length": 496,
+      "annotated": false,
+      "ttps": []
+    }
+  ]
+}

@@ -494,7 +494,7 @@ testOne: ##@test Run a single integration/unit test (q=filter)
         fixtures-e2e fixtures-dev \
         endToEndTest endToEndTestOne testOne \
         audit-quality audit-deep \
-        ttp-audit-sample ttp-audit-score taxonomy-export f3-mapping stix-conformance standards-check \
+        ttp-audit-sample ttp-audit-score taxonomy-export f3-mapping stix-conformance dataset-labels standards-check \
         fix-semantic-roles fix-risk-scores compute-sophistication \
         respawn-all
 
@@ -575,11 +575,15 @@ f3-mapping: ##@standards Validate the MITRE F3 mapping and regenerate its docume
 stix-conformance: ##@standards Validate every exported STIX bundle type against the external OASIS validator
 	bash scripts/standards/validate-stix-bundles.sh
 
+dataset-labels: ##@standards Validate the dataset TTP labels (COMPLETE=1 for the release gate)
+	python3 scripts/standards/validate-dataset-labels.py $(if $(COMPLETE),--complete,)
+
 standards-check: ##@standards Run every standard-track guard exactly as CI does
 	$(CONSOLE_DEV) scambuster:ttp:taxonomy-export --check
 	$(CONSOLE_DEV) scambuster:ttp:f3-mapping --check
 	python3 scripts/standards/validate-taxonomy-artifact.py
 	python3 scripts/standards/check-taxonomy-versioning.py
+	python3 scripts/standards/validate-dataset-labels.py
 	bash scripts/standards/validate-stix-bundles.sh
 
 # ======================================================================

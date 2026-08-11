@@ -211,6 +211,13 @@ jobs:
           python3 scripts/standards/check-taxonomy-versioning.py \
             --base-ref "origin/${{ github.event.pull_request.base.ref || github.ref_name }}"
 
+      # Structural check only: every label code resolves against the taxonomy and
+      # every offset points at real text. It passes on a partly-annotated file on
+      # purpose, so a malformed label fails the moment it is written rather than at
+      # the end of the annotation round. The --complete gate runs at release.
+      - name: Dataset TTP labels are structurally sound
+        run: python3 scripts/standards/validate-dataset-labels.py
+
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
