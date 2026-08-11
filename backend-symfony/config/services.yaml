@@ -164,6 +164,12 @@ services:
     App\UI\Console\TtpTaxonomyExportCommand:
         arguments:
             $artifactDirectory: '%kernel.project_dir%/config/standards'
+
+    # Conformance bundles are build output, not source: they land in var/ so the
+    # host-side validator can read them through the bind mount.
+    App\UI\Console\StixConformanceFixturesCommand:
+        arguments:
+            $defaultOutputDirectory: '%kernel.project_dir%/var/conformance'
     ###< Standard-track artifacts ###
 
     # GUARD smoke runner — invokes the reply-objective smoke command in-process for the worker.

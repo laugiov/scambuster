@@ -237,6 +237,22 @@ jobs:
       - name: F3 mapping is consistent and its document is current
         run: docker compose exec backend-dev bin/console scambuster:ttp:f3-mapping --check
 
+      # Every exported bundle type against the OASIS-community stix2-validator and
+      # the OASIS schemas — neither of them ours. The script ends by breaking a
+      # bundle on purpose and confirming the validator rejects it, so a green run
+      # means the gate ran rather than silently degraded to a no-op.
+      - name: External STIX 2.1 validation of every bundle type
+        run: bash scripts/standards/validate-stix-bundles.sh --keep-bundles var/conformance
+
+      - name: Upload the validated bundles
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: stix-conformance-bundles
+          path: var/conformance/
+          if-no-files-found: warn
+          retention-days: 14
+
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
