@@ -36,6 +36,10 @@ PROMPT;
         private readonly LLMClientInterface $llmClient,
         private readonly Connection $connection,
         private readonly LoggerInterface $logger,
+        // Strong-reasoning model (%llm.model_strong%): this auditor deliberately
+        // uses a stronger model than the base pipeline. Default is the OpenAI
+        // backstop; DI supplies the configured value for provider sovereignty.
+        private readonly string $model = 'gpt-4o',
     ) {
     }
 
@@ -74,7 +78,7 @@ PROMPT;
             ];
 
             $options = [
-                'model' => 'gpt-4o',
+                'model' => $this->model,
                 'temperature' => 0.2,
                 'max_tokens' => 1000,
                 'purpose' => 'quality_audit',

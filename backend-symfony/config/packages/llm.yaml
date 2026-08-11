@@ -2,6 +2,12 @@ parameters:
     # LLM Provider configuration
     llm.provider: '%env(LLM_PROVIDER)%'
     llm.model: '%env(LLM_MODEL)%'
+    # Stronger model for the heavy-reasoning services (quality auditor,
+    # conversation analyzer). Defaults to gpt-4o so an OpenAI install keeps its
+    # historical quality with no extra config; a local provider sets
+    # LLM_MODEL_STRONG to its own strong model.
+    llm.model_strong.default: 'gpt-4o'
+    llm.model_strong: '%env(default:llm.model_strong.default:LLM_MODEL_STRONG)%'
     llm.api_url: '%env(LLM_API_URL)%'
     llm.api_key: '%env(LLM_API_KEY)%'
     ollama.default_url: 'http://localhost:11434'
@@ -106,6 +112,7 @@ services:
             $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
             $logger: '@monolog.logger.llm'
             $prompts: '@App\Application\LLM\Prompt\PromptProvider'
+            $model: '%llm.model_strong%'
 
     # Application - ReciprocityManager (manages give/take balance)
     App\Application\LLM\ReciprocityManager: ~
@@ -145,6 +152,7 @@ services:
         arguments:
             $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
             $logger: '@monolog.logger.llm'
+            $model: '%llm.model%'
 
     # Payment-instigation guard (LLM judge that blocks persona
     # outbounds introducing SWIFT/IBAN/wire/bank topics before operator).
@@ -155,6 +163,7 @@ services:
             $em: '@doctrine.orm.entity_manager'
             $llmClient: '@App\Application\LLM\Port\LLMClientInterface'
             $logger: '@monolog.logger.llm'
+            $model: '%llm.model%'
 
     # Application - ReplyOrchestrator
     App\Application\LLM\ReplyOrchestrator:
@@ -221,6 +230,8 @@ services:
             $dispatcher: '@event_dispatcher'
             $logger: '@monolog.logger.llm'
             $promptProvider: '@App\Application\LLM\Prompt\PromptProvider'
+            $provider: '%llm.provider%'
+            $model: '%llm.model%'
 
     App\Application\LLM\ContextualEnrichmentRequest: ~
     App\Application\LLM\ContextualEnrichmentResult: ~

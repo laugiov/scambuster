@@ -27,6 +27,10 @@ final readonly class ContextualEnricher
         private EventDispatcherInterface $dispatcher,
         private LoggerInterface $logger,
         private PromptProvider $promptProvider,
+        // Configured provider/model, recorded on the usage event so cost/usage
+        // telemetry is accurate on any provider (not mislabelled 'openai').
+        private string $provider = 'openai',
+        private string $model = 'gpt-4o-mini',
     ) {
     }
 
@@ -93,8 +97,8 @@ final readonly class ContextualEnricher
             $completionTokens = (int) ceil(\strlen($response) / 4);
 
             $this->dispatcher->dispatch(new LlmCallCompletedEvent(
-                provider: 'openai',
-                model: 'gpt-4o-mini',
+                provider: $this->provider,
+                model: $this->model,
                 purpose: 'contextual_enrichment',
                 promptTokens: $promptTokens,
                 completionTokens: $completionTokens,

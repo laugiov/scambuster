@@ -100,7 +100,6 @@ final readonly class ReplyValidator
 
         $this->logger->debug('[ReplyValidator] Calling LLM validator', [
             'persona' => $personaCode,
-            'model' => 'gpt-4o-mini',
             'temperature' => $options['temperature'],
             'max_tokens' => $options['max_tokens'],
         ]);

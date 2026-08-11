@@ -25,7 +25,6 @@ use Psr\Log\LoggerInterface;
  */
 final readonly class OperationalLeakageDetector
 {
-    private const MODEL = 'gpt-4o-mini';
     private const TEMPERATURE = 0.0;
     private const MAX_TOKENS = 200;
     private const PURPOSE = 'leak_detection';
@@ -33,6 +32,10 @@ final readonly class OperationalLeakageDetector
     public function __construct(
         private LLMClientInterface $llmClient,
         private LoggerInterface $logger,
+        // Provider-configured model (%llm.model%). Default kept for legacy
+        // callers/tests; DI supplies the real value so a non-OpenAI provider is
+        // never handed an OpenAI slug (sovereignty).
+        private string $model = 'gpt-4o-mini',
     ) {
     }
 
@@ -51,7 +54,7 @@ final readonly class OperationalLeakageDetector
 
         try {
             $response = $this->llmClient->chat($messages, [
-                'model' => self::MODEL,
+                'model' => $this->model,
                 'temperature' => self::TEMPERATURE,
                 'max_tokens' => self::MAX_TOKENS,
                 'purpose' => self::PURPOSE,

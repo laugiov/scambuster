@@ -217,13 +217,36 @@ final class OpenAIServiceTest extends TestCase
         $this->assertSame('tenant_preprod_generator', $requestBody['user']);
     }
 
+    public function testEndpointDerivesFromInjectedBaseUrl(): void
+    {
+        $mockResponse = new MockResponse((string) json_encode([
+            'choices' => [['message' => ['content' => 'ok']]],
+        ]));
+        $service = new OpenAIService(
+            new MockHttpClient($mockResponse),
+            self::API_KEY,
+            self::MODEL,
+            new NullLogger(),
+            'http://ollama.local:11434/v1',
+        );
+
+        $service->complete('hi');
+
+        self::assertSame(
+            'http://ollama.local:11434/v1/chat/completions',
+            $mockResponse->getRequestUrl(),
+            'the endpoint must be built from the injected base URL, not a hardcoded OpenAI host',
+        );
+    }
+
     private function createService(MockResponse $mockResponse): OpenAIService
     {
         return new OpenAIService(
             new MockHttpClient($mockResponse),
             self::API_KEY,
             self::MODEL,
-            new NullLogger()
+            new NullLogger(),
+            'https://api.openai.com/v1',
         );
     }
 }

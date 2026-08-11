@@ -31,7 +31,9 @@ final readonly class ConversationHistoryService
         private EntityManagerInterface $em,
         private LLMClientInterface $llmClient,
         private LoggerInterface $logger,
-        private array $excludedEmails = []
+        private array $excludedEmails = [],
+        // Provider-configured model (%llm.model%); default is the OpenAI backstop.
+        private string $model = 'gpt-4o-mini',
     ) {
     }
 
@@ -222,11 +224,11 @@ PROMPT;
             ['role' => 'user', 'content' => $userPrompt],
         ];
 
-        // Use GPT-4o-mini for cost-effective summarization
+        // Cost-effective summarization on the provider-configured base model.
         $options = [
             'max_tokens' => 200,
             'temperature' => 0.3,
-            'model' => 'gpt-4o-mini',
+            'model' => $this->model,
             'purpose' => 'history_summary',
         ];
 
