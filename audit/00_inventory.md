@@ -778,12 +778,74 @@ modification de code.
 | D75 | `PermissionVoter` | `src/Security/PermissionVoter.php:23-59` | `ROLE_ADMIN` → toutes permissions (`:34-36`) ; `ROLE_TAXII_FEED` → `ioc:read` seul, vérifié avant le repli InMemoryUser (`:41-44`) ; entité `User` → `hasPermission()` ; InMemoryUser avec `ROLE_USER` → toutes permissions (environnement de test) | **14 permissions** énumérées dans `src/Domain/User/Permission.php:19-40` |
 | D76 | `TaxiiApiKeyAuthenticator` | `src/Security/TaxiiApiKeyAuthenticator.php:45-160` | `^/api/v1/taxii2` seulement (`:48`) ; clé par en-tête `X-TAXII-API-KEY` ou Basic — explicitement pas `Authorization: Bearer` (`:29-33`) ; `MIN_KEY_LENGTH = 32`, en deçà la fonction est désactivée (`:63`, `:114-117`) ; comparaison `hash_equals()` (`:86`) ; 401 générique qui n'écho jamais l'identifiant (`:105-112`) | — |
 | D77 | TOTP 2FA | `config/packages/scheb_2fa.yaml:1-8` | `digits: 6`, `period: 30`, `algorithm: sha1`, émetteur `ScamBuster` | — |
-| D78 | OIDC | `src/Application/Auth/Oidc/` — 7 classes (`OidcConfig`, `OidcFlowState`, `OidcStateManager`, `OidcService`, `OidcUserProvisioner`, `OidcIdentity`, `OidcException`) | Module présent, opt-in via `OIDC_ENABLED` | Contenu non lu en détail lors de cette passe → [INCONNU] sur nonce/TTL/épinglage d'émetteur |
+| D78 | OIDC — **détaillé en §4.11** | `src/Application/Auth/Oidc/` (7 classes) + `OidcLoginController`, `OidcCallbackController` | Module opt-in, **désactivé par défaut** (`config/services.yaml:26`) ; 11 contrôles déterministes recensés | Voir §4.11 |
 | D79 | `SecretPolicy` | `src/Security/SecretPolicy.php:20-135` | Voir §6.4 | **Jamais appliqué hors production** — retourne `[]` si `!$isProd` (`:71-73`). **Aucun minimum d'entropie ni de longueur** au-delà du contrôle de caractère répété |
 | D80 | `CheckSecretsCommand` | `src/UI/Console/CheckSecretsCommand.php:29-101` | 7 variables (§6.5) | Sans effet hors `APP_ENV=prod` (`:57`, `:66-72`) |
 | D81 | Scanner de fuite de noms de honeypot | `scripts/check-honeypot-leak.sh` | Hook pre-commit + porte 9 du préflight. Lit `local/honeypot-names.txt` (ignoré par git) ; correspondance littérale insensible à la casse (`grep -inF`) ; mode `staged` sur `git diff --cached`, `--full` sur `git ls-files` ; sortie 1 avec `fichier:ligne: matched 'nom'` | **« Exits zero (with a one-line skip note) when local/honeypot-names.txt is absent »** ; liste vide → saut également. Correspondance par sous-chaîne seule — **ni approximative ni homoglyphique** |
 | D82 | Porte 9 du préflight | `scripts/preflight-check.sh:158-161` | `CURRENT_GATE=9` exécute `check-honeypot-leak.sh --full` ; 9 portes au total, interruption sur la première en échec (`:52`) | — |
 | D83 | Hook pre-push GUARD (optionnel) | `scripts/hooks/pre-push-guard.sh:1-50` | Déclenché sur `config/scambuster/\|src/Application/LLM/\|src/Application/Guard/` (`:25`). **Par défaut : simple rappel, la poussée passe** ; `GUARD_ON_PUSH=1` exécute `make guard` et bloque | **Non installé par défaut** — nécessite `make guard-hook-install` (`Makefile:239-244`) |
+
+### 4.11 Module OIDC — contrôles déterministes (passe complémentaire)
+
+Module **opt-in, désactivé par défaut** [VÉRIFIÉ] `config/services.yaml:26` ; les deux
+points d'entrée lèvent `NotFoundHttpException` quand il est inactif
+(`OidcLoginController.php:37-39`, `OidcCallbackController.php:43-45`).
+
+| # | Contrôle | Fichier:ligne | Portée exacte | Non couvert |
+|---|---|---|---|---|
+| D84 | Génération du `state` | `OidcStateManager.php:35` | `base64Url(random_bytes(32))` — 32 octets CSPRNG | — |
+| D85 | Signature HMAC-SHA256 du `state` | `OidcStateManager.php:112-115`, vérifiée `:69` par `hash_equals` | Le `state` est **auto-porté dans un cookie signé**, sans session serveur (déclaré `:12-13`) | Ne lie pas l'état à une identité de navigateur au-delà du cookie |
+| D86 | Comparaison du `state` retourné | `OidcCallbackController.php:62-64` — `hash_equals` | Temps constant | — |
+| D87 | Durée de vie du `state` | `OidcStateManager.php:21` — `TTL_SECONDS = 600` (10 min) ; posé `:39`, appliqué `:92-94`, expiration du cookie `:107-110` | Expiration côté serveur dans la charge signée + expiration du cookie | **Aucun registre d'usage unique** : l'état étant sans état, la même valeur est rejouable dans la fenêtre de 600 s |
+| D88 | `nonce` | Généré `OidcStateManager.php:36` ; envoyé `OidcService.php:46` ; **vérifié** contre le jeton d'identité `OidcService.php:210-212` | Comparaison stricte `!==` | Comparaison non à temps constant |
+| D89 | **PKCE S256** | Vérificateur `OidcStateManager.php:31` (`random_bytes(64)`), défi `:32` (`sha256`), envoi `OidcService.php:47-48`, rejeu `:115` | PKCE complet en S256 | — |
+| D90 | Épinglage de l'émetteur `iss` | `OidcService.php:191-193` | Comparé `!==` à l'`issuer` **issu du document de découverte** (`:61`) | **Non épinglé à une valeur de configuration statique** : l'émetteur attendu est celui que renvoie l'URL de découverte |
+| D91 | Vérification de l'audience `aud` | `OidcService.php:195-202` | Gère chaîne et tableau ; `in_array(..., true)` / `===` contre `clientId` | `azp` contrôlé seulement si `aud` est un tableau de plus d'un élément **et** `azp` présent (`:206-208`) |
+| D92 | Contrôle d'expiration `exp` | `OidcService.php:214-218` | Rejette les jetons expirés ; `exp` absent ou non numérique → `0` (`:265-268`) → rejeté | **`iat` jamais lu** (recherche `iat` sur le répertoire : aucun résultat) ; **aucune tolérance de dérive d'horloge** |
+| D93 | Contrôle croisé UserInfo | `OidcService.php:63-71` | Appelle `userinfo_endpoint` et exige `userInfo['sub'] === idClaims['sub']` | C'est le **substitut déclaré** à la vérification de signature — voir §5.2 |
+| D94 | `email_verified` | `OidcService.php:82-86` | Rejette toute valeur explicite différente de `true` / `"true"` | **Une revendication absente vaut `true`** (`?? true`, `:82`) |
+| D95 | Liste blanche de domaines de courriel | `OidcConfig.php:49-64`, appliquée `OidcService.php:88-90` | Comparaison insensible à la casse sur la partie après le dernier `@` | **Liste vide = tout domaine accepté** (`:51-53`) ; défaut livré `[]` (`config/services.yaml:38`) |
+| D96 | Porte de provisionnement automatique | `OidcUserProvisioner.php:34-36` | Courriel inconnu + `autoProvision=false` → exception. **Défaut `false`** (`config/services.yaml:34`) | — |
+| D97 | Rôles du compte provisionné | `OidcUserProvisioner.php:43` | `OIDC_DEFAULT_ROLES` si défini, sinon `['ROLE_USER']` ; défaut livré `[]` → `ROLE_USER` | `setPermissions()` **jamais appelé** ; aucun chemin vers `ROLE_ADMIN` |
+| D98 | Mot de passe du compte provisionné | `OidcUserProvisioner.php:42` | `bin2hex(random_bytes(32))` haché | — |
+| D99 | Drapeaux du cookie d'état | `OidcLoginController.php:45-55` | `secure=true`, `httpOnly=true`, `SameSite=Lax`, chemin `/api/v1/auth/oidc` | Effacé en succès (`:92`), **pas sur le chemin d'échec** (`:79` sort avant) |
+| D100 | Hygiène des messages d'erreur | `OidcCallbackController.php:79`, `:116-123` | Le client ne voit que `'SSO authentication failed.'` ; le motif ne va qu'au journal d'audit | — |
+
+**Signature du jeton d'identité** [VÉRIFIÉ] : **non vérifiée**.
+`OidcService.php:162-184` scinde le jeton sur `.`, décode **le seul segment `[1]`** et
+l'analyse en JSON ; l'en-tête et la signature ne sont jamais lus. Aucune récupération
+de JWKS, aucun cache de clés, aucune bibliothèque. Le docblock `OidcService.php:16-21`
+**déclare l'omission intentionnelle**, en invoquant OIDC Core §3.1.3.7 — le jeton
+arrivant par le canal arrière — et désigne le contrôle croisé UserInfo (D93) comme
+preuve de substitution.
+
+**URI de redirection** [VÉRIFIÉ] : **aucune contrainte de schéma**. `redirectUri` est
+repris tel quel de `OIDC_REDIRECT_URI` (`config/services.yaml:251`) et utilisé sans
+validation (`OidcService.php:43`, `:112`). Même constat pour `successRedirect`
+(`OidcCallbackController.php:106`, `:119`). Recherche de `https|isSecure|str_starts_with`
+sur le module et les deux contrôleurs : aucun résultat.
+**Livraison des jetons** : quand `successRedirect` est non vide, `access_token` et
+`refresh_token` sont placés dans le **fragment d'URL** d'une redirection 302 vers cette
+cible non validée (`OidcCallbackController.php:99-107`).
+
+---
+
+### 4.12 Autres vérifications de la passe complémentaire
+
+| Constat | Preuve | Portée |
+|---|---|---|
+| **`app:security:check-secrets` est bien invoqué au démarrage en production** | `infra/docker/backend/docker-entrypoint-prod.sh:29`, avec `set -e` (`:5`), **après** `write-prod-env.sh` (`:23`) et **avant** l'attente PostgreSQL (`:31-41`), la génération de clés JWT (`:43-53`) et les migrations (`:57`) | Confirme l'affirmation du docblock `CheckSecretsCommand.php:19-21` |
+| Assertions de variables requises avant tout | `docker-entrypoint-prod.sh:10-18` — `DATABASE_URL`, `APP_SECRET` (+ longueur minimale 12, `:12`), `TOTP_ENCRYPTION_KEY`, `AUDIT_HMAC_KEY`, `JWT_PASSPHRASE` ; `exit 1` explicite | — |
+| `write-prod-env.sh` — liste blanche de 25 préfixes | `infra/docker/backend/write-prod-env.sh:6` ; valeurs écrites **brutes, sans échappement**, contrairement à l'entrypoint de démonstration qui les cite via PHP (`docker-entrypoint-demo.sh:33-46`, motif `:29-32`) | — |
+| **10 contraintes `CHECK`** en base | `Version20251021140000.php:31,34,81` ; `Version20251121100100.php:50,53` ; `Version20260405120000.php:53` ; `Version20260409100000.php:39` ; `Version2026073000000000.php:407` ; `Version2026073000100000.php:46,47` | Toutes déclarées en ligne dans un `CREATE TABLE`. **Aucune** sur `app_users`, `message`, `conversation`, `observed_ioc`, `audit_log` |
+| `.github/scripts/create-ci-env.sh` — **aucun secret réel** | `set -euo pipefail` (`:10`) ; toutes les valeurs d'apparence secrète sont auto-désignées comme fictives : `ci-test-app-secret-32chars-min!!`, `sk-test-not-a-real-key`, `ci-test-passphrase`, `testpass`, `LLM_PROVIDER=mock` (`:25`) | — |
+| `scripts/check-credentials.py` — sondes de connectivité | 200 lignes ; code de sortie = **nombre de contrôles en échec** (`:195`) ; IMAP (`:60-83`), SMTP (`:86-117`), LLM (`:129-185`). Un statut HTTP autre que 200/401/403 renvoie `SKIP` et **0** (`:183-185`) | Les secrets ne sont jamais imprimés (`:14`) |
+| `TestReplyGenerateCommand` | **Pas d'attribut `#[AsCommand]`** ; enregistrement historique `setName('app:test:reply-generate')` (`:24`), description `:25`. UUID **codé en dur** `:33` ; diagnostic en lecture seule | Ferme la question 31 de §12 |
+| **`alert.rules.yml` — 4 règles seulement** | `ScamBusterKillSwitchActive` (warning, `:5-12`), `ScamBusterDependencyDown` (critical, `:14-21`), `ScamBusterMetricsUnreachable` (critical, `:23-30`), `ScamBusterIngestStalled` (warning, `:32-42`) | **Aucune règle** sur le taux d'échec d'authentification, la force brute, l'épuisement de limiteur, la détection d'injection ni le seuil budgétaire |
+| Protection de `/api/metrics` et `/api/health` | `config/packages/security.yaml:60-61` — `roles: ROLE_ADMIN` sur les deux, placées après `^/healthz` en `PUBLIC_ACCESS` (`:59`) et avant le fourre-tout `^/api/v1` (`:67`) | Confirme DOC-01 |
+| **Démonstration — mot de passe administrateur fixe** | `infra/docker/demo/docker-entrypoint-demo.sh` ne génère aucun mot de passe ; les comptes viennent de la fixture chargée `:180`. Valeur en dur `UserFixtures.php:25,27` — **identique pour l'utilisateur et l'administrateur** — et **imprimée sur la sortie standard** `:389-391`. L'entrypoint de démonstration **n'exécute pas** `app:security:check-secrets` ; CORS par défaut `^https?://.+$` (`:16`) | Périmètre démonstration uniquement |
+
+---
 
 ### 4.10 Règles de prompt CORE (non contournables par surcharge, mais non exécutoires)
 
@@ -1657,6 +1719,7 @@ et nginx utilisent des tags majeurs/mineurs flottants.
 | DOC-22 | `docs/09_dpia_template.md:33` et `:146` | « 6 months max, **then anonymization** » ; « PurgeService : **anonymization at 6 months** » | Aucune routine d'anonymisation, de pseudonymisation ou de caviardage n'existe dans `src/` ; `PurgeService.php:23-45` fait une suppression **logique** | Doublon d'angle avec DOC-05, consigné séparément parce qu'il porte sur le DPIA, pièce opposable |
 | DOC-23 | `migrations/Version2026041200100000.php:20-24` | Le `REVOKE` PostgreSQL sur UPDATE/DELETE de `audit_log` est « documented in `docs/runbooks/audit-hmac-key-rotation.md` » | `rg -n "REVOKE" docs/` → **aucun résultat** ; runbook lu intégralement (53 lignes) | L'étape d'exploitation qui rend le journal réellement append-only **n'est documentée nulle part**, alors que la migration s'y réfère |
 | DOC-24 | `docs/runbooks/audit-hmac-key-rotation.md:32-33` | Étape 3 de rotation : « Run a rebuild script » | Aucun script de reconstruction de chaîne n'existe sous `scripts/`, `bin/` ou `src/UI/Console/` | Procédure de rotation renvoyant à un outil inexistant |
+| **DOC-25** | `docs/04_security_guardrails.md:400` | « **PII masked in exported events (emails hashed, IPs truncated)** » | Les trois formateurs émettent `actorId` et `ipAddress` **verbatim** : `JsonFormatter.php:29,33` ; `EcsFormatter.php:40,44` ; `CefFormatter.php:95,99`. Le tableau `details` est sérialisé **sans filtrage** (`JsonFormatter.php:35`, `EcsFormatter.php:60`, `CefFormatter.php:120`). Recherche `hash\|mask\|truncat\|anonym\|sha256\|redact` sur `src/Infrastructure/Siem/` et `SiemEvent.php` : **aucun résultat**. La seule transformation est l'échappement des métacaractères CEF (`CefFormatter.php:129-136`), qui préserve la valeur | **Aucun masquage, aucun hachage, aucune troncature n'existe.** `actorId` porte une adresse de courriel en clair sur le chemin OIDC (`OidcCallbackController.php:83`) |
 
 **Contradictions internes à la documentation** (les deux côtés sont de la doc, aucun n'est
 le code) : DOC-10 (`02_value_proposition` vs `03_high_level_architecture`), DOC-14
@@ -1679,6 +1742,12 @@ d'arnaque / 27 TTP / 27 personas ; les poids de récompense 0,40/0,25/0,25/0,10 
 ---
 
 ## 12. Ce que je n'ai pas pu vérifier
+
+> **Mise à jour après passe complémentaire.** Les questions **17** (invocation de
+> `check-secrets` par l'entrypoint de production), **28** (contrôles du module OIDC),
+> **29** (`check-credentials.py`), **30** (`create-ci-env.sh`) et **31**
+> (`TestReplyGenerateCommand`) sont **closes** — voir §4.11 et §4.12. Les questions
+> subsistantes ci-dessous restent ouvertes.
 
 Formulé en questions, conformément à R8.
 

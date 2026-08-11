@@ -128,8 +128,28 @@
 
 | ID | Exigence | Source normative | État actuel [VÉRIFIÉ] | Écart | Gravité | Meilleur argument pour ne pas le traiter maintenant |
 |---|---|---|---|---|---|---|
-| **G-40** | Politiques et procédures permettant d'évaluer l'efficacité des mesures de gestion des risques | Directive (UE) 2022/2555, **art. 21(2)(f)** ; documentation technique du produit, Règlement (UE) 2024/2847 | **24 contradictions documentation/code prouvées** (`00_inventory.md` §11), dont : contrôles annoncés sans implémentation (DOC-07 « drogues, armes, CSAM » ; DOC-11 politiques RLS), comptages faux (DOC-06 permissions, DOC-09 motifs), chiffrement au repos annoncé et absent (DOC-19), rétention annoncée automatique et non planifiée (DOC-03, DOC-04) | **Le dossier documentaire ne peut pas servir de base à une acceptation de risque** : un déployeur qui s'y fie décrira un système qui n'existe pas | **Bloquant** | Le code fait foi et il est lisible ; un ingénieur peut lever chaque contradiction par lui-même. Argument recevable pour un déployeur disposant d'ingénierie PHP, nul pour une acceptation de risque signée par un organe de direction |
+| **G-40** | Politiques et procédures permettant d'évaluer l'efficacité des mesures de gestion des risques | Directive (UE) 2022/2555, **art. 21(2)(f)** ; documentation technique du produit, Règlement (UE) 2024/2847 | **25 contradictions documentation/code prouvées** (`00_inventory.md` §11), dont : contrôles annoncés sans implémentation (DOC-07 « drogues, armes, CSAM » ; DOC-11 politiques RLS), comptages faux (DOC-06 permissions, DOC-09 motifs), chiffrement au repos annoncé et absent (DOC-19), rétention annoncée automatique et non planifiée (DOC-03, DOC-04) | **Le dossier documentaire ne peut pas servir de base à une acceptation de risque** : un déployeur qui s'y fie décrira un système qui n'existe pas | **Bloquant** | Le code fait foi et il est lisible ; un ingénieur peut lever chaque contradiction par lui-même. Argument recevable pour un déployeur disposant d'ingénierie PHP, nul pour une acceptation de risque signée par un organe de direction |
 | **G-41** | Idem | Idem | `migrations/Version2026041200100000.php:20-24` référence une étape d'exploitation dans un runbook qui ne la contient pas ; `docs/runbooks/audit-hmac-key-rotation.md:32-33` référence un « rebuild script » qui n'existe nulle part | Deux procédures d'exploitation critiques renvoient à une documentation inexistante | **Majeur** | Écart de faible coût de correction ; sa gravité tient à ce qu'il porte précisément sur les deux procédures qui conditionnent l'intégrité du journal |
+
+---
+
+## 11. Écarts issus de la passe de vérification complémentaire
+
+> Ajoutés après la clôture des vérifications restées ouvertes (`00_inventory.md`
+> §4.11 et §4.12). Les identifiants poursuivent la numérotation.
+
+| ID | Exigence | Source normative | État actuel [VÉRIFIÉ] | Écart | Gravité | Meilleur argument pour ne pas le traiter maintenant |
+|---|---|---|---|---|---|---|
+| **G-42** | Minimisation des données ; sécurité du traitement | Règlement (UE) 2016/679, **art. 5(1)(c)** et **art. 32** | Les trois formateurs SIEM émettent `actorId` et `ipAddress` verbatim (`JsonFormatter.php:29,33` ; `EcsFormatter.php:40,44` ; `CefFormatter.php:95,99`) et sérialisent `details` sans filtrage. Recherche de tout masquage sur `src/Infrastructure/Siem/` : **aucun résultat**. `actorId` porte une adresse de courriel en clair sur le chemin OIDC (`OidcCallbackController.php:83`) | **Aucun masquage sur un chemin de sortie**, alors que `docs/04_security_guardrails.md:400` affirme l'inverse (DOC-25) | **Majeur** | Un SIEM d'entreprise est un système de confiance, destinataire légitime d'identifiants d'acteur : masquer y détruirait la capacité d'investigation. Argument juste pour `actorId`, discutable pour `details` dont le contenu n'est pas borné, et sans effet sur la contradiction documentaire |
+| **G-43** | Politiques de contrôle d'accès | Directive (UE) 2022/2555, **art. 21(2)(i)** | `OIDC_REDIRECT_URI` et `successRedirect` sont utilisés **sans contrainte de schéma ni liste blanche** (`OidcService.php:43,112` ; `OidcCallbackController.php:106,119`) ; quand `successRedirect` est non vide, `access_token` et `refresh_token` sont placés dans le **fragment d'URL** d'une redirection 302 vers cette cible (`:99-107`) | Des jetons d'accès et de rafraîchissement sont remis à une cible de redirection non validée | **Majeur** | Le module est **opt-in et désactivé par défaut** (`config/services.yaml:26`), et la cible est fixée par configuration d'exploitation, non par une entrée utilisateur. La gravité dépend entièrement de la rigueur du déployeur — ce qui est précisément ce qu'un produit destiné à un tiers ne doit pas supposer |
+| **G-44** | Traitement des incidents : détection et réponse | Directive (UE) 2022/2555, **art. 21(2)(b)** | `infra/monitoring/prometheus/alert.rules.yml` ne comporte que **4 règles** : kill switch, dépendance indisponible, métriques injoignables, ingestion à l'arrêt | **Aucune alerte sur un événement de sécurité** : ni taux d'échec d'authentification, ni force brute, ni épuisement de limiteur, ni détection d'injection, ni seuil budgétaire — alors que des types d'événement d'audit existent pour tous | **Majeur** | Les règles d'alerte relèvent classiquement de la supervision du déployeur, et le produit expose déjà les événements en base et vers le SIEM. Argument recevable — l'écart porte alors sur l'absence de jeu de règles de référence livré |
+
+**Un point relevé et non retenu comme écart.** La signature du jeton d'identité OIDC
+n'est pas vérifiée (`OidcService.php:162-184`). Le code **déclare l'omission
+intentionnelle** en invoquant OIDC Core §3.1.3.7 — le jeton étant obtenu par le canal
+arrière — et met en place un contrôle croisé UserInfo comme preuve de substitution
+(`:63-71`). Cette lecture de la spécification est correcte. Le point résiduel est porté
+en avis non opposable A-09.
 
 ---
 
@@ -148,6 +168,9 @@
 | A-06 | La rotation d'`APP_SECRET` rend illisibles tous les DSN SMTP chiffrés, et le code le reconnaît en renvoyant à une « future spec ». Dette assumée et documentée | `SmtpDsnEncryptor.php:22-23` |
 | A-07 | `getQuarantinedCount()` est un stub retournant 0, ce qui rend la mise en quarantaine invisible à la supervision | `SenderFloodDetector.php:84-89` |
 | A-08 | `MIN_HOURS_BETWEEN_REPLIES = 6` fixe crée une signature temporelle exploitable à l'échelle de plusieurs conversations. Menace T1 réelle, mais **rendue sans objet par G-01** si la transparence est imposée | `ReplyCadenceService.php:27` |
+| A-09 | La non-vérification de la signature du jeton d'identité OIDC est conforme à OIDC Core §3.1.3.7 **à condition** que le point de terminaison de jeton soit joint en TLS. Or l'émetteur attendu provient du document de découverte lui-même (`OidcService.php:61,191-193`) et aucune assertion de schéma n'existe : la chaîne de confiance repose entièrement sur `OIDC_DISCOVERY_URL`. Observation de conception, sans référentiel opposable | `OidcService.php:16-21`, `:61`, `:107-117` |
+| A-10 | Le `state` OIDC est sans état et signé, donc **rejouable dans sa fenêtre de 600 s** faute de registre d'usage unique (`OidcStateManager.php:12-13`, `:21`) ; `iat` n'est jamais lu et aucune tolérance de dérive d'horloge n'est prévue (`:214-218`) | `OidcStateManager.php:21` ; `OidcService.php:214-218` |
+| A-11 | Une revendication `email_verified` **absente** vaut `true` (`OidcService.php:82`), et la liste blanche de domaines vide — valeur livrée — accepte tout domaine (`OidcConfig.php:51-53`). Le provisionnement automatique étant désactivé par défaut, l'effet est borné | `OidcService.php:82-90` ; `config/services.yaml:34,38` |
 
 ---
 

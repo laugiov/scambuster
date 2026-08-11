@@ -272,7 +272,7 @@ décrit un système qui n'existe pas.
 
 | # | Critère | Mesure |
 |---|---|---|
-| A10.1 | Exactitude | Les 24 contradictions recensées sont traitées, chacune par correction de la documentation ou par implémentation du contrôle annoncé |
+| A10.1 | Exactitude | Les 25 contradictions recensées sont traitées, chacune par correction de la documentation ou par implémentation du contrôle annoncé |
 | A10.2 | Non-régression | Un contrôle automatisé vérifie la correspondance des valeurs numériques citées dans la documentation avec celles du code |
 | A10.3 | Complétude | Aucune procédure d'exploitation référencée n'est absente |
 

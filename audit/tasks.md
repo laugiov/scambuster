@@ -27,7 +27,7 @@ flowchart TB
     T07["T-07 Tests de non-émission"]
   end
   subgraph L2["Lot 2 — Documentation"]
-    T08["T-08 Corriger 24 contradictions"]
+    T08["T-08 Corriger 25 contradictions"]
     T09["T-09 Procédures manquantes"]
     T10["T-10 Contrôle de cohérence"]
     T11["T-11 Matrice des flux"]
@@ -134,7 +134,7 @@ Sans dépendance technique ; peut avancer entièrement en parallèle des lots 1 
 
 | ID | Tâche | Exigence | Écart | Charge | Dépend de |
 |---|---|---|---|---|---|
-| **T-08** | Traiter les **24 contradictions** recensées en `00_inventory.md` §11, chacune par correction de la documentation ou par implémentation du contrôle annoncé. Traiter en priorité celles portant sur des contrôles inexistants : catégories de blocage absentes, politiques d'isolation de base absentes, chiffrement de contenu annoncé et absent, rétention annoncée automatique et non planifiée | EX-10 | G-40 | **M** | — |
+| **T-08** | Traiter les **25 contradictions** recensées en `00_inventory.md` §11, chacune par correction de la documentation ou par implémentation du contrôle annoncé. Traiter en priorité celles portant sur des contrôles inexistants : catégories de blocage absentes, politiques d'isolation de base absentes, chiffrement de contenu annoncé et absent, rétention annoncée automatique et non planifiée | EX-10 | G-40 | **M** | — |
 | **T-09** | Écrire les deux procédures d'exploitation référencées et inexistantes : l'application du verrouillage en écriture de la table d'audit, et le script de reconstruction de chaîne mentionné par la procédure de rotation de clé | EX-10 | G-41 | **S** | — |
 | **T-10** | Ajouter un contrôle automatisé vérifiant que les valeurs numériques citées dans la documentation — comptages de motifs, de permissions, durées de conservation, seuils — correspondent à celles du code | EX-10 | G-40 | **S** | T-08 |
 | **T-11** | Publier la **matrice des flux sortants** : destination, protocole, déclencheur, nature des données, caractère obligatoire ou facultatif. Signaler explicitement les flux transmettant une donnée d'origine adverse à un tiers, et les rendre désactivables indépendamment. **Le recensement de départ existe** en `00_inventory.md` §2 | EX-06 | G-07, G-08, G-14 | **S** | — |
@@ -259,6 +259,9 @@ Rappel des arbitrages, pour qu'aucune ne soit reprise par inadvertance.
 | Signature d'artefacts et attestation de provenance | G-26 | Sur-dimensionné au regard des sources citées et de la taille de l'équipe |
 | Épinglage des images par empreinte | G-26 | Arbitrage ouvert : fige aussi les correctifs du socle, alors que la construction applique déjà les mises à jour. Laissé en avis, non en tâche |
 | Multi-tenance, identité de nœud, provenance signée des flux | — | Relèvent du scénario S3, non retenu |
+| Masquage des identifiants dans l'export SIEM | G-42 | Un SIEM d'entreprise est un destinataire de confiance. **La contradiction documentaire associée (DOC-25) est traitée par T-08** |
+| Validation de l'URI de redirection OIDC et retrait des jetons du fragment d'URL | G-43 | Module opt-in désactivé par défaut ; à traiter au premier cycle, hors des six écarts retenus |
+| Jeu de règles d'alerte de sécurité de référence | G-44 | Relève classiquement de la supervision du déployeur ; le produit expose déjà les événements |
 
 ---
 
