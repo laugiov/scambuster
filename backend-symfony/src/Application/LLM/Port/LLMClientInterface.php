@@ -18,7 +18,10 @@ interface LLMClientInterface
      * @param array<int, array{role: string, content: string}> $messages
      *                                                                   Array of messages with 'role' (system|user|assistant) and 'content'
      * @param array<string, mixed>                             $options
-     *                                                                   Provider-specific options (max_tokens, temperature, etc.)
+     *                                                                   Provider-specific options: max_tokens, temperature, model, purpose,
+     *                                                                   conversation_id. Also honored where supported: response_format
+     *                                                                   (only {type: json_object}, OpenAI/Ollama, applied best-effort with
+     *                                                                   graceful fallback to text) and seed (int, deterministic sampling).
      *
      * @throws \RuntimeException If API call fails or response is invalid
      *

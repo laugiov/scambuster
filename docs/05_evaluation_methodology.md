@@ -105,25 +105,46 @@ Thompson Sampling is planned as a v2 upgrade. It is **not implemented** in the c
 
 ## Reward Function
 
-### Formula
+The value the persona-selection bandit actually optimizes is a **hybrid reward**: an LLM judgement of
+the conversation's real outcome, blended with a deterministic mechanical score. The mechanical formula
+is only the smaller component — it is **not** the objective on its own.
+
+### Hybrid formula (what is actually optimized)
 
 ```
-reward = 0.40 × duration_score
-       + 0.25 × ioc_total_score
-       + 0.25 × ioc_sensitive_score
-       + 0.10 × completion_score
+reward = 0.70 × outcome_llm  +  0.30 × mechanical_reward
 ```
 
-### Component Definitions
+- **`outcome_llm`** — an LLM judge (`RewardJudge`) scores the *actual* outcome of the finished
+  conversation (did we obtain a payment / cash-out channel, fresh infrastructure, attribution?) on a
+  `0–1` scale. The weight is configurable via `scambuster.reward.llm_weight` (**default 0.7**); see
+  [docs/25](25_prompt_customization.md) and the "Reward Signal (Hybrid)" section of
+  [docs/03](03_high_level_architecture.md).
+- **Fault-tolerant** — if the LLM judgement is unavailable, the reward falls back to the mechanical
+  score alone (no crash, no zero). Source of truth: `RewardJudge.php`.
+- **Honest caveat** — `outcome_llm` is an LLM self-assessment with **no human ground truth**, produced
+  by the same model family that generates the replies. Treat it as a heuristic signal, not a measured
+  one. The mechanical 30% is the deterministic, auditable anchor.
+
+### Mechanical reward (the 0.30 component)
+
+```
+mechanical_reward = 0.40 × duration_score
+                  + 0.25 × ioc_total_score
+                  + 0.25 × ioc_sensitive_score
+                  + 0.10 × completion_score
+```
 
 | Component | Calculation | Range | Rationale |
 |-----------|-------------|-------|-----------|
-| **duration_score** | min(duration_sec / 172800, 1.0) | 0-1 | Up to 48h normalized |
-| **ioc_total_score** | min(total_iocs / 20, 1.0) | 0-1 | Up to 20 IOCs |
-| **ioc_sensitive_score** | min(sensitive_iocs / 5, 1.0) | 0-1 | Up to 5 high-value |
+| **duration_score** | min(duration_sec / 86400, 1.0) | 0-1 | Up to 24h normalized |
+| **ioc_total_score** | min(total_iocs / 50, 1.0) | 0-1 | Up to 50 IOCs |
+| **ioc_sensitive_score** | min(sensitive_iocs / 10, 1.0) | 0-1 | Up to 10 high-value |
 | **completion_score** | 1.0 if completed, 0.0 if abandoned | 0/1 | Binary completion |
 
-### Weight Justification
+Constants are the source-of-truth values in `ConversationMetrics.php`.
+
+### Weight Justification (mechanical component)
 
 | Weight | Component | Rationale |
 |--------|-----------|-----------|

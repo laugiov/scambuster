@@ -47,6 +47,19 @@ final readonly class OllamaClient implements LLMClientInterface
                 ],
             ];
 
+            // Structured output: Ollama takes `format: json` at the TOP LEVEL (not
+            // inside `options`). Honored only for the json_object mode; the prompts
+            // themselves already instruct JSON, which Ollama requires to avoid
+            // runaway whitespace generation.
+            if (($options['response_format'] ?? null) === ['type' => 'json_object']) {
+                $payload['format'] = 'json';
+            }
+
+            // Deterministic sampling (opt-in) goes inside `options`.
+            if (isset($options['seed']) && is_int($options['seed'])) {
+                $payload['options']['seed'] = $options['seed'];
+            }
+
             $response = $this->httpClient->request('POST', $this->baseUrl . self::API_ENDPOINT, [
                 'json' => $payload,
                 'timeout' => 120,
