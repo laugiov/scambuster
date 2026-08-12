@@ -127,6 +127,115 @@ final class TtpAttackPatternBuilderTest extends TestCase
         self::assertArrayNotHasKey('external_references', $t006);
     }
 
+    /**
+     * The builder emits any source in its allowlist, not the single hard-coded
+     * mitre-attack it started with.
+     */
+    public function testEmitsMitreF3ReferencesAlongsideAttackReferences(): void
+    {
+        $patterns = $this->builder->buildAttackPatterns([[
+            'code' => 'SB-T001',
+            'label' => 'x',
+            'definition' => 'x',
+            'phase' => 'hook',
+            'external_refs' => [
+                ['source_name' => 'mitre-attack', 'external_id' => 'T1566'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020.001'],
+            ],
+        ]]);
+
+        /** @var list<array{source_name: string, external_id: string}> $refs */
+        $refs = $patterns[0]['external_references'];
+
+        self::assertSame(['mitre-attack', 'mitre-f3'], array_column($refs, 'source_name'));
+        self::assertSame(['T1566', 'F1020.001'], array_column($refs, 'external_id'));
+    }
+
+    /**
+     * The canonical F3 technique URL format on ctid.mitre.org is not confirmed, and a
+     * guessed URL in a shared feed is worse than none: consumers follow it. The
+     * reference ships without a url key until the format is verified.
+     */
+    public function testMitreF3ReferencesCarryNoGuessedUrl(): void
+    {
+        $patterns = $this->builder->buildAttackPatterns([[
+            'code' => 'SB-T001',
+            'label' => 'x',
+            'definition' => 'x',
+            'phase' => 'hook',
+            'external_refs' => [['source_name' => 'mitre-f3', 'external_id' => 'F1020']],
+        ]]);
+
+        /** @var list<array{source_name: string, external_id: string}> $refs */
+        $refs = $patterns[0]['external_references'];
+
+        self::assertCount(1, $refs);
+        self::assertArrayNotHasKey('url', $refs[0]);
+    }
+
+    /**
+     * F3 references existing ATT&CK techniques where they apply to fraud, so the same
+     * external_id under two source names is legitimate. They are different knowledge
+     * bases and both references are kept.
+     */
+    public function testKeepsTheSameExternalIdUnderTwoSourceNames(): void
+    {
+        $patterns = $this->builder->buildAttackPatterns([[
+            'code' => 'SB-T014',
+            'label' => 'x',
+            'definition' => 'x',
+            'phase' => 'payment-request',
+            'external_refs' => [
+                ['source_name' => 'mitre-attack', 'external_id' => 'T1598'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1598'],
+            ],
+        ]]);
+
+        /** @var list<array{source_name: string, external_id: string}> $refs */
+        $refs = $patterns[0]['external_references'];
+
+        self::assertCount(2, $refs);
+        self::assertSame(['T1598', 'T1598'], array_column($refs, 'external_id'));
+        self::assertSame(['mitre-attack', 'mitre-f3'], array_column($refs, 'source_name'));
+    }
+
+    /**
+     * The allowlist is the guard against a hand-edited or migrated external_refs row
+     * publishing a knowledge base this project has never checked against.
+     */
+    public function testDropsReferencesFromSourcesOutsideTheAllowlist(): void
+    {
+        $patterns = $this->builder->buildAttackPatterns([[
+            'code' => 'SB-T001',
+            'label' => 'x',
+            'definition' => 'x',
+            'phase' => 'hook',
+            'external_refs' => [
+                ['source_name' => 'disarm', 'external_id' => 'T0086'],
+                ['source_name' => 'capec', 'external_id' => 'CAPEC-98'],
+                ['source_name' => 'mitre-attack', 'external_id' => 'T1566'],
+            ],
+        ]]);
+
+        /** @var list<array{source_name: string, external_id: string}> $refs */
+        $refs = $patterns[0]['external_references'];
+
+        self::assertSame(['mitre-attack'], array_column($refs, 'source_name'));
+    }
+
+    public function testDropsAllowlistedSourcesThatCarryAnEmptyExternalId(): void
+    {
+        $patterns = $this->builder->buildAttackPatterns([[
+            'code' => 'SB-T001',
+            'label' => 'x',
+            'definition' => 'x',
+            'phase' => 'hook',
+            'external_refs' => [['source_name' => 'mitre-f3', 'external_id' => '']],
+        ]]);
+
+        self::assertArrayNotHasKey('external_references', $patterns[0]);
+    }
+
     public function testAttackPatternIdsAreDeterministic(): void
     {
         $first = $this->builder->buildAttackPatterns($this->taxonomySeeds());

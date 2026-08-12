@@ -2,39 +2,36 @@
 
 declare(strict_types=1);
 
-namespace DoctrineMigrations;
-
-use Doctrine\DBAL\Schema\Schema;
-use Doctrine\Migrations\AbstractMigration;
+namespace App\Domain\Communication;
 
 /**
- * Create and seed the lkp_ttp lookup table: the closed vocabulary of scammer-side
- * tactics, techniques and procedures (TTPs) observable in inbound messages.
+ * The canonical ScamBuster TTP taxonomy: the closed vocabulary of scammer-side
+ * behaviours observable in an inbound message, across the six-phase scam kill chain.
  *
- * Reference/lookup rows reach the production database through migrations, not
- * fixtures (fixtures would replace real data). Purely additive: one new table,
- * its sequence and its seed rows — it touches no existing table and removes no
- * data, so it is safe on a populated production DB.
+ * This constant is the single source of truth production code reads from. It is
+ * never hand-edited downstream: the taxonomy artifact (docs/standards/taxonomy-v1.0.json),
+ * the MISP machine tag file and the STIX attack-pattern catalogue are all generated
+ * from here.
  *
- * Idempotent: every seed INSERT uses the sequence and ON CONFLICT on the unique
- * code, so re-running is safe and a demo/test environment that already seeded
- * the taxonomy via fixtures is a no-op here.
+ * Two other copies of these rows exist by design, and a consistency test locks all
+ * three against each other so they can never drift:
+ *
+ * - the lkp_ttp migration seeds, because reference rows reach a production database
+ *   through migrations and a migration must stay self-contained (it cannot depend on
+ *   application code that may change under it);
+ * - {@see \App\DataFixtures\Communication\TtpFixtures}, which aliases this constant
+ *   for test databases.
+ *
+ * Changing these rows is a taxonomy change: it needs a {@see Ttp::TAXONOMY_VERSION}
+ * bump and a changelog entry, and CI fails without them. Codes are deprecated
+ * (active = false), never deleted — see docs/standards/taxonomy-versioning.md.
  */
-final class Version2026073000000000 extends AbstractMigration
+final class TtpTaxonomySeed
 {
     /**
-     * Canonical taxonomy seed rows, held here so the migration stays
-     * self-contained: reference rows reach production through migrations, and a
-     * migration must not depend on application code that can change under it.
-     *
-     * App\Domain\Communication\TtpTaxonomySeed carries the same rows for the
-     * application (and TtpFixtures aliases that constant for test databases). A
-     * consistency test locks the two copies against each other so they can never
-     * drift.
-     *
      * @var list<array{code: string, label: string, definition: string, phase: string, examples: list<string>, stimulus_affinity: list<string>, external_refs: list<array{source_name: string, external_id: string}>}>
      */
-    private const SEEDS = [
+    public const ENTRIES = [
         [
             'code' => 'SB-T001',
             'label' => 'Unsolicited opportunity lure',
@@ -386,62 +383,30 @@ final class Version2026073000000000 extends AbstractMigration
         ],
     ];
 
-    public function getDescription(): string
+    /**
+     * The taxonomy rows, with their shape stated in a form static analysis
+     * honours.
+     *
+     * PHPStan infers a class constant's type from its literal value, and for a
+     * 27-row nested array that collapses to a union wide enough to make every
+     * `$entry['code']` a possible-invalid-array-key. Reading the rows through a
+     * typed accessor gives callers the real shape without either side asserting
+     * anything the other has to trust.
+     *
+     * @return list<array{code: string, label: string, definition: string, phase: string, examples: list<string>, stimulus_affinity: list<string>, external_refs: list<array{source_name: string, external_id: string}>}>
+     */
+    public static function entries(): array
     {
-        return 'Create and seed the lkp_ttp TTP taxonomy lookup table';
+        return self::ENTRIES;
     }
 
-    public function up(Schema $schema): void
+    /**
+     * Every taxonomy code, in canonical order.
+     *
+     * @return list<string>
+     */
+    public static function codes(): array
     {
-        $this->addSql('CREATE SEQUENCE lkp_ttp_ttp_id_seq INCREMENT BY 1 MINVALUE 1 START 1');
-        $this->addSql(
-            'CREATE TABLE lkp_ttp ('
-            . 'ttp_id INT NOT NULL, '
-            . 'code VARCHAR(16) NOT NULL, '
-            . 'label VARCHAR(128) NOT NULL, '
-            . 'definition TEXT NOT NULL, '
-            . 'phase VARCHAR(32) NOT NULL, '
-            . 'examples JSONB NOT NULL, '
-            . 'stimulus_affinity JSONB NOT NULL, '
-            . "external_refs JSONB NOT NULL DEFAULT '[]', "
-            . 'active BOOLEAN NOT NULL DEFAULT true, '
-            . 'created_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, '
-            . 'updated_at TIMESTAMP(0) WITHOUT TIME ZONE NOT NULL, '
-            . 'PRIMARY KEY(ttp_id), '
-            . 'CONSTRAINT uniq_lkp_ttp_code UNIQUE (code), '
-            . "CONSTRAINT chk_lkp_ttp_phase CHECK (phase IN ('hook', 'trust-building', 'payment-request', 'escalation', 'channel-switch', 'exit'))"
-            . ')'
-        );
-        $this->addSql('CREATE INDEX idx_lkp_ttp_phase ON lkp_ttp (phase)');
-        $this->addSql("COMMENT ON COLUMN lkp_ttp.created_at IS '(DC2Type:datetime_immutable)'");
-        $this->addSql("COMMENT ON COLUMN lkp_ttp.updated_at IS '(DC2Type:datetime_immutable)'");
-
-        foreach (self::SEEDS as $seed) {
-            $this->addSql(
-                'INSERT INTO lkp_ttp (ttp_id, code, label, definition, phase, examples, stimulus_affinity, external_refs, active, created_at, updated_at)
-                 VALUES (nextval(\'lkp_ttp_ttp_id_seq\'), :code, :label, :definition, :phase, CAST(:examples AS jsonb), CAST(:stimulusAffinity AS jsonb), CAST(:externalRefs AS jsonb), true, NOW(), NOW())
-                 ON CONFLICT (code) DO NOTHING',
-                [
-                    'code' => $seed['code'],
-                    'label' => $seed['label'],
-                    'definition' => $seed['definition'],
-                    'phase' => $seed['phase'],
-                    'examples' => json_encode($seed['examples'], \JSON_THROW_ON_ERROR),
-                    'stimulusAffinity' => json_encode($seed['stimulus_affinity'], \JSON_THROW_ON_ERROR),
-                    'externalRefs' => json_encode($seed['external_refs'], \JSON_THROW_ON_ERROR),
-                ]
-            );
-        }
-    }
-
-    public function down(Schema $schema): void
-    {
-        $this->addSql(
-            'DELETE FROM lkp_ttp WHERE code IN (:codes)',
-            ['codes' => array_column(self::SEEDS, 'code')],
-            ['codes' => \Doctrine\DBAL\ArrayParameterType::STRING]
-        );
-        $this->addSql('DROP TABLE lkp_ttp');
-        $this->addSql('DROP SEQUENCE lkp_ttp_ttp_id_seq CASCADE');
+        return array_column(self::ENTRIES, 'code');
     }
 }

@@ -7,6 +7,7 @@ namespace App\Tests\Unit\Application\Communication;
 use App\Application\LLM\ContextualEnrichmentResult;
 use App\DataFixtures\Communication\TtpFixtures;
 use App\Domain\Communication\Service\TtpStixIdGenerator;
+use App\Domain\Communication\TtpTaxonomySeed;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -173,6 +174,25 @@ class TtpTaxonomyConsistencyTest extends TestCase
             $this->migrationSeeds,
             TtpFixtures::SEEDS,
             'TtpFixtures::SEEDS must be byte-identical to the migration SEEDS so the two can never drift'
+        );
+    }
+
+    public function testCanonicalSeedMatchesMigrationSeedsExactly(): void
+    {
+        $this->assertSame(
+            $this->migrationSeeds,
+            TtpTaxonomySeed::ENTRIES,
+            'TtpTaxonomySeed::ENTRIES is what the application generates artifacts from; it must be'
+            . ' byte-identical to the migration SEEDS, which is what production actually holds'
+        );
+    }
+
+    public function testCanonicalSeedCodesHelperMatchesTheEntries(): void
+    {
+        $this->assertSame(
+            array_column(TtpTaxonomySeed::ENTRIES, 'code'),
+            TtpTaxonomySeed::codes(),
+            'TtpTaxonomySeed::codes() must return the entry codes in canonical order'
         );
     }
 }
