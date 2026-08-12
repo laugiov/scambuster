@@ -4,36 +4,39 @@ declare(strict_types=1);
 
 namespace App\Application\LLM;
 
+use App\Application\LLM\Port\EmbeddingClientInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 /**
- * Generates text embeddings via OpenAI embeddings API.
+ * Generates text embeddings through the provider-agnostic embedding port.
  *
- * Uses text-embedding-3-small (1536 dimensions, $0.02/1M tokens).
+ * Owns truncation, batching and fail-safe semantics; the actual HTTP is done by
+ * the injected EmbeddingClientInterface, which LLM_PROVIDER swaps (OpenAI /
+ * Ollama / mock) so a local deployment never ships text to an external provider.
  * Called by the batch command app:generate-embeddings, not during ingestion.
  */
 final readonly class EmbeddingService
 {
-    private const MODEL = 'text-embedding-3-small';
-    private const DIMENSIONS = 1536;
-    private const API_URL = 'https://api.openai.com/v1/embeddings';
+    // Longest text to embed; ~8191 tokens ≈ 32K chars for OpenAI's models.
+    private const MAX_CHARS = 30000;
 
     public function __construct(
-        private HttpClientInterface $httpClient,
-        private string $apiKey,
+        private EmbeddingClientInterface $client,
         private LoggerInterface $logger,
+        // Informational: the expected dimension for the configured model (OpenAI).
+        // The actually-stored `dim` is the real returned vector length.
+        private int $dimensions = 1536,
     ) {
     }
 
     public function getModel(): string
     {
-        return self::MODEL;
+        return $this->client->model();
     }
 
     public function getDimensions(): int
     {
-        return self::DIMENSIONS;
+        return $this->dimensions;
     }
 
     /**
@@ -61,48 +64,21 @@ final readonly class EmbeddingService
             return [];
         }
 
-        // Truncate very long texts to avoid token limits (8191 tokens ~ 32K chars)
-        $truncated = array_map(fn (string $t): string => mb_substr($t, 0, 30000), $texts);
+        $truncated = array_map(fn (string $t): string => mb_substr($t, 0, self::MAX_CHARS), $texts);
 
         try {
-            $response = $this->httpClient->request('POST', self::API_URL, [
-                'headers' => [
-                    'Authorization' => 'Bearer ' . $this->apiKey,
-                    'Content-Type' => 'application/json',
-                ],
-                'json' => [
-                    'input' => $truncated,
-                    'model' => self::MODEL,
-                    'dimensions' => self::DIMENSIONS,
-                    'user' => 'tenant_embeddings',
-                ],
-            ]);
-
-            $data = $response->toArray();
-
-            /** @var array<int, array{embedding: array<int, float>, index: int}> $embeddings */
-            $embeddings = $data['data'] ?? [];
-
-            // Sort by index to maintain input order
-            usort($embeddings, fn (array $a, array $b): int => $a['index'] <=> $b['index']);
-
-            $result = [];
-
-            foreach ($embeddings as $item) {
-                $result[] = $item['embedding'];
-            }
+            $result = $this->client->embed($truncated);
 
             $this->logger->debug('[EmbeddingService] Batch generated', [
-                'count' => count($result),
-                'model' => self::MODEL,
-                'dimensions' => self::DIMENSIONS,
+                'count' => \count($result),
+                'model' => $this->client->model(),
             ]);
 
             return $result;
         } catch (\Throwable $e) {
             $this->logger->error('[EmbeddingService] Failed to generate embeddings', [
                 'error' => $e->getMessage(),
-                'batch_size' => count($texts),
+                'batch_size' => \count($texts),
             ]);
 
             return [];

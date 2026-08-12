@@ -110,7 +110,9 @@ final class GenerateEmbeddingsCommand extends Command
                         'vectorId' => $vectorId,
                         'embedding' => json_encode($embedding),
                         'modelName' => $this->embeddingService->getModel(),
-                        'dim' => $this->embeddingService->getDimensions(),
+                        // Record the ACTUAL vector length, not a configured guess:
+                        // local models emit their own dimension (provider-agnostic).
+                        'dim' => count($embedding),
                     ],
                 );
 

@@ -5,199 +5,96 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Application\LLM;
 
 use App\Application\LLM\EmbeddingService;
+use App\Application\LLM\Port\EmbeddingClientInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
-use Symfony\Contracts\HttpClient\HttpClientInterface;
-use Symfony\Contracts\HttpClient\ResponseInterface;
 
 /**
- * Unit tests for EmbeddingService
- *
- * Tests embedding generation, batch processing, error handling,
- * and text truncation via mocked HttpClient.
+ * EmbeddingService owns truncation, batching and fail-safe semantics and
+ * delegates the actual embedding to the provider-agnostic client.
  */
-class EmbeddingServiceTest extends TestCase
+final class EmbeddingServiceTest extends TestCase
 {
-    private function createService(HttpClientInterface $httpClient): EmbeddingService
+    public function testGetModelDelegatesToClient(): void
     {
-        return new EmbeddingService(
-            $httpClient,
-            'test-api-key',
-            new NullLogger(),
-        );
+        $svc = new EmbeddingService(new FakeEmbeddingClient('model-under-test'), new NullLogger());
+        self::assertSame('model-under-test', $svc->getModel());
     }
 
-    private function createMockResponse(array $data): ResponseInterface
+    public function testGetDimensionsReturnsConfiguredHint(): void
     {
-        $response = $this->createMock(ResponseInterface::class);
-        $response->method('toArray')->willReturn($data);
-
-        return $response;
+        $svc = new EmbeddingService(new FakeEmbeddingClient('m'), new NullLogger(), 768);
+        self::assertSame(768, $svc->getDimensions());
     }
 
-    // ------------------------------------------------------------------ //
-    //  Model & Dimensions
-    // ------------------------------------------------------------------ //
-
-    public function testGetModelReturnsExpectedModel(): void
+    public function testGenerateReturnsFirstVector(): void
     {
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $service = $this->createService($httpClient);
+        $client = new FakeEmbeddingClient('m');
+        $svc = new EmbeddingService($client, new NullLogger());
 
-        $this->assertSame('text-embedding-3-small', $service->getModel());
+        self::assertSame([1.0, 2.0], $svc->generate('hello'));
+        self::assertSame(['hello'], $client->lastInput);
     }
 
-    public function testGetDimensionsReturns1536(): void
+    public function testGenerateBatchDelegatesInOrder(): void
     {
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $service = $this->createService($httpClient);
+        $client = new FakeEmbeddingClient('m');
+        $svc = new EmbeddingService($client, new NullLogger());
 
-        $this->assertSame(1536, $service->getDimensions());
+        $out = $svc->generateBatch(['a', 'b']);
+        self::assertCount(2, $out);
+        self::assertSame(['a', 'b'], $client->lastInput);
     }
 
-    // ------------------------------------------------------------------ //
-    //  generate (single text)
-    // ------------------------------------------------------------------ //
-
-    public function testGenerateReturnsSingleEmbedding(): void
+    public function testLongTextIsTruncatedBeforeEmbedding(): void
     {
-        $embedding = array_fill(0, 10, 0.1);
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->expects($this->once())
-            ->method('request')
-            ->willReturn($this->createMockResponse([
-                'data' => [
-                    ['embedding' => $embedding, 'index' => 0],
-                ],
-            ]));
+        $client = new FakeEmbeddingClient('m');
+        $svc = new EmbeddingService($client, new NullLogger());
 
-        $service = $this->createService($httpClient);
-        $result = $service->generate('Test text');
+        $svc->generate(str_repeat('x', 50000));
 
-        $this->assertSame($embedding, $result);
+        self::assertNotNull($client->lastInput);
+        self::assertSame(30000, mb_strlen($client->lastInput[0]), 'text must be truncated to the char cap before embedding');
     }
 
-    public function testGenerateReturnsNullOnEmptyResponse(): void
+    public function testFailureReturnsEmptyArray(): void
     {
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->method('request')
-            ->willReturn($this->createMockResponse(['data' => []]));
+        $client = new FakeEmbeddingClient('m', throw: true);
+        $svc = new EmbeddingService($client, new NullLogger());
 
-        $service = $this->createService($httpClient);
-        $result = $service->generate('Test text');
-
-        $this->assertNull($result);
+        self::assertNull($svc->generate('x'));
+        self::assertSame([], $svc->generateBatch(['x']));
     }
 
-    public function testGenerateReturnsNullOnApiError(): void
+    public function testEmptyBatchReturnsEmpty(): void
     {
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->method('request')
-            ->willThrowException(new \RuntimeException('API error'));
+        $svc = new EmbeddingService(new FakeEmbeddingClient('m'), new NullLogger());
+        self::assertSame([], $svc->generateBatch([]));
+    }
+}
 
-        $service = $this->createService($httpClient);
-        $result = $service->generate('Test text');
+final class FakeEmbeddingClient implements EmbeddingClientInterface
+{
+    /** @var array<int, string>|null */
+    public ?array $lastInput = null;
 
-        $this->assertNull($result);
+    public function __construct(private readonly string $model, private readonly bool $throw = false)
+    {
     }
 
-    // ------------------------------------------------------------------ //
-    //  generateBatch
-    // ------------------------------------------------------------------ //
-
-    public function testGenerateBatchReturnsEmptyForEmptyInput(): void
+    public function model(): string
     {
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->expects($this->never())->method('request');
-
-        $service = $this->createService($httpClient);
-        $result = $service->generateBatch([]);
-
-        $this->assertSame([], $result);
+        return $this->model;
     }
 
-    public function testGenerateBatchReturnsMultipleEmbeddings(): void
+    public function embed(array $texts): array
     {
-        $embedding1 = array_fill(0, 5, 0.1);
-        $embedding2 = array_fill(0, 5, 0.2);
+        if ($this->throw) {
+            throw new \RuntimeException('provider down');
+        }
 
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->expects($this->once())
-            ->method('request')
-            ->willReturn($this->createMockResponse([
-                'data' => [
-                    ['embedding' => $embedding2, 'index' => 1],
-                    ['embedding' => $embedding1, 'index' => 0],
-                ],
-            ]));
+        $this->lastInput = $texts;
 
-        $service = $this->createService($httpClient);
-        $result = $service->generateBatch(['text1', 'text2']);
-
-        $this->assertCount(2, $result);
-        // Should be sorted by index
-        $this->assertSame($embedding1, $result[0]);
-        $this->assertSame($embedding2, $result[1]);
-    }
-
-    public function testGenerateBatchReturnsEmptyOnException(): void
-    {
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->method('request')
-            ->willThrowException(new \RuntimeException('Network error'));
-
-        $service = $this->createService($httpClient);
-        $result = $service->generateBatch(['text1']);
-
-        $this->assertSame([], $result);
-    }
-
-    public function testGenerateBatchTruncatesLongText(): void
-    {
-        $longText = str_repeat('a', 50000);
-        $embedding = array_fill(0, 5, 0.5);
-
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->expects($this->once())
-            ->method('request')
-            ->with(
-                'POST',
-                $this->anything(),
-                $this->callback(function (array $options) {
-                    $input = $options['json']['input'][0] ?? '';
-                    // Should be truncated to 30000 chars
-                    return mb_strlen($input) === 30000;
-                })
-            )
-            ->willReturn($this->createMockResponse([
-                'data' => [
-                    ['embedding' => $embedding, 'index' => 0],
-                ],
-            ]));
-
-        $service = $this->createService($httpClient);
-        $result = $service->generateBatch([$longText]);
-
-        $this->assertCount(1, $result);
-    }
-
-    public function testGenerateBatchPassesCorrectAuthHeader(): void
-    {
-        $httpClient = $this->createMock(HttpClientInterface::class);
-        $httpClient->expects($this->once())
-            ->method('request')
-            ->with(
-                'POST',
-                'https://api.openai.com/v1/embeddings',
-                $this->callback(function (array $options) {
-                    return ($options['headers']['Authorization'] ?? '') === 'Bearer test-api-key';
-                })
-            )
-            ->willReturn($this->createMockResponse([
-                'data' => [['embedding' => [0.1], 'index' => 0]],
-            ]));
-
-        $service = $this->createService($httpClient);
-        $service->generateBatch(['test']);
+        return array_map(static fn (): array => [1.0, 2.0], $texts);
     }
 }

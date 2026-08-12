@@ -190,6 +190,15 @@ Nothing else needs egress. For a fully self-contained deployment, run a local LL
 (`LLM_PROVIDER=ollama`) and no external enrichment — then only SMTP/IMAP leave the
 host, and `data` stays internal as shipped.
 
+**Embeddings follow `LLM_PROVIDER` too.** With `ollama` (or `mock`) the semantic
+vectors are produced locally, so no message text is sent out to be embedded. Set
+`LLM_EMBEDDING_MODEL` to your local embedding model (e.g. `nomic-embed-text`); the
+vector dimension is taken from the model output. **Switching the embedding model
+requires re-embedding the corpus** — vectors from different models/dimensions are
+not comparable. Each `message_vector` row records its `model_name` and `dim`, so a
+future backfill can detect and re-embed stale rows; re-run `app:generate-embeddings`
+after a switch.
+
 ---
 
 ## Day-2 operations
