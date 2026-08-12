@@ -23,6 +23,7 @@ change without a version.
 
 Usage:
     python3 scripts/standards/check-taxonomy-versioning.py [--base-ref origin/main]
+    python3 scripts/standards/check-taxonomy-versioning.py --self-test
 
 Exit codes: 0 no change or properly versioned, 1 unversioned change, 2 could not run.
 """
@@ -186,6 +187,77 @@ def read_version(ref: str | None) -> str | None:
     return match.group(1) if match else None
 
 
+def self_test() -> int:
+    """Pin the rules that are easy to weaken without noticing.
+
+    Deletion is the one this exists for. A removed code or a withdrawn artifact
+    must be a violation rather than a note, because a violation fails the run
+    whatever the version bump says, and a note does not. The difference is one
+    list append, and getting it wrong produces a guard that reports the deletion
+    in its output and then exits 0 anyway.
+
+    The git plumbing around these rules runs on every CI invocation, so this
+    covers the decision logic rather than re-testing git.
+    """
+    failures: list[str] = []
+
+    def check(name: str, condition: bool) -> None:
+        if condition:
+            print(f"  ok   {name}")
+        else:
+            print(f"  FAIL {name}")
+            failures.append(name)
+
+    artifact = "backend-symfony/config/standards/taxonomy-v1.0.json"
+
+    def content(codes: list[str]) -> dict:
+        return {
+            artifact: {
+                "kill_chain_name": "scambuster-scam-phases",
+                "phases": ["hook"],
+                "entries": [{"code": code, "label": code, "active": True} for code in codes],
+            }
+        }
+
+    print("Deletion rules:")
+
+    _, violations = describe_changes(content(["SB-T001", "SB-T002"]), content(["SB-T001"]))
+    check("a removed code is a violation, not a note", len(violations) == 1)
+    check("the violation names the code", "SB-T002" in (violations[0] if violations else ""))
+
+    _, violations = describe_changes(content(["SB-T001"]), {})
+    check("a withdrawn artifact is a violation", len(violations) == 1)
+
+    print("Non-deletion rules:")
+
+    notes, violations = describe_changes(content(["SB-T001"]), content(["SB-T001", "SB-T002"]))
+    check("an added code is a note, not a violation", violations == [] and len(notes) == 1)
+
+    before = content(["SB-T001"])
+    after = content(["SB-T001"])
+    after[artifact]["entries"][0]["label"] = "reworded"
+    notes, violations = describe_changes(before, after)
+    check("a modified code is a note, not a violation", violations == [] and len(notes) == 1)
+
+    notes, violations = describe_changes(content(["SB-T001"]), content(["SB-T001"]))
+    check("an unchanged artifact reports nothing", notes == [] and violations == [])
+
+    print("Baseline rule:")
+
+    # main() short-circuits to 0 when the merge base carries no artifact at all,
+    # which is the first-introduction case. This pins the neighbouring rule: an
+    # empty baseline must never make an added artifact look like a deletion.
+    notes, violations = describe_changes({}, content(["SB-T001"]))
+    check("an added artifact against an empty baseline is a note", violations == [] and len(notes) == 1)
+
+    if failures:
+        print(f"\nFAIL: {len(failures)} self-test(s) failed.")
+        return 1
+
+    print("\nOK: the deletion rules hold.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -193,7 +265,15 @@ def main() -> int:
         default="origin/main",
         help="Branch or ref to compare against (default: origin/main).",
     )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Check the guard's own deletion rules and exit. Touches no git state.",
+    )
     args = parser.parse_args()
+
+    if args.self_test:
+        return self_test()
 
     try:
         merge_base = git("merge-base", args.base_ref, "HEAD").strip()

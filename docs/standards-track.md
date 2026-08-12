@@ -133,8 +133,8 @@ These apply to every submission, under every container.
 
 ## 5. Timing
 
-The DefCamp CFP deadline is 2026-08-30. Nothing in this document can complete before
-then, and nothing in it needs to: a CFP submission needs Specs 001 and 002 only.
+External deadlines are tracked outside this repository. A talk submission needs
+Specs 001 and 002 only, so nothing in this document is on that path.
 
 ---
 

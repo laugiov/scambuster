@@ -212,6 +212,12 @@ jobs:
         # GITHUB_PATH above put the venv first, so python3 here is the pinned one.
         run: python3 scripts/standards/validate-taxonomy-artifact.py
 
+      # The guard's own deletion rules, checked before the guard is trusted: a
+      # deletion reported as a note instead of a violation would be printed and
+      # then exit 0 anyway.
+      - name: Taxonomy versioning guard self-test
+        run: python3 scripts/standards/check-taxonomy-versioning.py --self-test
+
       # Fails when the taxonomy's meaning changed without a version bump and a
       # changelog entry, and fails outright on a deleted code (Constitution VI).
       - name: Taxonomy versioning contract

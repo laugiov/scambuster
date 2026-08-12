@@ -32,6 +32,9 @@ final class MispMachineTagGenerator
     public const NAMESPACE_NAME = 'scambuster';
     public const PREDICATE = 'ttp';
 
+    /** Highest minor version the integer encoding can carry. See {@see encodeVersion}. */
+    public const MAX_ENCODABLE_MINOR = 9;
+
     /**
      * The taxonomy values this namespace registers, one per code.
      *
@@ -54,7 +57,7 @@ final class MispMachineTagGenerator
 
     public function version(): int
     {
-        return $this->versionInteger(Ttp::TAXONOMY_VERSION);
+        return self::encodeVersion(Ttp::TAXONOMY_VERSION);
     }
 
     /**
@@ -91,16 +94,46 @@ final class MispMachineTagGenerator
 
     /**
      * MISP taxonomy versions are integers, not semver strings. The taxonomy's own
-     * "1.0" becomes 10, "1.1" becomes 11, so the MISP-side version still moves
+     * "1.0" becomes 10 and "1.1" becomes 11, so the MISP-side version still moves
      * monotonically with the taxonomy and a consumer can tell two releases apart.
+     *
+     * The encoding gives the minor part exactly one decimal digit, and stops rather
+     * than wrapping when that runs out. Taxonomy 1.10 would otherwise encode to 20,
+     * which is the same integer as 2.0: a consumer would see the version go
+     * backwards from 1.9, and two different taxonomies would claim to be the same
+     * release. Failing here is recoverable; publishing a colliding version to every
+     * MISP instance that syncs the taxonomies repository is not.
+     *
+     * Public and static because it is a pure function of the version string, and
+     * the failure it guards against is worth testing directly rather than only
+     * through whatever version the taxonomy happens to carry today.
+     *
+     * @throws \LogicException when the minor version no longer fits the encoding
      */
-    private function versionInteger(string $taxonomyVersion): int
+    public static function encodeVersion(string $taxonomyVersion): int
     {
         // explode always yields at least one element, so index 0 needs no fallback;
         // a version string with no minor part reads as minor 0.
         $parts = explode('.', $taxonomyVersion);
         $major = (int) $parts[0];
         $minor = (int) ($parts[1] ?? 0);
+
+        if ($minor > self::MAX_ENCODABLE_MINOR) {
+            throw new \LogicException(sprintf(
+                'Taxonomy version "%s" cannot be encoded as a MISP taxonomy version:'
+                . ' the minor part must be %d or less, because major * 10 + minor gives'
+                . ' the minor exactly one digit. Minor %d would encode to %d, colliding'
+                . ' with taxonomy %d.%d and making the published version go backwards.'
+                . ' Widen the encoding in %s before releasing this taxonomy version.',
+                $taxonomyVersion,
+                self::MAX_ENCODABLE_MINOR,
+                $minor,
+                $major * 10 + $minor,
+                $major + intdiv($minor, 10),
+                $minor % 10,
+                self::class,
+            ));
+        }
 
         return $major * 10 + $minor;
     }

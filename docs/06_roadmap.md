@@ -1,8 +1,8 @@
 # Roadmap
 
-> **Last updated**: 2026-07-31 · Status: post-hardening, pre-Black Hat USA 2026.
+> **Last updated**: 2026-08-12 · Status: post-hardening, standard-track work in progress.
 > ScamBuster is a working platform (multi-agent LLM scambaiting + real-time CTI).
-> This page records what shipped and states, transparently, what is next — and what
+> This page records what shipped and states, transparently, what is next, and what
 > is deliberately out of scope.
 
 ---
@@ -52,6 +52,13 @@ All merged and running in production.
 - **TLP + PAP markings** with per-IOC TLP inheritance; TLP:RED campaigns excluded from shared collections.
 - **Intelligence feed exports**: TAXII cursor pagination + CSV / NDJSON IOC feeds; multi-label taxonomy; temporal analysis; abuse-report drafts.
 - **Clusters UI redesign**: dedup hero card, freshness sorting, anchor styling, heat-map + temporal + abuse panels, auto-generated takedown report.
+
+### Standard-track work (taxonomy as a published contract)
+- **Versioned taxonomy artifact**: the 27 entries generate into a schema-validated JSON file from one canonical seed. Generation is deterministic and byte-stable, so a third party can regenerate it and compare rather than take it on trust. A CI guard fails a taxonomy change that carries no version bump and no changelog entry, and fails a deleted code outright. See the [versioning contract](standards/taxonomy-versioning.md).
+- **External STIX 2.1 validation**: all three exported bundle types are checked in CI by the OASIS-community `stix2-validator` against the OASIS schemas, both pinned. The check ends by breaking a bundle on purpose to prove the gate can still fail. Export determinism, which is what makes a re-import deduplicate, is asserted rather than assumed. See the [conformance statement](standards/interoperability-conformance.md).
+- **TTP audit scoring tooling**: a frozen scoring codebook plus a command that turns a double-scored sheet into raw agreement, Cohen's kappa, precision and per-code counts. An incomplete sheet is refused, so a partial round cannot become a published number. No figure has been produced yet, and the "no published metric" notices stay until one has. See the [audit method](standards/ttp-extraction-quality.md).
+- **Dataset label scaffolding**: a slot for each of the 134 inbound messages in the public sample, with a CI validator that checks codes against the taxonomy artifact and offsets against the message text. Annotation itself has not started.
+- **MITRE F3 mapping structure**: an allowlist of external reference sources in the STIX builder, a machine-readable mapping file as the source of truth, and a test that keeps it and the taxonomy data in exact agreement in both directions. The 27 decisions are recorded as pending, because the F3 technique list is not yet in hand.
 
 ### Enterprise / compliance
 - **OIDC / SSO** authenticator (Keycloak / Azure AD / Okta / Google), opt-in, off by default.

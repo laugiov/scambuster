@@ -588,6 +588,7 @@ standards-check: ##@standards Run every standard-track guard exactly as CI does
 	$(CONSOLE_DEV) scambuster:ttp:misp-machinetag --check
 	python3 scripts/standards/render-f3-mapping.py --check
 	python3 scripts/standards/validate-taxonomy-artifact.py
+	python3 scripts/standards/check-taxonomy-versioning.py --self-test
 	python3 scripts/standards/check-taxonomy-versioning.py
 	python3 scripts/standards/validate-dataset-labels.py
 	bash scripts/standards/validate-stix-bundles.sh

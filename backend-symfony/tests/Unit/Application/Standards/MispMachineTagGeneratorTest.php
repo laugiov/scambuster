@@ -103,6 +103,88 @@ final class MispMachineTagGeneratorTest extends TestCase
         $this->assertIsInt($document['version'], 'MISP taxonomy versions are integers, not semver strings');
     }
 
+    /**
+     * @dataProvider encodableVersions
+     */
+    public function testEncodesVersionsWhoseMinorFitsOneDigit(string $taxonomyVersion, int $expected): void
+    {
+        $this->assertSame($expected, MispMachineTagGenerator::encodeVersion($taxonomyVersion));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: int}>
+     */
+    public static function encodableVersions(): array
+    {
+        return [
+            'current taxonomy version' => ['1.0', 10],
+            'first minor' => ['1.1', 11],
+            'last encodable minor' => ['1.9', 19],
+            'next major' => ['2.0', 20],
+            'no minor part reads as zero' => ['3', 30],
+        ];
+    }
+
+    /**
+     * The encoding gives the minor part one decimal digit. Taxonomy 1.10 would
+     * encode to 20, the same integer as 2.0: a consumer syncing the MISP taxonomies
+     * repository would see the version go backwards from 1.9, and two different
+     * taxonomies would claim to be the same release.
+     *
+     * Failing at generation is recoverable. Publishing a colliding version to every
+     * MISP instance that syncs the repository is not, which is why this throws
+     * rather than wrapping.
+     *
+     * @dataProvider unencodableVersions
+     */
+    public function testRefusesToEncodeAMinorVersionBeyondOneDigit(string $taxonomyVersion): void
+    {
+        $this->expectException(\LogicException::class);
+        $this->expectExceptionMessageMatches('/cannot be encoded as a MISP taxonomy version/');
+
+        MispMachineTagGenerator::encodeVersion($taxonomyVersion);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function unencodableVersions(): array
+    {
+        return [
+            'first minor that overflows' => ['1.10'],
+            'well past the boundary' => ['2.11'],
+            'far future' => ['1.42'],
+        ];
+    }
+
+    /**
+     * The boundary is stated once and read from there, so a future widening of the
+     * encoding cannot leave the guard checking a stale number.
+     */
+    public function testTheEncodableBoundaryIsTheOneTheGuardEnforces(): void
+    {
+        $boundary = MispMachineTagGenerator::MAX_ENCODABLE_MINOR;
+
+        $this->assertSame(
+            10 + $boundary,
+            MispMachineTagGenerator::encodeVersion('1.' . $boundary),
+            'the highest declared minor must still encode'
+        );
+
+        $this->expectException(\LogicException::class);
+        MispMachineTagGenerator::encodeVersion('1.' . ($boundary + 1));
+    }
+
+    /**
+     * The guard must not have moved what the current taxonomy publishes. Anything
+     * else would change the committed machinetag.json.
+     */
+    public function testTheCurrentTaxonomyStillPublishesTheSameVersion(): void
+    {
+        $this->assertSame(10, MispMachineTagGenerator::encodeVersion('1.0'));
+        $this->assertSame(10, $this->generator->version());
+    }
+
     public function testTheCommittedFileMatchesAFreshGeneration(): void
     {
         $committed = file_get_contents(self::MACHINETAG_PATH);

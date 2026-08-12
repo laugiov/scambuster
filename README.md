@@ -328,6 +328,8 @@ See [Roadmap](docs/06_roadmap.md) and [Changelog](CHANGELOG.md).
 | [Reading the Threat-Actor screen](docs/23_reading_the_threat_actor_screen.md) | Field guide to the Cluster Detail page — every indicator explained, with demo talking points |
 | [Reading the TTP screens](docs/26_reading_the_ttp_screens.md) | Field guide to the TTP Explorer tabs, per-TTP detail pages, review queue and conversation causality chips |
 | [Analyst Feedback](docs/24_analyst_feedback.md) | Human confirm / false-positive verdicts that become authoritative confidence across STIX, TAXII, MISP and CSV feeds |
+| [Standards](docs/standards/) | Taxonomy versioning contract, MITRE F3 mapping, interoperability conformance statement, and the TTP audit method and codebook |
+| [Standards-track log](docs/standards-track.md) | Submission channels, what each one is waiting on, and the gate that blocks all of them |
 
 ---
 

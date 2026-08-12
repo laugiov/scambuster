@@ -10,6 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Standard-track work (taxonomy as a published contract)
+- **MISP taxonomy version encoding refuses to publish a colliding version.** The
+  taxonomy's semver is folded into the integer MISP expects as `major * 10 + minor`,
+  which gives the minor part one decimal digit. Taxonomy 1.10 would have encoded to
+  20, the same integer as 2.0: a consumer syncing the taxonomies repository would
+  have seen the version go backwards from 1.9, and two different taxonomies would
+  have claimed to be the same release. The encoder now throws instead, with a
+  message that says what to widen. The version published for taxonomy 1.0 is
+  unchanged.
+- **The taxonomy versioning guard has a self-test** (`--self-test`), run in CI
+  before the guard itself. A deletion reported as a note rather than a violation
+  would be printed in the output and then exit 0 anyway, which is one list append
+  away and hard to spot in review.
+- **Standards documentation is reachable from the README** and from the docs that
+  lead to it. A document nobody can find from where they are working is not merged,
+  whatever the file tree says.
 - **The TTP taxonomy is now a generated, versioned, schema-validated artifact.** The 27
   entries were PHP constants behind an authenticated endpoint; they are now also
   `config/standards/taxonomy-v1.0.json`, generated deterministically from a single
