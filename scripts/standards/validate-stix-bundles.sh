@@ -21,6 +21,12 @@
 #      submodule — so the validator cannot find a schema for any object type. They
 #      are cloned and dropped into the layout the validator expects.
 #
+# Bundle generation runs inside the backend-dev container when the stack is up,
+# which is the supported path and the one CI takes. The host fallback boots the
+# Symfony kernel directly and therefore needs the application's database reachable
+# — so on a machine with no stack running, start the stack rather than expecting
+# the fallback to work.
+#
 # Usage:
 #   scripts/standards/validate-stix-bundles.sh [--keep-bundles DIR]
 #
@@ -56,9 +62,9 @@ while [ $# -gt 0 ]; do
 done
 
 cleanup() {
-    if [ -n "$KEEP_DIR" ]; then
+    if [ -n "$KEEP_DIR" ] && compgen -G "$BUNDLE_DIR/*.json" >/dev/null; then
         mkdir -p "$KEEP_DIR"
-        cp "$BUNDLE_DIR"/*.json "$KEEP_DIR"/ 2>/dev/null || true
+        cp "$BUNDLE_DIR"/*.json "$KEEP_DIR"/
         echo "Bundles kept in $KEEP_DIR"
     fi
     rm -rf "$BUNDLE_DIR"
@@ -94,19 +100,31 @@ fi
 
 echo "Building conformance fixture bundles ..."
 
-# The bundles are built by PHP and validated by Python. Where PHP lives differs
-# between a developer machine and CI, so both paths are supported: run the console
-# command directly when the autoloader is present on the host, and otherwise go
-# through the container, which bind-mounts the project so the output is visible
-# here either way.
+# The bundles are built by PHP and validated by Python. The container is tried
+# first, and deliberately so: it is the environment the application is configured
+# for, and it bind-mounts the project, so whatever it writes is visible here.
+#
+# Preferring the host would be wrong even where it looks available. The bind mount
+# means backend-symfony/vendor/ exists on the host as soon as the container has
+# installed it, and `php` exists on a CI runner — so a naive host-first check picks
+# a PHP with no app environment and a var/ owned by the container's user, and fails
+# on a cache directory it cannot create.
+#
+# The host path stays as the fallback for a machine with dependencies installed
+# natively and no stack running.
 CONFORMANCE_DIR="$REPO_ROOT/backend-symfony/var/conformance"
 
-if [ -f "$REPO_ROOT/backend-symfony/vendor/autoload.php" ] && command -v php >/dev/null 2>&1; then
-    (cd "$REPO_ROOT/backend-symfony" && php bin/console scambuster:stix:conformance-fixtures --quiet)
-elif command -v docker >/dev/null 2>&1; then
+container_running() {
+    command -v docker >/dev/null 2>&1 \
+        && [ -n "$(docker compose ps -q backend-dev 2>/dev/null)" ]
+}
+
+if container_running; then
     docker compose exec -T backend-dev bin/console scambuster:stix:conformance-fixtures --quiet
+elif [ -f "$REPO_ROOT/backend-symfony/vendor/autoload.php" ] && command -v php >/dev/null 2>&1; then
+    (cd "$REPO_ROOT/backend-symfony" && php bin/console scambuster:stix:conformance-fixtures --quiet)
 else
-    echo "error: need either PHP with installed dependencies, or a running backend-dev container." >&2
+    echo "error: need a running backend-dev container, or PHP with the dependencies installed." >&2
     exit 2
 fi
 
