@@ -483,3 +483,20 @@ Schedule with cron:
   following page (skip-free; see [Pagination](#pagination))
 - Or increase `limit` (max 1000), or use `added_after` from the `X-TAXII-Date-Added-Last`
   header for incremental delta polling
+
+---
+
+## Conformance
+
+What this server and its exports are tested to do — and, separately, what is claimed
+but not yet proven — is in the
+[interoperability conformance statement](standards/interoperability-conformance.md).
+Each claim there sits next to the automated test that proves it.
+
+Two things worth reading before integrating:
+
+- The server is **publish-only**. It implements discovery, collections and object
+  retrieval, and no write path at all.
+- Cluster bundles reference indicators published in the IOC collection rather than
+  duplicating them, so a consumer reading a cluster bundle standalone will see those
+  references unresolved. Subscribe to both collections.

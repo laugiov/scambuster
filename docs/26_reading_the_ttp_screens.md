@@ -199,3 +199,18 @@ Confirmed observations feed the cluster TTP profile, the STIX 2.1 `attack-patter
 Verbatim evidence stays strictly internal: it appears in no API response and no export;
 the only path out of the database is the operator-run
 `scambuster:ttp:audit-sample` CSV for internal precision audits.
+
+## The taxonomy as a published contract
+
+The 27 entries behind these screens are also a versioned artifact that consumers
+outside this platform read:
+
+- [Taxonomy versioning policy](standards/taxonomy-versioning.md) — what a version bump
+  means, why codes are deprecated and never deleted, and why STIX ids stay stable
+  within a major version. Read this before changing any definition.
+- `backend-symfony/config/standards/taxonomy-v1.0.json` — the generated artifact, one
+  file per taxonomy version.
+- [Mapping to MITRE F3](standards/f3-mapping.md) — how each entry relates to the
+  external framework, and what is still unchecked.
+- [TTP extraction quality](standards/ttp-extraction-quality.md) — the audit method.
+  No measured figure exists yet, and the notices saying so stay until one does.

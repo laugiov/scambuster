@@ -251,3 +251,24 @@ make audit-quality
 # Complete audit suite (screening + LLM)
 make audit-deep
 ```
+
+---
+
+## 6. TTP extraction audit
+
+The workflow above covers classification, IOCs and enrichment. Scammer-side TTP
+extraction has its own method, because measuring it needs two independent scorers
+rather than a second LLM:
+
+- [TTP extraction quality](standards/ttp-extraction-quality.md) — the frozen method,
+  the provenance a figure must carry, and the limits that travel with it.
+- [Scoring codebook v1](standards/ttp-codebook-v1.md) — the rules a scorer applies,
+  including the code pairs where verdicts most often diverge.
+
+```bash
+make ttp-audit-sample SEED=4242 LIMIT=100   # draw a reproducible sheet
+make ttp-audit-score SHEET=<scored.csv>     # agreement, kappa, precision, per-code
+```
+
+**No measured figure exists yet.** Until one does, no metric applies to the TTP
+module, and the notices saying so in the README and the roadmap stay as they are.
