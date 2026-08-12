@@ -257,6 +257,42 @@ checks, and stale-conversation closure on a ~30-minute loop. Watch it with:
 docker compose -f docker-compose.prod.yml logs -f scheduler
 ```
 
+### LLM provider resilience — circuit breaker
+Every **chat/completion** call to the active LLM provider goes through a circuit
+breaker (embeddings are out of scope — those clients already fail safe to an empty
+vector). After `LLM_CIRCUIT_BREAKER_THRESHOLD` consecutive provider-health failures
+(default 5) it **opens**: for the next `LLM_CIRCUIT_BREAKER_COOLDOWN` seconds
+(default 30) calls fail fast instead of hammering a provider that is already down.
+Once the cooldown elapses traffic is re-admitted to probe the provider; the first
+success closes the breaker, the first failure re-opens it. State is shared across
+the app, scheduler and canary-worker via Redis (`cache.app`).
+
+- **Only real outages count.** Timeouts, connection errors, 5xx and malformed
+  responses trip the breaker. Client-side errors — 4xx and 429 rate-limits — do
+  **not**, so a burst of rejected requests (e.g. a flood pushing the provider into
+  429s) cannot manufacture an outage. Rate-limiting is handled separately by the LLM
+  rate limiter.
+- **Keyed per purpose.** The breaker is independent per workload
+  (`reply_generation`, `ttp_extraction`, …), so a scheduler batch tripping its own
+  breaker never gates live reply traffic, and reply degradation never blinds
+  intel (TTP/IOC) capture.
+- **Effect on callers when open** (same as the provider being down): TTP/IOC
+  extraction catches the error and yields nothing (no observations persisted);
+  reply generation lets it propagate — **no email is sent** (the honeypot stays
+  silent for that turn), it does *not* emit a canned reply. Nothing scammer-
+  influenced is ever sent on this path.
+- **Observe it:** logs on the `llm` channel — `circuit opened`, `failing fast`,
+  `probe succeeded, circuit closed` (each carries the per-purpose `key`).
+- **Tune / disable:** `LLM_CIRCUIT_BREAKER_THRESHOLD`, `LLM_CIRCUIT_BREAKER_COOLDOWN`
+  (keep `LLM_CIRCUIT_BREAKER_TTL` ≥ cooldown; it is clamped up to the cooldown
+  anyway). `LLM_CIRCUIT_BREAKER_ENABLED=0` disables it — these are read at
+  container-build time, so changing any of them is a **restart/redeploy**, not a
+  runtime toggle. Redis being unavailable never blocks LLM calls — the breaker
+  fails open.
+- **Force-recover now:** to clear a stuck-open breaker without waiting out the
+  cooldown, delete its Redis key:
+  `redis-cli -u "$REDIS_URL" --scan --pattern '*llm_circuit_breaker.*' | xargs redis-cli -u "$REDIS_URL" del`.
+
 ---
 
 ## Troubleshooting
@@ -278,6 +314,11 @@ docker compose -f docker-compose.prod.yml logs -f scheduler
   Doctrine `?serverVersion=...` query string that `pg_dump` rejects, and rejects a
   backup smaller than a real dump. If you customized `DATABASE_URL`, keep the
   credentials valid.
+- **All LLM calls suddenly fail fast (`circuit ... is open`).** The provider hit the
+  failure threshold and the breaker opened. Check provider reachability/quota
+  (`LLM_API_KEY`, `LLM_API_URL`, or the Ollama host); it retries automatically after
+  the cooldown. To force calls through while investigating, set
+  `LLM_CIRCUIT_BREAKER_ENABLED=0` and recreate the app/scheduler containers.
 
 ---
 
