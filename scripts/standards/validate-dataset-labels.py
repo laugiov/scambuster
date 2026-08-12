@@ -47,14 +47,23 @@ DEFAULT_TAXONOMY = REPO_ROOT / "backend-symfony" / "config" / "standards" / "tax
 DOUBLE_ANNOTATION_FLOOR = 0.30
 
 
+# Exit code for "could not run", as opposed to 1 for "ran and found problems".
+# CI needs to tell a broken environment from a real finding: the first is a build
+# to fix, the second is a change to fix, and treating them alike trains people to
+# ignore both.
+CANNOT_RUN = 2
+
+
 def load_json(path: Path):
     try:
         with path.open(encoding="utf-8") as handle:
             return json.load(handle)
     except FileNotFoundError:
-        sys.exit(f"error: file not found: {path}")
+        print(f"error: file not found: {path}", file=sys.stderr)
+        sys.exit(CANNOT_RUN)
     except json.JSONDecodeError as exc:
-        sys.exit(f"error: {path} is not valid JSON: {exc}")
+        print(f"error: {path} is not valid JSON: {exc}", file=sys.stderr)
+        sys.exit(CANNOT_RUN)
 
 
 def inbound_bodies(sample: dict) -> dict[tuple[str, int], str]:
@@ -110,7 +119,18 @@ def validate(labels: dict, sample: dict, taxonomy: dict, require_complete: bool)
             )
             continue
 
-        if entry.get("annotated"):
+        # Compared against True rather than tested for truthiness. `annotated`
+        # drives coverage, and coverage drives the --complete release gate: a
+        # hand-edited file carrying the string "false" would otherwise read as
+        # annotated and inflate the count that decides whether the dataset is
+        # publishable.
+        flag = entry.get("annotated")
+
+        if not isinstance(flag, bool):
+            problems.append(
+                f"{where}: `annotated` must be a boolean, got {type(flag).__name__}"
+            )
+        elif flag:
             annotated += 1
 
         for position, label in enumerate(entry.get("ttps", [])):
@@ -141,7 +161,7 @@ def validate(labels: dict, sample: dict, taxonomy: dict, require_complete: bool)
             elif not body[start:end].strip():
                 problems.append(f"{label_where}: the evidence span is empty or whitespace only")
 
-        if entry.get("annotated") is False and entry.get("ttps"):
+        if flag is False and entry.get("ttps"):
             problems.append(f"{where}: carries labels but is not marked annotated")
 
     missing = set(bodies) - seen

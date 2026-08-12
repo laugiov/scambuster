@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Application\Standards;
 
 use App\Application\Standards\F3MappingLoader;
-use App\Application\Standards\F3MappingRenderer;
 use App\Domain\Communication\TtpTaxonomySeed;
 use PHPUnit\Framework\TestCase;
 
@@ -25,7 +24,6 @@ use PHPUnit\Framework\TestCase;
 final class F3MappingTest extends TestCase
 {
     private const MAPPING_PATH = __DIR__ . '/../../../../config/standards/f3-mapping.json';
-    private const DOCUMENT_PATH = __DIR__ . '/../../../../../docs/standards/f3-mapping.md';
 
     private F3MappingLoader $loader;
 
@@ -208,30 +206,6 @@ final class F3MappingTest extends TestCase
         );
 
         $this->assertSame([], $problems);
-    }
-
-    public function testTheGeneratedDocumentBlockIsUpToDate(): void
-    {
-        $document = file_get_contents(self::DOCUMENT_PATH);
-
-        $this->assertIsString($document, 'the mapping document must exist');
-
-        $renderer = new F3MappingRenderer($this->loader);
-
-        $this->assertSame(
-            $document,
-            $renderer->replaceBlock($document),
-            'docs/standards/f3-mapping.md is stale. Run: php bin/console scambuster:ttp:f3-mapping'
-        );
-    }
-
-    public function testTheRenderedTableCoversEveryTaxonomyCode(): void
-    {
-        $rendered = (new F3MappingRenderer($this->loader))->render();
-
-        foreach (TtpTaxonomySeed::codes() as $code) {
-            $this->assertStringContainsString($code, $rendered);
-        }
     }
 
     /**

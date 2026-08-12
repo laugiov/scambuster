@@ -157,10 +157,6 @@ services:
         arguments:
             $mappingPath: '%kernel.project_dir%/config/standards/f3-mapping.json'
 
-    App\UI\Console\TtpF3MappingCommand:
-        arguments:
-            $mappingDocumentPath: '%kernel.project_dir%/../docs/standards/f3-mapping.md'
-
     App\UI\Console\TtpTaxonomyExportCommand:
         arguments:
             $artifactDirectory: '%kernel.project_dir%/config/standards'

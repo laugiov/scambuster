@@ -209,7 +209,8 @@ jobs:
       # code: a generator checking its own output with its own assumptions proves
       # very little. This is the check a consumer would run.
       - name: Validate the taxonomy artifact against its schema
-        run: "$RUNNER_TEMP/schema-venv/bin/python" scripts/standards/validate-taxonomy-artifact.py
+        # GITHUB_PATH above put the venv first, so python3 here is the pinned one.
+        run: python3 scripts/standards/validate-taxonomy-artifact.py
 
       # Fails when the taxonomy's meaning changed without a version bump and a
       # changelog entry, and fails outright on a deleted code (Constitution VI).
@@ -224,6 +225,11 @@ jobs:
       # the end of the annotation round. The --complete gate runs at release.
       - name: Dataset TTP labels are structurally sound
         run: python3 scripts/standards/validate-dataset-labels.py
+
+      # Fails when someone hand-edited the generated table instead of the mapping
+      # JSON it is rendered from.
+      - name: F3 mapping document is current
+        run: python3 scripts/standards/render-f3-mapping.py --check
 
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
@@ -245,11 +251,11 @@ jobs:
       - name: Taxonomy artifact is not stale
         run: docker compose exec backend-dev bin/console scambuster:ttp:taxonomy-export --check
 
-      # The mapping document is generated from the mapping JSON. This fails when
-      # someone hand-edited the table instead of the source of truth, and when a
-      # mapping decision is internally inconsistent.
-      - name: F3 mapping is consistent and its document is current
-        run: docker compose exec backend-dev bin/console scambuster:ttp:f3-mapping --check
+      # The mapping decisions are validated in PHP (they are cross-checked against
+      # the taxonomy seed), while the document table is rendered on the host — docs/
+      # sits above the container's project root and does not exist inside it.
+      - name: F3 mapping decisions are consistent
+        run: docker compose exec backend-dev bin/console scambuster:ttp:f3-mapping
 
       # The MISP taxonomy file is generated from the same seed, never hand-edited.
       # Filing it is gated on the container decision; keeping it correct is not.

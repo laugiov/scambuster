@@ -30,14 +30,23 @@ DEFAULT_SCHEMA = STANDARDS_DIR / "taxonomy.schema.json"
 DEFAULT_ARTIFACT = STANDARDS_DIR / "taxonomy-v1.0.json"
 
 
+# Exit code for "could not run", as opposed to 1 for "ran and found problems".
+# CI needs to tell a broken environment from a real finding: the first is a build
+# to fix, the second is a change to fix, and treating them alike trains people to
+# ignore both.
+CANNOT_RUN = 2
+
+
 def load_json(path: Path) -> object:
     try:
         with path.open(encoding="utf-8") as handle:
             return json.load(handle)
     except FileNotFoundError:
-        sys.exit(f"error: file not found: {path}")
+        print(f"error: file not found: {path}", file=sys.stderr)
+        sys.exit(CANNOT_RUN)
     except json.JSONDecodeError as exc:
-        sys.exit(f"error: {path} is not valid JSON: {exc}")
+        print(f"error: {path} is not valid JSON: {exc}", file=sys.stderr)
+        sys.exit(CANNOT_RUN)
 
 
 def semantic_checks(artifact: dict) -> list[str]:
@@ -89,7 +98,7 @@ def main() -> int:
         from jsonschema import Draft202012Validator
     except ImportError:
         print("error: the jsonschema package is required (pip install jsonschema)", file=sys.stderr)
-        return 2
+        return CANNOT_RUN
 
     schema = load_json(args.schema)
     artifact = load_json(args.artifact)

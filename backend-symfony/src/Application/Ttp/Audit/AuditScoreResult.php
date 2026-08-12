@@ -13,10 +13,10 @@ namespace App\Application\Ttp\Audit;
 final readonly class AuditScoreResult
 {
     /**
-     * @param float|null                                                                                    $rawAgreement  Null when no row carries both verdicts
-     * @param float|null                                                                                    $cohensKappa   Null when kappa is not computable (see the calculator)
-     * @param array<string, AuditTally>                                                                     $perCode       Keyed by taxonomy code, ordered by code
-     * @param list<array{ttp_code: string, verdict_a: string, verdict_b: string, verdict_final: string}>    $disagreements
+     * @param float|null                                                                                 $rawAgreement  Null when no row carries both verdicts
+     * @param float|null                                                                                 $cohensKappa   Null when kappa is not computable (see the calculator)
+     * @param array<string, AuditTally>                                                                  $perCode       Keyed by taxonomy code, ordered by code
+     * @param list<array{ttp_code: string, verdict_a: string, verdict_b: string, verdict_final: string}> $disagreements
      */
     public function __construct(
         public int $totalRows,

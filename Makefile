@@ -569,8 +569,9 @@ ttp-audit-score: ##@standards Compute precision, agreement and kappa from a scor
 taxonomy-export: ##@standards Regenerate the machine-readable taxonomy artifact from the canonical seed
 	$(CONSOLE_DEV) scambuster:ttp:taxonomy-export
 
-f3-mapping: ##@standards Validate the MITRE F3 mapping and regenerate its document table
+f3-mapping: ##@standards Validate the MITRE F3 mapping decisions and regenerate its document table
 	$(CONSOLE_DEV) scambuster:ttp:f3-mapping
+	python3 scripts/standards/render-f3-mapping.py
 
 stix-conformance: ##@standards Validate every exported STIX bundle type against the external OASIS validator
 	bash scripts/standards/validate-stix-bundles.sh
@@ -583,8 +584,9 @@ misp-machinetag: ##@standards Regenerate the MISP taxonomy file (internal only; 
 
 standards-check: ##@standards Run every standard-track guard exactly as CI does
 	$(CONSOLE_DEV) scambuster:ttp:taxonomy-export --check
-	$(CONSOLE_DEV) scambuster:ttp:f3-mapping --check
+	$(CONSOLE_DEV) scambuster:ttp:f3-mapping
 	$(CONSOLE_DEV) scambuster:ttp:misp-machinetag --check
+	python3 scripts/standards/render-f3-mapping.py --check
 	python3 scripts/standards/validate-taxonomy-artifact.py
 	python3 scripts/standards/check-taxonomy-versioning.py
 	python3 scripts/standards/validate-dataset-labels.py

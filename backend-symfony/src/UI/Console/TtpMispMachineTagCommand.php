@@ -48,7 +48,7 @@ final class TtpMispMachineTagCommand extends Command
                 "Generates machinetag.json from TtpTaxonomySeed::ENTRIES.\n\n".
                 "Registering the namespace makes scambuster:ttp tags resolve in every MISP instance\n".
                 "that syncs the taxonomies repository. That is a normative, hard-to-retract public\n".
-                "artifact, so filing it waits for the container decision. See docs/standards-track.md."
+                'artifact, so filing it waits for the container decision. See docs/standards-track.md.'
             );
     }
 
@@ -89,16 +89,12 @@ final class TtpMispMachineTagCommand extends Command
             return Command::FAILURE;
         }
 
-        $document = $this->generator->generate();
-        /** @var list<array<string, mixed>> $entries */
-        $entries = $document['values'][0]['entry'];
-
         $io->success(sprintf(
-            'Wrote %d taxonomy value(s) for %s:%s (version %s) to %s',
-            \count($entries),
+            'Wrote %d taxonomy value(s) for %s:%s (version %d) to %s',
+            \count($this->generator->entries()),
             MispMachineTagGenerator::NAMESPACE_NAME,
             MispMachineTagGenerator::PREDICATE,
-            (string) $document['version'],
+            $this->generator->version(),
             $path,
         ));
         $io->warning('GATED: do not file this with the MISP taxonomies repository. Registration is blocked on the container decision (Constitution IV) — see docs/standards-track.md.');

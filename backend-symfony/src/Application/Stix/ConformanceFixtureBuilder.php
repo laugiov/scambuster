@@ -311,7 +311,7 @@ final class ConformanceFixtureBuilder
         /** @var array<string, array<string, mixed>> $byCode */
         $byCode = [];
 
-        foreach (TtpTaxonomySeed::ENTRIES as $entry) {
+        foreach (TtpTaxonomySeed::entries() as $entry) {
             $byCode[$entry['code']] = $entry;
         }
 

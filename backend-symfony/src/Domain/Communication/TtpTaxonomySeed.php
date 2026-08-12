@@ -384,6 +384,23 @@ final class TtpTaxonomySeed
     ];
 
     /**
+     * The taxonomy rows, with their shape stated in a form static analysis
+     * honours.
+     *
+     * PHPStan infers a class constant's type from its literal value, and for a
+     * 27-row nested array that collapses to a union wide enough to make every
+     * `$entry['code']` a possible-invalid-array-key. Reading the rows through a
+     * typed accessor gives callers the real shape without either side asserting
+     * anything the other has to trust.
+     *
+     * @return list<array{code: string, label: string, definition: string, phase: string, examples: list<string>, stimulus_affinity: list<string>, external_refs: list<array{source_name: string, external_id: string}>}>
+     */
+    public static function entries(): array
+    {
+        return self::ENTRIES;
+    }
+
+    /**
      * Every taxonomy code, in canonical order.
      *
      * @return list<string>

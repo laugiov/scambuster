@@ -33,13 +33,15 @@ final class MispMachineTagGenerator
     public const PREDICATE = 'ttp';
 
     /**
-     * @return array<string, mixed>
+     * The taxonomy values this namespace registers, one per code.
+     *
+     * @return list<array{value: string, expanded: string, description: string}>
      */
-    public function generate(): array
+    public function entries(): array
     {
         $entries = [];
 
-        foreach (TtpTaxonomySeed::ENTRIES as $entry) {
+        foreach (TtpTaxonomySeed::entries() as $entry) {
             $entries[] = [
                 'value' => $entry['code'],
                 'expanded' => $entry['label'],
@@ -47,12 +49,25 @@ final class MispMachineTagGenerator
             ];
         }
 
+        return $entries;
+    }
+
+    public function version(): int
+    {
+        return $this->versionInteger(Ttp::TAXONOMY_VERSION);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function generate(): array
+    {
         return [
             'namespace' => self::NAMESPACE_NAME,
             'description' => 'Scammer-side tactics, techniques and procedures observable in the messages of a'
                 . ' fraud conversation, across a six-phase scam kill chain. Generated from the ScamBuster TTP'
                 . ' taxonomy; see https://github.com/laugiov/scambuster.',
-            'version' => $this->versionInteger(Ttp::TAXONOMY_VERSION),
+            'version' => $this->version(),
             'expanded' => 'ScamBuster Scam TTP',
             'predicates' => [[
                 'value' => self::PREDICATE,
@@ -61,7 +76,7 @@ final class MispMachineTagGenerator
             ]],
             'values' => [[
                 'predicate' => self::PREDICATE,
-                'entry' => $entries,
+                'entry' => $this->entries(),
             ]],
         ];
     }
@@ -81,8 +96,10 @@ final class MispMachineTagGenerator
      */
     private function versionInteger(string $taxonomyVersion): int
     {
+        // explode always yields at least one element, so index 0 needs no fallback;
+        // a version string with no minor part reads as minor 0.
         $parts = explode('.', $taxonomyVersion);
-        $major = (int) ($parts[0] ?? 0);
+        $major = (int) $parts[0];
         $minor = (int) ($parts[1] ?? 0);
 
         return $major * 10 + $minor;
