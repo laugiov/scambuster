@@ -59,7 +59,12 @@ final readonly class CircuitBreakerLLMClient implements LLMClientInterface
 
     public function chat(array $messages, array $options = []): string
     {
-        $purpose = \is_string($options['purpose'] ?? null) ? $options['purpose'] : 'default';
+        // Sanitise + bound the purpose before it reaches the cache key: it must stay
+        // a valid PSR-6 key (no reserved chars) and never blow up key cardinality,
+        // whatever a future caller passes.
+        $rawPurpose = \is_string($options['purpose'] ?? null) ? $options['purpose'] : 'default';
+        $purpose = (string) preg_replace('/[^A-Za-z0-9_-]/', '_', $rawPurpose);
+        $purpose = $purpose === '' ? 'default' : substr($purpose, 0, 64);
         $key = $this->keyPrefix . '.' . $purpose;
 
         // One store read per call (including the hot success path); the write below
@@ -77,7 +82,7 @@ final readonly class CircuitBreakerLLMClient implements LLMClientInterface
 
             // Generic message: this propagates to API responses, so it must not
             // disclose internal circuit topology/state (that goes to the log above).
-            throw new CircuitOpenException('LLM provider temporarily unavailable (circuit open)');
+            throw new CircuitOpenException('LLM provider temporarily unavailable');
         }
 
         try {

@@ -110,6 +110,28 @@ final class CircuitBreakerLLMClientTest extends TestCase
         self::assertSame('b-still-works', $breaker->chat([['role' => 'user', 'content' => 'x']], ['purpose' => 'b']));
     }
 
+    public function testSanitisesThePurposeIntoASafePsr6Key(): void
+    {
+        $store = new KeyCapturingStore();
+        $breaker = new CircuitBreakerLLMClient(
+            new ProgrammableLLMClient(['ok']),
+            $store,
+            new MockClock(),
+            new NullLogger(),
+            self::THRESHOLD,
+            self::COOLDOWN,
+            self::TTL,
+            'llm',
+        );
+
+        // Reserved PSR-6 chars ({}()/\@:) and an over-long value must not reach the key.
+        $breaker->chat([['role' => 'user', 'content' => 'x']], ['purpose' => 'a/b:c@' . str_repeat('x', 200)]);
+
+        self::assertNotNull($store->lastKey);
+        self::assertSame(1, preg_match('/^llm\.[A-Za-z0-9_-]+$/', $store->lastKey), 'key must be prefix + a PSR-6-safe segment');
+        self::assertLessThanOrEqual(4 + 64, \strlen($store->lastKey), 'the purpose segment must be length-bounded');
+    }
+
     public function testASuccessResetsTheFailureStreak(): void
     {
         $inner = new ProgrammableLLMClient([
@@ -276,6 +298,23 @@ final class InMemoryCircuitBreakerStore implements CircuitBreakerStore
     public function save(string $key, CircuitRecord $record, int $ttlSeconds): void
     {
         $this->records[$key] = $record;
+    }
+}
+
+/** Records the last key it was asked to load, to assert key derivation. */
+final class KeyCapturingStore implements CircuitBreakerStore
+{
+    public ?string $lastKey = null;
+
+    public function load(string $key): CircuitRecord
+    {
+        $this->lastKey = $key;
+
+        return CircuitRecord::closed();
+    }
+
+    public function save(string $key, CircuitRecord $record, int $ttlSeconds): void
+    {
     }
 }
 

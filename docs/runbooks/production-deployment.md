@@ -291,7 +291,8 @@ the app, scheduler and canary-worker via Redis (`cache.app`).
   fails open.
 - **Force-recover now:** to clear a stuck-open breaker without waiting out the
   cooldown, delete its Redis key:
-  `redis-cli -u "$REDIS_URL" --scan --pattern '*llm_circuit_breaker.*' | xargs redis-cli -u "$REDIS_URL" del`.
+  `redis-cli -u "$REDIS_URL" --scan --pattern '*llm_circuit_breaker.*' | xargs -r redis-cli -u "$REDIS_URL" del`
+  (`xargs -r` makes it a no-op when nothing matches).
 
 ---
 
