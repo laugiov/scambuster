@@ -16,7 +16,12 @@ class MessageFixtures extends Fixture implements DependentFixtureInterface
 {
     public function load(ObjectManager $manager): void
     {
-        $conversations = $manager->getRepository(Conversation::class)->findAll();
+        // Deterministic conv_id order: message ids are derived from the loop index
+        // (msg ...00N pairs with conv ...00N), so the iteration order must be stable.
+        // findAll() returns Postgres heap order, which drifts across environments and
+        // can attach msg ...001 to a soft-deleted conversation — invisible on a fresh
+        // CI database (heap = insertion order) but breaking the TTP read tests locally.
+        $conversations = $manager->getRepository(Conversation::class)->findBy([], ['convId' => 'ASC']);
         $channel = $manager->getRepository(Channel::class)->findOneBy([]);
         $directions = $manager->getRepository(Direction::class)->findAll();
 
