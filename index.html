@@ -5,13 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <title>ScamBuster — Social Engineering Scammers at Scale</title>
-  <meta name="description" content="An autonomous AI that turns scammers into unwilling intelligence sources. Presented at Black Hat USA 2026." />
+  <meta name="description" content="An autonomous AI that turns scammers into unwilling intelligence sources. Presented at Black Hat USA 2026 — live demo, slides, and source code now open." />
   <meta name="theme-color" content="#060a07" />
   <link rel="canonical" href="https://scambuster.ai/" />
 
   <!-- Open Graph -->
   <meta property="og:title" content="ScamBuster — Social Engineering Scammers at Scale" />
-  <meta property="og:description" content="An autonomous AI that turns scammers into unwilling intelligence sources. Presented at Black Hat USA 2026." />
+  <meta property="og:description" content="An autonomous AI that turns scammers into unwilling intelligence sources. Presented at Black Hat USA 2026 — live demo, slides, and source code now open." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://scambuster.ai" />
   <meta property="og:image" content="https://scambuster.ai/assets/scambuster_og.png" />
@@ -21,7 +21,7 @@
   <!-- Twitter / X -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="ScamBuster — Social Engineering Scammers at Scale" />
-  <meta name="twitter:description" content="An autonomous AI that turns scammers into unwilling intelligence sources. Presented at Black Hat USA 2026." />
+  <meta name="twitter:description" content="An autonomous AI that turns scammers into unwilling intelligence sources. Presented at Black Hat USA 2026 — live demo, slides, and source code now open." />
   <meta name="twitter:image" content="https://scambuster.ai/assets/scambuster_og.png" />
 
   <!-- Favicon -->
@@ -46,8 +46,10 @@
       <a href="#idea">The idea</a>
       <a href="#how">How it works</a>
       <a href="#talk">The talk</a>
+      <a href="https://demo.scambuster.ai" rel="noopener" target="_blank">Demo</a>
+      <a href="assets/BHUS26-Giovannoni-Scambuster-Slides.pdf" rel="noopener" target="_blank">Slides</a>
+      <a href="https://github.com/laugiov/scambuster" rel="noopener" target="_blank">GitHub</a>
       <a href="mailto:contact@scambuster.ai">Contact</a>
-      <a href="https://github.com/laugiov" rel="noopener" target="_blank">GitHub</a>
     </nav>
   </header>
 
@@ -87,14 +89,18 @@
         <span class="badge">HUMAN FACTORS TRACK</span>
       </div>
 
-      <!-- Demo under embargo for Black Hat exclusivity until the talk. Re-enable the link (btn btn--primary, href to demo.scambuster.ai) after the conference. -->
-      <div class="embargo">
-        <span class="btn btn--locked" aria-disabled="true">
+      <div class="btnrow">
+        <a class="btn btn--primary" href="https://demo.scambuster.ai" rel="noopener" target="_blank">
           <span class="btn__prompt">&gt;</span> OPEN THE LIVE DEMO
-        </span>
-        <span class="embargo__seal">EMBARGOED</span>
+        </a>
+        <a class="btn" href="https://github.com/laugiov/scambuster" rel="noopener" target="_blank">
+          <span class="btn__prompt">&gt;</span> CODE ON GITHUB
+        </a>
+        <a class="btn" href="assets/BHUS26-Giovannoni-Scambuster-Slides.pdf" rel="noopener" target="_blank">
+          <span class="btn__prompt">&gt;</span> THE SLIDES (PDF)
+        </a>
       </div>
-      <p class="embargo__note">The live demo opens at Black Hat USA 2026.</p>
+      <p class="released__note">The talk is done. The demo is live, the slides are up, and the code is open.</p>
 
       <a class="scrollcue" href="#idea" aria-label="Scroll to the idea">
         <span>SCROLL</span>
@@ -163,32 +169,34 @@
     <section id="talk" class="section reveal" aria-labelledby="talk-h">
       <p class="eyebrow">// BLACK HAT USA 2026 //</p>
       <h2 id="talk-h" class="display display--sm">ScamBuster: Social Engineering Scammers at Scale</h2>
-      <p class="prose">A 40-minute Briefing on the Human Factors track. Mandalay Bay, Las Vegas, August 2026. How an autonomous AI turns scammers into unwilling intelligence sources, what it pulls out of them, and what that means for fraud and threat intelligence.</p>
-      <a class="btn" href="https://blackhat.com/us-26/briefings/schedule/index.html?track[]=human-factors#scambuster-social-engineering-scammers-at-scale-52575" rel="noopener" target="_blank">
-        <span class="btn__prompt">&gt;</span> Session page
-      </a>
-      <!-- Demo under embargo until Black Hat. Re-enable the link (btn, href to demo.scambuster.ai) after the conference. -->
-      <span class="embargo">
-        <span class="btn btn--locked" aria-disabled="true">
+      <p class="prose">A 40-minute Briefing on the Human Factors track, delivered at Mandalay Bay, Las Vegas, in August 2026. How an autonomous AI turns scammers into unwilling intelligence sources, what it pulls out of them, and what that means for fraud and threat intelligence.</p>
+      <p class="prose">The talk has now been given, and everything that was held back for it is open: the full slide deck, the live demo, and the source code.</p>
+      <div class="btnrow">
+        <a class="btn btn--primary" href="assets/BHUS26-Giovannoni-Scambuster-Slides.pdf" rel="noopener" target="_blank">
+          <span class="btn__prompt">&gt;</span> Slides (PDF, 90 pages)
+        </a>
+        <a class="btn" href="https://demo.scambuster.ai" rel="noopener" target="_blank">
           <span class="btn__prompt">&gt;</span> Live demo
-        </span>
-        <span class="embargo__seal">EMBARGOED</span>
-      </span>
+        </a>
+        <a class="btn" href="https://blackhat.com/us-26/briefings/schedule/index.html?track[]=human-factors#scambuster-social-engineering-scammers-at-scale-52575" rel="noopener" target="_blank">
+          <span class="btn__prompt">&gt;</span> Session page
+        </a>
+      </div>
     </section>
 
     <!-- ============ OPEN ============ -->
     <section id="open" class="section section--center reveal" aria-labelledby="open-h">
       <p class="eyebrow">// OPEN SOURCE //</p>
       <h2 id="open-h" class="display">Open.</h2>
-      <p class="open__line">The framework is open source under the MIT license.</p>
-      <!-- Repo under embargo for Black Hat exclusivity until the talk. Re-enable the link after the conference. -->
-      <div class="embargo">
-        <span class="btn btn--locked" aria-disabled="true">
+      <p class="open__line">The framework is open source under the MIT license. The embargo is lifted — the repository is public.</p>
+      <div class="btnrow">
+        <a class="btn btn--primary" href="https://github.com/laugiov/scambuster" rel="noopener" target="_blank">
           <span class="btn__prompt">&gt;</span> Code on GitHub
-        </span>
-        <span class="embargo__seal">EMBARGOED</span>
+        </a>
+        <a class="btn" href="https://demo.scambuster.ai" rel="noopener" target="_blank">
+          <span class="btn__prompt">&gt;</span> Try the live demo
+        </a>
       </div>
-      <p class="embargo__note">Under embargo for Black Hat exclusivity. The code opens at Black Hat USA 2026.</p>
     </section>
 
   </main>
@@ -197,12 +205,14 @@
   <footer class="footer">
     <span class="divider divider--full" aria-hidden="true"></span>
     <img class="footer__logo" src="assets/scambuster_logo_horizontal.svg" alt="ScamBuster" height="28" />
-    <p class="footer__bio">Laurent Giovannoni is a Principal Software Engineer at Filigran and the creator of ScamBuster, presenting it at Black Hat USA 2026.</p>
+    <p class="footer__bio">Laurent Giovannoni is a Principal Software Engineer at Filigran and the creator of ScamBuster, presented at Black Hat USA 2026.</p>
     <nav class="footer__links" aria-label="Footer">
       <a href="mailto:contact@scambuster.ai">contact@scambuster.ai</a>
+      <a href="https://demo.scambuster.ai" rel="noopener" target="_blank">Live demo</a>
+      <a href="assets/BHUS26-Giovannoni-Scambuster-Slides.pdf" rel="noopener" target="_blank">Slides</a>
       <a href="https://www.linkedin.com/in/giovannonilaurent/" rel="noopener" target="_blank">LinkedIn</a>
       <a href="https://x.com/LauGiov" rel="noopener" target="_blank">X</a>
-      <a href="https://github.com/laugiov" rel="noopener" target="_blank">GitHub</a>
+      <a href="https://github.com/laugiov/scambuster" rel="noopener" target="_blank">GitHub</a>
     </nav>
     <p class="footer__credit">Built by Laurent Giovannoni &middot; Black Hat USA 2026</p>
     <p class="footer__sign">We hunt the hunters.</p>
