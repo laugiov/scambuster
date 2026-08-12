@@ -9,7 +9,7 @@ use App\Domain\Communication\TtpTaxonomySeed;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Guards the F3 mapping (Spec 002).
+ * Guards the ScamBuster -> MITRE F3 mapping.
  *
  * Two things are being protected. First, that the mapping file itself stays complete
  * and internally consistent — every taxonomy code covered, every decision citing what
@@ -17,9 +17,9 @@ use PHPUnit\Framework\TestCase;
  * data agree: a `mitre-f3` reference may only exist in `external_refs` when a
  * confirmed mapping row backs it, and a confirmed row must be reflected in the data.
  *
- * That second pair is what keeps Constitution II enforceable by CI rather than by
- * memory: no external-framework claim reaches a STIX consumer without a recorded,
- * dated, per-entry check behind it.
+ * That second pair is what makes the rule enforceable by CI rather than by memory:
+ * no external-framework claim reaches a STIX consumer without a recorded, dated,
+ * per-entry check behind it.
  */
 final class F3MappingTest extends TestCase
 {
@@ -103,9 +103,9 @@ final class F3MappingTest extends TestCase
             $inData,
             'Every mitre-f3 reference in the taxonomy must be backed by a confirmed mapping decision,'
             . ' and every confirmed decision must have reached external_refs. A reference with no'
-            . ' decision behind it is an unverified external claim shipping in every STIX export'
-            . ' (Constitution II); a decision that never reached the data is a mapping the exports'
-            . ' silently do not carry.'
+            . ' decision behind it is an unverified external claim shipping in every STIX export;'
+            . ' a decision that never reached the data is a mapping the exports silently do not'
+            . ' carry.'
         );
     }
 
@@ -180,8 +180,8 @@ final class F3MappingTest extends TestCase
     }
 
     /**
-     * FR-006: a recorded decision without its F3 version cannot be invalidated by a
-     * future F3 release, because nobody can tell which release it was made against.
+     * A recorded decision without its F3 version cannot be invalidated by a future
+     * F3 release, because nobody can tell which release it was made against.
      */
     public function testValidatorRejectsRecordedDecisionsWithNoFrameworkVersion(): void
     {

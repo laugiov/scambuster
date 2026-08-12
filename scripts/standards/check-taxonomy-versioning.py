@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Fail when the TTP taxonomy content changed without a version bump and a changelog entry.
 
-Spec 003 FR-006, Constitution VI.
-
 The taxonomy is a published contract. A consumer pins `taxonomy_version` and expects
 that a given version always means the same definitions. A silent content change
 breaks that promise without anyone noticing, which is exactly the failure this check
@@ -115,7 +113,7 @@ def describe_changes(before: dict, after: dict) -> tuple[list[str], list[str]]:
     """Summarise what moved, split into notes and outright violations.
 
     Returns (notes, violations). A violation is a change no version bump can make
-    acceptable — today that is deleting a code, which Constitution VI forbids
+    acceptable — today that is deleting a code, which the taxonomy contract forbids
     outright: historical observations reference it, and a consumer that resolved it
     yesterday must still resolve it tomorrow. Deprecation sets active=false and
     keeps the row.
@@ -156,7 +154,7 @@ def describe_changes(before: dict, after: dict) -> tuple[list[str], list[str]]:
         if removed:
             violations.append(
                 f"{Path(path).name}: codes deleted — {', '.join(removed)}."
-                " Codes are deprecated (active=false), never deleted (Constitution VI):"
+                " Codes are deprecated (active=false), never deleted:"
                 " existing observations reference them and a consumer that resolved them"
                 " once must keep resolving them."
             )

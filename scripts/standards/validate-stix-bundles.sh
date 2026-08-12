@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Validate the exported STIX bundle types against the OASIS-community
-# stix2-validator (Spec 005 FR-001, Constitution V).
+# stix2-validator.
 #
 # Self-validation convinces nobody in a standards context. The project already
 # checks its own extension schemas at build time; this script is the independent
@@ -165,7 +165,7 @@ fi
 # ---------------------------------------------------------------- self-test ---
 # A gate that cannot fail is not a gate. Break a bundle on purpose and confirm the
 # validator rejects it, so a green run means the check ran rather than that the
-# validator silently degraded to a no-op (Spec 005 SC-001).
+# validator silently degraded to a no-op.
 
 echo "── gate self-test ──────────────────────────────────────────"
 

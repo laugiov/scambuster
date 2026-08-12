@@ -11,7 +11,7 @@ use App\Domain\Communication\TtpTaxonomySeed;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Guards the generated taxonomy artifact (Spec 003).
+ * Guards the generated taxonomy artifact (config/standards/taxonomy-v*.json).
  *
  * The artifact is what a third party reads instead of this database. Three
  * properties make that work, and each is pinned here:
@@ -39,7 +39,7 @@ final class TaxonomyArtifactGeneratorTest extends TestCase
         $this->assertSame(
             $this->generator->generateJson(),
             (new TaxonomyArtifactGenerator())->generateJson(),
-            'Generation must be deterministic: no timestamps, no host, no unstable ordering (FR-004)'
+            'Generation must be deterministic: no timestamps, no host, no unstable ordering'
         );
     }
 
@@ -65,7 +65,7 @@ final class TaxonomyArtifactGeneratorTest extends TestCase
             $this->assertSame(
                 ['code', 'label', 'definition', 'phase', 'examples', 'stimulus_affinity', 'external_refs', 'active', 'stix_id'],
                 array_keys($entry),
-                sprintf('%s must carry exactly the documented field set (FR-002)', (string) $entry['code'])
+                sprintf('%s must carry exactly the field set the JSON schema declares', (string) $entry['code'])
             );
         }
     }

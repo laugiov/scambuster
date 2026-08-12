@@ -14,7 +14,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Generate the machine-readable taxonomy artifact from the canonical seed (Spec 003).
+ * Generate the machine-readable taxonomy artifact from the canonical seed.
  *
  * The artifact is committed, so this command is the only writer: nobody hand-edits
  * the JSON. --check regenerates in memory and diffs against what is on disk, which
@@ -22,9 +22,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * build rather than shipping an artifact that disagrees with the database.
  *
  * Generating and using the artifact internally is not gated. Publishing it as a
- * standalone public file positioned as a standard — repo root, release asset,
- * external registry — waits for the container decision (Constitution IV,
- * Spec 003 FR-007).
+ * standalone public file positioned as a standard, whether at the repository root,
+ * as a release asset or in an external registry, waits for a decision on how the
+ * taxonomy is published. See docs/standards-track.md.
  */
 #[AsCommand(
     name: 'scambuster:ttp:taxonomy-export',
@@ -49,7 +49,7 @@ final class TtpTaxonomyExportCommand extends Command
                 "The output is deterministic: no timestamps, fixed ordering, byte-identical across runs.\n".
                 "That is what lets --check diff it in CI and what lets a third party regenerate it and\n".
                 "get the same bytes.\n\n".
-                'Publishing the file as a public standard is gated on the container decision.'
+                'Publishing the file as a public standard is gated: see docs/standards-track.md.'
             );
     }
 
@@ -115,7 +115,7 @@ final class TtpTaxonomyExportCommand extends Command
             Ttp::TAXONOMY_VERSION,
             $path,
         ));
-        $io->note('Internal artifact. Publishing it as a standalone public standard is gated on the container decision (Constitution IV).');
+        $io->note('Internal artifact. Publishing it as a standalone public standard is gated: see docs/standards-track.md.');
 
         return Command::SUCCESS;
     }

@@ -6,15 +6,15 @@ namespace App\Application\Ttp\Audit;
 
 /**
  * Renders an audit scoring result as the markdown block that goes into the results
- * document under docs/ (Spec 001 FR-008).
+ * document under docs/.
  *
  * The renderer only ever sees codes, statuses and verdict labels, so its output is
  * safe to paste into a public document: there is no path by which verbatim scammer
- * evidence could reach it (Constitution III).
+ * evidence could reach it.
  *
  * Every figure is written as a count with its denominator next to it. Percentages
  * appear as a convenience, never alone, so a reader always sees how small a slice
- * a percentage was computed from (Constitution I).
+ * a percentage was computed from.
  */
 final class AuditReportRenderer
 {

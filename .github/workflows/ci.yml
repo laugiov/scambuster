@@ -219,7 +219,7 @@ jobs:
         run: python3 scripts/standards/check-taxonomy-versioning.py --self-test
 
       # Fails when the taxonomy's meaning changed without a version bump and a
-      # changelog entry, and fails outright on a deleted code (Constitution VI).
+      # changelog entry, and fails outright on a deleted code.
       - name: Taxonomy versioning contract
         run: |
           python3 scripts/standards/check-taxonomy-versioning.py \

@@ -3,7 +3,6 @@
 **Status**: blocked on an external input (see §2)
 **Taxonomy version**: 1.0 (27 entries)
 **Source of truth**: `backend-symfony/config/standards/f3-mapping.json`
-**Spec**: 002-external-framework-mapping
 
 MITRE's Fight Fraud Framework (F3) is a knowledge base of tactics and techniques used
 by financial fraud actors. This document records, for every ScamBuster taxonomy entry,
@@ -12,7 +11,7 @@ conversation-visible behaviour the ScamBuster taxonomy does not carry.
 
 Its purpose is a rule, not a formality. ScamBuster maps to existing frameworks; it does
 not compete with them. **No public text may claim a gap in F3 that is not backed by a
-`none` row in the table below** (Constitution II, Spec 002 FR-008). Until a row says
+`none` row in the table below**. Until a row says
 `none`, the honest phrasing is "to be verified".
 
 ---
@@ -30,9 +29,7 @@ Each entry carries exactly one relation:
 | `none` | F3 v1 does not describe this behaviour. | No |
 | `pending` | Not yet checked. Not a decision. | No |
 
-`broader-than` is excluded from `external_refs` on purpose. This closes the open
-question Spec 002 left in its edge-case list, in the direction the spec proposed: a
-consumer who sees an attack-pattern referencing an F3 id reasonably reads it as "this
+`broader-than` is excluded from `external_refs` on purpose. A consumer who sees an attack-pattern referencing an F3 id reasonably reads it as "this
 is that technique". Pointing a broader entry at a narrower id tells them something
 false about scope, and a shared feed is the wrong place to be approximately right.
 `related` is excluded for the same reason at lower strength.
@@ -65,12 +62,11 @@ their verified URL. This is enforced in code by an allowlist of URL bases in
 The forward and reverse mappings both need the F3 v1 technique list — every technique
 id, name and description — to be read entry by entry.
 
-That input is not in this repository. `f3-v1.json` is not committed, and
-`ctid.mitre.org` (where the F3 matrix and its data live) is not reachable from the
-build environment: the egress policy denies it.
+That input has not been obtained. `f3-v1.json` is not committed, and no F3 technique
+description has been read.
 
 Recording a relation without reading the F3 description it cites would be an
-unverified external claim, which Constitution I and II both forbid. So every entry
+unverified claim about someone else's framework. So every entry
 below is `pending`, and the table records what a reviewer must look for in F3 for each
 one rather than a guess at what they will find.
 
@@ -85,7 +81,7 @@ php bin/console scambuster:ttp:f3-mapping
 That validates the file and rewrites the generated table below. Set
 `framework_version` and `checked_on` in the same edit — the validator rejects recorded
 decisions that do not say which F3 version they were checked against, so a future F3
-release invalidates this document visibly rather than silently (FR-006).
+release invalidates this document visibly rather than silently.
 
 ---
 
@@ -100,7 +96,7 @@ block is stale.
 **F3 version checked**: _not yet checked_
 **Date of the check**: _not yet checked_
 
-> **Blocked.** The F3 v1 technique list (f3-v1.json) is not in this repository and ctid.mitre.org is unreachable from the build environment. Every decision below is therefore 'pending': recording a relation without reading the F3 technique description it cites would be an unverified claim (Constitution I and II).
+> **Blocked.** The F3 v1 technique list (f3-v1.json) has not been obtained, so no F3 technique description has been read. Every decision below is therefore 'pending': recording a relation without reading the F3 technique description it cites would be an unverified claim about someone else's framework.
 
 | Code | Label | Phase | Relation | F3 id(s) | Rationale |
 |------|-------|-------|----------|----------|-----------|
@@ -147,7 +143,7 @@ Entries written to `external_refs` (relations `equivalent` and `narrower-than`):
 
 ### Reverse direction
 
-Not yet recorded (status: `pending`). F3 techniques that describe conversation-visible behaviour absent from the ScamBuster taxonomy (Spec 002 FR-002). Filled in the same pass as the forward direction; blocked on the same input.
+Not yet recorded (status: `pending`). F3 techniques that describe conversation-visible behaviour absent from the ScamBuster taxonomy. Filled in the same pass as the forward direction; blocked on the same input.
 
 <!-- END GENERATED MAPPING TABLE -->
 
@@ -156,7 +152,7 @@ Not yet recorded (status: `pending`). F3 techniques that describe conversation-v
 ## 4. What happens to confirmed mappings
 
 A relation of `equivalent` or `narrower-than` is not just a document row. It has to
-reach the data and the exports (FR-003):
+reach the data and the exports:
 
 1. Add `{"source_name": "mitre-f3", "external_id": "<F3 id>"}` to the entry's
    `external_refs` in `TtpTaxonomySeed::ENTRIES` **and** in the `lkp_ttp` migration
@@ -171,8 +167,8 @@ reach the data and the exports (FR-003):
 
 ### MISP tags stay unchanged
 
-`TtpMispTagProvider` emits no tag for an F3 reference, and that is deliberate
-(FR-005). MISP galaxy tags have to resolve in a consumer's instance; no public F3 MISP
+`TtpMispTagProvider` emits no tag for an F3 reference, and that is deliberate.
+MISP galaxy tags have to resolve in a consumer's instance; no public F3 MISP
 galaxy exists, so any tag string this project invented would resolve nowhere. The
 provider keeps emitting the first-party `scambuster:ttp="SB-Txxx"` tag and the ATT&CK
 galaxy tag for verified ATT&CK ids only. A test pins this behaviour so a later change
@@ -184,7 +180,7 @@ to the provider cannot start fabricating F3 tags by accident.
 
 **Blocked.** The Charm Security HVE specification has not been obtained. When it is,
 the HVE mapping reuses this document's structure and the same relation vocabulary, in
-the `hve` section of the same JSON file (FR-007). No HVE claim of any kind ships
+the `hve` section of the same JSON file. No HVE claim of any kind ships
 before then.
 
 ---
@@ -192,7 +188,8 @@ before then.
 ## 6. Out of scope
 
 - **Proposing new F3 techniques.** The `none` rows are the raw material for that, but
-  the proposals themselves belong to Spec 006 and are gated on the container decision.
+  the proposals themselves are gated on the container decision: see
+  `docs/standards-track.md`.
 - **DISARM.** Adjacent domain (influence operations), not scam-financial. Revisited
   only if a reviewer asks.
 - **Taxonomy renaming driven by the mapping.** If the mapping shows an entry is badly

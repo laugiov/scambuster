@@ -128,8 +128,8 @@ final class TtpAttackPatternBuilderTest extends TestCase
     }
 
     /**
-     * Spec 002 FR-004: the builder emits any source in its allowlist, not the single
-     * hard-coded mitre-attack it started with.
+     * The builder emits any source in its allowlist, not the single hard-coded
+     * mitre-attack it started with.
      */
     public function testEmitsMitreF3ReferencesAlongsideAttackReferences(): void
     {

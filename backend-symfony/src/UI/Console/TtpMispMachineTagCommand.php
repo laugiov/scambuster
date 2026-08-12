@@ -13,15 +13,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Generate the MISP taxonomy file for the `scambuster` namespace (Spec 006).
+ * Generate the MISP taxonomy file for the `scambuster` namespace.
  *
  * The file is generated from the canonical taxonomy seed and never hand-edited: a
  * hand-maintained copy of 27 definitions drifts from the taxonomy within a release,
  * and the drift stays invisible until a consumer notices their tag means something
  * else.
  *
- * GATED. Filing this file with the MISP taxonomies repository is blocked on the
- * container decision (Constitution IV) — a registered public taxonomy is a
+ * GATED. Filing this file with the MISP taxonomies repository is blocked until the
+ * project decides how it publishes its taxonomy: a registered public taxonomy is a
  * normative artifact and a merged PR is hard to retract. This command only writes
  * bytes into the repository; a human decides whether they ever leave it. The
  * command says so on every run rather than leaving the reader to remember.
@@ -97,7 +97,7 @@ final class TtpMispMachineTagCommand extends Command
             $this->generator->version(),
             $path,
         ));
-        $io->warning('GATED: do not file this with the MISP taxonomies repository. Registration is blocked on the container decision (Constitution IV) — see docs/standards-track.md.');
+        $io->warning('GATED: do not file this with the MISP taxonomies repository. Registration is blocked until the publication decision is recorded: see docs/standards-track.md.');
 
         return Command::SUCCESS;
     }

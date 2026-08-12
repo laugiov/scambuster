@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Render the MITRE F3 mapping table into its document, or check that it is current.
 
-Spec 002 FR-001. The mapping decisions live in
+The mapping decisions live in
 backend-symfony/config/standards/f3-mapping.json; the table inside
 docs/standards/f3-mapping.md is generated from them, so a reviewer reading the
 document and a consumer reading the STIX export can never see two different answers.

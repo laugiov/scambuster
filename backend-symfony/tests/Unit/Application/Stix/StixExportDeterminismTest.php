@@ -8,8 +8,7 @@ use App\Application\Stix\ConformanceFixtureBuilder;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Spec 005 FR-002 / User Story 2: importing the same bundle twice must create no
- * duplicate objects in a consumer.
+ * Importing the same bundle twice must create no duplicate objects in a consumer.
  *
  * That property is not something a consumer can be asked to take on trust, and it
  * is not something the export code states — it is a consequence of every object id

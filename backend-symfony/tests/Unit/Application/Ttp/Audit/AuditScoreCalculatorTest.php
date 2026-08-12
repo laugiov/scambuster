@@ -9,7 +9,7 @@ use App\Application\Ttp\Audit\AuditSheetReader;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The figures Spec 001 publishes are computed here, so this test pins the
+ * The published extraction-quality figures are computed here, so this test pins the
  * arithmetic against hand-worked examples rather than against the implementation.
  *
  * Cohen's kappa in particular is easy to get subtly wrong (marginals from the

@@ -1,17 +1,17 @@
 {
-  "$comment": "Source of truth for the ScamBuster -> MITRE F3 mapping (Spec 002). Never hand-edit the generated markdown table in docs/standards/f3-mapping.md; edit this file and re-run scambuster:ttp:f3-mapping-report. Validated by F3MappingTest.",
+  "$comment": "Source of truth for the ScamBuster -> MITRE F3 mapping. Never hand-edit the generated markdown table in docs/standards/f3-mapping.md; edit this file and re-run scripts/standards/render-f3-mapping.py. Validated by F3MappingTest and by `scambuster:ttp:f3-mapping --check`.",
   "framework": "mitre-f3",
   "framework_version": null,
   "checked_on": null,
   "checked_against": null,
   "status": "blocked",
-  "blocked_reason": "The F3 v1 technique list (f3-v1.json) is not in this repository and ctid.mitre.org is unreachable from the build environment. Every decision below is therefore 'pending': recording a relation without reading the F3 technique description it cites would be an unverified claim (Constitution I and II).",
+  "blocked_reason": "The F3 v1 technique list (f3-v1.json) has not been obtained, so no F3 technique description has been read. Every decision below is therefore 'pending': recording a relation without reading the F3 technique description it cites would be an unverified claim about someone else's framework.",
   "relations": {
     "equivalent": "The F3 technique and the ScamBuster entry describe the same behaviour at the same granularity. Written to external_refs.",
     "narrower-than": "The ScamBuster entry describes a subset of what the F3 technique covers. Written to external_refs.",
     "broader-than": "The ScamBuster entry covers more than the F3 technique. NOT written to external_refs: a broader entry pointing at a narrower id tells a consumer the wrong thing about scope.",
     "related": "Adjacent behaviour, neither containing the other. NOT written to external_refs.",
-    "none": "F3 v1 does not describe this behaviour. Candidate material for a Spec 006 technique proposal.",
+    "none": "F3 v1 does not describe this behaviour. Candidate material for a technique proposal to the F3 maintainers.",
     "pending": "Not yet checked against the F3 technique descriptions. Not a decision."
   },
   "entries": [
@@ -180,12 +180,12 @@
   ],
   "reverse_check": {
     "status": "pending",
-    "note": "F3 techniques that describe conversation-visible behaviour absent from the ScamBuster taxonomy (Spec 002 FR-002). Filled in the same pass as the forward direction; blocked on the same input.",
+    "note": "F3 techniques that describe conversation-visible behaviour absent from the ScamBuster taxonomy. Filled in the same pass as the forward direction; blocked on the same input.",
     "techniques": []
   },
   "hve": {
     "status": "blocked",
-    "gate": "The Charm Security HVE specification has not been obtained. The HVE mapping reuses this file's structure and relation vocabulary when it is (Spec 002 FR-007).",
+    "gate": "The Charm Security HVE specification has not been obtained. The HVE mapping reuses this file's structure and relation vocabulary when it is.",
     "entries": []
   }
 }

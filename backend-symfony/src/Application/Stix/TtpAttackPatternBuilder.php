@@ -234,8 +234,8 @@ final class TtpAttackPatternBuilder
      * A URL is attached only for sources whose canonical URL format has been
      * verified against the live site ({@see SOURCE_URL_BASES}). MITRE F3 references
      * are emitted without one: the canonical technique URL on ctid.mitre.org is not
-     * confirmed, and a guessed URL in a shared feed is worse than no URL at all
-     * (Spec 002 FR-004, Constitution I).
+     * confirmed, and a guessed URL in a shared feed is worse than no URL at all,
+     * because consumers follow it.
      *
      * @return list<array{source_name: string, external_id: string, url?: string}>|null
      */

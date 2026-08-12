@@ -13,8 +13,8 @@ use PHPUnit\Framework\TestCase;
  * whose shape it does not recognise, and it reports every way a sheet is unfinished
  * instead of quietly computing a number from it.
  *
- * It also owes Constitution III: the evidence column is present in the file it
- * parses and must not reach the parsed rows.
+ * It also owes the no-verbatim-evidence rule: the evidence column is present in the
+ * file it parses and must not reach the parsed rows.
  */
 final class AuditSheetReaderTest extends TestCase
 {
@@ -65,7 +65,7 @@ final class AuditSheetReaderTest extends TestCase
         $this->assertStringNotContainsString(
             'VERBATIM SCAMMER TEXT',
             $flattened,
-            'the evidence column must not survive parsing (Constitution III)'
+            'the evidence column must not survive parsing: verbatim scammer text never reaches a scored row'
         );
         $this->assertSame(
             ['ttp_code', 'status', 'verdict_a', 'verdict_b', 'verdict_final', 'flag'],

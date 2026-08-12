@@ -1,11 +1,11 @@
 {
-  "$comment": "Human-validated TTP labels for the public ScamBuster dataset sample (Spec 004). Every inbound message has a slot; `annotated` flips to true when a human has judged it, including when the judgement is 'no TTP present' and `ttps` stays empty. Validate with scripts/standards/validate-dataset-labels.py.",
+  "$comment": "Human-validated TTP labels for the public ScamBuster dataset sample. Every inbound message has a slot; `annotated` flips to true when a human has judged it, including when the judgement is 'no TTP present' and `ttps` stays empty. Validate with scripts/standards/validate-dataset-labels.py.",
   "dataset_version": "1.0.0-unlabelled",
   "dataset_file": "scambuster-dataset-sample.json",
   "taxonomy_version": "1.0",
   "codebook_version": "1.0.0",
   "license": "CC-BY-4.0",
-  "license_status": "proposed — pending project owner confirmation (Spec 004 FR-005)",
+  "license_status": "proposed — pending project owner confirmation",
   "annotation_status": "not started",
   "double_annotated": [],
   "agreement": null,

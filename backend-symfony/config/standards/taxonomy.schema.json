@@ -89,7 +89,7 @@
           "items": { "type": "string", "minLength": 1 }
         },
         "stimulus_affinity": {
-          "description": "Which conversational stimuli this behaviour tends to follow. Temporal, never causal: an affinity says the behaviour is observed after the stimulus, not that the stimulus caused it (Constitution VIII).",
+          "description": "Which conversational stimuli this behaviour tends to follow. Temporal, never causal: an affinity says the behaviour is observed after the stimulus, not that the stimulus caused it.",
           "type": "array",
           "minItems": 1,
           "items": { "type": "string", "minLength": 1 }

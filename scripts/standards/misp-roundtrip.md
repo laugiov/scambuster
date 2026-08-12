@@ -1,6 +1,5 @@
 # MISP Round-Trip Procedure
 
-**Spec**: 005-interoperability-conformance, FR-003
 **Cadence**: before a release, and after any change to the MISP export or the tag
 provider
 **Result goes to**: `docs/standards/interoperability-conformance.md` §3, with a date
@@ -71,8 +70,8 @@ Check before going further:
 
 - The event has attributes.
 - It carries at least two `scambuster:ttp="SB-Txxx"` tags.
-- **It contains no verbatim scammer text.** Constitution III has no exception, and
-  MISP is an export path like any other. If evidence text appears here, stop the
+- **It contains no verbatim scammer text.** That rule has no exception, and MISP is
+  an export path like any other. If evidence text appears here, stop the
   procedure and fix the export — that is a more serious finding than anything else
   this round-trip could produce.
 
@@ -99,7 +98,7 @@ In the MISP UI, open the event and look at its tags.
 | What you see | What it means |
 |--------------|---------------|
 | `scambuster:ttp="SB-T001"` rendered as a machine tag (namespace, predicate and value as distinct parts) | The tag is well-formed. This is the expected result today. |
-| The tag shown but with no description on hover | Expected. The `scambuster` namespace is not registered in the MISP taxonomies repository yet, so nothing resolves it to a definition. Registration is Spec 006 and is gated. |
+| The tag shown but with no description on hover | Expected. The `scambuster` namespace is not registered in the MISP taxonomies repository yet, so nothing resolves it to a definition. Registering it is gated: see docs/standards-track.md. |
 | The tag rendered as one opaque free-text label | A defect. The tag string is malformed — record it and fix the provider. |
 
 Record which of the three you got.

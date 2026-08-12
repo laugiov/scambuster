@@ -4,7 +4,6 @@
 **Taxonomy version**: 1.0
 **Codebook version**: 1.0.0
 **Proposed licence**: CC-BY-4.0 (see §6 — not yet confirmed)
-**Spec**: 004-annotated-reference-dataset
 
 The public sample `scambuster-dataset-sample.json` ships 36 conversations and 247
 messages, 134 of them inbound, with IOC annotations and no TTP labels. This
@@ -44,7 +43,7 @@ of them independently.
 | `ttp-labels-v1.json` | The labels: one slot per inbound message. |
 | `ttp-unlisted-log.json` | Behaviours seen in the corpus that no taxonomy code describes. |
 | `../backend-symfony/config/standards/taxonomy-v1.0.json` | The closed vocabulary the codes come from. |
-| `../docs/standards/ttp-codebook-v1.md` | The rules an annotator applies. Shared with the Spec 001 audit. |
+| `../docs/standards/ttp-codebook-v1.md` | The rules an annotator applies. Shared with the extraction-quality audit. |
 
 The labels live beside the corpus rather than inside it. The sample file is already
 published and referenced elsewhere; rewriting it to add a field would invalidate
@@ -156,10 +155,10 @@ Nothing here is published as a licensed dataset until it is confirmed.
 
 ## 7. Sanitization
 
-The sample was sanitized before its original release. Spec 004 flags one thing to
-re-check before labels ship: adding character offsets makes it possible to point at
-an exact span, so any sanitization gap becomes easier to exploit than it was when
-only the whole body was published.
+The sample was sanitized before its original release. One thing is worth re-checking
+before labels ship: adding character offsets makes it possible to point at an exact
+span, so any sanitization gap becomes easier to exploit than it was when only the
+whole body was published.
 
 Re-run the release checks over the sample before publishing labels:
 
@@ -168,7 +167,7 @@ bash scripts/check-honeypot-leak.sh
 python3 scripts/check-credentials.py
 ```
 
-Constitution III governs production data, and this sample is not production data —
-it was sanitized for release. The re-check is not a suspicion that the sanitization
-failed; it is that the cost of being wrong went up, so the check is worth running
-again rather than assumed.
+The no-verbatim-evidence rule governs production data, and this sample is not
+production data — it was sanitized for release. The re-check is not a suspicion that
+the sanitization failed; it is that the cost of being wrong went up, so the check is
+worth running again rather than assumed.

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate the TTP labels on the public dataset sample (Spec 004 FR-004).
+"""Validate the TTP labels on the public dataset sample.
 
 The point of a labelled corpus is that a third party can score their own extractor
 against it without contacting the maintainer. That only works if the labels are
@@ -42,8 +42,8 @@ DEFAULT_LABELS = REPO_ROOT / "dataset" / "ttp-labels-v1.json"
 DEFAULT_SAMPLE = REPO_ROOT / "scambuster-dataset-sample.json"
 DEFAULT_TAXONOMY = REPO_ROOT / "backend-symfony" / "config" / "standards" / "taxonomy-v1.0.json"
 
-# Spec 004 FR-003: at least this share of inbound messages is annotated twice,
-# independently, so an agreement figure can be reported.
+# At least this share of inbound messages is annotated twice, independently, so an
+# agreement figure can be reported. See dataset/README.md.
 DOUBLE_ANNOTATION_FLOOR = 0.30
 
 

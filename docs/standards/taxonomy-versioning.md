@@ -3,7 +3,6 @@
 **Current taxonomy version**: 1.0
 **Artifact**: `backend-symfony/config/standards/taxonomy-v1.0.json`
 **Schema**: `backend-symfony/config/standards/taxonomy.schema.json`
-**Spec**: 003-taxonomy-artifact-versioning
 
 This is the stability contract for the ScamBuster TTP taxonomy. It says what a
 version number means, what a consumer may rely on, and what this project will never
@@ -149,12 +148,12 @@ is missing.
 
 - **Publication.** Positioning this artifact as a public normative standard — at the
   repository root, as a release asset, or in an external registry — is gated on the
-  container decision (Constitution IV). Generating it, testing it and using it in
+  container decision (see `docs/standards-track.md`). Generating it, testing it and using it in
   exports is not gated, and is what happens today.
 - **The kill chain name.** `scambuster-scam-phases` appears in every exported
   attack-pattern. It carries the product name, which reads as proprietary in a
   standards context, and renaming it is breaking for every consumer. The decision is
   tied to the container decision and must be recorded before any external submission
-  uses the exported attack-patterns (FR-008). Until then the name stays.
+  uses the exported attack-patterns. Until then the name stays.
 - **Translations.** Definitions are English-only. A translated definition would need
   its own drift-control story and there is none yet.

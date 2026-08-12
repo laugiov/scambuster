@@ -1,15 +1,14 @@
 # Interoperability Conformance Statement
 
 **Scope**: STIX 2.1 export, TAXII 2.1 server, MISP event and tag export
-**Spec**: 005-interoperability-conformance
 **Last verified**: see the CI run of the `Standards-Track Guards` job
 
 This document lists what ScamBuster claims about interoperability and, next to each
 claim, the automated test that proves it. A claim with no test does not sit quietly
 among the proven ones — it goes in §4, "stated, not yet proven".
 
-The rule behind the document is Constitution V: interoperability is proven by
-automated validation, not by stated intent. A reference platform earns trust because
+The rule behind the document is simple: interoperability is proven by automated
+validation, not by stated intent. A reference platform earns trust because
 its output imports everywhere, twice, without duplicates — not because its README
 says it conforms.
 
@@ -75,7 +74,7 @@ consequence of a decision this project made on purpose.
 | `{103}` id is not a valid UUIDv4 | The ids are UUIDv5, derived from the data. That is precisely what makes re-imports deduplicate. A UUIDv4 would satisfy the warning and break the property this project cares about most. |
 | `{103}` SCO id is not a valid UUIDv5 (contributing-properties form) | SCO ids are deterministic over the observable's type and normalised value rather than over the spec's contributing-properties recipe. The dedup property holds; the derivation differs. Worth revisiting, and tracked in §4. |
 | `{302}` external reference has a URL but no hash | ATT&CK technique URLs point at a live public site whose content changes with each ATT&CK release. A hash would be wrong within months. |
-| `{303}` indicator SHOULD have both name and description | Indicator names would restate the pattern, and descriptions would risk carrying context derived from message content. Constitution III makes the second unacceptable and the first is noise. |
+| `{303}` indicator SHOULD have both name and description | Indicator names would restate the pattern, and descriptions would risk carrying context derived from message content. The no-verbatim-evidence rule makes the second unacceptable, and the first is noise. |
 | `{219}` `threat_actor_types` value not in the open vocabulary | `criminal-financial` is the honest description of the actors observed. The property's vocabulary is open (`-ov`), so a value outside it is permitted. |
 
 ### 1.4 Custom extensions
@@ -145,7 +144,8 @@ reference fails the test rather than blending into the existing ones.
 The tags are emitted and are well-formed machine tags, but the `scambuster`
 namespace is not registered in the MISP taxonomies repository. Until it is, a
 consumer's instance shows the tag as free text rather than resolving it to a
-description. Registration is Spec 006 and is gated on the container decision.
+description. Registering it is gated on the container decision: see
+`docs/standards-track.md`.
 
 ---
 
@@ -156,12 +156,12 @@ has not yet earned.
 
 | Claim | What is missing | Why it is not in CI |
 |-------|-----------------|---------------------|
-| A MISP instance deduplicates a re-imported ScamBuster event, and `scambuster:ttp` tags resolve as machine tags | One recorded round-trip against a real instance: import, check tag resolution, re-import, confirm no new attributes | A MISP service container in CI is heavy — a multi-hundred-megabyte image and a multi-minute boot on every pull request, for a check whose result changes only when the export format changes. It runs as a release gate instead: `scripts/standards/misp-roundtrip.md` is the procedure, and its result is recorded here with a date. This resolves Spec 005's open question in favour of the release-gate script. |
+| A MISP instance deduplicates a re-imported ScamBuster event, and `scambuster:ttp` tags resolve as machine tags | One recorded round-trip against a real instance: import, check tag resolution, re-import, confirm no new attributes | A MISP service container in CI is heavy — a multi-hundred-megabyte image and a multi-minute boot on every pull request, for a check whose result changes only when the export format changes. It runs as a release gate instead: `scripts/standards/misp-roundtrip.md` is the procedure, and its result is recorded here with a date. |
 | SCO ids follow the STIX 2.1 contributing-properties recipe | SCO ids are deterministic but derived from type + normalised value instead | Changing the derivation would move every existing SCO id in every consumer that already imported one. It needs a taxonomy-style migration story, not a quiet fix. |
 | OpenCTI imports the feed without manual mapping | One recorded import against a current OpenCTI release | Documented in `docs/11_opencti_integration.md` from an earlier manual run; not automated, and not re-verified against the current release. |
 | The platforms named "unverified" in `docs/16_taxii_server.md` (TheHive, Splunk, QRadar, Elastic) consume the feed | One recorded run against each | Untested. The TAXII documentation already labels them unverified and that label stays until someone runs them. |
 
-No public text may claim any row in this section as proven (Constitution I and V).
+No public text may claim any row in this section as proven.
 When one is earned, it moves up into §1, §2 or §3 with its proving test named.
 
 ---

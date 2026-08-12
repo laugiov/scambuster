@@ -14,16 +14,16 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * Write the three exported STIX bundle types, built from synthetic fixtures, so an
- * external validator can check them (Spec 005 FR-001).
+ * external validator can check them.
  *
  * Split out from the validation script because the two halves run in different
  * places: the bundles are built inside the PHP container, and the validator is a
  * Python tool that runs on the host. The project directory is bind-mounted, so a
  * file written here is immediately visible there.
  *
- * The bundles contain no production data — the fixtures are invented, for exactly
- * the reason Constitution III exists. That is what makes it safe for CI to keep
- * them as a build artifact.
+ * The bundles contain no production data: the fixtures are invented, precisely
+ * because verbatim scammer evidence must never leave the database. That is what
+ * makes it safe for CI to keep them as a build artifact.
  */
 #[AsCommand(
     name: 'scambuster:stix:conformance-fixtures',

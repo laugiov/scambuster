@@ -1,5 +1,5 @@
 {
-  "$comment": "Behaviours observed in the dataset that no taxonomy code describes (Spec 004 FR-007). These are collected, never invented into codes: an annotator who meets one records what they saw in plain words here, and the taxonomy stays closed until someone decides to change it through the versioning process. This file is the raw material for future MINOR taxonomy versions and for the Spec 006 F3 technique proposals.",
+  "$comment": "Behaviours observed in the dataset that no taxonomy code describes. These are collected, never invented into codes: an annotator who meets one records what they saw in plain words here, and the taxonomy stays closed until someone decides to change it through the versioning process. This file is the raw material for future MINOR taxonomy versions and for technique proposals to the F3 maintainers.",
   "dataset_version": "1.0.0-unlabelled",
   "taxonomy_version": "1.0",
   "codebook_version": "1.0.0",

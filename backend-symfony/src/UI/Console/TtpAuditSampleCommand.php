@@ -233,7 +233,7 @@ final class TtpAuditSampleCommand extends Command
         }
 
         if ($seed === null) {
-            $io->warning('No --seed given: this draw cannot be reproduced. A published figure needs a recorded seed (Spec 001 FR-001).');
+            $io->warning('No --seed given: this draw cannot be reproduced. A published figure needs a recorded seed.');
         }
 
         $io->note('No precision metric is computed. Score the sheet against docs/standards/ttp-codebook-v1.md, then run scambuster:ttp:audit-score on it.');

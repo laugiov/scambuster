@@ -8,7 +8,7 @@ namespace App\Application\Ttp\Audit;
  * The complete figure set of one scoring round.
  *
  * Everything here is descriptive of the audited sample. Nothing is extrapolated to
- * the corpus and no confidence interval is attached (Spec 001 FR-007, Constitution I).
+ * the corpus and no confidence interval is attached.
  */
 final readonly class AuditScoreResult
 {

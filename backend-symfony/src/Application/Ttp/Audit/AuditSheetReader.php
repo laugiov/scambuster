@@ -12,7 +12,7 @@ namespace App\Application\Ttp\Audit;
  * the two verdicts, the adjudicated verdict and the flag. The evidence column is
  * read to locate it and then dropped on the floor: no verbatim scammer text is
  * carried into the result objects, so nothing downstream can leak it into a public
- * document (Constitution III).
+ * document.
  *
  * Structural problems are collected, not thrown: a half-filled sheet should tell
  * its owner everything that is wrong with it in one run, not one problem per run.
@@ -152,7 +152,8 @@ final class AuditSheetReader
                     $problems[] = sprintf('line %d: no adjudicated verdict_final', $lineNumber);
                 }
 
-                // FR-006: every disagreement carries a logged reason.
+                // Every disagreement has to carry a written reason, or the
+                // adjudication cannot be reviewed later.
                 if ($verdictA !== '' && $verdictB !== '' && $verdictA !== $verdictB && $cell('adjudication_reason') === '') {
                     $problems[] = sprintf('line %d: scorers disagree (%s vs %s) but adjudication_reason is empty', $lineNumber, $verdictA, $verdictB);
                 }

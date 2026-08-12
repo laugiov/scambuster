@@ -1,6 +1,5 @@
 # Standards-Track Log
 
-**Spec**: 006-standards-track-submissions
 **Status**: BLOCKED — nothing has been filed, and nothing may be
 
 This is the log of every standards-track submission: what was filed, where, when,
@@ -15,7 +14,6 @@ Today it has no entries, and that is the correct state.
 > **No public artifact that positions a ScamBuster taxonomy as a normative standard —
 > a published spec file, a registered public taxonomy, a framework name — ships
 > before the container decision is made and recorded.**
-> — Constitution IV
 
 **The container decision has not been made.** Until it is, nothing in this document
 is filed anywhere.
@@ -37,8 +35,8 @@ reasoning, and who made it. Everything below unblocks from there.
 | Decision | Where it bites | Status |
 |----------|----------------|--------|
 | Container (A / B / C) | This entire document | **Open** |
-| Kill chain name — keep `scambuster-scam-phases` or move to a neutral name | Every exported STIX attack-pattern. Renaming is breaking for consumers and is a MAJOR taxonomy change. The current name carries the product name, which reads as proprietary in a standards context. | **Open** — must be recorded before any submission uses the exported attack-patterns (Spec 003 FR-008) |
-| Publishing `taxonomy-v1.0.json` as a standalone public standard | Repository root, release assets, external registries. Internal generation and use in exports is not gated and happens today. | **Open** (Spec 003 FR-007) |
+| Kill chain name — keep `scambuster-scam-phases` or move to a neutral name | Every exported STIX attack-pattern. Renaming is breaking for consumers and is a MAJOR taxonomy change. The current name carries the product name, which reads as proprietary in a standards context. | **Open** — must be recorded before any submission uses the exported attack-patterns |
+| Publishing `taxonomy-v1.0.json` as a standalone public standard | Repository root, release assets, external registries. Internal generation and use in exports is not gated and happens today. | **Open** |
 
 ---
 
@@ -55,11 +53,10 @@ behaviour — and it costs no new repository.
 Two things block it, and the second is the harder one:
 
 1. **The container gate** (§1).
-2. **The mapping is not done.** Spec 006 FR-001 allows proposing only techniques
-   whose Spec 002 decision is `none`. Every decision in
+2. **The mapping is not done.** Only a behaviour whose F3 mapping decision is
+   `none` may be proposed as a new technique. Every decision in
    `docs/standards/f3-mapping.md` is currently `pending`, because the F3 v1
-   technique list is not in the repository and `ctid.mitre.org` is unreachable from
-   the build environment. There is therefore nothing this project can honestly claim
+   technique list has not been obtained. There is therefore nothing this project can honestly claim
    F3 does not cover.
 
 ### What a proposal will need, when it is unblocked
@@ -73,16 +70,15 @@ Per proposed technique:
 
 The sourcing note is the part most likely to be written badly, so it is specified
 here rather than left to the moment: production honeypot conversations, descriptive
-and qualitative, the Spec 001 extraction-quality figure cited **with its limits**,
-no large-scale empirical claim, and no verbatim scammer text (Constitution I and
-III). "We observe this frequently" is not a sourcing note. "In a seeded sample of
+and qualitative, the extraction-quality figure cited **with its limits**, no
+large-scale empirical claim, and no verbatim scammer text. "We observe this frequently" is not a sourcing note. "In a seeded sample of
 100 tagged observations, two scorers agreed at kappa X and adjudicated precision was
 Y; the corpus is 36 conversations from one honeypot inbox and supports no population
 claim" is.
 
-**Prerequisites**: Spec 001 complete (a quality figure exists), Spec 002 complete
-(the mapping has `none` rows), the container decision recorded, and a second
-reviewer signed off.
+**Prerequisites**: the extraction-quality audit is complete (a quality figure
+exists), the F3 mapping is complete (it has `none` rows), the container decision is
+recorded, and a second reviewer has signed off.
 
 ---
 
@@ -106,8 +102,7 @@ the namespace and predicate are the two halves of the tag the platform actually
 sends, and each entry carries only code, label and definition — no examples, no
 evidence.
 
-Generating and testing it is not gated (Constitution IV allows internal generation).
-Filing it is.
+Generating and testing it is not gated; only filing it is.
 
 ---
 
@@ -117,17 +112,17 @@ These apply to every submission, under every container.
 
 - **Second-reviewer sign-off before filing.** Standards-track material — taxonomy
   content, mapping decisions, submission text — is signed off by a second person
-  before it goes anywhere public (Constitution, Governance). The project runs under
+  before it goes anywhere public. The project runs under
   a single maintainer, so this is a real prerequisite, not a formality to tick.
 - **No unverified numbers.** Every figure in a submission traces to a document in
-  this repository (Constitution I).
-- **No verbatim evidence.** Constitution III has no exception. Submissions describe
+  this repository.
+- **No verbatim evidence.** That rule has no exception. Submissions describe
   behaviour in the project's own words.
 - **No reviewer named without written consent.** Acknowledgements list a name only
   when that person has agreed in writing; otherwise the contribution is recorded by
   role.
 - **Plain B2 business English.** Use, help, work, make, get. No hype, no
-  unverifiable superlatives (Constitution VIII).
+  unverifiable superlatives.
 
 ---
 

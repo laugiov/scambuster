@@ -3,7 +3,7 @@
 **Codebook version**: 1.0.0
 **Status**: FROZEN — do not edit during a scoring round
 **Taxonomy version covered**: 1.0 (27 entries, `SB-T001`..`SB-T027`)
-**Used by**: Spec 001 (extraction quality audit) and Spec 004 (annotated reference dataset)
+**Used by**: the extraction-quality audit and the annotated reference dataset
 
 This is the scoring guide two people follow, independently, when they judge whether a
 TTP tag placed by the extractor is correct. It is frozen before scoring starts: if a
@@ -25,7 +25,7 @@ You judge one thing only:
 > Does the tagged code match its taxonomy definition, for the quoted or located span?
 
 You are **not** judging whether the extractor missed other codes in the same message.
-Missed tags are recall, and this audit does not measure recall (Spec 004 does). A row
+Missed tags are recall, and this audit does not measure recall. A row
 is not "incorrect" because something else in the message went untagged.
 
 You are **not** judging whether the taxonomy entry is well designed. If you think an
@@ -166,7 +166,7 @@ Rules:
 - The adjudicator may be scorer A or B. Adjudication happens after both sheets are
   complete and never before.
 - The scored sheet stays internal. It carries verbatim scammer evidence, so it never
-  leaves the machines of the people scoring it (Constitution III).
+  leaves the machines of the people scoring it.
 
 ---
 
@@ -192,7 +192,7 @@ What the figures mean:
   `unclear` rows sit outside both terms and are reported as their own count.
 
 The figure is descriptive of the sample. It is not extrapolated to the corpus, and
-no confidence interval is claimed (Constitution I, Spec 001 FR-007).
+no confidence interval is claimed.
 
 ---
 

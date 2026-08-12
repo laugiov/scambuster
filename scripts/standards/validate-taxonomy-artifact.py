@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Validate the generated TTP taxonomy artifact against its JSON Schema.
 
-Spec 003 FR-003. The PHP side already guarantees the artifact matches the canonical
-seed and is byte-stable; this script is the independent half — it checks the file
-against the committed schema with a real JSON Schema implementation rather than the
-project's own code.
+The PHP side already guarantees the artifact matches the canonical seed and is
+byte-stable; this script is the independent half — it checks the file against the
+committed schema with a real JSON Schema implementation rather than the project's
+own code.
 
 That separation is the point. A generator validating its own output with its own
 assumptions proves very little. A third party reading this repository validates the

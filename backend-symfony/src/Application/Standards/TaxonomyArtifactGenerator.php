@@ -9,15 +9,14 @@ use App\Domain\Communication\Ttp;
 use App\Domain\Communication\TtpTaxonomySeed;
 
 /**
- * Generates the machine-readable taxonomy artifact from the canonical seed
- * (Spec 003).
+ * Generates the machine-readable taxonomy artifact from the canonical seed.
  *
  * A reference framework ships a file, not a database. Every consumer this project
  * has or wants — a tool author, a reviewer, the MISP taxonomies repository, a
  * standards body — needs to read the taxonomy without an account on this platform.
  * This class produces that file.
  *
- * Determinism is a hard requirement, not a nicety (FR-004). The output carries no
+ * Determinism is a hard requirement, not a nicety. The output carries no
  * timestamp, no generation host, no ordering that depends on anything but the seed
  * order. Two runs on the same seed are byte-identical, which is what lets CI diff a
  * regenerated artifact against the committed one and fail on drift. It is also what
@@ -27,8 +26,8 @@ final class TaxonomyArtifactGenerator
 {
     /**
      * The kill chain name every exported attack-pattern carries. Renaming it is a
-     * breaking change for consumers and is gated on the container decision
-     * (Spec 003 FR-008).
+     * breaking change for every consumer, so the decision is recorded before any
+     * external submission uses the exported attack-patterns.
      */
     public const KILL_CHAIN_NAME = 'scambuster-scam-phases';
 
@@ -72,9 +71,9 @@ final class TaxonomyArtifactGenerator
                 'stimulus_affinity' => $seed['stimulus_affinity'],
                 'external_refs' => $seed['external_refs'],
                 // Every seeded entry is active. Deprecated entries keep their row
-                // with active=false rather than disappearing (Constitution VI), so
-                // the flag is part of the artifact from v1 even though nothing has
-                // been deprecated yet.
+                // with active=false rather than disappearing, so the flag is part
+                // of the artifact from v1 even though nothing has been deprecated
+                // yet.
                 'active' => true,
                 'stix_id' => $this->idGenerator->attackPatternId($seed['code']),
             ];

@@ -10,7 +10,7 @@ use App\Domain\Communication\TtpTaxonomySeed;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Guards the generated MISP taxonomy file (Spec 006 FR-004).
+ * Guards the generated MISP taxonomy file (config/standards/machinetag.json).
  *
  * A registered MISP taxonomy is published to every instance that syncs the
  * taxonomies repository, and it is hard to retract. So the two things that matter
@@ -193,14 +193,15 @@ final class MispMachineTagGeneratorTest extends TestCase
         $this->assertSame(
             $this->generator->generateJson(),
             $committed,
-            'machinetag.json is stale. It is generated, never hand-edited (Spec 006 FR-004).'
+            'machinetag.json is stale. It is generated from the taxonomy seed, never hand-edited.'
         );
     }
 
     /**
-     * Constitution III has no exception, and a MISP taxonomy is about as public as
-     * a file gets. Definitions describe behaviour in the project's own words; if a
-     * verbatim quote ever reached the taxonomy it would reach this file too.
+     * The no-verbatim-evidence rule has no exception, and a MISP taxonomy is about
+     * as public as a file gets. Definitions describe behaviour in the project's own
+     * words; if a verbatim quote ever reached the taxonomy it would reach this file
+     * too.
      */
     public function testCarriesNoContentBeyondTheTaxonomyText(): void
     {

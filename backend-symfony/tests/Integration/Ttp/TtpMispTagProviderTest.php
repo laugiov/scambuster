@@ -81,8 +81,8 @@ final class TtpMispTagProviderTest extends KernelTestCase
     }
 
     /**
-     * Spec 002 FR-005. MITRE F3 references may reach `external_refs` and the STIX
-     * export, but they must NOT become MISP tags: a galaxy tag has to resolve in a
+     * MITRE F3 references may reach `external_refs` and the STIX export, but they
+     * must NOT become MISP tags: a galaxy tag has to resolve in a
      * consumer's instance, and no public F3 MISP galaxy exists. Any string this
      * project invented would resolve nowhere.
      *

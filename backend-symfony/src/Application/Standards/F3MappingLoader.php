@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Standards;
 
 /**
- * Loads and validates the ScamBuster -> MITRE F3 mapping file (Spec 002).
+ * Loads and validates the ScamBuster -> MITRE F3 mapping file.
  *
  * The JSON file is the source of truth for the mapping decisions; the markdown
  * document under docs/ is rendered from it, so a reviewer reading the document and a
@@ -13,8 +13,9 @@ namespace App\Application\Standards;
  *
  * Validation is strict on purpose. A mapping that claims a relation it cannot cite,
  * or that cites an F3 id no `external_refs` row carries, would put an unverified
- * external-framework claim into a public export — exactly what Constitution II
- * forbids.
+ * external-framework claim into a public export. This project maps to existing
+ * frameworks rather than competing with them, and every mapping claim has to be
+ * backed by a recorded, per-entry check.
  */
 final class F3MappingLoader
 {
@@ -43,8 +44,7 @@ final class F3MappingLoader
      * `broader-than` is deliberately excluded: a ScamBuster entry that covers more
      * ground than the F3 technique it points at would tell a consumer the entry is
      * scoped to that technique, which is false. `related` is excluded for the same
-     * reason at a weaker strength. This closes the open question in Spec 002's
-     * edge-case list in the direction the spec proposed.
+     * reason at a weaker strength.
      *
      * @var list<string>
      */
@@ -188,8 +188,9 @@ final class F3MappingLoader
             }
         }
 
-        // FR-006: a mapping whose decisions are made must say which F3 version it
-        // was made against, so a future F3 release invalidates it visibly.
+        // A mapping whose decisions are made must say which F3 version it was made
+        // against, so a future F3 release invalidates it visibly rather than
+        // silently.
         if ($this->isDecided($mapping) && !\is_string($mapping['framework_version'] ?? null)) {
             $problems[] = 'decisions are recorded but framework_version is not set';
         }

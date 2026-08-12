@@ -8,10 +8,10 @@ namespace App\Application\Ttp\Audit;
  * Computes the figures of a TTP extraction quality audit from a scored sheet.
  *
  * Pure computation over verdict labels: it never touches the evidence column, so
- * nothing it returns can carry verbatim scammer text (Constitution III). What it
- * produces is deliberately descriptive — counts, raw agreement, Cohen's kappa and
- * per-code tallies over the audited sample. It extrapolates nothing to the corpus
- * and claims no confidence interval (Spec 001 FR-007).
+ * nothing it returns can carry verbatim scammer text. What it produces is
+ * deliberately descriptive: counts, raw agreement, Cohen's kappa and per-code
+ * tallies over the audited sample. It extrapolates nothing to the corpus and
+ * claims no confidence interval.
  *
  * @phpstan-type ScoredRow array{ttp_code: string, status: string, verdict_a: string, verdict_b: string, verdict_final: string, flag: string}
  */
@@ -26,7 +26,7 @@ final class AuditScoreCalculator
 
     /**
      * Rows below this sampled count get a coverage note instead of being read as a
-     * per-code quality signal (Spec 001 FR / User Story 2).
+     * per-code quality signal.
      */
     public const LOW_COVERAGE_THRESHOLD = 5;
 

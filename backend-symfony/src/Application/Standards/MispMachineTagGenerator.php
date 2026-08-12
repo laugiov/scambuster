@@ -9,7 +9,7 @@ use App\Domain\Communication\TtpTaxonomySeed;
 
 /**
  * Generates the MISP taxonomy file (`machinetag.json`) for the `scambuster`
- * namespace, from the canonical taxonomy seed (Spec 006 FR-004).
+ * namespace, from the canonical taxonomy seed.
  *
  * The platform already emits `scambuster:ttp="SB-Txxx"` tags. They are well-formed
  * machine tags, but no MISP instance can resolve them to a meaning, because the
@@ -17,13 +17,13 @@ use App\Domain\Communication\TtpTaxonomySeed;
  * what turns a tag a consumer sees as free text into one their instance
  * understands.
  *
- * GATED. Filing this file anywhere public is blocked on the container decision
- * (Constitution IV): a registered public taxonomy is a normative artifact, and a
- * merged MISP taxonomy PR is hard to retract. Generating and testing it is not
+ * GATED. Filing this file anywhere public is blocked until the project records how
+ * it publishes its taxonomy: a registered public taxonomy is a normative artifact,
+ * and a merged MISP taxonomy PR is hard to retract. Generating and testing it is not
  * blocked, and that is all this class does — it produces bytes on disk, and a human
  * decides whether they ever leave the repository.
  *
- * Generated, never hand-written (FR-004): a hand-maintained copy of 27 definitions
+ * Generated, never hand-written: a hand-maintained copy of 27 definitions
  * would drift from the taxonomy within one release, and the drift would be
  * invisible until a consumer noticed their tag meant something else.
  */

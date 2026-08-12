@@ -10,8 +10,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * Builds the three exported bundle types from fixed, in-repository fixture data,
- * so an external STIX validator can check them in CI without a database
- * (Spec 005 FR-001).
+ * so an external STIX validator can check them in CI without a database.
  *
  * The fixtures are deliberately adversarial towards this project's own output. They
  * exercise the parts most likely to trip a third-party validator, because those are
@@ -26,12 +25,12 @@ use Symfony\Component\Uid\Uuid;
  * - mixed TLP markings inside one bundle.
  *
  * The data itself is invented. No production row, and no verbatim scammer text, is
- * in this file or in anything it produces (Constitution III) — the fixtures use
- * obviously-synthetic values for exactly that reason.
+ * in this file or in anything it produces: the fixtures use obviously-synthetic
+ * values for exactly that reason.
  */
 final class ConformanceFixtureBuilder
 {
-    /** Bundle ids are fixed so two runs produce byte-identical files (FR-002). */
+    /** Bundle ids are fixed so two runs produce byte-identical files. */
     private const IOC_BUNDLE_ID = 'bundle--1a2b3c4d-0000-4000-8000-000000000001';
     private const CLUSTER_BUNDLE_ID = 'bundle--1a2b3c4d-0000-4000-8000-000000000002';
     private const CONVERSATION_BUNDLE_ID = 'bundle--1a2b3c4d-0000-4000-8000-000000000003';

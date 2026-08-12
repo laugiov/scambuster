@@ -31,8 +31,8 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  *
  * The evidence column never reaches the output. The command reads verdict labels,
  * taxonomy codes and the observation status; the markdown it prints is meant to be
- * pasted into the public results document under docs/, and there is no path by
- * which scammer text could travel with it (Constitution III).
+ * pasted into a public results document, and there is no path by which scammer
+ * text could travel with it.
  *
  * The sheet has to be complete before its figures mean anything: every row
  * double-scored, every row adjudicated, every disagreement carrying a written
@@ -41,8 +41,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
  * a published number.
  *
  * No figure produced here is extrapolated to the corpus and none carries a
- * confidence interval: what the sample says, it says about the sample
- * (Spec 001 FR-007, Constitution I).
+ * confidence interval: what the sample says, it says about the sample.
  */
 #[AsCommand(
     name: 'scambuster:ttp:audit-score',
@@ -71,7 +70,7 @@ final class TtpAuditScoreCommand extends Command
             ->addOption('codebook', null, InputOption::VALUE_REQUIRED, 'Codebook version the scoring ran under.', self::CODEBOOK_VERSION)
             ->addOption('force', null, InputOption::VALUE_NONE, 'Print the figures even when the sheet has structural problems. The problems are still listed.')
             ->setHelp(
-                "Reads a scored audit sheet and computes the figures Spec 001 publishes.\n\n".
+                "Reads a scored audit sheet and computes the published quality figures.\n\n".
                 "Expected columns, on top of the exported sample: verdict_a, verdict_b,\n".
                 "verdict_final, adjudication_reason, flag, notes. See docs/standards/ttp-codebook-v1.md.\n\n".
                 "The output carries no verbatim evidence and is safe to paste into a public document.\n".
