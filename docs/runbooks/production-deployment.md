@@ -162,6 +162,36 @@ scambuster.example.com {
 
 ---
 
+## 8. Network zoning and egress
+
+The production compose splits the stack into two Docker networks:
+
+| Network | `internal` | Members | Purpose |
+|---------|-----------|---------|---------|
+| `data`  | **yes**   | postgres, redis, app, scheduler | Data plane. No route to the internet; not reachable from n8n. |
+| `edge`  | no        | app, scheduler, n8n | Engagement/egress plane. Outbound access + n8n ↔ app. |
+
+The engagement component (**n8n**, which executes arbitrary workflow JS and holds
+the mailbox credentials) sits on `edge` only, so a compromised n8n **cannot reach
+PostgreSQL or Redis directly**. The app and scheduler are dual-homed: they reach
+the data store over `data` and keep the outbound access they need over `edge`.
+
+**Legitimate egress** (from `app` / `scheduler` on `edge`) — build your host
+firewall / egress allowlist from this list:
+
+| Destination | Purpose | When |
+|-------------|---------|------|
+| LLM API (`LLM_API_URL`, e.g. `api.openai.com`) | Reply generation, guards, enrichment | Per reply/enrichment (skip entirely with `LLM_PROVIDER=ollama` on the same host) |
+| SMTP host (`MAILER_DSN`) | Sending replies | Per reply sent |
+| IMAP host (`HONEYPOT_IMAP_*`, via n8n) | Mailbox polling | Continuous |
+| Enrichment providers (VirusTotal / urlscan, if configured) | IOC scoring | Per IOC |
+
+Nothing else needs egress. For a fully self-contained deployment, run a local LLM
+(`LLM_PROVIDER=ollama`) and no external enrichment — then only SMTP/IMAP leave the
+host, and `data` stays internal as shipped.
+
+---
+
 ## Day-2 operations
 
 ### User management
