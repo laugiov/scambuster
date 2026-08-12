@@ -59,7 +59,7 @@ final class EmbeddingServiceTest extends TestCase
 
     public function testFailureReturnsEmptyArray(): void
     {
-        $client = new FakeEmbeddingClient('m', throw: true);
+        $client = new FakeEmbeddingClient('m', fail: true);
         $svc = new EmbeddingService($client, new NullLogger());
 
         self::assertNull($svc->generate('x'));
@@ -78,7 +78,7 @@ final class FakeEmbeddingClient implements EmbeddingClientInterface
     /** @var array<int, string>|null */
     public ?array $lastInput = null;
 
-    public function __construct(private readonly string $model, private readonly bool $throw = false)
+    public function __construct(private readonly string $model, private readonly bool $fail = false)
     {
     }
 
@@ -89,7 +89,7 @@ final class FakeEmbeddingClient implements EmbeddingClientInterface
 
     public function embed(array $texts): array
     {
-        if ($this->throw) {
+        if ($this->fail) {
             throw new \RuntimeException('provider down');
         }
 

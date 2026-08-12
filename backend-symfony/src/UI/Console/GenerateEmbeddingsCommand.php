@@ -101,6 +101,15 @@ final class GenerateEmbeddingsCommand extends Command
                     continue;
                 }
 
+                // Never persist an empty/dimensionless vector — count it as an
+                // error and skip, so a partial provider failure cannot store
+                // unusable rows.
+                if ($embedding === []) {
+                    ++$errors;
+
+                    continue;
+                }
+
                 $vectorId = \Symfony\Component\Uid\Uuid::v4()->toRfc4122();
 
                 $this->connection->executeStatement(

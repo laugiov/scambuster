@@ -50,6 +50,15 @@ final readonly class OllamaEmbeddingClient implements EmbeddingClientInterface
             $data = $response->toArray();
             /** @var array<int, float> $vector */
             $vector = $data['embedding'] ?? [];
+
+            // A missing/empty embedding means the local model failed on this text
+            // (e.g. model not pulled, error payload). Fail the batch per the port
+            // contract so EmbeddingService falls back rather than storing an empty
+            // vector.
+            if ($vector === []) {
+                throw new \RuntimeException('Ollama returned no embedding for a text (model missing or error response)');
+            }
+
             $out[] = $vector;
         }
 

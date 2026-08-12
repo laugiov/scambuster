@@ -39,11 +39,12 @@ final readonly class MockEmbeddingClient implements EmbeddingClientInterface
     private function pseudoVector(string $text): array
     {
         // Seed a small vector from the text hash; deterministic and in [-1, 1].
-        $seed = crc32($text);
+        // crc32() can be negative on 32-bit PHP, so mask to unsigned before modulo.
+        $seed = crc32($text) & 0xFFFFFFFF;
         $vector = [];
 
         for ($i = 0; $i < self::DIMENSIONS; ++$i) {
-            $h = crc32($seed . ':' . $i);
+            $h = crc32($seed . ':' . $i) & 0xFFFFFFFF;
             $vector[] = ($h % 2000) / 1000.0 - 1.0;
         }
 

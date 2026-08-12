@@ -75,6 +75,17 @@ final class EmbeddingClientTest extends TestCase
         self::assertSame('nomic-embed-text', $client->model());
     }
 
+    public function testOllamaClientThrowsOnMissingEmbedding(): void
+    {
+        // Error payload / model not pulled → no `embedding` key. Must fail the
+        // batch (port contract) rather than yield an empty vector.
+        $http = new MockHttpClient(fn (): MockResponse => new MockResponse((string) json_encode(['error' => 'model not found'])));
+        $client = new OllamaEmbeddingClient($http, 'http://ollama.local:11434', 'nomic-embed-text', new NullLogger());
+
+        $this->expectException(\RuntimeException::class);
+        $client->embed(['text']);
+    }
+
     public function testMockClientIsDeterministicAndOffline(): void
     {
         $client = new MockEmbeddingClient();
