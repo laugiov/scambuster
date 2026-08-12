@@ -1,0 +1,503 @@
+{
+    "taxonomy_version": "1.0",
+    "generated_from": "App\\Domain\\Communication\\TtpTaxonomySeed::ENTRIES",
+    "kill_chain_name": "scambuster-scam-phases",
+    "phases": [
+        "hook",
+        "trust-building",
+        "payment-request",
+        "escalation",
+        "channel-switch",
+        "exit"
+    ],
+    "entry_count": 27,
+    "entries": [
+        {
+            "code": "SB-T001",
+            "label": "Unsolicited opportunity lure",
+            "definition": "Presents an unsolicited windfall or business opportunity (inheritance, lottery, contract, compensation) as the reason for contact.",
+            "phase": "hook",
+            "examples": [
+                "You have been selected as the beneficiary of $10.5M",
+                "Your email address won our international lottery",
+                "We seek a reliable partner for an oil contract"
+            ],
+            "stimulus_affinity": [
+                "PASSIVE"
+            ],
+            "external_refs": [
+                {
+                    "source_name": "mitre-attack",
+                    "external_id": "T1566"
+                }
+            ],
+            "active": true,
+            "stix_id": "attack-pattern--a49ae9cd-c3ef-55ab-8d40-b90bee8ad544"
+        },
+        {
+            "code": "SB-T002",
+            "label": "Institutional authority impersonation",
+            "definition": "Claims to represent a government body, bank, court, police or international organization to command compliance.",
+            "phase": "hook",
+            "examples": [
+                "I am the director of the UN compensation commission",
+                "This is the FBI fraud division",
+                "I write on behalf of the Central Bank"
+            ],
+            "stimulus_affinity": [
+                "PASSIVE",
+                "UNKNOWN"
+            ],
+            "external_refs": [
+                {
+                    "source_name": "mitre-attack",
+                    "external_id": "T1656"
+                }
+            ],
+            "active": true,
+            "stix_id": "attack-pattern--dc06806d-95be-5141-bfaa-8714c0b6987e"
+        },
+        {
+            "code": "SB-T003",
+            "label": "Commercial brand impersonation",
+            "definition": "Poses as a known company or consumer service (courier, marketplace, vendor) to exploit its established trust.",
+            "phase": "hook",
+            "examples": [
+                "DHL: your package is on hold pending fees",
+                "Your account requires immediate validation",
+                "Invoice attached from our sales department"
+            ],
+            "stimulus_affinity": [
+                "PASSIVE"
+            ],
+            "external_refs": [
+                {
+                    "source_name": "mitre-attack",
+                    "external_id": "T1656"
+                }
+            ],
+            "active": true,
+            "stix_id": "attack-pattern--a054f956-7c23-5a1f-bec4-7212f83dba27"
+        },
+        {
+            "code": "SB-T004",
+            "label": "Malicious resource delivery",
+            "definition": "Sends a link or attachment the target must open to proceed (portal, form, document, tracking page).",
+            "phase": "hook",
+            "examples": [
+                "Click here to verify your identity",
+                "Open the attached invoice",
+                "Track your package at this link"
+            ],
+            "stimulus_affinity": [
+                "PASSIVE",
+                "DIRECT_REQUEST"
+            ],
+            "external_refs": [
+                {
+                    "source_name": "mitre-attack",
+                    "external_id": "T1566.001"
+                },
+                {
+                    "source_name": "mitre-attack",
+                    "external_id": "T1566.002"
+                }
+            ],
+            "active": true,
+            "stix_id": "attack-pattern--98112338-8f07-5865-a6ef-cb49c2dc4f95"
+        },
+        {
+            "code": "SB-T005",
+            "label": "Legitimacy document display",
+            "definition": "Volunteers official-looking documents (certificates, IDs, receipts, contracts) to prove authenticity.",
+            "phase": "trust-building",
+            "examples": [
+                "Please find attached the certificate of deposit",
+                "Here is a copy of my international passport",
+                "See the court approval document"
+            ],
+            "stimulus_affinity": [
+                "DOCUMENT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--6ca0c62b-8e74-5e25-a65d-57f00091abed"
+        },
+        {
+            "code": "SB-T006",
+            "label": "Rapport personalization",
+            "definition": "Builds an emotional or personal bond (affection, flattery, shared life details) unrelated to the transaction itself.",
+            "phase": "trust-building",
+            "examples": [
+                "My dear, I feel I can trust you",
+                "You remind me of my late wife",
+                "How is your family doing?"
+            ],
+            "stimulus_affinity": [
+                "TRUST_BUILDING"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--6ef13beb-d4b0-5ebf-994e-1f1d4885b864"
+        },
+        {
+            "code": "SB-T007",
+            "label": "Religious or moral appeal",
+            "definition": "Invokes God, faith or moral duty to frame the exchange as righteous and the target as chosen.",
+            "phase": "trust-building",
+            "examples": [
+                "God has directed me to you",
+                "As a God-fearing man, I know you will not betray this trust"
+            ],
+            "stimulus_affinity": [
+                "TRUST_BUILDING",
+                "PASSIVE"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--d35081f8-b5e4-5334-ac21-5349e3650fae"
+        },
+        {
+            "code": "SB-T008",
+            "label": "Fabricated social proof",
+            "definition": "Cites invented third parties who already benefited from or vouched for the scheme.",
+            "phase": "trust-building",
+            "examples": [
+                "Mr John from Canada received his payment last week",
+                "Many beneficiaries have already been paid this month"
+            ],
+            "stimulus_affinity": [
+                "TRUST_BUILDING"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--81cdd1c2-26b4-5c41-a919-f02de6e437db"
+        },
+        {
+            "code": "SB-T009",
+            "label": "Secrecy demand",
+            "definition": "Instructs the target to keep the transaction confidential from family, banks or authorities.",
+            "phase": "trust-building",
+            "examples": [
+                "Tell no one about this transaction for security reasons",
+                "This must remain strictly between us"
+            ],
+            "stimulus_affinity": [
+                "TRUST_BUILDING"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--6ac072d6-6293-55f4-b6c6-f07f5b35b451"
+        },
+        {
+            "code": "SB-T010",
+            "label": "Intermediary introduction",
+            "definition": "Introduces an additional persona (lawyer, banker, diplomat, agent) who must now be dealt with.",
+            "phase": "trust-building",
+            "examples": [
+                "Contact my barrister at the address below",
+                "The bank director will write to you directly"
+            ],
+            "stimulus_affinity": [
+                "DIRECT_REQUEST",
+                "DOCUMENT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--c0042160-be1e-5751-b1bf-ce5ef017ddb5"
+        },
+        {
+            "code": "SB-T011",
+            "label": "Plausibility repair",
+            "definition": "Explains away inconsistencies, delays or contradictions the target has noticed.",
+            "phase": "trust-building",
+            "examples": [
+                "The delay is due to the Easter holidays",
+                "The fee changed because of new government regulations",
+                "My other email was hacked, hence this address"
+            ],
+            "stimulus_affinity": [
+                "DOCUMENT_REQUEST",
+                "DIRECT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--3795fc39-ed59-5ce6-a619-835b23500010"
+        },
+        {
+            "code": "SB-T012",
+            "label": "Advance fee demand",
+            "definition": "Requires an upfront payment to unlock a larger promised value (transfer charge, tax, insurance).",
+            "phase": "payment-request",
+            "examples": [
+                "A transfer charge of $850 is required before release",
+                "Pay the 2% insurance fee to activate the account"
+            ],
+            "stimulus_affinity": [
+                "PAYMENT_INITIATION",
+                "DIRECT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--2fe290b4-633b-568f-9498-a976ed0c52ef"
+        },
+        {
+            "code": "SB-T013",
+            "label": "Payment instrument designation",
+            "definition": "Provides concrete payment coordinates the target must pay to (bank account, crypto wallet, money-transfer recipient).",
+            "phase": "payment-request",
+            "examples": [
+                "Wire the amount to IBAN DE89...",
+                "Send USDT to this wallet",
+                "Western Union to the following receiver name"
+            ],
+            "stimulus_affinity": [
+                "PAYMENT_INITIATION",
+                "DIRECT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--6d4b4128-f682-5cab-8d2f-b7df09a66e3a"
+        },
+        {
+            "code": "SB-T014",
+            "label": "Victim data harvesting",
+            "definition": "Requests the target's personal, financial or authentication data (identity documents, bank details, credentials, verification codes, address, phone).",
+            "phase": "payment-request",
+            "examples": [
+                "Send a copy of your ID and your bank details",
+                "Fill the beneficiary form with your full information",
+                "Confirm your login and the code you received by SMS"
+            ],
+            "stimulus_affinity": [
+                "DIRECT_REQUEST"
+            ],
+            "external_refs": [
+                {
+                    "source_name": "mitre-attack",
+                    "external_id": "T1598"
+                }
+            ],
+            "active": true,
+            "stix_id": "attack-pattern--60b6ac2f-2747-553e-9ce1-548ab444593f"
+        },
+        {
+            "code": "SB-T015",
+            "label": "Overpayment refund scheme",
+            "definition": "Claims an overpayment or presents fake payment proof, then asks part of the money back.",
+            "phase": "payment-request",
+            "examples": [
+                "We transferred $2,000 by mistake, kindly refund $500",
+                "See attached proof of our payment; return the excess via gift cards"
+            ],
+            "stimulus_affinity": [
+                "PAYMENT_INITIATION"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--5bd83db9-0f8e-5fa0-9e96-9c61dab72b52"
+        },
+        {
+            "code": "SB-T016",
+            "label": "Payment method shift",
+            "definition": "Changes the demanded payment rail mid-conversation (bank → crypto → gift cards → cash agent).",
+            "phase": "payment-request",
+            "examples": [
+                "The bank route failed, buy Apple gift cards instead",
+                "Western Union is blocked here, use Bitcoin"
+            ],
+            "stimulus_affinity": [
+                "PAYMENT_INITIATION"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--4e76b90a-a0b0-5b04-9d58-19e18d932802"
+        },
+        {
+            "code": "SB-T017",
+            "label": "Urgency deadline pressure",
+            "definition": "Imposes a hard deadline or countdown to force immediate action.",
+            "phase": "escalation",
+            "examples": [
+                "You have 24 hours or the file will be closed",
+                "The offer expires tonight"
+            ],
+            "stimulus_affinity": [
+                "PASSIVE"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--cc9a1a03-7f47-5b93-b72c-054e319566d3"
+        },
+        {
+            "code": "SB-T018",
+            "label": "Fee laddering",
+            "definition": "Adds new, previously unmentioned fees after an earlier payment or agreement.",
+            "phase": "escalation",
+            "examples": [
+                "Customs now requires an anti-terrorism clearance fee",
+                "One last charge of $320 and the funds are released"
+            ],
+            "stimulus_affinity": [
+                "PAYMENT_INITIATION"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--9b049670-9913-5ea6-bbd8-b88684da4317"
+        },
+        {
+            "code": "SB-T019",
+            "label": "Bureaucratic obstacle fabrication",
+            "definition": "Invents official procedures, codes or certificates that block progress until resolved (the narrative around the fee).",
+            "phase": "escalation",
+            "examples": [
+                "The Certificate of Ownership Transfer (COT) must be obtained first",
+                "An IMF clearance code is mandatory for international transfers"
+            ],
+            "stimulus_affinity": [
+                "DOCUMENT_REQUEST",
+                "PAYMENT_INITIATION"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--3ec18c5f-f26b-5570-a524-bc8beeb8b61e"
+        },
+        {
+            "code": "SB-T020",
+            "label": "Threat of loss or legal action",
+            "definition": "Threatens forfeiture, arrest, account closure or legal consequences for non-compliance.",
+            "phase": "escalation",
+            "examples": [
+                "Your funds will be confiscated by the government",
+                "A warrant will be issued against you",
+                "Your account will be permanently blocked"
+            ],
+            "stimulus_affinity": [
+                "URGENCY_PRESSURE",
+                "DIRECT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--462647e0-9cfa-5f6e-80b3-25a80cfe19e0"
+        },
+        {
+            "code": "SB-T021",
+            "label": "Emotional pressure appeal",
+            "definition": "Leverages pity, guilt or personal hardship to compel action.",
+            "phase": "escalation",
+            "examples": [
+                "My daughter is in the hospital, please hurry",
+                "I have spent my last money on these charges, do not abandon me"
+            ],
+            "stimulus_affinity": [
+                "TRUST_BUILDING",
+                "URGENCY_PRESSURE"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--d9610421-d605-560a-8280-d6d2adb718e7"
+        },
+        {
+            "code": "SB-T022",
+            "label": "Verification deflection",
+            "definition": "Refuses, evades or disqualifies the target's verification requests (contract, company registry, statement of work).",
+            "phase": "escalation",
+            "examples": [
+                "There is no time for contracts, trust me",
+                "Our company registry is confidential",
+                "Lawyers will only delay your payment"
+            ],
+            "stimulus_affinity": [
+                "DOCUMENT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--d67c75ad-0c07-519f-ac41-4401cf5b8bb7"
+        },
+        {
+            "code": "SB-T023",
+            "label": "Off-channel solicitation",
+            "definition": "Asks to continue the exchange on another channel (WhatsApp, Telegram, phone, personal email).",
+            "phase": "channel-switch",
+            "examples": [
+                "WhatsApp me at +234...",
+                "Add me on Telegram for faster communication",
+                "Reply to my private email"
+            ],
+            "stimulus_affinity": [
+                "DIRECT_REQUEST",
+                "TRUST_BUILDING"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--ad6e2d75-630a-56e8-a967-531f9c5bd455"
+        },
+        {
+            "code": "SB-T024",
+            "label": "Contact exclusivity demand",
+            "definition": "Restricts communication to a single designated contact, address or channel and forbids others.",
+            "phase": "channel-switch",
+            "examples": [
+                "Reply only to this email address",
+                "Deal exclusively with our agent; do not contact the bank directly"
+            ],
+            "stimulus_affinity": [
+                "DIRECT_REQUEST"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--c7b81db5-7baa-559c-8b47-fa38e62e4c94"
+        },
+        {
+            "code": "SB-T025",
+            "label": "Final ultimatum",
+            "definition": "Issues a last demand with the threatened termination of the deal or relationship.",
+            "phase": "exit",
+            "examples": [
+                "This is my final message: pay today or lose everything",
+                "I will hand your file to another beneficiary tomorrow"
+            ],
+            "stimulus_affinity": [
+                "URGENCY_PRESSURE"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--d3a946f0-23db-5518-90c0-29e7f94dc466"
+        },
+        {
+            "code": "SB-T026",
+            "label": "Re-engagement attempt",
+            "definition": "Returns after silence, refusal or a stalled exchange with a new angle, discount or persona.",
+            "phase": "exit",
+            "examples": [
+                "Since you did not respond, the fee is now reduced to $300",
+                "I am contacting you again with a better arrangement",
+                "My colleague has taken over your file"
+            ],
+            "stimulus_affinity": [
+                "PASSIVE"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--ee73c74d-1c78-5d76-93be-831b2fd9c536"
+        },
+        {
+            "code": "SB-T027",
+            "label": "Fabricated gains display",
+            "definition": "Shows fabricated profits, balances or returns as proof the scheme works, to induce further payment.",
+            "phase": "trust-building",
+            "examples": [
+                "Your account balance is now $12,400, up 34% this week",
+                "Your first deposit earned $780, imagine what $2,000 would make",
+                "See the attached dashboard screenshot with your profit"
+            ],
+            "stimulus_affinity": [
+                "PAYMENT_INITIATION",
+                "TRUST_BUILDING"
+            ],
+            "external_refs": [],
+            "active": true,
+            "stix_id": "attack-pattern--3821d3f3-f1d4-54f5-a1eb-827d15fb9d98"
+        }
+    ]
+}

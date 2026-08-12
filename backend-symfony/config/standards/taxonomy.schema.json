@@ -1,0 +1,131 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/laugiov/scambuster/blob/main/backend-symfony/config/standards/taxonomy.schema.json",
+  "title": "ScamBuster TTP Taxonomy Artifact",
+  "description": "The machine-readable form of the ScamBuster scammer-side TTP taxonomy. Generated from the canonical seed by scambuster:ttp:taxonomy-export; never hand-edited. One file per taxonomy version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "taxonomy_version",
+    "generated_from",
+    "kill_chain_name",
+    "phases",
+    "entry_count",
+    "entries"
+  ],
+  "properties": {
+    "taxonomy_version": {
+      "description": "Semantic version of the taxonomy. MAJOR = meaning change or deprecation of a code; MINOR = new codes or phases; PATCH = wording fixes that change no meaning. See docs/standards/taxonomy-versioning.md.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$"
+    },
+    "generated_from": {
+      "description": "The canonical source constant this artifact was generated from. Present so a consumer can see the file is derived, not authored.",
+      "type": "string",
+      "minLength": 1
+    },
+    "kill_chain_name": {
+      "description": "The kill chain name carried by every exported STIX attack-pattern. Renaming it is a breaking change for consumers and is a MAJOR taxonomy change.",
+      "type": "string",
+      "minLength": 1
+    },
+    "phases": {
+      "description": "The kill-chain phases, in scam-progression order. The order is semantic: it is the sequence a scam conversation moves through.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "entry_count": {
+      "description": "Number of entries in this artifact. Redundant with entries.length on purpose: a consumer reading a truncated file notices.",
+      "type": "integer",
+      "minimum": 0
+    },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/entry" }
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "label",
+        "definition",
+        "phase",
+        "examples",
+        "stimulus_affinity",
+        "external_refs",
+        "active",
+        "stix_id"
+      ],
+      "properties": {
+        "code": {
+          "description": "Stable first-party identifier. Codes are never reused and never deleted; a retired code stays with active=false.",
+          "type": "string",
+          "pattern": "^SB-T[0-9]{3}$"
+        },
+        "label": {
+          "description": "Short human-readable name. Unique across the taxonomy.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "definition": {
+          "description": "What the behaviour is, as an annotator applies it. This is the text a scoring verdict is judged against.",
+          "type": "string",
+          "minLength": 1
+        },
+        "phase": {
+          "description": "Kill-chain phase. Must be one of the values in the top-level phases list.",
+          "type": "string",
+          "minLength": 1
+        },
+        "examples": {
+          "description": "Illustrative phrasings. Illustrations only: an annotator matches the definition, not this list.",
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "stimulus_affinity": {
+          "description": "Which conversational stimuli this behaviour tends to follow. Temporal, never causal: an affinity says the behaviour is observed after the stimulus, not that the stimulus caused it.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "external_refs": {
+          "description": "Mappings to external knowledge bases. Only sources with a per-entry, dated, recorded mapping check appear here (see docs/standards/f3-mapping.md). An absent reference means no verified mapping exists, never that one was omitted.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/externalRef" }
+        },
+        "active": {
+          "description": "False marks a deprecated entry. Deprecated entries keep their code and their STIX id so historical observations stay interpretable.",
+          "type": "boolean"
+        },
+        "stix_id": {
+          "description": "Deterministic STIX 2.1 attack-pattern id (UUIDv5 over the code, seeded with the taxonomy major version). Stable within a taxonomy major version; a new major mints fresh ids.",
+          "type": "string",
+          "pattern": "^attack-pattern--[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        }
+      }
+    },
+    "externalRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_name", "external_id"],
+      "properties": {
+        "source_name": {
+          "description": "The knowledge base. Closed set: adding a source means adding a recorded per-entry mapping exercise for it.",
+          "type": "string",
+          "enum": ["mitre-attack", "mitre-f3"]
+        },
+        "external_id": {
+          "description": "The technique identifier in that knowledge base. The same id may legitimately appear under two source names: F3 references ATT&CK techniques where they apply to fraud, and the two are different knowledge bases.",
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

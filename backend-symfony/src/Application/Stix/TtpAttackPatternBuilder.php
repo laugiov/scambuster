@@ -37,7 +37,26 @@ final class TtpAttackPatternBuilder
     // byte-identical across exports and lets OpenCTI dedup them cleanly.
     private const TAXONOMY_STIX_TIMESTAMP = '2026-07-30T00:00:00.000Z';
 
-    private const ATTACK_TECHNIQUE_URL_BASE = 'https://attack.mitre.org/techniques/';
+    /**
+     * External reference sources this project publishes. A taxonomy entry may only
+     * carry references from a knowledge base whose mapping has been checked
+     * per-entry and recorded (docs/standards/f3-mapping.md); anything else is
+     * dropped before it reaches a consumer.
+     *
+     * @var list<string>
+     */
+    private const ALLOWED_SOURCE_NAMES = ['mitre-attack', 'mitre-f3'];
+
+    /**
+     * Canonical URL base per source, for the sources whose format has been verified
+     * against the live site. A source absent from this map emits its reference
+     * without a URL rather than with a guessed one.
+     *
+     * @var array<string, string>
+     */
+    private const SOURCE_URL_BASES = [
+        'mitre-attack' => 'https://attack.mitre.org/techniques/',
+    ];
 
     private const EXTENSION_SCHEMA_VERSION = '1.0';
 
@@ -204,11 +223,21 @@ final class TtpAttackPatternBuilder
     }
 
     /**
-     * MITRE ATT&CK external references for an attack-pattern, or null when the TTP
-     * carries none. Only mitre-attack references are emitted (v1 scope); the URL is
-     * derived from the technique id (dot -> slash for sub-techniques).
+     * External framework references for an attack-pattern, or null when the TTP
+     * carries none.
      *
-     * @return list<array{source_name: string, external_id: string, url: string}>|null
+     * A source name is emitted only when it is in {@see ALLOWED_SOURCE_NAMES}. That
+     * allowlist is the guard against a hand-edited or migrated `external_refs` row
+     * introducing a source this project has not verified: an unknown source is
+     * dropped silently rather than published to consumers.
+     *
+     * A URL is attached only for sources whose canonical URL format has been
+     * verified against the live site ({@see SOURCE_URL_BASES}). MITRE F3 references
+     * are emitted without one: the canonical technique URL on ctid.mitre.org is not
+     * confirmed, and a guessed URL in a shared feed is worse than no URL at all,
+     * because consumers follow it.
+     *
+     * @return list<array{source_name: string, external_id: string, url?: string}>|null
      */
     private function buildExternalReferences(mixed $externalRefs): ?array
     {
@@ -226,15 +255,23 @@ final class TtpAttackPatternBuilder
             $sourceName = \is_string($ref['source_name'] ?? null) ? $ref['source_name'] : '';
             $externalId = \is_string($ref['external_id'] ?? null) ? $ref['external_id'] : '';
 
-            if ($sourceName !== 'mitre-attack' || $externalId === '') {
+            if ($externalId === '' || !\in_array($sourceName, self::ALLOWED_SOURCE_NAMES, true)) {
                 continue;
             }
 
-            $refs[] = [
-                'source_name' => 'mitre-attack',
+            $reference = [
+                'source_name' => $sourceName,
                 'external_id' => $externalId,
-                'url' => self::ATTACK_TECHNIQUE_URL_BASE . str_replace('.', '/', $externalId) . '/',
             ];
+
+            $urlBase = self::SOURCE_URL_BASES[$sourceName] ?? null;
+
+            if ($urlBase !== null) {
+                // Sub-technique ids address as a path segment: T1566.001 -> T1566/001.
+                $reference['url'] = $urlBase . str_replace('.', '/', $externalId) . '/';
+            }
+
+            $refs[] = $reference;
         }
 
         return $refs === [] ? null : $refs;

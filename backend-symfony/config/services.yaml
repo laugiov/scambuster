@@ -148,6 +148,13 @@ services:
             $confidenceThreshold: '%env(default:ttp_extraction.confidence.default:float:TTP_CONFIDENCE_THRESHOLD)%'
             $model: '%llm.model%'
 
+    # Taxonomy artifact export: the output directory is a scalar and cannot be
+    # autowired. The generated taxonomy-v<major>.json artifact lives under
+    # config/standards/ alongside its schema.
+    App\UI\Console\TtpTaxonomyExportCommand:
+        arguments:
+            $artifactDirectory: '%kernel.project_dir%/config/standards'
+
     # GUARD smoke runner — invokes the reply-objective smoke command in-process for the worker.
     App\Infrastructure\Guard\InProcessSmokeRunner:
         arguments:
