@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Infrastructure\LLM;
 
+use App\Application\LLM\Port\EmbeddingClientInterface;
 use App\Application\LLM\Port\LLMClientInterface;
 use App\Infrastructure\LLM\LLMProviderCompilerPass;
 use App\Infrastructure\LLM\Provider\AnthropicClient;
+use App\Infrastructure\LLM\Provider\MockEmbeddingClient;
 use App\Infrastructure\LLM\Provider\MockLLMClient;
 use App\Infrastructure\LLM\Provider\OllamaClient;
+use App\Infrastructure\LLM\Provider\OllamaEmbeddingClient;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
@@ -102,6 +105,58 @@ class LLMProviderCompilerPassTest extends TestCase
         $this->assertTrue($container->hasAlias(LLMClientInterface::class));
         $alias = $container->getAlias(LLMClientInterface::class);
         $this->assertSame(OllamaClient::class, (string) $alias);
+    }
+
+    public function testOllamaAlsoSwapsTheEmbeddingClient(): void
+    {
+        $_ENV['LLM_PROVIDER'] = 'ollama';
+
+        $container = new ContainerBuilder();
+        $container->register(OllamaClient::class);
+        $container->register(OllamaEmbeddingClient::class);
+
+        (new LLMProviderCompilerPass())->process($container);
+
+        $this->assertTrue($container->hasAlias(EmbeddingClientInterface::class));
+        $this->assertSame(OllamaEmbeddingClient::class, (string) $container->getAlias(EmbeddingClientInterface::class));
+    }
+
+    public function testMockAlsoSwapsTheEmbeddingClient(): void
+    {
+        $_ENV['LLM_PROVIDER'] = 'mock';
+
+        $container = new ContainerBuilder();
+        $container->register(MockLLMClient::class);
+        $container->register(MockEmbeddingClient::class);
+
+        (new LLMProviderCompilerPass())->process($container);
+
+        $this->assertTrue($container->hasAlias(EmbeddingClientInterface::class));
+        $this->assertSame(MockEmbeddingClient::class, (string) $container->getAlias(EmbeddingClientInterface::class));
+    }
+
+    public function testAnthropicKeepsTheDefaultOpenAiEmbeddingClient(): void
+    {
+        // Anthropic has no embeddings API → the embedding alias is NOT overridden
+        // (keeps the OpenAI-compatible default set in llm.yaml).
+        $_ENV['LLM_PROVIDER'] = 'anthropic';
+
+        $container = new ContainerBuilder();
+        $container->register(AnthropicClient::class);
+
+        (new LLMProviderCompilerPass())->process($container);
+
+        $this->assertFalse($container->hasAlias(EmbeddingClientInterface::class));
+    }
+
+    public function testOpenAiDoesNotOverrideTheEmbeddingClient(): void
+    {
+        $_ENV['LLM_PROVIDER'] = 'openai';
+
+        $container = new ContainerBuilder();
+        (new LLMProviderCompilerPass())->process($container);
+
+        $this->assertFalse($container->hasAlias(EmbeddingClientInterface::class));
     }
 
     public function testInvalidProviderThrowsInvalidArgumentException(): void

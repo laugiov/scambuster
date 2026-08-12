@@ -101,6 +101,15 @@ final class GenerateEmbeddingsCommand extends Command
                     continue;
                 }
 
+                // Never persist an empty/dimensionless vector — count it as an
+                // error and skip, so a partial provider failure cannot store
+                // unusable rows.
+                if ($embedding === []) {
+                    ++$errors;
+
+                    continue;
+                }
+
                 $vectorId = \Symfony\Component\Uid\Uuid::v4()->toRfc4122();
 
                 $this->connection->executeStatement(
@@ -110,7 +119,9 @@ final class GenerateEmbeddingsCommand extends Command
                         'vectorId' => $vectorId,
                         'embedding' => json_encode($embedding),
                         'modelName' => $this->embeddingService->getModel(),
-                        'dim' => $this->embeddingService->getDimensions(),
+                        // Record the ACTUAL vector length, not a configured guess:
+                        // local models emit their own dimension (provider-agnostic).
+                        'dim' => count($embedding),
                     ],
                 );
 

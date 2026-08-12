@@ -12,6 +12,13 @@ parameters:
     llm.api_key: '%env(LLM_API_KEY)%'
     ollama.default_url: 'http://localhost:11434'
     anthropic.default_key: ''
+    # Embeddings. Default to the OpenAI model/dimension so a default install is
+    # unchanged; a local provider sets LLM_EMBEDDING_MODEL to its own model
+    # (dimension is then taken from the returned vector, not this hint).
+    llm.embedding_model.default: 'text-embedding-3-small'
+    llm.embedding_model: '%env(default:llm.embedding_model.default:LLM_EMBEDDING_MODEL)%'
+    llm.embedding_dimensions.default: 1536
+    llm.embedding_dimensions: '%env(default:llm.embedding_dimensions.default:int:LLM_EMBEDDING_DIMENSIONS)%'
     # Env-overridable monthly LLM budget cap (USD).
     # Default 50 USD. Operators raise via LLM_MAX_COST_USD_MONTH env var.
     llm.max_cost_usd_month: '%env(default:llm_default_max_cost:float:LLM_MAX_COST_USD_MONTH)%'
@@ -73,15 +80,35 @@ services:
     # Infrastructure - Mock provider (demo mode, no external API)
     App\Infrastructure\LLM\Provider\MockLLMClient: ~
 
-    # Application - LLM Cost monitoring
-    App\Application\LLM\CostEstimator: ~
-
-    # Application - Embedding Service (text-embedding-3-small)
-    App\Application\LLM\EmbeddingService:
+    # Infrastructure - Embedding providers (swapped by LLMProviderCompilerPass)
+    App\Infrastructure\LLM\Provider\OpenAIEmbeddingClient:
         arguments:
             $httpClient: '@http_client'
             $apiKey: '%llm.api_key%'
+            $apiUrl: '%llm.api_url%'
+            $model: '%llm.embedding_model%'
+            $dimensions: '%llm.embedding_dimensions%'
             $logger: '@monolog.logger.llm'
+    App\Infrastructure\LLM\Provider\OllamaEmbeddingClient:
+        arguments:
+            $httpClient: '@http_client'
+            $baseUrl: '%env(default:ollama.default_url:OLLAMA_BASE_URL)%'
+            $model: '%llm.embedding_model%'
+            $logger: '@monolog.logger.llm'
+    App\Infrastructure\LLM\Provider\MockEmbeddingClient: ~
+
+    # Default embedding binding: OpenAI. LLMProviderCompilerPass swaps this alias.
+    App\Application\LLM\Port\EmbeddingClientInterface: '@App\Infrastructure\LLM\Provider\OpenAIEmbeddingClient'
+
+    # Application - LLM Cost monitoring
+    App\Application\LLM\CostEstimator: ~
+
+    # Application - Embedding Service (provider-agnostic via EmbeddingClientInterface)
+    App\Application\LLM\EmbeddingService:
+        arguments:
+            $client: '@App\Application\LLM\Port\EmbeddingClientInterface'
+            $logger: '@monolog.logger.llm'
+            $dimensions: '%llm.embedding_dimensions%'
 
     App\Application\Monitoring\LlmCostHandler:
         arguments:

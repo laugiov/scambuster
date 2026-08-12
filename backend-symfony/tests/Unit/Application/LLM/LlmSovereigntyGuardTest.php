@@ -72,10 +72,6 @@ final class LlmSovereigntyGuardTest extends TestCase
         $offenders = [];
 
         foreach ($this->phpFiles(self::SRC) as $path) {
-            if (str_ends_with($path, 'EmbeddingService.php')) {
-                continue; // G-05, deferred slice
-            }
-
             if (str_contains((string) file_get_contents($path), 'api.openai.com')) {
                 $offenders[] = basename($path);
             }
