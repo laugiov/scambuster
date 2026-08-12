@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\LLM\Provider;
 
+use App\Application\LLM\Port\Exception\LlmRequestException;
+use App\Application\LLM\Port\Exception\LlmTransportException;
 use App\Application\LLM\Port\LLMClientInterface;
 use App\Domain\LLM\Event\LlmCallCompletedEvent;
 use Psr\Log\LoggerInterface;
@@ -68,13 +70,17 @@ final readonly class OllamaClient implements LLMClientInterface
             $statusCode = $response->getStatusCode();
 
             if ($statusCode !== 200) {
-                throw new \RuntimeException("Ollama API returned status {$statusCode}");
+                // 5xx = provider unhealthy (breaker-worthy); 4xx/429 = our request
+                // was rejected by a healthy provider (must not trip the breaker).
+                throw $statusCode >= 500
+                    ? new LlmTransportException("Ollama API returned status {$statusCode}")
+                    : new LlmRequestException("Ollama API returned status {$statusCode}");
             }
 
             $data = $response->toArray();
 
             if (!isset($data['message']['content'])) {
-                throw new \RuntimeException('Invalid Ollama API response: missing message.content');
+                throw new LlmTransportException('Invalid Ollama API response: missing message.content');
             }
 
             $assistantText = $data['message']['content'];
@@ -117,7 +123,13 @@ final readonly class OllamaClient implements LLMClientInterface
                 'latency_ms' => (int) ((microtime(true) - $startTime) * 1000),
             ]);
 
-            throw new \RuntimeException("Ollama API call failed: {$e->getMessage()}", $e->getCode(), previous: $e);
+            // Already-classified errors propagate as-is; anything else reaching here
+            // is a genuine transport/connection failure (breaker-worthy).
+            if ($e instanceof LlmRequestException || $e instanceof LlmTransportException) {
+                throw $e;
+            }
+
+            throw new LlmTransportException("Ollama API call failed: {$e->getMessage()}", (int) $e->getCode(), $e);
         }
     }
 }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Infrastructure\LLM\Provider;
 
+use App\Application\LLM\Port\Exception\LlmRequestException;
+use App\Application\LLM\Port\Exception\LlmTransportException;
 use App\Application\LLM\Port\LLMClientInterface;
 use App\Domain\LLM\Event\LlmCallCompletedEvent;
 use Psr\Log\LoggerInterface;
@@ -88,13 +90,17 @@ final readonly class AnthropicClient implements LLMClientInterface
             $statusCode = $response->getStatusCode();
 
             if ($statusCode !== 200) {
-                throw new \RuntimeException("Anthropic API returned status {$statusCode}");
+                // 5xx = provider unhealthy (breaker-worthy); 4xx/429 = our request
+                // was rejected by a healthy provider (must not trip the breaker).
+                throw $statusCode >= 500
+                    ? new LlmTransportException("Anthropic API returned status {$statusCode}")
+                    : new LlmRequestException("Anthropic API returned status {$statusCode}");
             }
 
             $data = $response->toArray();
 
             if (!isset($data['content'][0]['text'])) {
-                throw new \RuntimeException('Invalid Anthropic API response: missing content[0].text');
+                throw new LlmTransportException('Invalid Anthropic API response: missing content[0].text');
             }
 
             $assistantText = $data['content'][0]['text'];
@@ -135,7 +141,13 @@ final readonly class AnthropicClient implements LLMClientInterface
                 'latency_ms' => (int) ((microtime(true) - $startTime) * 1000),
             ]);
 
-            throw new \RuntimeException("Anthropic API call failed: {$e->getMessage()}", $e->getCode(), previous: $e);
+            // Already-classified errors propagate as-is; anything else reaching here
+            // is a genuine transport/connection failure (breaker-worthy).
+            if ($e instanceof LlmRequestException || $e instanceof LlmTransportException) {
+                throw $e;
+            }
+
+            throw new LlmTransportException("Anthropic API call failed: {$e->getMessage()}", (int) $e->getCode(), $e);
         }
     }
 }

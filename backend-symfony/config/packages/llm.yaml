@@ -44,6 +44,20 @@ parameters:
     reply.generator.patch_mode:               '%env(bool:REPLY_GENERATOR_PATCH_MODE)%'
     reply.generator.no_signature_instruction: '%env(bool:REPLY_GENERATOR_NO_SIGNATURE_INSTRUCTION)%'
 
+    # Circuit breaker for the active LLM provider. After N consecutive provider
+    # failures the breaker opens and fails calls fast for a cooldown, sparing a
+    # provider that is already down; a half-open probe then tests recovery. State
+    # is shared across workers via cache.app (Redis). Toggle with
+    # LLM_CIRCUIT_BREAKER_ENABLED=0 (read in CircuitBreakerCompilerPass).
+    llm.circuit_breaker.threshold.default: 5
+    llm.circuit_breaker.threshold: '%env(default:llm.circuit_breaker.threshold.default:int:LLM_CIRCUIT_BREAKER_THRESHOLD)%'
+    llm.circuit_breaker.cooldown_seconds.default: 30
+    llm.circuit_breaker.cooldown_seconds: '%env(default:llm.circuit_breaker.cooldown_seconds.default:int:LLM_CIRCUIT_BREAKER_COOLDOWN)%'
+    # How long a quiet breaker remembers its failure streak / open state before
+    # the shared record expires.
+    llm.circuit_breaker.ttl_seconds.default: 300
+    llm.circuit_breaker.ttl_seconds: '%env(default:llm.circuit_breaker.ttl_seconds.default:int:LLM_CIRCUIT_BREAKER_TTL)%'
+
 services:
     _defaults:
         autowire: true
@@ -123,6 +137,28 @@ services:
     # LLMProviderCompilerPass swaps this alias at container build time
     # based on LLM_PROVIDER env var (openai|anthropic|ollama|mock)
     App\Application\LLM\Port\LLMClientInterface: '@App\Infrastructure\LLM\Provider\OpenAIClient'
+
+    # Circuit breaker (wraps the resolved provider via CircuitBreakerCompilerPass).
+    App\Infrastructure\LLM\Resilience\CacheCircuitBreakerStore:
+        arguments:
+            $pool: '@cache.app'
+            $logger: '@monolog.logger.llm'
+    App\Application\LLM\Resilience\CircuitBreakerStore: '@App\Infrastructure\LLM\Resilience\CacheCircuitBreakerStore'
+
+    App\Infrastructure\LLM\Resilience\CircuitBreakerLLMClient:
+        arguments:
+            # Default provider; CircuitBreakerCompilerPass rebinds $inner to the
+            # provider LLM_PROVIDER actually resolves to (openai/anthropic/ollama).
+            $inner: '@App\Infrastructure\LLM\Provider\OpenAIClient'
+            $store: '@App\Application\LLM\Resilience\CircuitBreakerStore'
+            $logger: '@monolog.logger.llm'
+            $failureThreshold: '%llm.circuit_breaker.threshold%'
+            $cooldownSeconds: '%llm.circuit_breaker.cooldown_seconds%'
+            $ttlSeconds: '%llm.circuit_breaker.ttl_seconds%'
+            # Per-purpose breaker: the runtime key is "<prefix>.<options.purpose>"
+            # (e.g. llm.reply_generation, llm.ttp_extraction), so one workload's
+            # outage does not gate the others.
+            $keyPrefix: 'llm'
 
     # Application - ContextAnalyzer (analyses conversation state slots)
     App\Application\LLM\ContextAnalyzer: ~
