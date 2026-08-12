@@ -69,6 +69,18 @@ final class IocStixExportHardeningTest extends WebTestCase
             $this->markTestSkipped('Could not load co-occurring indicators');
         }
 
+        // These fixture IOCs are single-sighting (one conversation) and would be
+        // export-held (IocExportPolicy). This test is about bundle structure, not
+        // the export gate, so confirm them (type-agnostic release).
+        foreach ($ids as $id) {
+            $conn->executeStatement(
+                "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+                 VALUES (:id, 'confirmed', NULL, 'stix-hardening-test', NOW())
+                 ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+                ['id' => $id],
+            );
+        }
+
         return $ids;
     }
 

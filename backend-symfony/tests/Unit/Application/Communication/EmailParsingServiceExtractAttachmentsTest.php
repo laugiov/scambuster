@@ -150,6 +150,50 @@ final class EmailParsingServiceExtractAttachmentsTest extends TestCase
         $this->assertSame($expectedSha256, $result[0]['sha256']);
     }
 
+    public function testSkipsDangerousExecutableAttachmentButKeepsPdf(): void
+    {
+        $pdfBytes = "%PDF-1.4\ninvoice\n%%EOF";
+        $pdfB64 = base64_encode($pdfBytes);
+        $exeBytes = "MZ\x90\x00fake-pe-binary";
+        $exeB64 = base64_encode($exeBytes);
+
+        $raw = <<<MAIL
+        From: scammer@example.com
+        To: bob@example.com
+        Subject: Invoice + tool
+        Date: Thu, 10 Apr 2026 10:00:00 +0000
+        Message-ID: <mixed-danger@example.com>
+        MIME-Version: 1.0
+        Content-Type: multipart/mixed; boundary="bnd"
+
+        --bnd
+        Content-Type: text/plain; charset=UTF-8
+
+        See attached.
+        --bnd
+        Content-Type: application/pdf
+        Content-Disposition: attachment; filename="invoice.pdf"
+        Content-Transfer-Encoding: base64
+
+        {$pdfB64}
+        --bnd
+        Content-Type: application/x-msdownload; name="update.exe"
+        Content-Disposition: attachment; filename="update.exe"
+        Content-Transfer-Encoding: base64
+
+        {$exeB64}
+        --bnd--
+        MAIL;
+
+        $result = $this->service->extractAttachments($this->b64($raw));
+
+        // The executable is skipped without being read; the PDF is unaffected.
+        $this->assertCount(1, $result);
+        $this->assertSame('invoice.pdf', $result[0]['filename']);
+        $filenames = array_column($result, 'filename');
+        $this->assertNotContains('update.exe', $filenames);
+    }
+
     // ─────────────────────────────────────────────────────────────────
     // Slice 1C — Multiple mixed attachments
     // ─────────────────────────────────────────────────────────────────

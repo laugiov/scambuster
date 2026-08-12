@@ -21,11 +21,28 @@ class TaxiiServiceTest extends KernelTestCase
 {
     private TaxiiService $taxiiService;
 
+    use \App\Tests\Support\CorroboratesIoc;
+
+    /** Corroborated non-financial indicator guaranteed to be in the shared feed. */
+    private const FEED_INDICATOR = 'a1b2c3d4-feed-4000-8000-000000000001';
+
     protected function setUp(): void
     {
         self::bootKernel();
         $container = static::getContainer();
         $this->taxiiService = $container->get(TaxiiService::class);
+
+        // Non-financial IOCs export only once corroborated (IocExportPolicy). The
+        // fixture IOCs are single-sighting, so seed one corroborated domain the
+        // "read the feed" tests can rely on being present.
+        $conn = $container->get(\Doctrine\DBAL\Connection::class);
+        $conn->executeStatement("DELETE FROM indicator WHERE indicator_id = :id", ['id' => self::FEED_INDICATOR]);
+        $conn->executeStatement(
+            "INSERT INTO indicator (indicator_id, type, value, value_norm, first_seen, last_seen, occurrences, tlp, created_at, updated_at)
+             VALUES (:id, 'domain', 'feed-corroborated.example', 'feed-corroborated.example', NOW(), NOW(), 2, 'AMBER', NOW(), NOW())",
+            ['id' => self::FEED_INDICATOR],
+        );
+        $this->corroborateIndicator($conn, self::FEED_INDICATOR);
     }
 
     // ------------------------------------------------------------------ //
@@ -585,6 +602,8 @@ class TaxiiServiceTest extends KernelTestCase
              INNER JOIN observed_ioc oi ON oi.indicator_id = i.indicator_id
              LEFT JOIN ioc_context ic ON ic.obs_id = oi.obs_id
              WHERE ic.obs_id IS NULL
+               AND i.value_norm <> \'feed-corroborated.example\'
+               AND (SELECT COUNT(*) FROM observed_ioc o2 WHERE o2.indicator_id = i.indicator_id) = 1
              ORDER BY i.indicator_id ASC
              LIMIT 1'
         )->fetchAssociative();
@@ -595,6 +614,18 @@ class TaxiiServiceTest extends KernelTestCase
 
         $indicatorId = (string) $row['indicator_id'];
         $obsId = (string) $row['obs_id'];
+
+        // Non-financial IOCs export only once corroborated or confirmed
+        // (IocExportPolicy). This test is about context-extension parity, not the
+        // corroboration gate, so release the picked indicator with a confirmed
+        // verdict (avoids seeding context-less observations that would perturb the
+        // x_scambuster_context assertion below).
+        $conn->executeStatement(
+            "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+             VALUES (:id, 'confirmed', NULL, 'ctx-parity-test', NOW())
+             ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+            ['id' => $indicatorId],
+        );
 
         // Pin the picked indicator to the front of the TAXII (updated_at ASC)
         // window so it is always inside the limit-100 page, regardless of how
@@ -726,6 +757,9 @@ class TaxiiServiceTest extends KernelTestCase
             $before = new \DateTimeImmutable('-2 seconds');
             $insert('a1b2c3d4-ffff-4000-8000-000000000001', 'RED', 'red-taxii.example');
             $insert('a1b2c3d4-ffff-4000-8000-000000000002', 'AMBER', 'amber-taxii.example');
+            // The AMBER control must be exportable to prove RED (not corroboration)
+            // is what excludes it — corroborate it (non-financial export gate).
+            $this->corroborateIndicator($conn, 'a1b2c3d4-ffff-4000-8000-000000000002');
 
             $result = $this->taxiiService->getCollectionObjects($iocCollection, $before, 1000, 'domain');
             $envelope = \is_array($result['envelope'] ?? null) ? $result['envelope'] : [];
@@ -823,6 +857,9 @@ class TaxiiServiceTest extends KernelTestCase
                 "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at) VALUES (:id, 'false_positive', NULL, 'a', NOW())",
                 ['id' => $falsePos],
             );
+            // The unreviewed control must ship on its own merit (corroboration),
+            // so the test isolates the *verdict* effect, not the corroboration gate.
+            $this->corroborateIndicator($conn, $plain);
 
             $result = $this->taxiiService->getCollectionObjects($iocCollection, new \DateTimeImmutable('2099-03-31 00:00:00'), 1000);
 
@@ -881,6 +918,8 @@ class TaxiiServiceTest extends KernelTestCase
                      VALUES (:id, 'domain', :v, :v, :ts, :ts, 1, 'AMBER', :ts, :ts)",
                     ['id' => $id, 'v' => $val, 'ts' => $sharedTs],
                 );
+                // Non-financial: must be corroborated to appear in the feed.
+                $this->corroborateIndicator($conn, $id);
             }
 
             $addedAfter = new \DateTimeImmutable('2099-02-01 00:00:00');

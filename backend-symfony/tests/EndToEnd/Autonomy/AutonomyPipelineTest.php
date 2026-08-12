@@ -236,6 +236,18 @@ MAIL;
         // ================================================================
         // STEP 8: Export MISP (verify intelligence export works)
         // ================================================================
+        // Export hold (IocExportPolicy): this single conversation's IOCs are held
+        // pending corroboration/confirmation. Confirm them so the export step
+        // exercises a populated MISP event.
+        static::getContainer()->get(\Doctrine\DBAL\Connection::class)->executeStatement(
+            "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+             SELECT DISTINCT oi.indicator_id, 'confirmed', NULL, 'e2e', NOW()
+             FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id
+             WHERE m.conv_id = :cid
+             ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+            ['cid' => $convId],
+        );
+
         $client->request('GET', "/api/v1/conversations/{$convId}/export/misp", [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer ' . $jwt,
         ]);

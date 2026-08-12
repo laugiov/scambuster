@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\LLM\LanguageDetector;
+use App\Domain\Communication\Policy\AttachmentMimePolicy;
 use Psr\Log\LoggerInterface;
 use ZBateson\MailMimeParser\MailMimeParser;
 use ZBateson\MailMimeParser\Message\IMessagePart;
@@ -226,6 +227,25 @@ class EmailParsingService
         foreach ($message->getAllAttachmentParts() as $index => $part) {
             try {
                 if (!$this->isExtractableAttachment($part)) {
+                    continue;
+                }
+
+                // Skip dangerous executable/script attachments BEFORE reading the
+                // body: their content has no analysis value here and carries the
+                // most parser/handler risk in the engagement zone. Checked on both
+                // the declared MIME type AND the filename extension, because
+                // adversaries routinely mislabel executables as octet-stream
+                // (AttachmentMimePolicy).
+                $declaredMime = $part->getContentType() ?? 'application/octet-stream';
+                $filename = $part->getFilename();
+
+                if (AttachmentMimePolicy::isBlocked($declaredMime, $filename)) {
+                    $this->logger->warning('[EmailParsingService] extractAttachments: blocked attachment, skipping without reading', [
+                        'part_index' => $index,
+                        'mime_type' => $declaredMime,
+                        'filename' => $filename,
+                    ]);
+
                     continue;
                 }
 

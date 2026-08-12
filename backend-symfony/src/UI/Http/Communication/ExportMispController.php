@@ -13,6 +13,8 @@ use App\Application\ThreatActor\IocFeedbackReaderInterface;
 use App\Domain\Communication\ObservedIoc;
 use App\Domain\Communication\Policy\IocExportPolicy;
 use App\Domain\ThreatActor\AnalystVerdict;
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\Connection;
 use OpenApi\Attributes as OA;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
@@ -39,7 +41,40 @@ final readonly class ExportMispController
         private ?ConversationScamTaxonomyProvider $scamTaxonomyProvider = null,
         private ?IocFeedbackReaderInterface $feedbackReader = null,
         private ?TtpMispTagProvider $ttpTagProvider = null,
+        private ?Connection $connection = null,
     ) {
+    }
+
+    /**
+     * Distinct-conversation count per indicator (corroboration). Empty when no
+     * connection is wired — callers then treat the count as corroborated.
+     *
+     * @param list<string> $indicatorIds
+     *
+     * @return array<string, int>
+     */
+    private function fetchCorroborationCounts(array $indicatorIds): array
+    {
+        if ($this->connection === null || $indicatorIds === []) {
+            return [];
+        }
+
+        /** @var list<array{indicator_id: string, cnt: int|string}> $rows */
+        $rows = $this->connection->fetchAllAssociative(
+            'SELECT oi.indicator_id, COUNT(DISTINCT m.conv_id) AS cnt'
+            . ' FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id'
+            . ' WHERE oi.indicator_id IN (:ids) GROUP BY oi.indicator_id',
+            ['ids' => $indicatorIds],
+            ['ids' => ArrayParameterType::STRING],
+        );
+
+        $counts = [];
+
+        foreach ($rows as $row) {
+            $counts[(string) $row['indicator_id']] = (int) $row['cnt'];
+        }
+
+        return $counts;
     }
 
     /**
@@ -104,6 +139,12 @@ final readonly class ExportMispController
         )));
         $verdicts = $this->feedbackReader?->getVerdicts($indicatorIds) ?? [];
 
+        // Corroboration = distinct conversations that observed each indicator.
+        // Non-financial IOCs export only once corroborated (or analyst-confirmed);
+        // see IocExportPolicy. Unknown (no connection wired, e.g. unit tests) →
+        // treated as corroborated, preserving legacy behaviour.
+        $corroboration = $this->fetchCorroborationCounts($indicatorIds);
+
         // Build MISP Event Attributes from IOCs
         $attributes = [];
 
@@ -141,8 +182,13 @@ final readonly class ExportMispController
             // analyst confirms them — a to_ids=false attribute still ships the
             // value. See IocExportPolicy.
             $iocType = \is_string($context['type'] ?? null) ? $context['type'] : '';
+            // Absent from the map means zero observations → held (count 0),
+            // matching the SQL egress paths. Only when no connection is wired
+            // (unit tests) do we fall back to "corroborated" to preserve them.
+            $missingDefault = $this->connection === null ? IocExportPolicy::MIN_CORROBORATION : 0;
+            $corroborationCount = $corroboration[$ioc->getIndicatorId()] ?? $missingDefault;
 
-            if (!IocExportPolicy::isExportable($iocType, $verdict)) {
+            if (!IocExportPolicy::isExportable($iocType, $verdict, $corroborationCount)) {
                 continue;
             }
 

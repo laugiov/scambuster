@@ -14,6 +14,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class IocPipelineE2ETest extends WebTestCase
 {
+    use \App\Tests\Support\CorroboratesIoc;
+
     private function getValidJwt($client): string
     {
         $client->request('POST', '/api/v1/auth/login', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode([
@@ -144,9 +146,10 @@ final class IocPipelineE2ETest extends WebTestCase
         $convIocs = json_decode($client->getResponse()->getContent(), true);
         $this->assertCount(4, $convIocs, 'Conversation should have 4 unique IOCs across 2 messages');
 
-        // Financial IOCs are export-held until an analyst confirms them (possible
-        // mule/victim accounts — see IocExportPolicy); confirm both so the export
-        // exercises the analyst release path.
+        // Export hold (IocExportPolicy). Financial IOCs need analyst confirmation
+        // (WS6); non-financial IOCs seen in one conversation are held pending
+        // corroboration — CORROBORATE them (not confirm) so their MISP to_ids flag
+        // keeps its type-based default.
         $conn = static::getContainer()->get(\Doctrine\DBAL\Connection::class);
 
         foreach (['DE89370400440532013000', 'bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4'] as $valueNorm) {
@@ -157,6 +160,8 @@ final class IocPipelineE2ETest extends WebTestCase
                 ['vn' => $valueNorm],
             );
         }
+        $this->corroborateByValueNorm($conn, '442079460958');
+        $this->corroborateByValueNorm($conn, 'billing@evil-corp.test');
 
         // Step 3: Export MISP and verify financial IOC metadata
         $client->request('GET', "/api/v1/conversations/{$data['conv_id']}/export/misp", [], [], [

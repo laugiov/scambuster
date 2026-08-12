@@ -50,6 +50,15 @@ final class ConversationStixExportHardeningTest extends WebTestCase
             $this->markTestSkipped('No conversation with >=3 IOCs in test database');
         }
 
+        $conn->executeStatement(
+            "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+             SELECT DISTINCT oi.indicator_id, 'confirmed', NULL, 'stix-conv-test', NOW()
+             FROM observed_ioc oi JOIN message m ON oi.msg_id = m.msg_id
+             WHERE m.conv_id = :cid
+             ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+            ['cid' => $convId],
+        );
+
         return $convId;
     }
 

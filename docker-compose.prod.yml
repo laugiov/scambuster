@@ -28,6 +28,9 @@ services:
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+    # Dual-homed: `data` to reach Postgres/Redis, `edge` for outbound access
+    # (LLM API, IMAP/SMTP, enrichment) and to serve n8n.
+    networks: [data, edge]
     # Published on loopback only: a reverse proxy must terminate TLS and front this
     # port for any non-local access. Override APP_BIND_HOST only behind a firewall.
     ports:
@@ -48,6 +51,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-scambuster}
     volumes:
       - prod-pgdata:/var/lib/postgresql/data
+    # Data network only (internal, no egress) — never reachable from n8n.
+    networks: [data]
     # Not published to the host in production — internal network only.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-scambuster}"]
@@ -58,6 +63,8 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
+    # Data network only (internal, no egress) — never reachable from n8n.
+    networks: [data]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
@@ -97,6 +104,10 @@ services:
       # Init assets (workflow definitions + bootstrap script), read-only. Not app source.
       - ./n8n/n8n-init.sh:/home/node/n8n-init.sh:ro
       - ./n8n/workflows:/home/node/init-workflows:ro
+    # Engagement network only: n8n reaches the app API (http://app:8080) but has
+    # NO route to Postgres/Redis (network segmentation — a compromised n8n cannot
+    # touch the data store directly).
+    networks: [edge]
     depends_on:
       app: { condition: service_healthy }
 
@@ -122,8 +133,23 @@ services:
     entrypoint: ["sh", "-c", "sh /opt/write-prod-env.sh && exec sh /opt/scheduler.sh"]
     volumes:
       - prod-backups:/backups
+    # Same dual-homing as the app: reaches the data store, keeps egress for the
+    # scheduled LLM/enrichment/backup tasks.
+    networks: [data, edge]
     depends_on:
       app: { condition: service_healthy }
+
+networks:
+  # Isolated data plane: Postgres + Redis + the app/scheduler side that talks to
+  # them. internal:true = no route to the internet from this network, and n8n is
+  # not attached to it.
+  data:
+    internal: true
+  # Engagement/egress plane: n8n + the app/scheduler outbound side. Bridged, so
+  # the app can reach the LLM API / IMAP / SMTP / enrichment services, and n8n
+  # can reach the app — but not the data plane.
+  edge:
+    driver: bridge
 
 volumes:
   prod-pgdata:

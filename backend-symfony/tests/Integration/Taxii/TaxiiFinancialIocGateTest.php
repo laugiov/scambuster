@@ -16,6 +16,8 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  */
 final class TaxiiFinancialIocGateTest extends KernelTestCase
 {
+    use \App\Tests\Support\CorroboratesIoc;
+
     private const IBAN_HELD = 'eeeeeee1-0000-4000-8000-000000000001';
     private const IBAN_CONFIRMED = 'eeeeeee1-0000-4000-8000-000000000002';
     private const DOMAIN_FALSE_POSITIVE = 'eeeeeee1-0000-4000-8000-000000000003';
@@ -61,6 +63,9 @@ final class TaxiiFinancialIocGateTest extends KernelTestCase
 
         $this->recordVerdict(self::IBAN_CONFIRMED, 'confirmed');
         $this->recordVerdict(self::DOMAIN_FALSE_POSITIVE, 'false_positive');
+        // The non-financial control must ship on its own merit (corroboration),
+        // so the test isolates the *financial* hold, not the corroboration gate.
+        $this->corroborateIndicator($this->conn, self::DOMAIN_CONTROL);
     }
 
     private function recordVerdict(string $indicatorId, string $verdict): void
@@ -112,6 +117,37 @@ final class TaxiiFinancialIocGateTest extends KernelTestCase
         self::assertFalse(
             self::anyContains($objects, self::VALUES[self::IBAN_HELD_MIXED_CASE][1]),
             'a mixed-case/padded financial type must not bypass the export hold',
+        );
+    }
+
+    public function testSingleSightingNonFinancialIocIsHeldFromTheFeed(): void
+    {
+        // A domain observed in only one conversation is held (possible innocent
+        // third party); its corroborated sibling (DOMAIN_CONTROL) ships. Proves
+        // the corroboration gate actually holds, not just releases.
+        $held = 'eeeeeee1-0000-4000-8000-000000000006';
+        $msg = $this->conn->fetchOne('SELECT msg_id FROM message WHERE deleted_at IS NULL LIMIT 1');
+        $this->conn->executeStatement('DELETE FROM indicator WHERE indicator_id = :id', ['id' => $held]);
+        $this->conn->executeStatement(
+            "INSERT INTO indicator (indicator_id, type, value, value_norm, first_seen, last_seen, occurrences, tlp, created_at, updated_at)
+             VALUES (:id, 'domain', 'single-sighting-hold.example', 'single-sighting-hold.example', NOW(), NOW(), 1, 'AMBER', NOW(), NOW())",
+            ['id' => $held],
+        );
+        $this->conn->executeStatement(
+            "INSERT INTO observed_ioc (obs_id, msg_id, indicator_id, confidence_score, context_observation, ts_observed)
+             VALUES ('eeeeeee1-0000-4000-8000-0000000000a6', :m, :id, 0.8, '{}', NOW())",
+            ['m' => $msg, 'id' => $held],
+        );
+
+        $objects = $this->fetchWindowObjects();
+
+        self::assertFalse(
+            self::anyContains($objects, 'single-sighting-hold.example'),
+            'a non-financial IOC seen in a single conversation must be held from the feed',
+        );
+        self::assertTrue(
+            self::anyContains($objects, self::VALUES[self::DOMAIN_CONTROL][1]),
+            'its corroborated sibling still ships (gate is graduated, not a blanket block)',
         );
     }
 

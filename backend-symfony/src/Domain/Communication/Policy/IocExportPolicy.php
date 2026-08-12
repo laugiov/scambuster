@@ -22,14 +22,27 @@ use App\Domain\ThreatActor\AnalystVerdict;
  *      them. Mule-account holders are frequently scam victims themselves;
  *      an unreviewed account number in a shared CTI feed can land a victim
  *      on consumer blocklists. Release path: the analyst-feedback verdict
- *      `confirmed` (see docs/24_analyst_feedback.md and
- *      docs/compliance/mule-victim-account-policy.md).
+ *      `confirmed`.
+ *
+ *   3. Non-financial IOCs (domains, URLs, IPs, emails…) export only once
+ *      CORROBORATED — observed in at least MIN_CORROBORATION independent
+ *      conversations — or explicitly analyst-confirmed. A value seen in a
+ *      single conversation may be an innocent third party swept up once; a
+ *      value recurring across independent conversations is the actor's real
+ *      infrastructure. This is graduated, not a blanket hold: the bulk of a
+ *      mature feed is corroborated and still ships automatically.
  *
  * This policy composes with — and never replaces — the existing egress
  * filters (TLP:RED never-public, IocActionablePolicy non-actionable set).
  */
 final class IocExportPolicy
 {
+    /**
+     * Minimum number of independent conversations a non-financial IOC must be
+     * observed in before it ships without an analyst verdict.
+     */
+    public const MIN_CORROBORATION = 2;
+
     /**
      * A financial IOC that no analyst has reviewed yet: held from export,
      * waiting in the review queue. Distinct from a false positive (rejected,
@@ -43,18 +56,27 @@ final class IocExportPolicy
 
     /**
      * PHP-side predicate for egress paths that assemble objects in memory.
+     *
+     * @param int $corroborationCount distinct conversations that observed the
+     *                                IOC (ignored for financial types)
      */
-    public static function isExportable(string $type, ?AnalystVerdict $verdict): bool
+    public static function isExportable(string $type, ?AnalystVerdict $verdict, int $corroborationCount = 0): bool
     {
         if ($verdict === AnalystVerdict::FalsePositive) {
             return false;
         }
 
-        if (IocCategory::classify($type) === IocCategory::FINANCIAL) {
-            return $verdict === AnalystVerdict::Confirmed;
+        if ($verdict === AnalystVerdict::Confirmed) {
+            return true;
         }
 
-        return true;
+        if (IocCategory::classify($type) === IocCategory::FINANCIAL) {
+            // Financial: analyst confirmation only (already returned above).
+            return false;
+        }
+
+        // Non-financial without a verdict: ship only once corroborated.
+        return $corroborationCount >= self::MIN_CORROBORATION;
     }
 
     /**
@@ -78,7 +100,18 @@ final class IocExportPolicy
             IocCategory::FINANCIAL_TYPES,
         ));
 
+        $confirmed = $verdict . " = '" . AnalystVerdict::Confirmed->value . "'";
+
+        // Distinct conversations that observed this indicator. Correlated
+        // subquery on the indicator alias; indexed by observed_ioc(indicator_id).
+        $corroboration = '(SELECT COUNT(DISTINCT m_c.conv_id) FROM observed_ioc oi_c'
+            . ' JOIN message m_c ON oi_c.msg_id = m_c.msg_id'
+            . " WHERE oi_c.indicator_id = {$indicatorAlias}.indicator_id) >= " . self::MIN_CORROBORATION;
+
         return "({$verdict} IS NULL OR {$verdict} <> '" . AnalystVerdict::FalsePositive->value . "')"
-            . " AND ({$type} NOT IN ({$heldTypes}) OR {$verdict} = '" . AnalystVerdict::Confirmed->value . "')";
+            // Financial: analyst confirmation only.
+            . " AND ({$type} NOT IN ({$heldTypes}) OR {$confirmed})"
+            // Non-financial: analyst confirmation OR corroboration across conversations.
+            . " AND ({$type} IN ({$heldTypes}) OR {$confirmed} OR {$corroboration})";
     }
 }

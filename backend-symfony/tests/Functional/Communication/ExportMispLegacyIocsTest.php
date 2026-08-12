@@ -151,6 +151,16 @@ final class ExportMispLegacyIocsTest extends WebTestCase
             'source' => 'extraction',
         ], \JSON_THROW_ON_ERROR);
 
+        // Single-conversation non-financial IOC would be export-held
+        // (IocExportPolicy); this test exercises MISP metadata fallback, not the
+        // export gate, so confirm it.
+        $conn->executeStatement(
+            "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+             VALUES (?, 'confirmed', NULL, 'misp-legacy-test', ?)
+             ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+            [self::INDICATOR_ID, $now]
+        );
+
         $conn->executeStatement(
             'INSERT INTO observed_ioc (obs_id, msg_id, indicator_id, context_observation, ts_observed, confidence_score)
              VALUES (?, ?, ?, ?, ?, ?)',
