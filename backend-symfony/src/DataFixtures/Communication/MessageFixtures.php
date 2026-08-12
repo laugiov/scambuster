@@ -16,23 +16,26 @@ class MessageFixtures extends Fixture implements DependentFixtureInterface
 {
     public function load(ObjectManager $manager): void
     {
-        // Deterministic conv_id order: message ids are derived from the loop index
-        // (msg ...00N pairs with conv ...00N), so the iteration order must be stable.
-        // findAll() returns Postgres heap order, which drifts across environments and
-        // can attach msg ...001 to a soft-deleted conversation — invisible on a fresh
-        // CI database (heap = insertion order) but breaking the TTP read tests locally.
+        // Message ids are derived from the loop index (msg ...00N pairs with
+        // conv ...00N), so the conversation iteration order must be stable. A
+        // SELECT without ORDER BY has no guaranteed row order, so findAll() could
+        // attach msg ...001 to a soft-deleted conversation depending on the row
+        // order the database happens to return — breaking the TTP read tests on
+        // some databases while passing on others. Order by conv_id to pin it.
         $conversations = $manager->getRepository(Conversation::class)->findBy([], ['convId' => 'ASC']);
-        $channel = $manager->getRepository(Channel::class)->findOneBy([]);
-        $directions = $manager->getRepository(Direction::class)->findAll();
+        // Direction/channel lookups must be deterministic too: the code below
+        // treats specific rows as inbound/outbound, so resolve them by code
+        // rather than by unspecified result position.
+        $channel = $manager->getRepository(Channel::class)->findBy([], ['channelId' => 'ASC'])[0] ?? null;
+        $dirIn = $manager->getRepository(Direction::class)->findOneBy(['code' => 'in']);
+        $dirOut = $manager->getRepository(Direction::class)->findOneBy(['code' => 'out']);
 
-        if (!$conversations || !$channel || !$directions) {
+        if (!$conversations || !$channel || !$dirIn || !$dirOut) {
             return;
         }
         $messages = [];
 
         foreach ($conversations as $i => $conv) {
-            $dirIn = $directions[0];
-            $dirOut = $directions[1] ?? $directions[0];
             $messages[] = [
                 'msg_id' => sprintf('00000000-0000-0000-0000-%012d', $i + 1),
                 'conversation' => $conv,
@@ -73,7 +76,7 @@ class MessageFixtures extends Fixture implements DependentFixtureInterface
             'msg_id' => '00000000-0000-0000-0000-999999999999',
             'conversation' => $conversations[0],
             'channel' => $channel,
-            'direction' => $directions[0],
+            'direction' => $dirIn,
             'lang_detect' => 'en',
             'subject' => 'Soft deleted',
             'body_text' => 'This message is soft deleted',
