@@ -13,6 +13,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
  */
 final class ExportMispControllerTest extends WebTestCase
 {
+    use \App\Tests\Support\CorroboratesIoc;
+
     private function getValidJwt($client): string
     {
         $client->request('POST', '/api/v1/auth/login', [], [], ['CONTENT_TYPE' => 'application/json'], json_encode([
@@ -166,15 +168,19 @@ final class ExportMispControllerTest extends WebTestCase
         $data = $this->createTestConversationWithIocs($client, $jwt);
         $convId = $data['conv_id'];
 
-        // Financial IOCs are export-held until an analyst confirms them (possible
-        // mule/victim accounts — see IocExportPolicy); confirm the IBAN so the
-        // export exercises the analyst release path.
-        static::getContainer()->get(\Doctrine\DBAL\Connection::class)->executeStatement(
+        // Export hold (IocExportPolicy). Financial IOCs need analyst confirmation
+        // (WS6); non-financial IOCs seen in one conversation are held pending
+        // corroboration — CORROBORATE them (not confirm), so the MISP to_ids flag
+        // keeps its type-based default instead of the confirmed=true override.
+        $conn = static::getContainer()->get(\Doctrine\DBAL\Connection::class);
+        $conn->executeStatement(
             "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
              SELECT indicator_id, 'confirmed', NULL, 'e2e', NOW() FROM indicator WHERE value_norm = :vn
              ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
             ['vn' => 'FR7612345678901234567890185'],
         );
+        $this->corroborateByValueNorm($conn, 'billing@scam.test');
+        $this->corroborateByValueNorm($conn, '33712345678');
 
         // Export MISP
         $client->request(

@@ -9,6 +9,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class TaxiiObjectsTest extends WebTestCase
 {
+    use \App\Tests\Support\CorroboratesIoc;
+
     private KernelBrowser $client;
 
     protected function setUp(): void
@@ -33,6 +35,8 @@ final class TaxiiObjectsTest extends WebTestCase
                 [$indicatorId, 'domain', 'taxii-test.example.com', 'taxii-test[.]example[.]com', $now, $now, '{}', '{"vt":0,"urlscan":0,"agg":0}', 'AMBER', $now, $now]
             );
         }
+
+        $this->corroborateIndicator($conn, $indicatorId);
 
         $this->client->request('GET', '/api/v1/taxii2/api/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',

@@ -9,6 +9,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class ExportIocsStixControllerTest extends WebTestCase
 {
+    use \App\Tests\Support\CorroboratesIoc;
+
     private KernelBrowser $client;
 
     protected function setUp(): void
@@ -54,6 +56,8 @@ final class ExportIocsStixControllerTest extends WebTestCase
                 [$indicatorId, 'domain', 'evil.com', 'evil[.]com', $now, $now, '{}', '{"vt":0,"urlscan":0,"agg":0}', 'AMBER', $now, $now]
             );
         }
+
+        $this->corroborateIndicator($conn, $indicatorId);
 
         $this->client->request('POST', '/api/v1/iocs/export/stix', [], [], [
             'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',

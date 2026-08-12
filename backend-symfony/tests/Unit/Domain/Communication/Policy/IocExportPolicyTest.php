@@ -13,40 +13,41 @@ use PHPUnit\Framework\TestCase;
 final class IocExportPolicyTest extends TestCase
 {
     /**
-     * @return iterable<string, array{string, AnalystVerdict|null, bool}>
+     * @return iterable<string, array{string, AnalystVerdict|null, int, bool}>
      */
     public static function truthTable(): iterable
     {
         // A human false-positive verdict kills export whatever the type.
-        yield 'false positive domain' => ['domain', AnalystVerdict::FalsePositive, false];
-        yield 'false positive iban' => ['iban', AnalystVerdict::FalsePositive, false];
+        yield 'false positive domain' => ['domain', AnalystVerdict::FalsePositive, 9, false];
+        yield 'false positive iban' => ['iban', AnalystVerdict::FalsePositive, 9, false];
 
-        // Financial IOCs are held until confirmed.
-        yield 'unreviewed iban held' => ['iban', null, false];
-        yield 'confirmed iban released' => ['iban', AnalystVerdict::Confirmed, true];
+        // Financial IOCs are held until confirmed (corroboration is irrelevant).
+        yield 'unreviewed iban held' => ['iban', null, 9, false];
+        yield 'confirmed iban released' => ['iban', AnalystVerdict::Confirmed, 1, true];
 
-        // Non-financial IOCs export as before.
-        yield 'unreviewed domain exports' => ['domain', null, true];
-        yield 'confirmed domain exports' => ['domain', AnalystVerdict::Confirmed, true];
-        yield 'unreviewed email exports' => ['email', null, true];
-        yield 'unreviewed url exports' => ['url', null, true];
+        // Non-financial IOCs: corroborated OR confirmed ships; single-sighting held.
+        yield 'single-sighting domain held' => ['domain', null, 1, false];
+        yield 'corroborated domain exports' => ['domain', null, 2, true];
+        yield 'confirmed domain exports single sighting' => ['domain', AnalystVerdict::Confirmed, 1, true];
+        yield 'single-sighting email held' => ['email', null, 1, false];
+        yield 'corroborated url exports' => ['url', null, 3, true];
     }
 
     #[DataProvider('truthTable')]
-    public function testIsExportable(string $type, ?AnalystVerdict $verdict, bool $expected): void
+    public function testIsExportable(string $type, ?AnalystVerdict $verdict, int $corroboration, bool $expected): void
     {
-        self::assertSame($expected, IocExportPolicy::isExportable($type, $verdict));
+        self::assertSame($expected, IocExportPolicy::isExportable($type, $verdict, $corroboration));
     }
 
     public function testEveryFinancialTypeIsHeldWithoutConfirmation(): void
     {
         foreach (IocCategory::FINANCIAL_TYPES as $type) {
             self::assertFalse(
-                IocExportPolicy::isExportable($type, null),
-                "financial type '{$type}' must be held without an analyst confirmation",
+                IocExportPolicy::isExportable($type, null, 99),
+                "financial type '{$type}' must be held without an analyst confirmation, however corroborated",
             );
             self::assertTrue(
-                IocExportPolicy::isExportable($type, AnalystVerdict::Confirmed),
+                IocExportPolicy::isExportable($type, AnalystVerdict::Confirmed, 0),
                 "financial type '{$type}' must export once confirmed",
             );
         }
@@ -66,5 +67,9 @@ final class IocExportPolicyTest extends TestCase
         foreach (IocCategory::FINANCIAL_TYPES as $type) {
             self::assertStringContainsString("'{$type}'", $sql, "SQL hold list must include '{$type}'");
         }
+
+        // Non-financial corroboration clause is present.
+        self::assertStringContainsString('COUNT(DISTINCT m_c.conv_id)', $sql);
+        self::assertStringContainsString('>= ' . IocExportPolicy::MIN_CORROBORATION, $sql);
     }
 }

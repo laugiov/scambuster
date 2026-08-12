@@ -9,6 +9,8 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 
 final class ExportIocsFeedControllerTest extends WebTestCase
 {
+    use \App\Tests\Support\CorroboratesIoc;
+
     private KernelBrowser $client;
 
     protected function setUp(): void
@@ -33,6 +35,8 @@ final class ExportIocsFeedControllerTest extends WebTestCase
                 [$indicatorId, 'domain', 'feed-export.example', 'feed-export.example', $now, $now, '{}', '{"vt":0,"urlscan":0,"agg":55}', 'AMBER', $now, $now]
             );
         }
+
+        $this->corroborateIndicator($conn, $indicatorId);
 
         return $indicatorId;
     }
