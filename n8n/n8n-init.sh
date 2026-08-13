@@ -118,8 +118,14 @@ http_check() {
 log "Ensuring /home/node/.n8n exists..."
 mkdir -p /home/node/.n8n
 
-# ─── 1. Start n8n in background (already running as node) ───
-log "Starting n8n in background..."
+# ─── 1. Start n8n in background ───
+# The container runs as root (compose `user: root`), so pin n8n's data folder to
+# the bind-mounted /home/node/.n8n. Otherwise n8n (root, HOME=/root) would use
+# /root/.n8n and ignore the persisted workflows/credentials/execution history.
+# NOTE: n8n APPENDS "/.n8n" to N8N_USER_FOLDER, so this must be /home/node
+# (which yields /home/node/.n8n), NOT /home/node/.n8n (which nests .n8n/.n8n).
+export N8N_USER_FOLDER=/home/node
+log "Starting n8n in background (data folder: $N8N_USER_FOLDER/.n8n)..."
 n8n start &
 N8N_PID=$!
 
