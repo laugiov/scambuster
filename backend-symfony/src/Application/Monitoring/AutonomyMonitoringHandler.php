@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Application\Monitoring;
 
+use App\Application\Communication\ReplyCadenceService;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -14,11 +15,16 @@ use Doctrine\ORM\EntityManagerInterface;
  * - Kill switch status
  * - Bandit convergence state
  * - System readiness for autonomous operation
+ *
+ * The kill switch is resolved through ReplyCadenceService, the same reader the
+ * reply pipeline enforces with, so the reported state can never disagree with
+ * the enforced one.
  */
 final readonly class AutonomyMonitoringHandler
 {
     public function __construct(
-        private EntityManagerInterface $em
+        private EntityManagerInterface $em,
+        private ReplyCadenceService $cadenceService
     ) {
     }
 
@@ -116,11 +122,15 @@ final readonly class AutonomyMonitoringHandler
         ];
     }
 
+    /**
+     * Resolution order (runtime toggle before deployment signal, degrading to
+     * the deployment signal if the runtime store is unreachable) is owned by
+     * ReplyCadenceService and covered by its own tests. Reading the environment
+     * directly here is what let a halted pipeline report itself as operational.
+     */
     private function getKillSwitchStatus(): bool
     {
-        $value = $_ENV['SCAMBUSTER_KILL_SWITCH'] ?? $_SERVER['SCAMBUSTER_KILL_SWITCH'] ?? '0';
-
-        return filter_var($value, FILTER_VALIDATE_BOOLEAN);
+        return $this->cadenceService->isKillSwitchActive();
     }
 
     /**

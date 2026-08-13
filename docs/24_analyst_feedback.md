@@ -62,9 +62,17 @@ observation of that indicator, and each export surface honours it in the way tha
 | **TAXII 2.1** (public feed) | The emitted `confidence` is folded through the same rule — a false-positive reads **5**, a confirmed IOC reads **99**. |
 | **MISP** (conversation export) | `false_positive` sets the attribute's **`to_ids = false`** (so a downstream MISP consumer never auto-actions it) and adds a `scambuster:analyst-verdict="false_positive"` tag; `confirmed` sets **`to_ids = true`** + the matching tag. |
 | **CSV / NDJSON** (flat feed) | A trailing **`analyst_verdict`** column carries `confirmed` / `false_positive` / empty — ready for grep, `jq`, or a spreadsheet filter. |
+| **Abuse / takedown report** (`/clusters/{id}/abuse-report`) | The indicator is **omitted entirely**, not down-scored. This report is addressed to a bank or a national financial-crime unit and cannot be unsent, so a rejected indicator must not appear at all. |
 
-An indicator with **no** verdict is unaffected everywhere — the machine confidence stands, feeds behave
-exactly as before. Nothing in the reply/scambaiting path is touched.
+An indicator with **no** verdict keeps its machine confidence everywhere, and the confidence-based
+surfaces above behave exactly as before. Note the one place where absence of a verdict is itself
+decisive: the **export hold** withholds a *financial* indicator until an analyst confirms it, on
+every outgoing path — STIX, TAXII, the flat feeds and the abuse report alike. That is deliberate:
+naming a bank account to its bank on unconfirmed evidence is the harm the hold exists to prevent.
+The internal review screens are the exception and always show everything, held or rejected, since
+that is where an analyst goes to see and revise their own verdicts.
+
+Nothing in the reply/scambaiting path is touched.
 
 ---
 

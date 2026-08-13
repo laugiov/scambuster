@@ -27,8 +27,9 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
             properties: [
                 new OA\Property(property: 'conv_id', type: 'string', format: 'uuid'),
                 new OA\Property(property: 'last_msg_id', type: 'string', format: 'uuid'),
-                new OA\Property(property: 'force', type: 'boolean', default: false),
+                new OA\Property(property: 'force', type: 'boolean', default: false, description: 'Waive the reply spacing (minimum delay between two replies). Does not waive the protective ceilings, the kill switch, the budget cap or the alternation invariant.'),
                 new OA\Property(property: 'reason', type: 'string', example: 'auto_draft_on_inbound'),
+                new OA\Property(property: 'bypass_rate_limits', type: 'boolean', default: false, description: 'Operator override: waive the replies-per-conversation, model-calls-per-hour and conversations-per-day ceilings. Left unset by the automatic flow.'),
             ]
         )
     ),
@@ -74,7 +75,8 @@ final readonly class GenerateReplyController
                 $grConvId,
                 $grLastMsgId,
                 !empty($data['force']),
-                \is_string($data['reason'] ?? null) ? $data['reason'] : 'manual'
+                \is_string($data['reason'] ?? null) ? $data['reason'] : 'manual',
+                !empty($data['bypass_rate_limits'])
             );
 
             if (!$result) {

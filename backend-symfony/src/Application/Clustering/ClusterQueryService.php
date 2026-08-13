@@ -217,7 +217,39 @@ final readonly class ClusterQueryService implements ClusterBehaviourReaderInterf
     }
 
     /**
+     * Anchor IOCs of a cluster, restricted to those allowed to leave the platform.
+     *
+     * getDetail() deliberately returns every anchor: it feeds the internal review
+     * surface, where an analyst has to see what they rejected in order to revise it,
+     * and what is still awaiting their confirmation. Anything crossing the boundary
+     * to an outside recipient must instead honour the export hold, exactly as the
+     * STIX and TAXII paths already do — hence a separate query rather than a flag
+     * on the shared one, whose unsafe mode would then be the default.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function getExportableAnchorIocs(string $clusterId): array
+    {
+        return $this->conn->fetchAllAssociative(
+            'SELECT taci.indicator_id, taci.ioc_type, taci.value_norm_hash, taci.conv_count,
+                    taci.first_observed, taci.last_observed,
+                    i.value AS ioc_value, i.value_norm AS ioc_value_norm
+             FROM threat_actor_cluster_ioc taci
+             JOIN indicator i ON i.indicator_id = taci.indicator_id
+             LEFT JOIN ioc_analyst_feedback f ON i.indicator_id = f.indicator_id
+             WHERE taci.cluster_id = :id
+               AND ' . \App\Domain\Communication\Policy\IocExportPolicy::sqlCondition('i', 'f') . '
+             ORDER BY taci.conv_count DESC',
+            ['id' => $clusterId]
+        );
+    }
+
+    /**
      * Cluster detail with conversations and anchor IOCs.
+     *
+     * Returns every anchor, including analyst-rejected and export-held ones: this
+     * feeds the internal review surface. Use getExportableAnchorIocs() for anything
+     * that leaves the platform.
      *
      * @return array<string, mixed>|null
      */

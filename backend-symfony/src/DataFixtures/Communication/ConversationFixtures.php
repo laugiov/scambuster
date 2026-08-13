@@ -17,9 +17,14 @@ class ConversationFixtures extends Fixture implements DependentFixtureInterface
 {
     public function load(ObjectManager $manager): void
     {
-        $channel = $manager->getRepository(Channel::class)->findOneBy([]);
-        $scamType = $manager->getRepository(ScamType::class)->findOneBy([]);
-        $account = $manager->getRepository(MailAccount::class)->findOneBy([]);
+        // Order explicitly: findOneBy([]) emits no ORDER BY, so the row returned is
+        // whichever the storage engine yields first. That is physical, not logical —
+        // any UPDATE rewrites a row and moves it, silently rebinding these fixtures
+        // and flipping tests that assert the resulting codes. Ordering by identifier
+        // pins the historical binding (lowest id first) and keeps it reproducible.
+        $channel = $manager->getRepository(Channel::class)->findBy([], ['channelId' => 'ASC'], 1)[0] ?? null;
+        $scamType = $manager->getRepository(ScamType::class)->findBy([], ['scamTypeId' => 'ASC'], 1)[0] ?? null;
+        $account = $manager->getRepository(MailAccount::class)->findBy([], ['accountId' => 'ASC'], 1)[0] ?? null;
 
         if (!$channel || !$scamType || !$account) {
             return;

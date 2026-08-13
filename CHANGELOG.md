@@ -9,6 +9,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Safety & observability fixes
+
+- **Retention: the weekly job now reports what permanent erasure would remove, and the
+  Article 30 record finally describes what actually runs.** An audit reported that GDPR
+  retention did not execute. Verification found something narrower and more interesting:
+  soft deletion *does* run weekly — at a 90-day threshold, from `app:cleanup:weekly`, more
+  aggressively than the compliance record claimed — while permanent erasure never ran at
+  all, because the routine implementing it sat behind a command attached to no schedule.
+  The erasure stage is therefore added to the job that already runs, rather than scheduling
+  the unscheduled command: doing the latter would have introduced a **second weekly
+  soft-deletion pass** with a competing six-month threshold beside the ninety-day one
+  already in force. Every run now reports how many conversations, and how many messages,
+  are eligible for erasure. **Nothing is erased by default**: the deletion is irreversible
+  and requires an explicit `--erase` flag that the scheduled invocation does not pass, and
+  the existing `--dry-run` suppresses it like every other stage. `scheduler.sh` is unchanged.
+  The record of processing was inaccurate on three counts — the threshold, the job
+  responsible, and whether erasure happened at all — and is corrected, along with two
+  scope statements it never made: only *closed* conversations are ever soft-deleted, and
+  messages are removed at erasure time rather than at soft-delete time.
+
+- **The protective ceilings now apply to the automatic reply flow.** A single `force` flag
+  waived both the deliberate reply spacing *and* the three Redis ceilings (replies per
+  conversation per day, model calls per hour, conversations per day). The automatic workflow
+  sets that flag on every inbound message, so the ceilings never ran on the path that
+  generates essentially all traffic — leaving only the monthly budget as a cost guard.
+  The flag now waives the spacing alone, which is its legitimate honeypot purpose: a target
+  who writes back deserves an answer, and the alternation invariant (never two consecutive
+  outbound messages, unwaivable) already prevents any burst. Ceilings are governed separately
+  by a new `warning|enforce` mode, mirroring the LLM budget cap. **It ships as `warning`, so
+  this release refuses nothing**: a breach is recorded through the existing log and audit
+  event and the reply proceeds, producing the evidence needed to decide whether to enforce.
+  An unrecognised mode resolves to `warning` — enforcement can never be reached by a typo.
+  Operators keep a full override through a new optional `bypass_rate_limits` request field,
+  which the automatic workflow does not set; **n8n needs no change**.
+  Two consequences worth knowing. The limiters are now *consumed* on the automatic flow where
+  they previously were skipped, so breach counts are meaningful only from deployment onward
+  and cannot be back-filled. And the third ceiling is misnamed: `active_conversations_per_day`
+  consumes one token per *reply* against a global key, so it counts replies per day, not
+  distinct conversations. It was inert before and is only now observable. Read its breach
+  counts as "replies per day", and fix the semantics before ever switching it to `enforce`.
+
+- **Abuse / takedown reports now honour the IOC export policy.** The cluster abuse report is
+  addressed to an external recipient — an issuing bank, an exchange, a registrar, a national
+  financial-crime unit — yet it was assembled from the unfiltered cluster anchor set, the only
+  outgoing path that skipped the policy every other export already applies. An indicator an
+  analyst had marked a false positive could therefore be reported to a bank, and a financial
+  indicator nobody had confirmed could be named on unverified evidence. Reports are now built
+  from an export-filtered anchor query, so their indicator set is identical to the STIX export
+  for the same cluster. A report whose every indicator is withheld is still produced, with an
+  empty indicator list — that is a valid outcome, not an error.
+  **Behaviour change worth noting**: because the policy withholds *unconfirmed financial*
+  indicators, reports will carry fewer indicators than before until an analyst confirms them.
+  The internal cluster review screen is deliberately unchanged and still shows every indicator,
+  including rejected and withheld ones — reviewers must be able to see and revise their own
+  verdicts.
+
+- **The kill-switch metric no longer reports a halted pipeline as operational.** The admin
+  toggle writes a runtime flag and the reply pipeline enforces on that same flag, but the
+  monitoring surfaces resolved the kill switch from the deployment environment variable
+  alone. An operator who halted the system through `POST /api/v1/admin/llm/killswitch` would
+  therefore still see `kill_switch_active: false` on `GET /api/v1/monitoring/autonomy`, a
+  `status` of `operational`, and `scambuster_kill_switch 0` on the Prometheus surface — while
+  replies were genuinely halted. Both surfaces now resolve through the same reader the
+  pipeline enforces with, so the reported state can no longer disagree with the enforced one.
+  Enforcement itself was already correct and is unchanged; this was a monitoring blind spot,
+  not a safety hole. The deployment-level environment fallback is preserved, including its
+  existing behaviour of degrading to that fallback if the runtime store is unreachable — the
+  metric endpoint therefore gains one guarded cache read per call and no new failure mode.
+
 ### Threat-intelligence taxonomy & extraction fixes
 - **ATT&CK mapping for `CEO_FRAUD` and `INVOICE_FRAUD` corrected to `T1656` (Impersonation)**,
   aligning them with the other impersonation-first scam types — MITRE ATT&CK T1656 explicitly

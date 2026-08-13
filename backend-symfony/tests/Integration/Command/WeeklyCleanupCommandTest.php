@@ -20,6 +20,153 @@ class WeeklyCleanupCommandTest extends KernelTestCase
         $this->connection = self::getContainer()->get(Connection::class);
     }
 
+    private const ERASURE_CONV = '00000000-0000-0000-0000-000000000003';
+
+    private function runCleanup(array $options = []): CommandTester
+    {
+        $command = self::getContainer()->get(WeeklyCleanupCommand::class);
+        $app = new Application(self::$kernel);
+        $app->add($command);
+        $tester = new CommandTester($command);
+        $tester->execute($options);
+
+        return $tester;
+    }
+
+    /**
+     * Make a fixture conversation eligible for permanent erasure: already
+     * soft-deleted and past the twelve-month retention threshold.
+     */
+    private function makeErasureEligible(): void
+    {
+        $this->connection->executeStatement(
+            'UPDATE conversation SET ts_last = :old, deleted_at = :del WHERE conv_id = :id',
+            [
+                'old' => (new \DateTimeImmutable('-400 days'))->format('Y-m-d H:i:s'),
+                'del' => (new \DateTimeImmutable('-380 days'))->format('Y-m-d H:i:s'),
+                'id' => self::ERASURE_CONV,
+            ]
+        );
+    }
+
+    private function conversationExists(string $convId): bool
+    {
+        return (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM conversation WHERE conv_id = :id',
+            ['id' => $convId]
+        ) > 0;
+    }
+
+    /**
+     * The retention promise: permanent erasure is reported on every run so an
+     * operator can see the volume, but nothing is erased without an explicit
+     * authorisation. Omission must never delete.
+     */
+    public function testReportsErasureVolumeWithoutErasingAnything(): void
+    {
+        $this->makeErasureEligible();
+
+        $convsBefore = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM conversation');
+        $msgsBefore = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM message');
+
+        $tester = $this->runCleanup();
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $this->assertStringContainsString('eligible for permanent erasure', $tester->getDisplay());
+
+        $this->assertSame(
+            $convsBefore,
+            (int) $this->connection->fetchOne('SELECT COUNT(*) FROM conversation'),
+            'A run without the erasure flag must not remove a single conversation'
+        );
+        $this->assertSame(
+            $msgsBefore,
+            (int) $this->connection->fetchOne('SELECT COUNT(*) FROM message'),
+            'A run without the erasure flag must not remove a single message'
+        );
+        $this->assertTrue($this->conversationExists(self::ERASURE_CONV));
+    }
+
+    /**
+     * The stage must respect the command's existing dry run like every other
+     * stage, so "change nothing" keeps meaning nothing.
+     */
+    public function testDryRunAlsoSuppressesErasure(): void
+    {
+        $this->makeErasureEligible();
+
+        $this->runCleanup(['--dry-run' => true, '--erase' => true]);
+
+        $this->assertTrue(
+            $this->conversationExists(self::ERASURE_CONV),
+            'Dry run must win over the erasure flag'
+        );
+    }
+
+    /**
+     * Soft deletion already ran weekly before this stage existed, at its own
+     * threshold. Adding erasure must not introduce a second, competing pass.
+     */
+    public function testSoftDeletionStillHappensExactlyOncePerRun(): void
+    {
+        $this->connection->executeStatement(
+            "UPDATE conversation SET ts_last = :old, deleted_at = NULL, status = 'closed' WHERE conv_id = '00000000-0000-0000-0000-000000000002'",
+            ['old' => (new \DateTimeImmutable('-200 days'))->format('Y-m-d H:i:s')]
+        );
+
+        $output = $this->runCleanup()->getDisplay();
+
+        $this->assertSame(
+            1,
+            substr_count($output, 'Conversations soft-deleted:'),
+            'Exactly one soft-deletion pass may run'
+        );
+    }
+
+    /**
+     * A system younger than the retention threshold has nothing to erase. Zero is
+     * a valid result, not a failure.
+     */
+    public function testNothingEligibleReportsZeroAndSucceeds(): void
+    {
+        $this->connection->executeStatement(
+            'UPDATE conversation SET deleted_at = NULL WHERE deleted_at IS NOT NULL'
+        );
+
+        $tester = $this->runCleanup();
+
+        $this->assertSame(0, $tester->getStatusCode());
+        $this->assertStringContainsString('eligible for permanent erasure: 0', $tester->getDisplay());
+    }
+
+    /**
+     * Erasure, when explicitly authorised, does remove the conversation and its
+     * messages. Exercised on the dedicated test database only — never against a
+     * database holding real data.
+     */
+    public function testExplicitAuthorisationErasesConversationAndItsMessages(): void
+    {
+        $this->makeErasureEligible();
+
+        $msgsOfConv = (int) $this->connection->fetchOne(
+            'SELECT COUNT(*) FROM message WHERE conv_id = :id',
+            ['id' => self::ERASURE_CONV]
+        );
+        $msgsBefore = (int) $this->connection->fetchOne('SELECT COUNT(*) FROM message');
+
+        $this->runCleanup(['--erase' => true]);
+
+        $this->assertFalse(
+            $this->conversationExists(self::ERASURE_CONV),
+            'Explicit authorisation must actually erase'
+        );
+        $this->assertSame(
+            $msgsBefore - $msgsOfConv,
+            (int) $this->connection->fetchOne('SELECT COUNT(*) FROM message'),
+            'Messages must be removed with their conversation, by the foreign-key cascade'
+        );
+    }
+
     public function testDryRunDoesNotModifyData(): void
     {
         $key = '__purge_dryrun_test__';

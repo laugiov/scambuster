@@ -196,6 +196,30 @@ class AlternationInvariantTest extends KernelTestCase
         $this->assertSame(1, $this->countOutboundsInConversation($data['conv_id']));
     }
 
+    /**
+     * Neither waiver bypasses the alternation invariant, individually or together.
+     *
+     * The spacing waiver and the ceiling waiver are separate controls, and an
+     * operator holding both still cannot make the platform send two consecutive
+     * outbound messages: the invariant sits above every waiver. This is what makes
+     * a waived spacing safe — a rapid exchange stays an exchange, never a burst.
+     */
+    public function testNoCombinationOfWaiversBypassesTheAlternationInvariant(): void
+    {
+        $data = $this->createConversationWithInbound();
+
+        $result1 = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], false, 'test');
+        $this->assertNotNull($result1);
+
+        // Spacing waived AND ceilings waived — the strongest override available.
+        $result2 = $this->replyHandler->generateReply($data['conv_id'], $data['msg_id'], true, 'test', true);
+
+        $this->assertNotNull($result2);
+        $this->assertSame($result1['msg_id'], $result2['msg_id'], 'No second outbound may be produced');
+        $this->assertTrue((bool) ($result2['meta']['duplicate_skipped'] ?? false));
+        $this->assertSame(1, $this->countOutboundsInConversation($data['conv_id']));
+    }
+
     /** Latest is inbound → generation proceeds normally. */
     public function testGenerateReplyProceedsWhenLatestMessageIsInbound(): void
     {

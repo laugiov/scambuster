@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Monitoring;
 
+use App\Application\Communication\ReplyCadenceService;
 use App\Application\Monitoring\AutonomyMonitoringHandler;
-use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 /**
@@ -13,16 +14,48 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
  *
  * Verifies that the monitoring handler returns correctly structured
  * data from the real database with fixtures loaded.
+ *
+ * Kill-switch reporting: the handler must resolve the kill switch through the
+ * same reader the reply pipeline enforces with, so the reported state can never
+ * disagree with the enforced one. Resolution *mechanics* — cache before env,
+ * and degrading to env when the cache pool throws — are already proven by
+ * ReplyCadenceServiceTest (testKillSwitchActiveViaCachePool,
+ * testKillSwitchActiveViaEnvVar, testKillSwitchCacheFailureDoesNotCrash) and are
+ * deliberately not duplicated here. What is tested here is the reporting surface.
  */
 class AutonomyMonitoringHandlerTest extends KernelTestCase
 {
     private AutonomyMonitoringHandler $handler;
+    private CacheItemPoolInterface $cache;
 
     protected function setUp(): void
     {
         self::bootKernel();
-        $em = self::getContainer()->get(EntityManagerInterface::class);
-        $this->handler = new AutonomyMonitoringHandler($em);
+        $container = self::getContainer();
+        $this->handler = $container->get(AutonomyMonitoringHandler::class);
+
+        /** @var CacheItemPoolInterface $cache */
+        $cache = $container->get('cache.app');
+        $this->cache = $cache;
+
+        // Start from a known state: no runtime toggle, no deployment signal.
+        $this->cache->deleteItem(ReplyCadenceService::KILL_SWITCH_CACHE_KEY);
+        unset($_ENV['SCAMBUSTER_KILL_SWITCH'], $_SERVER['SCAMBUSTER_KILL_SWITCH']);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->cache->deleteItem(ReplyCadenceService::KILL_SWITCH_CACHE_KEY);
+        unset($_ENV['SCAMBUSTER_KILL_SWITCH'], $_SERVER['SCAMBUSTER_KILL_SWITCH']);
+
+        parent::tearDown();
+    }
+
+    private function activateKillSwitchViaAdminToggle(): void
+    {
+        $item = $this->cache->getItem(ReplyCadenceService::KILL_SWITCH_CACHE_KEY);
+        $item->set(true);
+        $this->cache->save($item);
     }
 
     public function testGetAutonomyStatusReturnsCompleteStructure(): void
@@ -121,6 +154,57 @@ class AutonomyMonitoringHandlerTest extends KernelTestCase
         $this->assertIsBool($status['kill_switch_active']);
         // Default should be false in test environment
         $this->assertFalse($status['kill_switch_active']);
+    }
+
+    /**
+     * The defect: an operator halts the pipeline through the admin toggle, which
+     * writes the runtime cache, but the monitoring surface reported the system as
+     * running because it only ever read the deployment environment variable.
+     */
+    public function testKillSwitchActiveWhenHaltedThroughAdminToggle(): void
+    {
+        $this->activateKillSwitchViaAdminToggle();
+
+        $status = $this->handler->getAutonomyStatus();
+
+        $this->assertTrue(
+            $status['kill_switch_active'],
+            'A kill switch set through the admin toggle must be reported as active'
+        );
+        $this->assertSame(
+            'degraded',
+            $status['status'],
+            'A halted pipeline must never report itself as operational'
+        );
+    }
+
+    /**
+     * The pre-existing deployment-level signal must keep working once the handler
+     * resolves through the shared reader.
+     */
+    public function testKillSwitchActiveFromDeploymentSignalAlone(): void
+    {
+        $_ENV['SCAMBUSTER_KILL_SWITCH'] = '1';
+
+        $status = $this->handler->getAutonomyStatus();
+
+        $this->assertTrue(
+            $status['kill_switch_active'],
+            'The environment fallback must survive the switch to the shared reader'
+        );
+    }
+
+    public function testKillSwitchInactiveAfterAdminToggleIsTurnedOff(): void
+    {
+        $this->activateKillSwitchViaAdminToggle();
+        $this->cache->deleteItem(ReplyCadenceService::KILL_SWITCH_CACHE_KEY);
+
+        $status = $this->handler->getAutonomyStatus();
+
+        $this->assertFalse(
+            $status['kill_switch_active'],
+            'Turning the admin toggle off must be reported immediately'
+        );
     }
 
     public function testStatusIsOperationalWhenHealthy(): void

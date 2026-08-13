@@ -13,8 +13,10 @@ class ObservedIocFixtures extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        // An existing message is required for the FK
-        $message = $manager->getRepository(Message::class)->findOneBy([]);
+        // An existing message is required for the FK. Order explicitly: findOneBy([])
+        // emits no ORDER BY, so the row returned depends on physical storage order and
+        // silently rebinds this fixture whenever a message row is rewritten.
+        $message = $manager->getRepository(Message::class)->findBy([], ['msgId' => 'ASC'], 1)[0] ?? null;
 
         if (!$message) {
             // No message in the database, cannot create the ObservedIoc fixture

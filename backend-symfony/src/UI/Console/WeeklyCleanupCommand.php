@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Console;
 
+use App\Application\Communication\PurgeService;
 use Doctrine\DBAL\Connection;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -22,6 +23,7 @@ class WeeklyCleanupCommand extends Command
     public function __construct(
         private readonly Connection $connection,
         private readonly LoggerInterface $logger,
+        private readonly PurgeService $purgeService,
     ) {
         parent::__construct();
     }
@@ -32,7 +34,8 @@ class WeeklyCleanupCommand extends Command
             ->addOption('conv-days', null, InputOption::VALUE_REQUIRED, 'Soft-delete closed conversations older than N days', '90')
             ->addOption('llm-days', null, InputOption::VALUE_REQUIRED, 'Purge LLM usage records older than N days', '180')
             ->addOption('canary-days', null, InputOption::VALUE_REQUIRED, 'Purge terminal (succeeded/failed) prompt-canary jobs older than N days', '30')
-            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be done without making changes');
+            ->addOption('dry-run', null, InputOption::VALUE_NONE, 'Show what would be done without making changes')
+            ->addOption('erase', null, InputOption::VALUE_NONE, 'Permanently erase conversations past the retention threshold, and their messages by cascade. Without this flag the run only reports the volume that would be erased.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -69,11 +72,35 @@ class WeeklyCleanupCommand extends Command
         $canaryCount = $this->purgeCanaryJobs($canaryCutoff, $dryRun);
         $io->text(sprintf('Prompt-canary jobs purged: %d (terminal, older than %d days)', $canaryCount, $canaryDays));
 
+        // 4. Permanent erasure of conversations past the retention threshold, and
+        //    their messages by foreign-key cascade. Reporting the eligible volume
+        //    is a counting query and always runs — it is what lets an operator see
+        //    what would go before authorising anything. Erasing is irreversible, so
+        //    it needs the explicit --erase flag and, like every stage above, is
+        //    suppressed by --dry-run.
+        $erase = (bool) $input->getOption('erase') && !$dryRun;
+        // Count first: after the deletion there is nothing left to count.
+        $eraseMessages = $this->purgeService->countMessagesPendingErasure();
+        $eraseConvs = $this->purgeService->hardDeleteOldInboundConversations(!$erase);
+
+        if ($erase) {
+            $io->text(sprintf('Conversations permanently erased: %d (with %d messages, by cascade)', $eraseConvs, $eraseMessages));
+        } else {
+            $io->text(sprintf(
+                'Conversations eligible for permanent erasure: %d (with %d messages) — reported only, nothing erased. Pass --erase to perform it.',
+                $eraseConvs,
+                $eraseMessages
+            ));
+        }
+
         $io->success(sprintf('Cleanup complete. Conversations: %d, LLM records: %d, canary jobs: %d.', $convCount, $llmCount, $canaryCount));
         $this->logger->info('[WeeklyCleanup] Cleanup complete', [
             'conversations_deleted' => $convCount,
             'llm_records_purged' => $llmCount,
             'canary_jobs_purged' => $canaryCount,
+            'erasure_eligible_conversations' => $eraseConvs,
+            'erasure_eligible_messages' => $eraseMessages,
+            'erased' => $erase,
             'dry_run' => $dryRun,
         ]);
 

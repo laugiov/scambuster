@@ -50,6 +50,15 @@ final class GetClusterAbuseReportControllerTest extends WebTestCase
                 'INSERT INTO threat_actor_cluster_conversation (cluster_id, conv_id) VALUES (:cid, :conv)',
                 ['cid' => self::CID, 'conv' => self::CONV],
             );
+            // An IBAN is a financial indicator: the export policy withholds it from
+            // every outgoing surface until an analyst confirms it, so a report that
+            // actually names an account to its bank carries a confirmed one.
+            $conn->executeStatement(
+                "INSERT INTO ioc_analyst_feedback (indicator_id, verdict, note, analyst_id, created_at)
+                 VALUES (:id, 'confirmed', 'abuse report http test', 'abuse-report-http-test', NOW())
+                 ON CONFLICT (indicator_id) DO UPDATE SET verdict = 'confirmed'",
+                ['id' => self::IBAN_INDICATOR],
+            );
 
             $this->client->request('GET', '/api/v1/clusters/' . self::CID . '/abuse-report', [], [], [
                 'HTTP_AUTHORIZATION' => 'Bearer fake-jwt',
@@ -71,6 +80,7 @@ final class GetClusterAbuseReportControllerTest extends WebTestCase
             $this->assertStringContainsStringIgnoringCase('bank', $data['actionable_indicators'][0]['recommended_recipient']);
         } finally {
             $conn->executeStatement('DELETE FROM threat_actor_cluster WHERE cluster_id = ?', [self::CID]);
+            $conn->executeStatement('DELETE FROM ioc_analyst_feedback WHERE indicator_id = ?', [self::IBAN_INDICATOR]);
         }
     }
 }

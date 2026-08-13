@@ -93,7 +93,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | GET | `/communication/conversation/{convId}/context` | Yes | Get context for reply |
-| POST | `/communication/reply/generate` | Yes | Generate LLM reply draft |
+| POST | `/communication/reply/generate` | Yes | Generate LLM reply draft. `force` waives the reply spacing only — not the ceilings, the kill switch, the budget cap, or the alternation invariant. `bypass_rate_limits` is the operator override that waives the three ceilings; leave it unset for automated flows. |
 | POST | `/communication/reply/draft` | Yes | Save reply draft |
 | GET | `/communication/reply/{msgId}` | Yes | Get reply detail |
 | GET | `/communication/reply/{msgId}/compose` | Yes | Get threading headers |
@@ -121,7 +121,7 @@ curl -H "Authorization: Bearer $TOKEN" \
 |--------|------|------|-------------|
 | GET | `/clusters/{id}/psych-profile` | `ioc:read` | Per-actor psychological profile: dominant + secondary Cialdini levers, behavioural summary, escalation pattern, victim targeting, behavioural signals. `404` when not generated yet. See [Threat-Actor Profiling](21_threat_actor_profiling.md). |
 | GET | `/clusters/{id}/temporal` | `ioc:read` | Per-actor temporal analysis (computed on-read from inbound messages): activity window, hour-of-day + day-of-week cadence, busiest day, burst days (≥ 2× median daily volume), longest dormancy. `404` when the cluster has no inbound activity. |
-| GET | `/clusters/{id}/abuse-report` | `ioc:export` | Factual abuse / takedown report combining actor identity, actionable indicators (each routed to its standard abuse desk — bank / exchange / registrar / …), temporal activity and the psychological profile, plus a ready-to-send plain-text rendering (`text`). First-party only, with a provenance disclaimer. `404` for an unknown cluster. |
+| GET | `/clusters/{id}/abuse-report` | `ioc:export` | Factual abuse / takedown report combining actor identity, actionable indicators (each routed to its standard abuse desk — bank / exchange / registrar / …), temporal activity and the psychological profile, plus a ready-to-send plain-text rendering (`text`). First-party only, with a provenance disclaimer. Indicators are filtered by the same export policy as STIX and TAXII: analyst false-positives are omitted, and financial indicators are withheld until an analyst confirms them — so a report may legitimately carry no indicators. `404` for an unknown cluster. |
 | POST | `/iocs/{indicatorId}/feedback` | `ioc:feedback` | Analyst verdict `{"verdict":"confirmed"\|"false_positive","note":"..."}`. Overrides export confidence (confirmed → high, false-positive → near-zero). Audited (`IOC_FEEDBACK`). |
 
 ---
@@ -229,7 +229,11 @@ curl http://localhost:8081/api/v1/scambaiting/stats/PHISH_CREDENTIALS | jq .
 | GET | `/monitoring/injection` | Yes | Prompt injection detection stats: coverage, risk distribution, recent alerts |
 
 ```bash
-# Example: check system status
+# Example: check system status.
+# `kill_switch_active` reflects BOTH ways of halting the pipeline: the runtime admin
+# toggle (POST /admin/llm/killswitch) and the SCAMBUSTER_KILL_SWITCH deployment
+# variable. It resolves through the same reader the reply pipeline enforces with, so
+# `true` here means replies really are halted, and `status` reports `degraded`.
 curl -H "Authorization: Bearer $TOKEN" \
   http://localhost:8081/api/v1/monitoring/autonomy | jq '.kill_switch_active'
 

@@ -74,11 +74,10 @@ final readonly class AbuseReportGenerator
 
         $indicators = [];
 
-        foreach ($this->asList($detail['anchor_iocs'] ?? null) as $anchor) {
-            if (!\is_array($anchor)) {
-                continue;
-            }
-
+        // Not $detail['anchor_iocs']: that set feeds the internal review surface and
+        // deliberately includes analyst-rejected and export-held indicators. This
+        // report is sent to a bank or a national unit, and cannot be unsent.
+        foreach ($this->clusterQuery->getExportableAnchorIocs($clusterId) as $anchor) {
             $type = \is_string($anchor['ioc_type'] ?? null) ? $anchor['ioc_type'] : 'unknown';
 
             $indicators[] = [

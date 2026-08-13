@@ -50,8 +50,18 @@ are therefore export-held until analyst confirmation — see the
 ## 7. Retention
 | Data | Retention | Mechanism |
 |------|-----------|-----------|
-| Conversation content | 6 months soft-delete → 12 months hard-delete | `PurgeService` (`app:cleanup:weekly`, automatic) |
+| Conversation content | **90 days** soft-delete (policy ceiling: 6 months) → 12 months permanent erasure | Soft-delete: `app:cleanup:weekly`, automatic, Sundays 04:00 UTC (`--conv-days`, default 90). Permanent erasure: same weekly job, via `PurgeService`. **Reported only by default** — the eligible volume is logged on every run; the deletion itself requires the explicit `--erase` flag, which the scheduled invocation does not pass. |
 | Audit log | 12 months (policy) | integrity chain preserved; archive/purge is an operator procedure (not auto-purged) |
+
+**Scope of the soft-delete, stated honestly.** Only conversations whose status is `closed`
+are soft-deleted. A conversation that is never closed is not currently reached by the
+retention job — a known gap, tracked separately.
+
+**What "soft-delete" does and does not do.** It stamps a deletion timestamp on the
+conversation. Messages are deliberately *not* stamped: they are removed at permanent-erasure
+time, through the message foreign-key cascade. Until erasure runs, message content is still
+stored — which is why the eligible volume is reported on every weekly run rather than left
+unmeasured.
 
 ## 8. Technical & organisational measures (Art 32)
 RBAC (13 fine-grained permissions) · TOTP 2FA · RS256 JWT · HMAC-SHA256 tamper-evident audit

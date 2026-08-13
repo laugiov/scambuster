@@ -1,6 +1,6 @@
 # Roadmap
 
-> **Last updated**: 2026-07-31 · Status: post-hardening, pre-Black Hat USA 2026.
+> **Last updated**: 2026-08-13 · Status: post-hardening, pre-Black Hat USA 2026.
 > ScamBuster is a working platform (multi-agent LLM scambaiting + real-time CTI).
 > This page records what shipped and states, transparently, what is next — and what
 > is deliberately out of scope.
@@ -59,6 +59,10 @@ All merged and running in production.
 - **Refresh-token hardening**: SHA-256 at rest, rotated-token reuse detection with family revoke, audit events.
 - **GDPR / compliance pack**: DPA reference, Art. 30 register, Art. 33 breach procedure, risk register / RACI / PSSI, NIST IRP + tabletop, data-classification schema.
 - **CORS allowlist** hardening on the authenticated API (env-driven).
+- **Retention made measurable and honest**: the weekly cleanup job now reports how many conversations and messages are eligible for permanent erasure on every run, while erasing nothing without an explicit flag; the Art. 30 record was corrected on three counts (real 90-day soft-delete threshold, the job actually responsible, and the fact that erasure had never run).
+- **Cost/abuse ceilings restored on the automatic flow**: waiving the reply spacing no longer waives the three Redis ceilings, which now run in an observation mode (`warning`, the default — nothing is refused) so real breach volumes can be measured before enforcement is considered. Operators keep an explicit full override.
+- **Export policy applied to abuse reports**: takedown reports sent to banks, exchanges and national units are now filtered by the same policy as STIX and TAXII, so an analyst-rejected or unconfirmed-financial indicator can no longer be named to an external recipient. The internal review screen still shows everything.
+- **Kill-switch reporting made truthful**: the autonomy and Prometheus surfaces now resolve the kill switch through the same reader the reply pipeline enforces with, so a pipeline halted through the admin toggle can no longer report itself as `operational`. Enforcement was already correct — this closed a monitoring blind spot found by a production audit.
 
 ### Reply quality / prompt engineering
 - Out-of-band-channel blocking; payment-instigation guard (multilingual LLM judge); careful-buyer pushback; scam-type-aware objectives; Cialdini-lever mirroring; anti-repetition; reply role-coherence checks; retry-feedback loop; and a fallback-rate remediation pass.

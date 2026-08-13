@@ -1,4 +1,15 @@
 # config/packages/rate_limiter.yaml
+parameters:
+    # Enforcement mode for the LLM pipeline ceilings below: 'warning' or 'enforce'.
+    # 'warning' = record the breach (log + audit event) and allow the reply — the
+    #             measurement window that shows how much traffic would be refused
+    # 'enforce' = refuse the reply
+    # Anything unrecognised resolves to 'warning': enforcement is the mode that turns
+    # traffic away, so it must never be reached by a typo or an unset variable.
+    # Mirrors llm.budget_enforcement_mode, which governs the cost cap the same way.
+    scambuster.rate_limit_enforcement_mode: '%env(default:scambuster_default_rate_limit_mode:SCAMBUSTER_RATE_LIMIT_ENFORCEMENT_MODE)%'
+    scambuster_default_rate_limit_mode: 'warning'
+
 framework:
   rate_limiter:
     # -----------------------------------------------------------

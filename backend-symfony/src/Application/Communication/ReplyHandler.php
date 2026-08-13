@@ -43,6 +43,8 @@ class ReplyHandler
         // director judges the conversation burned, we close it instead of replying.
         private readonly ?ConversationAnalyzer $conversationAnalyzer = null,
         private readonly ?ConversationClosureService $closureService = null,
+        // Redis ceiling enforcement, governed like the budget cap above.
+        private readonly string $rateLimitEnforcementMode = 'warning',
     ) {
     }
 
@@ -123,7 +125,7 @@ class ReplyHandler
      *
      * @return array<string, mixed>|null
      */
-    public function generateReply(string $convId, string $lastMsgId, bool $force = false, string $reason = 'manual'): ?array
+    public function generateReply(string $convId, string $lastMsgId, bool $force = false, string $reason = 'manual', bool $bypassRateLimits = false): ?array
     {
         // getConversationContext() handles automatic classification if needed
         $context = $this->contextService->getConversationContext($convId);
@@ -190,12 +192,27 @@ class ReplyHandler
             throw new \RuntimeException('Cadence limit not met');
         }
 
-        // Check Redis-backed rate limits
-        if (!$force) {
+        // Redis-backed ceiling enforcement.
+        // $force waives the reply spacing only. The ceilings are a separate,
+        // cost-and-abuse concern and are waived only by $bypassRateLimits, which is
+        // the operator's explicit full-override — the automatic flow never sets it.
+        // - mode 'enforce': a breach refuses the reply
+        // - mode 'warning': the breach is recorded by checkRateLimits() (log + audit
+        //   event) and the reply proceeds — the measurement window before flipping
+        //   to enforce, exactly as the budget cap above works
+        if (!$bypassRateLimits) {
             $rateLimitResult = $this->cadenceService->checkRateLimits($convId);
 
             if ($rateLimitResult !== null) {
-                throw new \RuntimeException('Rate limit exceeded: ' . $rateLimitResult);
+                if ($this->rateLimitEnforcementMode === 'enforce') {
+                    throw new \RuntimeException('Rate limit exceeded: ' . $rateLimitResult);
+                }
+
+                $this->logger->warning('[ReplyHandler] Rate limit exceeded but enforcement mode is warning, allowing reply', [
+                    'conv_id' => $convId,
+                    'limit' => $rateLimitResult,
+                    'mode' => $this->rateLimitEnforcementMode,
+                ]);
             }
         }
 

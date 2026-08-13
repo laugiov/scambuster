@@ -497,6 +497,8 @@ services:
         arguments:
             # Wire the budget enforcement mode
             $budgetEnforcementMode: '%llm.budget_enforcement_mode%'
+            # Wire the rate-limit enforcement mode (same warning|enforce idiom)
+            $rateLimitEnforcementMode: '%scambuster.rate_limit_enforcement_mode%'
     ###< Scambaiting Adaptatif - Application Layer ###
 
     ###> LLM cost guard ###
