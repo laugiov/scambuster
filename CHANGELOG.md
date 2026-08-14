@@ -36,8 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (the parser keeps only the first address of a multi-address `To:`) walked straight past
   it, and an empty value turned the guard off silently. The comparison is now against
   addresses we know are ours — the mail account's own address and `HONEYPOT_EMAIL_ADDRESSES`
-  — and an empty identity list **refuses** rather than passes. Both bypasses are pinned by
-  tests.
+  — and both bypasses are pinned by tests.
+
+  The first attempt at this **refused outright** when no identity was configured, on the
+  principle that a guard which cannot run must not pass. CI settled that: ten end-to-end
+  tests went red, because `HONEYPOT_EMAIL_ADDRESSES` is empty by default and the fixture
+  mail accounts carry no address — which is exactly what a fresh deployment looks like. It
+  was the wrong trade. The risk being prevented is a self-loop: contained, and requiring
+  the sender to spoof our own address. The cost was every reply the honeypot would ever
+  send. It now proceeds and logs an error naming the variable to set, and the inbound
+  `To:`/`Delivered-To:` are added as *extra* comparison candidates — never the only ones,
+  which is what the decoy defeated, and as extra entries they can only add refusals.
 
 - **Automated mail no longer gets an answer, and the rule is deliberately narrow.** Inbound
   messages carrying RFC 3834 `Auto-Submitted` or `List-Id` are refused before the model is

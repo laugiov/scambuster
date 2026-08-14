@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\Communication\Exception\ReplyRefusedException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Mime\Address;
 
 /**
@@ -20,6 +22,10 @@ use Symfony\Component\Mime\Address;
  */
 final class ReplyRecipientPolicy
 {
+    public function __construct(private readonly LoggerInterface $logger = new NullLogger())
+    {
+    }
+
     /**
      * Resolve who a reply goes to.
      *
@@ -42,7 +48,6 @@ final class ReplyRecipientPolicy
      *                                                attacker-controlled value is not a guard.
      *
      * @throws ReplyRefusedException when this message must not be answered
-     * @throws \RuntimeException     when no honeypot identity is configured (operator error)
      */
     public function resolveRecipient(array $headers, array $honeypotAddresses): string
     {
@@ -59,11 +64,24 @@ final class ReplyRecipientPolicy
             static fn (string $address): bool => trim($address) !== '',
         ));
 
-        // Fail closed. An empty list means we cannot tell our own address from a
-        // stranger's, so the self-reply check cannot run — and a guard that
-        // cannot run must not silently pass.
+        // No identity to compare against. The first version of this refused
+        // outright, on the principle that a guard which cannot run must not
+        // pass. That was the wrong trade: the risk it prevents is a self-loop —
+        // contained, and requiring the sender to spoof our own address — while
+        // refusing costs every reply the honeypot would ever send. It silenced
+        // the whole product on any deployment that had not set
+        // HONEYPOT_EMAIL_ADDRESSES, which is the default.
+        //
+        // So it proceeds, but never silently: this is a misconfiguration and it
+        // is logged as one.
         if ($known === []) {
-            throw new \RuntimeException('Refusing to reply: no honeypot identity configured to check against');
+            $this->logger->error(
+                '[ReplyRecipientPolicy] No honeypot identity to check against; the self-reply guard did not run. '
+                . 'Set HONEYPOT_EMAIL_ADDRESSES or give the mail account an email address.',
+                ['recipient' => $to],
+            );
+
+            return $to;
         }
 
         // Refuse to reply to ourselves. A spoofed `From:` carrying the honeypot

@@ -328,9 +328,17 @@ class ReplyHandler
         $to = $this->recipientPolicy->resolveRecipient(
             $parentMessage->getHeaders(),
             array_values(array_filter([
+                // Authoritative first: configuration and the mail account.
                 $account->getEmailAddress(),
                 ...$this->honeypotEmailAddresses ?? [],
-            ], static fn (?string $a): bool => \is_string($a) && trim($a) !== '')),
+                // Then the header-derived values, as *additional* candidates.
+                // These are attacker-controlled and must never be the only
+                // source — a decoy `To:` defeated exactly that. As extra
+                // entries they can only ever add refusals, never remove one,
+                // so they give a misconfigured deployment some cover.
+                $parentMessage->getHeaders()['to'] ?? null,
+                $parentMessage->getHeaders()['delivered-to'] ?? null,
+            ], static fn (mixed $a): bool => \is_string($a) && trim($a) !== '')),
         );
 
         // Build subject

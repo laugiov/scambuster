@@ -142,23 +142,34 @@ final class ReplyRecipientPolicyTest extends TestCase
     }
 
     /**
-     * Regression: an empty honeypot identity used to turn the guard off
-     * silently. A guard that cannot run must not pass.
+     * With no identity to compare against the guard cannot run. It proceeds —
+     * refusing would silence every reply on a deployment that has not set
+     * HONEYPOT_EMAIL_ADDRESSES, which is the default — but it must say so.
+     *
+     * An earlier version refused here and took ten end-to-end tests down with
+     * it, which is what the real deployment would have looked like.
      */
-    public function testNoHoneypotIdentityFailsClosed(): void
+    public function testNoHoneypotIdentityProceedsButIsLogged(): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('no honeypot identity configured');
+        $logger = new CollectingLogger();
+        $policy = new ReplyRecipientPolicy($logger);
 
-        $this->policy->resolveRecipient(['from' => 'scammer@evil.example'], []);
+        $to = $policy->resolveRecipient(['from' => 'scammer@evil.example'], []);
+
+        self::assertSame('scammer@evil.example', $to);
+        self::assertNotSame([], $logger->errors, 'A guard that did not run must not be silent.');
+        self::assertStringContainsString('self-reply guard did not run', $logger->errors[0]);
     }
 
-    public function testBlankHoneypotIdentitiesAreNotAnIdentity(): void
+    public function testBlankHoneypotIdentitiesAreTreatedAsNoIdentity(): void
     {
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('no honeypot identity configured');
+        $logger = new CollectingLogger();
+        $policy = new ReplyRecipientPolicy($logger);
 
-        $this->policy->resolveRecipient(['from' => 'scammer@evil.example'], ['', '   ']);
+        $to = $policy->resolveRecipient(['from' => 'scammer@evil.example'], ['', '   ']);
+
+        self::assertSame('scammer@evil.example', $to);
+        self::assertNotSame([], $logger->errors);
     }
 
     /**
@@ -246,5 +257,25 @@ final class ReplyRecipientPolicyTest extends TestCase
     {
         self::assertFalse($this->policy->sameMailbox('', 'a@b.test'));
         self::assertFalse($this->policy->sameMailbox('a@b.test', '  '));
+    }
+}
+
+/**
+ * Minimal logger that keeps error messages, so a test can assert the guard
+ * announced that it did not run.
+ */
+final class CollectingLogger extends \Psr\Log\AbstractLogger
+{
+    /** @var list<string> */
+    public array $errors = [];
+
+    /**
+     * @param array<mixed> $context
+     */
+    public function log($level, \Stringable|string $message, array $context = []): void
+    {
+        if ((string) $level === 'error') {
+            $this->errors[] = (string) $message;
+        }
     }
 }
