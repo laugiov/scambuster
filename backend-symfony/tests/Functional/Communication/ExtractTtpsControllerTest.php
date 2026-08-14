@@ -17,6 +17,7 @@ use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
+use App\Domain\Communication\Ttp;
 
 /**
  * Functional coverage of POST /extract-ttps: RBAC, not-found and direction
@@ -146,7 +147,7 @@ final class ExtractTtpsControllerTest extends WebTestCase
         self::assertSame('act now', $confirmed['evidence']);
         self::assertNull($confirmed['evidence_start']);
         self::assertNull($confirmed['evidence_end']);
-        self::assertSame('1.0', $confirmed['taxonomy_version']);
+        self::assertSame(Ttp::TAXONOMY_VERSION, $confirmed['taxonomy_version']);
         self::assertSame('gpt-4o-mini', $confirmed['extraction_model']);
         self::assertSame('v1', $confirmed['prompt_version']);
 

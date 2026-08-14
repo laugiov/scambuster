@@ -10,6 +10,7 @@ use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
+use App\Domain\Communication\Ttp;
 
 /**
  * Integration coverage of the demo TTP seeder.
@@ -96,7 +97,7 @@ final class TtpDemoSeedCommandTest extends KernelTestCase
         // Provenance stamps.
         self::assertSame('demo-seed', $row['extraction_model']);
         self::assertSame('demo', $row['prompt_version']);
-        self::assertSame('1.0', $row['taxonomy_version']);
+        self::assertSame(Ttp::TAXONOMY_VERSION, $row['taxonomy_version']);
     }
 
     // ─── confirmed / review split ───────────────────────────────────────
