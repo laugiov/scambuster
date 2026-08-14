@@ -27,6 +27,33 @@ class EmailParsingService
      */
     public const DEFAULT_MAX_ATTACHMENT_SIZE_BYTES = 25 * 1024 * 1024;
 
+    /**
+     * Key under which duplicated singleton header names are recorded. Not a
+     * real header: it is our own metadata, and it is stripped from inbound mail
+     * so a sender cannot forge it.
+     */
+    private const DUPLICATE_HEADERS_KEY = 'x-scambuster-duplicate-headers';
+
+    /**
+     * Headers RFC 5322 §3.6 allows at most once. A second occurrence is
+     * malformed, so the first is kept and the duplication is recorded.
+     *
+     * @var list<string>
+     */
+    private const SINGLETON_HEADERS = [
+        'from',
+        'sender',
+        'reply-to',
+        'to',
+        'cc',
+        'bcc',
+        'message-id',
+        'in-reply-to',
+        'references',
+        'subject',
+        'date',
+    ];
+
     private readonly int $maxAttachmentSizeBytes;
 
     public function __construct(
@@ -146,11 +173,54 @@ class EmailParsingService
             $bodyText = $this->convertHtmlToText($bodyHtml);
         }
 
-        // Collect all headers
+        // Collect all headers.
+        //
+        // Two things here are deliberate.
+        //
+        // 1. Header names are lowercased but NOT normalised, because the parser
+        //    keeps whatever the sender wrote (`HeaderParserService` splits on
+        //    the first `:` and validates nothing). So `Reply_To:` with an
+        //    underscore becomes the key `reply_to`. Consumers must treat every
+        //    key here as attacker-controlled — see ReplyHandler::resolveRecipient.
+        //
+        // 2. Duplicates resolve to the FIRST occurrence, not the last. RFC 5322
+        //    §3.6 allows at most one of the headers below, so a second one is
+        //    malformed and usually forged; MTAs and most parsers read the
+        //    first, and a backend that read the last would disagree with them
+        //    about who sent the mail. Which names were duplicated is recorded
+        //    rather than dropped: it is a signal, not noise.
         $allHeaders = [];
+        $duplicated = [];
 
         foreach ($message->getAllHeaders() as $header) {
-            $allHeaders[strtolower($header->getName())] = $header->getValue() ?? '';
+            $name = strtolower($header->getName());
+
+            // Our own marker, written below. A sender who puts this header in
+            // their mail would otherwise manufacture a forgery signal on a mail
+            // with no duplicates at all — an analyst-facing "this was forged"
+            // flag that the forger sets is worse than no flag.
+            if ($name === self::DUPLICATE_HEADERS_KEY) {
+                continue;
+            }
+
+            if (array_key_exists($name, $allHeaders)) {
+                if (in_array($name, self::SINGLETON_HEADERS, true)) {
+                    $duplicated[$name] = true;
+
+                    continue;
+                }
+            }
+
+            $allHeaders[$name] = $header->getValue() ?? '';
+        }
+
+        if ($duplicated !== []) {
+            $names = array_keys($duplicated);
+            sort($names);
+            $allHeaders[self::DUPLICATE_HEADERS_KEY] = implode(',', $names);
+            $this->logger->warning('[EmailParsingService] Duplicate singleton headers, kept the first of each', [
+                'headers' => $names,
+            ]);
         }
 
         // Detect language

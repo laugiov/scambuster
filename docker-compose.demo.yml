@@ -62,6 +62,10 @@ services:
       LLM_VALIDATION_ENABLED: "true"
       MAILER_DSN: "null://null"
       SCAMBUSTER_KILL_SWITCH: "false"
+      # Kept permissive on purpose so the demo exercises the full reply path.
+      # Safe only because MAILER_DSN above is null://null — nothing leaves this
+      # stack. Do NOT copy this line into a deployment that has a real mailer;
+      # see the SCAMBUSTER_SAFE_DOMAINS block in .env.dist for why.
       SCAMBUSTER_SAFE_DOMAINS: "*"
       SCAMBUSTER_API_URL: http://backend:8080
       LOGIN_HASH_SALT: demo-salt-2026

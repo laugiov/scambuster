@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Application\Communication;
 
 use App\Application\Audit\AuditLogger;
+use App\Application\Communication\Exception\ReplyRefusedException;
 use App\Application\LLM\ConversationAnalyzer;
 use App\Application\LLM\ReplyOrchestrator;
 use App\Application\Monitoring\LlmCostHandler;
@@ -45,6 +46,14 @@ class ReplyHandler
         private readonly ?ConversationClosureService $closureService = null,
         // Redis ceiling enforcement, governed like the budget cap above.
         private readonly string $rateLimitEnforcementMode = 'warning',
+        // Recipient and loop guards. Stateless and dependency-free, so it is
+        // defaulted rather than made a required argument: existing manual
+        // instantiations keep working and still get the guards.
+        private readonly ReplyRecipientPolicy $recipientPolicy = new ReplyRecipientPolicy(),
+        // Addresses we know are ours, from configuration. Combined with the mail
+        // account's own address to check we are not replying to ourselves.
+        /** @var list<string>|null */
+        private readonly ?array $honeypotEmailAddresses = null,
     ) {
     }
 
@@ -222,6 +231,20 @@ class ReplyHandler
             return null;
         }
 
+        // RFC 3834 loop guard. Checked before the LLM call, not after: an
+        // auto-responder ping-pong would otherwise burn a generation per round.
+        $autoSubmitted = $this->recipientPolicy->autoSubmittedReason($parentMessage->getHeaders());
+
+        if ($autoSubmitted !== null) {
+            $this->logger->warning('[ReplyHandler] Refusing to reply to automated mail', [
+                'conversation_id' => $convId,
+                'parent_msg_id' => $lastMsgId,
+                'reason' => $autoSubmitted,
+            ]);
+
+            throw new ReplyRefusedException('auto_submitted', 'Refusing to reply to automated mail: ' . $autoSubmitted);
+        }
+
         // Detect language from last inbound message
         $detectedLanguage = $this->contextService->detectLanguageFromContext($context);
         $context['detected_language'] = $detectedLanguage;
@@ -283,14 +306,40 @@ class ReplyHandler
         $replyText = $newReplyContent;
         $replyHtml = '<div>' . nl2br(htmlspecialchars($newReplyContent, ENT_QUOTES, 'UTF-8')) . '</div>';
 
-        // Determine recipient
-        $toRaw = $parentMessage->getHeaders()['reply_to'] ?? $parentMessage->getHeaders()['from'] ?? null;
+        // Determine "from" = honeypot address (the "to" of the inbound message).
+        // Prefer the parent's To/Delivered-To headers — that is what the scammer
+        // saw. If both are missing (mass-mailing with empty To:, alias delivery,
+        // parser miss), fall back to the MailAccount's own emailAddress.
+        // Endpoint is the IMAP/SMTP hostname and is only a last-resort
+        // fallback for legacy accounts; it is never a
+        // valid RFC 2822 address and will be caught downstream by composeHeaders.
+        $account = $conversation->getAccount();
+        $honeypotAddress = $parentMessage->getHeaders()['to']
+            ?? $parentMessage->getHeaders()['delivered-to']
+            ?? $account->getEmailAddress()
+            ?? $account->getEndpoint();
 
-        if (!$toRaw) {
-            throw new \RuntimeException('Cannot determine reply recipient');
-        }
-        /** @var string $to */
-        $to = $toRaw;
+        // The self-reply guard compares against addresses we know are ours:
+        // the mail account's own address and the configured honeypot list.
+        // Deliberately NOT $honeypotAddress above — that one is derived from
+        // the inbound headers, so checking it against the inbound `From:` would
+        // compare two values the same attacker wrote. A `To:` naming a decoy
+        // first (the parser keeps only the first address) defeated it.
+        $to = $this->recipientPolicy->resolveRecipient(
+            $parentMessage->getHeaders(),
+            array_values(array_filter([
+                // Authoritative first: configuration and the mail account.
+                $account->getEmailAddress(),
+                ...$this->honeypotEmailAddresses ?? [],
+                // Then the header-derived values, as *additional* candidates.
+                // These are attacker-controlled and must never be the only
+                // source — a decoy `To:` defeated exactly that. As extra
+                // entries they can only ever add refusals, never remove one,
+                // so they give a misconfigured deployment some cover.
+                $parentMessage->getHeaders()['to'] ?? null,
+                $parentMessage->getHeaders()['delivered-to'] ?? null,
+            ], static fn (mixed $a): bool => \is_string($a) && trim($a) !== '')),
+        );
 
         // Build subject
         $subject = $parentMessage->getSubject() ?? '';
@@ -314,19 +363,6 @@ class ReplyHandler
 
         $msgId = uuid_create(UUID_TYPE_RANDOM);
         $now = new \DateTimeImmutable();
-
-        // Determine "from" = honeypot address (the "to" of the inbound message).
-        // Prefer the parent's To/Delivered-To headers — that is what the scammer
-        // saw. If both are missing (mass-mailing with empty To:, alias delivery,
-        // parser miss), fall back to the MailAccount's own emailAddress.
-        // Endpoint is the IMAP/SMTP hostname and is only a last-resort
-        // fallback for legacy accounts; it is never a
-        // valid RFC 2822 address and will be caught downstream by composeHeaders.
-        $account = $conversation->getAccount();
-        $honeypotAddress = $parentMessage->getHeaders()['to']
-            ?? $parentMessage->getHeaders()['delivered-to']
-            ?? $account->getEmailAddress()
-            ?? $account->getEndpoint();
 
         $headers = [
             'from' => $honeypotAddress,

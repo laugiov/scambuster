@@ -11,6 +11,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Safety & observability fixes
 
+- **The inbound mail no longer chooses who receives our reply.** The reply path picked its
+  recipient from `reply_to` before falling back to `from`. That was believed to be inert,
+  on the reasoning that the parser stores the header as `reply-to` with a hyphen so the
+  underscore key could never match. **The reasoning was wrong and we verified it against
+  the real parser.** Header names are lowercased but never normalised — the parser splits
+  on the first `:` and validates nothing — so a scammer who writes `Reply_To:` with an
+  underscore lands a literal `reply_to` key and picks who receives a deceptive mail sent
+  from the operator's mailbox. Combined with the safelist default below, that was a live
+  path from an inbound email to arbitrary outbound mail. The recipient is now taken from
+  `from` and nothing else. Note this also means a *legitimate* hyphenated `Reply-To:` is
+  not honoured — it never was, since only the underscore key was ever read, so nothing
+  changes for real traffic; it is recorded here as a known limit rather than left implicit.
+  **What this does not close**: a scammer mailing from infrastructure they own presents a
+  legitimate `from`, and replying to them is the product working as intended. And the
+  outbound `From:` — hence the SMTP envelope sender — is still derived from the inbound
+  `To:`/`Delivered-To:` headers, so a sender can still influence what address the relay
+  emits from. That is pre-existing, untouched here, and next in line.
+
+- **A reply addressed to ourselves is refused, and the check no longer trusts the attacker
+  to define "ourselves".** The first version of this guard compared the inbound `From:`
+  against a honeypot address read from the inbound `To:` — two values written by the same
+  hand. Review caught it and a proof-of-concept confirmed it: a `To:` naming a decoy first
+  (the parser keeps only the first address of a multi-address `To:`) walked straight past
+  it, and an empty value turned the guard off silently. The comparison is now against
+  addresses we know are ours — the mail account's own address and `HONEYPOT_EMAIL_ADDRESSES`
+  — and both bypasses are pinned by tests.
+
+  The first attempt at this **refused outright** when no identity was configured, on the
+  principle that a guard which cannot run must not pass. CI settled that: ten end-to-end
+  tests went red, because `HONEYPOT_EMAIL_ADDRESSES` is empty by default and the fixture
+  mail accounts carry no address — which is exactly what a fresh deployment looks like. It
+  was the wrong trade. The risk being prevented is a self-loop: contained, and requiring
+  the sender to spoof our own address. The cost was every reply the honeypot would ever
+  send. It now proceeds and logs an error naming the variable to set, and the inbound
+  `To:`/`Delivered-To:` are added as *extra* comparison candidates — never the only ones,
+  which is what the decoy defeated, and as extra entries they can only add refusals.
+
+- **Automated mail no longer gets an answer, and the rule is deliberately narrow.** Inbound
+  messages carrying RFC 3834 `Auto-Submitted` or `List-Id` are refused before the model is
+  called rather than after — an auto-responder ping-pong would otherwise have cost one
+  generation per round. `Precedence: bulk` was in this set during review and was **removed**:
+  it marks mass mail, and mass-mailed advance-fee fraud is precisely what this honeypot
+  exists to engage, so refusing on it would have silenced the product against its main
+  input. This does not overlap the existing ingest pre-filter, which matches on local-parts
+  and known domains and reads none of these headers.
+
+- **A refused reply answers 200 with `skipped`, not an error.** The intake workflow calls
+  reply generation inside a batch loop whose node has no error branch, so a non-2xx
+  response aborts the loop and the remaining IMAP items of that batch are never ingested.
+  A refusal is permanently unsatisfiable for that message; dropping a batch to report it
+  would be worse than the refusal. Refusals now carry a machine-readable `reason`
+  (`auto_submitted`, `self_addressed`, `no_sender`) via a dedicated exception type, so a
+  caller can tell a safety refusal from a failure.
+
+- **`SCAMBUSTER_SAFE_DOMAINS` no longer defaults to `*` in `.env.dist`, and the safelist now
+  reads addresses the way the sender does.** `*` disables the recipient check entirely and
+  was the *recommended* production value, on the reasoning that a honeypot only ever hears
+  from scammers. That reasoning does not survive contact with the send path, where the
+  recipient comes from the inbound mail. The `.env.dist` default is now empty; `*` remains
+  supported and is documented as a decision to make rather than a recommendation, because
+  neither `*` nor a strict allowlist is honestly defensible for a honeypot that answers
+  strangers by definition. The demo stack keeps `*` on purpose and says why — its
+  `MAILER_DSN` is `null://null`, so nothing leaves it. Separately, the check extracted the
+  domain with `strrchr` on the raw header while delivery parses with Symfony's `Address`:
+  `victim@target.example@gmail.com` read as `gmail.com` to the safelist and went to the
+  literal string on the wire. Both sides now parse identically. Note this also **loosens**
+  one case: `Bob <user@allowed.example>` used to fail the check (`strrchr` returned
+  `allowed.example>`, bracket included) and now passes, which is the intended reading.
+
+- **Duplicate headers resolve to the first occurrence, not the last.** RFC 5322 §3.6 allows
+  at most one `From`, `To`, `Reply-To`, `Subject`, `Message-ID` and friends, so a second is
+  malformed and usually forged. Reading the last made the backend disagree with MTAs and
+  every upstream parser about who sent the mail. **This is a behaviour change**: an ingest
+  test that pinned the old last-wins result was updated, not worked around. Which header
+  names were duplicated is recorded on the message as `x-scambuster-duplicate-headers`
+  rather than dropped — it is a forgery signal, not noise. That marker is **stripped from
+  inbound mail** before ours is written: review found a sender could otherwise set it and
+  manufacture a forgery signal on a mail with no duplicates at all. Headers RFC 5322
+  permits more than once, such as `Received`, keep last-wins as before.
+
+- **Known limit, stated rather than implied.** ScamBuster performs no SPF or DKIM
+  verification of its own: it reads a textual `Authentication-Results`, preferring
+  `ARC-Authentication-Results`, both of which travel inside the message and are therefore
+  written by the sender. None of the guards above depend on that value, deliberately. Any
+  future alignment check on this path is decorative until the edge MTA strips inbound
+  `Authentication-Results`/`ARC-*` headers and rewrites its own.
+
 - **Retention: the weekly job now reports what permanent erasure would remove, and the
   Article 30 record finally describes what actually runs.** An audit reported that GDPR
   retention did not execute. Verification found something narrower and more interesting:
