@@ -131,10 +131,16 @@ class TtpTaxonomyConsistencyTest extends TestCase
             foreach ($seed['external_refs'] as $ref) {
                 $this->assertArrayHasKey('source_name', $ref, "external_refs entry of '{$seed['code']}' missing 'source_name'");
                 $this->assertArrayHasKey('external_id', $ref, "external_refs entry of '{$seed['code']}' missing 'external_id'");
-                $this->assertSame(
-                    'mitre-attack',
+                // Deliberately widened when the F3 mapping shipped: the schema has
+                // always allowed both source names (taxonomy.schema.json), and the
+                // per-entry mapping exercise it asks for is now recorded in
+                // docs/standards-track.md. Any further source name is a public
+                // contract change and must be added here on purpose, never to make
+                // a red build go green.
+                $this->assertContains(
                     $ref['source_name'],
-                    "external_refs of '{$seed['code']}' must only carry mitre-attack references"
+                    ['mitre-attack', 'mitre-f3'],
+                    "external_refs of '{$seed['code']}' must only carry mitre-attack or mitre-f3 references"
                 );
                 $this->assertNotSame(
                     '',
@@ -183,8 +189,66 @@ class TtpTaxonomyConsistencyTest extends TestCase
             $this->migrationSeeds,
             TtpTaxonomySeed::ENTRIES,
             'TtpTaxonomySeed::ENTRIES is what the application generates artifacts from; it must be'
-            . ' byte-identical to the migration SEEDS, which is what production actually holds'
+            . ' byte-identical to the migration SEEDS. Note what that does NOT mean: the seed'
+            . ' migration inserts with ON CONFLICT (code) DO NOTHING, so on a database that already'
+            . ' ran it, editing SEEDS updates no row. Changing external_refs needs a data migration'
+            . ' as well, and testExternalRefsHaveABackfillMigration below is what keeps the two in step.'
         );
+    }
+
+    /**
+     * The seed migration inserts with ON CONFLICT (code) DO NOTHING, so on a database
+     * that already ran it, editing SEEDS changes no row. Everything downstream that
+     * matters — the STIX export, TAXII, the UI — reads external_refs from lkp_ttp,
+     * not from the seed. So a mapping change needs a data migration too, and without
+     * this test nothing would catch its absence: the fixtures build test databases
+     * straight from the seed, so the whole suite stays green while production keeps
+     * serving the old references.
+     *
+     * This asserts that the newest backfill migration writes exactly what the seed
+     * holds, for every code — including the codes whose refs are empty. Writing only
+     * the non-empty ones would leave a dropped reference in place forever.
+     */
+    public function testExternalRefsHaveABackfillMigration(): void
+    {
+        $backfills = glob(\dirname(__DIR__, 4) . '/migrations/Version*.php') ?: [];
+        $latest = null;
+
+        foreach ($backfills as $file) {
+            $body = file_get_contents($file);
+
+            if (\is_string($body) && str_contains($body, 'UPDATE lkp_ttp SET external_refs')) {
+                // The statements live inside single-quoted PHP strings, so every SQL
+                // quote is backslash-escaped in the source. Undo that to compare
+                // against the plain SQL the migration actually sends.
+                $latest = str_replace("\\'", "'", $body);
+            }
+        }
+
+        $this->assertNotNull(
+            $latest,
+            'TtpTaxonomySeed carries external_refs but no migration backfills them into lkp_ttp.'
+            . ' Production would keep the values from the original seed migration.'
+        );
+
+        foreach (TtpTaxonomySeed::ENTRIES as $entry) {
+            $json = json_encode($entry['external_refs'], JSON_THROW_ON_ERROR);
+            $expected = sprintf(
+                "UPDATE lkp_ttp SET external_refs = '%s'::jsonb WHERE code = '%s'",
+                $json,
+                $entry['code']
+            );
+
+            $this->assertStringContainsString(
+                $expected,
+                $latest,
+                sprintf(
+                    "The backfill migration does not write '%s' external_refs as the seed holds them."
+                    . ' Regenerate it from the committed artifact; every code must be written, empty ones included.',
+                    $entry['code']
+                )
+            );
+        }
     }
 
     public function testCanonicalSeedCodesHelperMatchesTheEntries(): void

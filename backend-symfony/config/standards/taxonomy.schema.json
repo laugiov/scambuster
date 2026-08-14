@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/laugiov/scambuster/blob/main/backend-symfony/config/standards/taxonomy.schema.json",
   "title": "ScamBuster TTP Taxonomy Artifact",
-  "description": "The machine-readable form of the ScamBuster scammer-side TTP taxonomy. Generated from the canonical seed by scambuster:ttp:taxonomy-export; never hand-edited. One file per taxonomy version.",
+  "description": "The machine-readable form of the ScamBuster scammer-side TTP taxonomy. Generated from the canonical seed by scambuster:ttp:taxonomy-export; never hand-edited. One file per taxonomy version; a published file is never rewritten.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,7 +15,7 @@
   ],
   "properties": {
     "taxonomy_version": {
-      "description": "Semantic version of the taxonomy. MAJOR = meaning change or deprecation of a code; MINOR = new codes or phases; PATCH = wording fixes that change no meaning. See docs/standards/taxonomy-versioning.md.",
+      "description": "Semantic version of the taxonomy. MAJOR = meaning change or deprecation of a code; MINOR = new codes, new phases, or newly recorded external mappings; PATCH = wording fixes that change no meaning. One file per version: a published file is never rewritten, so a consumer can pin it. See docs/standards-track.md.",
       "type": "string",
       "pattern": "^[0-9]+\\.[0-9]+$"
     },
@@ -95,7 +95,7 @@
           "items": { "type": "string", "minLength": 1 }
         },
         "external_refs": {
-          "description": "Mappings to external knowledge bases. Only sources with a per-entry, dated, recorded mapping check appear here (see docs/standards/f3-mapping.md). An absent reference means no verified mapping exists, never that one was omitted.",
+          "description": "Mappings to external knowledge bases. Only sources with a per-entry, dated, recorded mapping check appear here (see docs/standards-track.md). An absent reference means no verified mapping exists, never that one was omitted.",
           "type": "array",
           "items": { "$ref": "#/$defs/externalRef" }
         },
@@ -121,9 +121,10 @@
           "enum": ["mitre-attack", "mitre-f3"]
         },
         "external_id": {
-          "description": "The technique identifier in that knowledge base. The same id may legitimately appear under two source names: F3 references ATT&CK techniques where they apply to fraud, and the two are different knowledge bases.",
+          "description": "The technique identifier in that knowledge base. The same id may legitimately appear under two source names: F3 references ATT&CK techniques where they apply to fraud, and the two are different knowledge bases. Both catalogues share one shape (T1566, F1032, F1020.001), so a typo that would otherwise reach a consumer as a dead reference is rejected here.",
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "pattern": "^[FT][0-9]{4}(\\.[0-9]{3})?$"
         }
       }
     }

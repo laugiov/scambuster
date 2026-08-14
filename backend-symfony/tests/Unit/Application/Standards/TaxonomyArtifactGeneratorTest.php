@@ -25,7 +25,13 @@ use PHPUnit\Framework\TestCase;
  */
 final class TaxonomyArtifactGeneratorTest extends TestCase
 {
-    private const ARTIFACT_PATH = __DIR__ . '/../../../../config/standards/taxonomy-v1.0.json';
+    /**
+     * Derived from the current taxonomy version, never hard-coded: one file per
+     * version, and a published file is never rewritten. Pointing this at a fixed
+     * name would make the test compare a fresh generation against a frozen older
+     * artifact the moment the version is bumped.
+     */
+    private const ARTIFACT_DIR = __DIR__ . '/../../../../config/standards/';
 
     private TaxonomyArtifactGenerator $generator;
 
@@ -142,7 +148,7 @@ final class TaxonomyArtifactGeneratorTest extends TestCase
      */
     public function testTheCommittedArtifactMatchesAFreshGeneration(): void
     {
-        $committed = file_get_contents(self::ARTIFACT_PATH);
+        $committed = file_get_contents(self::ARTIFACT_DIR . TaxonomyArtifactGenerator::fileName());
 
         $this->assertIsString($committed, 'the taxonomy artifact must be committed');
         $this->assertSame(
@@ -154,7 +160,7 @@ final class TaxonomyArtifactGeneratorTest extends TestCase
 
     public function testCommittedArtifactIsValidUtf8Json(): void
     {
-        $committed = file_get_contents(self::ARTIFACT_PATH);
+        $committed = file_get_contents(self::ARTIFACT_DIR . TaxonomyArtifactGenerator::fileName());
 
         $this->assertIsString($committed);
         $decoded = json_decode($committed, true);
