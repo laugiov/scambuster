@@ -817,7 +817,13 @@ MAIL;
         $message = $messageRepo->find($data['msg_id']);
         $this->assertNotNull($message);
         $headers = $message->getHeaders();
-        $this->assertSame('reply2@foo.com', $headers['reply-to'] ?? null);
+        // First wins, not last. RFC 5322 §3.6 allows one Reply-To; a second is
+        // malformed and usually forged. MTAs read the first, so a backend that
+        // read the last would disagree with everything upstream about the mail
+        // it is looking at. This assertion used to expect `reply2@foo.com`.
+        $this->assertSame('reply1@foo.com', $headers['reply-to'] ?? null);
+        // The duplication is recorded rather than silently resolved.
+        $this->assertSame('reply-to', $headers['x-scambuster-duplicate-headers'] ?? null);
     }
 
     public function test_ingest_raw_with_multiple_to_cc_bcc(): void

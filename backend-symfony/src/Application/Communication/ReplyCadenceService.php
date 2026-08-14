@@ -10,6 +10,7 @@ use App\Domain\Communication\Message;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Mime\Address;
 use Symfony\Component\RateLimiter\RateLimiterFactory;
 
 /**
@@ -170,7 +171,9 @@ class ReplyCadenceService
     public function checkSafelist(string $email): bool
     {
         // Load safe domains from env var (comma-separated)
-        // Use "*" to allow ALL domains (production mode -- ScamBuster only receives from scammers)
+        // "*" disables the check entirely. It is supported, not recommended: the
+        // recipient comes from the inbound mail, so "*" lets an inbound message
+        // decide who receives mail from the operator mailbox. See .env.dist.
         // Use specific domains to restrict during testing
         /** @var string $envDomains */
         $envDomains = $_ENV['SCAMBUSTER_SAFE_DOMAINS'] ?? $_SERVER['SCAMBUSTER_SAFE_DOMAINS'] ?? '';
@@ -187,14 +190,39 @@ class ReplyCadenceService
             $safeDomains = array_merge($safeDomains, array_filter($extraDomains));
         }
 
-        // Extract domain - handle invalid emails gracefully
-        $atPos = strrchr($email, '@');
+        // Extract the domain the way the *sender* will, not the way a regex
+        // would. `strrchr($email, '@')` on the raw header disagrees with
+        // Symfony's Address parser on values a scammer controls:
+        // `victim@target.example@gmail.com` reads as `gmail.com` to strrchr
+        // (allowed) while the mail goes to the literal string. A safelist that
+        // parses differently from the sender is not a safelist.
+        try {
+            $address = Address::create($email)->getAddress();
+        } catch (\Throwable) {
+            // Not a parseable mailbox — `bad space@custom.org` and friends stop
+            // here. Nothing to allow.
+            return false;
+        }
+
+        // The one malformed shape Address::create lets through:
+        // `victim@target.example@gmail.com` parses, and `strrchr` would read it
+        // as `gmail.com`. More than one `@` means there is no single domain to
+        // reason about.
+        if (substr_count($address, '@') !== 1) {
+            return false;
+        }
+
+        $atPos = strrchr($address, '@');
 
         if ($atPos === false) {
             return false;
         }
 
         $domain = strtolower(substr($atPos, 1));
+
+        if ($domain === '') {
+            return false;
+        }
 
         return in_array($domain, $safeDomains, true);
     }

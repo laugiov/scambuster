@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\UI\Http\Communication;
 
+use App\Application\Communication\Exception\ReplyRefusedException;
 use App\Application\Communication\ReplyHandler;
 use App\Domain\LLM\Exception\LlmBudgetExceededException;
 use App\UI\Http\Dto\ReplyGenerateResponseDto;
@@ -105,6 +106,18 @@ final readonly class GenerateReplyController
             );
 
             return new JsonResponse($dto->toArray(), Response::HTTP_CREATED);
+        } catch (ReplyRefusedException $e) {
+            // Not an error: the message is one we must not answer (automated
+            // mail, self-addressed, no sender). Answered 200 rather than 4xx on
+            // purpose — the intake workflow calls this inside a batch loop whose
+            // node has no error branch, so a non-2xx aborts the loop and the
+            // remaining IMAP items of that batch are never ingested. Dropping a
+            // batch to report a refusal is worse than the refusal.
+            return new JsonResponse([
+                'skipped' => true,
+                'reason' => $e->getReason(),
+                'detail' => $e->getMessage(),
+            ], Response::HTTP_OK);
         } catch (LlmBudgetExceededException $e) {
             // LLM monthly budget exhausted. Return HTTP 503
             // with a Retry-After header pointing to the next month rollover

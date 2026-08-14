@@ -167,6 +167,70 @@ class ReplyCadenceServiceTest extends TestCase
         $this->assertFalse($service->checkSafelist('no-at-sign'));
     }
 
+    /**
+     * The safelist must read an address the way the sender does.
+     *
+     * `strrchr($email, '@')` on the raw header sees `gmail.com` in
+     * `victim@target.example@gmail.com` and allows it, while the mail goes to
+     * the literal string. A safelist that parses differently from the sender
+     * is not a safelist.
+     */
+    public function testCheckSafelistIsNotFooledByADoubleAtAddress(): void
+    {
+        $_ENV['SCAMBUSTER_SAFE_DOMAINS'] = 'gmail.com';
+
+        try {
+            $service = $this->buildService();
+
+            $this->assertTrue($service->checkSafelist('real@gmail.com'));
+            $this->assertFalse($service->checkSafelist('victim@target.example@gmail.com'));
+        } finally {
+            unset($_ENV['SCAMBUSTER_SAFE_DOMAINS']);
+        }
+    }
+
+    /**
+     * A bracketed address must be read on its mailbox, not on the raw string —
+     * `strrchr` would hand back `custom.org>` with the bracket attached.
+     */
+    public function testCheckSafelistReadsBracketedAddresses(): void
+    {
+        $_ENV['SCAMBUSTER_SAFE_DOMAINS'] = 'custom.org';
+
+        try {
+            $service = $this->buildService();
+
+            $this->assertTrue($service->checkSafelist('Bob <user@custom.org>'));
+            $this->assertTrue($service->checkSafelist('  Bob <user@custom.org>  '));
+            $this->assertFalse($service->checkSafelist('Bob <user@elsewhere.test>'));
+        } finally {
+            unset($_ENV['SCAMBUSTER_SAFE_DOMAINS']);
+        }
+    }
+
+    /**
+     * A single `@` is not enough to call something an address. An invalid
+     * mailbox on an allowed domain must still be refused — otherwise the
+     * safelist vouches for a string the sender cannot actually deliver to,
+     * and the disagreement with the sender is back.
+     */
+    public function testCheckSafelistRejectsInvalidMailboxOnAnAllowedDomain(): void
+    {
+        $_ENV['SCAMBUSTER_SAFE_DOMAINS'] = 'custom.org';
+
+        try {
+            $service = $this->buildService();
+
+            // Domains are compared case-insensitively; scammers mix case.
+            $this->assertTrue($service->checkSafelist('user@CUSTOM.ORG'));
+            $this->assertFalse($service->checkSafelist('bad space@custom.org'));
+            $this->assertFalse($service->checkSafelist('"quoted@weird@custom.org'));
+            $this->assertTrue($service->checkSafelist('good.name@custom.org'));
+        } finally {
+            unset($_ENV['SCAMBUSTER_SAFE_DOMAINS']);
+        }
+    }
+
     // ------------------------------------------------------------------ //
     //  checkRateLimits
     // ------------------------------------------------------------------ //
