@@ -48,6 +48,7 @@ final class Version2026073000000000 extends AbstractMigration
             'stimulus_affinity' => ['PASSIVE'],
             'external_refs' => [
                 ['source_name' => 'mitre-attack', 'external_id' => 'T1566'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1598'],
             ],
         ],
         [
@@ -63,6 +64,7 @@ final class Version2026073000000000 extends AbstractMigration
             'stimulus_affinity' => ['PASSIVE', 'UNKNOWN'],
             'external_refs' => [
                 ['source_name' => 'mitre-attack', 'external_id' => 'T1656'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1032'],
             ],
         ],
         [
@@ -78,6 +80,8 @@ final class Version2026073000000000 extends AbstractMigration
             'stimulus_affinity' => ['PASSIVE'],
             'external_refs' => [
                 ['source_name' => 'mitre-attack', 'external_id' => 'T1656'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1672'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1036'],
             ],
         ],
         [
@@ -94,6 +98,8 @@ final class Version2026073000000000 extends AbstractMigration
             'external_refs' => [
                 ['source_name' => 'mitre-attack', 'external_id' => 'T1566.001'],
                 ['source_name' => 'mitre-attack', 'external_id' => 'T1566.002'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1660'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1598'],
             ],
         ],
         [
@@ -107,7 +113,10 @@ final class Version2026073000000000 extends AbstractMigration
                 'See the court approval document',
             ],
             'stimulus_affinity' => ['DOCUMENT_REQUEST'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020.001'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1027'],
+            ],
         ],
         [
             'code' => 'SB-T006',
@@ -168,7 +177,9 @@ final class Version2026073000000000 extends AbstractMigration
                 'The bank director will write to you directly',
             ],
             'stimulus_affinity' => ['DIRECT_REQUEST', 'DOCUMENT_REQUEST'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1585'],
+            ],
         ],
         [
             'code' => 'SB-T011',
@@ -193,7 +204,10 @@ final class Version2026073000000000 extends AbstractMigration
                 'Pay the 2% insurance fee to activate the account',
             ],
             'stimulus_affinity' => ['PAYMENT_INITIATION', 'DIRECT_REQUEST'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1047'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1036'],
+            ],
         ],
         [
             'code' => 'SB-T013',
@@ -206,7 +220,10 @@ final class Version2026073000000000 extends AbstractMigration
                 'Western Union to the following receiver name',
             ],
             'stimulus_affinity' => ['PAYMENT_INITIATION', 'DIRECT_REQUEST'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1036'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1025'],
+            ],
         ],
         [
             'code' => 'SB-T014',
@@ -221,6 +238,8 @@ final class Version2026073000000000 extends AbstractMigration
             'stimulus_affinity' => ['DIRECT_REQUEST'],
             'external_refs' => [
                 ['source_name' => 'mitre-attack', 'external_id' => 'T1598'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1598'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1029'],
             ],
         ],
         [
@@ -233,7 +252,10 @@ final class Version2026073000000000 extends AbstractMigration
                 'See attached proof of our payment; return the excess via gift cards',
             ],
             'stimulus_affinity' => ['PAYMENT_INITIATION'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1014'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020.001'],
+            ],
         ],
         [
             'code' => 'SB-T016',
@@ -257,7 +279,10 @@ final class Version2026073000000000 extends AbstractMigration
                 'The offer expires tonight',
             ],
             'stimulus_affinity' => ['PASSIVE'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1598'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1036'],
+            ],
         ],
         [
             'code' => 'SB-T018',
@@ -281,7 +306,9 @@ final class Version2026073000000000 extends AbstractMigration
                 'An IMF clearance code is mandatory for international transfers',
             ],
             'stimulus_affinity' => ['DOCUMENT_REQUEST', 'PAYMENT_INITIATION'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020.001'],
+            ],
         ],
         [
             'code' => 'SB-T020',
@@ -319,7 +346,9 @@ final class Version2026073000000000 extends AbstractMigration
                 'Lawyers will only delay your payment',
             ],
             'stimulus_affinity' => ['DOCUMENT_REQUEST'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1036'],
+            ],
         ],
         [
             'code' => 'SB-T023',
@@ -332,7 +361,9 @@ final class Version2026073000000000 extends AbstractMigration
                 'Reply to my private email',
             ],
             'stimulus_affinity' => ['DIRECT_REQUEST', 'TRUST_BUILDING'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1598'],
+            ],
         ],
         [
             'code' => 'SB-T024',
@@ -382,7 +413,9 @@ final class Version2026073000000000 extends AbstractMigration
                 'See the attached dashboard screenshot with your profit',
             ],
             'stimulus_affinity' => ['PAYMENT_INITIATION', 'TRUST_BUILDING'],
-            'external_refs' => [],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020'],
+            ],
         ],
     ];
 

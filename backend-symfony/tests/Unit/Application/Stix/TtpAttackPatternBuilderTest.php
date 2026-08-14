@@ -122,9 +122,12 @@ final class TtpAttackPatternBuilderTest extends TestCase
         self::assertContains('https://attack.mitre.org/techniques/T1566/001/', $urls);
         self::assertContains('https://attack.mitre.org/techniques/T1566/002/', $urls);
 
-        // SB-T006 has no honest ATT&CK equivalent: the key is omitted entirely.
-        $t006 = $byId[$idGen->attackPatternId('SB-T006')];
-        self::assertArrayNotHasKey('external_references', $t006);
+        // A technique with no honest equivalent in either framework omits the key
+        // entirely. SB-T007 is one of the ten mapped ABSENTE against F3 v1.1 (see
+        // docs/standards-track.md); it used to be SB-T006, which now carries an F3
+        // reference.
+        $t007 = $byId[$idGen->attackPatternId('SB-T007')];
+        self::assertArrayNotHasKey('external_references', $t007);
     }
 
     /**
@@ -152,25 +155,62 @@ final class TtpAttackPatternBuilderTest extends TestCase
     }
 
     /**
-     * The canonical F3 technique URL format on ctid.mitre.org is not confirmed, and a
-     * guessed URL in a shared feed is worse than none: consumers follow it. The
-     * reference ships without a url key until the format is verified.
+     * F3 addresses every technique verbatim under one base, with no trailing slash
+     * and the dot kept on sub-techniques. Read from the pinned bundle, where all 123
+     * attack-patterns carry that url. The ATT&CK reshaping (dot to path segment,
+     * trailing slash) must not leak onto F3 ids.
      */
-    public function testMitreF3ReferencesCarryNoGuessedUrl(): void
+    /**
+     * The url lookup in buildExternalReferences is total: it reads SOURCE_URL_BASES
+     * directly, with no fallback. Allowing a source without giving it a base would
+     * build a url from an empty string — a malformed reference published to
+     * consumers, which is worse than shipping none. Adding a source means verifying
+     * its url format first, and this keeps the two constants from drifting apart.
+     */
+    public function testEveryAllowedSourceHasAUrlBase(): void
+    {
+        $reflection = new \ReflectionClass(TtpAttackPatternBuilder::class);
+        /** @var list<string> $allowed */
+        $allowed = $reflection->getConstant('ALLOWED_SOURCE_NAMES');
+        /** @var array<string, string> $bases */
+        $bases = $reflection->getConstant('SOURCE_URL_BASES');
+
+        foreach ($allowed as $source) {
+            self::assertArrayHasKey(
+                $source,
+                $bases,
+                sprintf(
+                    "'%s' is an allowed external reference source but has no verified URL base."
+                    . ' Verify its canonical url format against its own catalogue and add it to'
+                    . ' SOURCE_URL_BASES, or drop it from ALLOWED_SOURCE_NAMES.',
+                    $source
+                )
+            );
+        }
+    }
+
+    public function testMitreF3ReferencesCarryTheCanonicalCtidUrl(): void
     {
         $patterns = $this->builder->buildAttackPatterns([[
             'code' => 'SB-T001',
             'label' => 'x',
             'definition' => 'x',
             'phase' => 'hook',
-            'external_refs' => [['source_name' => 'mitre-f3', 'external_id' => 'F1020']],
+            'external_refs' => [
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020'],
+                ['source_name' => 'mitre-f3', 'external_id' => 'F1020.001'],
+                // An ATT&CK id re-used by F3 still gets the F3 url under mitre-f3.
+                ['source_name' => 'mitre-f3', 'external_id' => 'T1598'],
+            ],
         ]]);
 
-        /** @var list<array{source_name: string, external_id: string}> $refs */
+        /** @var list<array{source_name: string, external_id: string, url: string}> $refs */
         $refs = $patterns[0]['external_references'];
 
-        self::assertCount(1, $refs);
-        self::assertArrayNotHasKey('url', $refs[0]);
+        self::assertCount(3, $refs);
+        self::assertSame('https://ctid.mitre.org/fraud/techniques/F1020', $refs[0]['url']);
+        self::assertSame('https://ctid.mitre.org/fraud/techniques/F1020.001', $refs[1]['url']);
+        self::assertSame('https://ctid.mitre.org/fraud/techniques/T1598', $refs[2]['url']);
     }
 
     /**

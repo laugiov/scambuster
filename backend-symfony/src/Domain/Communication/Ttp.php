@@ -16,7 +16,7 @@ class Ttp
      * Version of the TTP taxonomy this entity models. Stamped on every
      * observation so rows stay interpretable across taxonomy revisions.
      */
-    public const TAXONOMY_VERSION = '1.0';
+    public const TAXONOMY_VERSION = '1.1';
 
     #[ORM\Id]
     #[ORM\Column(name: 'ttp_id', type: 'integer')]

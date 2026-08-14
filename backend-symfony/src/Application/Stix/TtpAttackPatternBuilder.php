@@ -40,7 +40,7 @@ final class TtpAttackPatternBuilder
     /**
      * External reference sources this project publishes. A taxonomy entry may only
      * carry references from a knowledge base whose mapping has been checked
-     * per-entry and recorded (docs/standards/f3-mapping.md); anything else is
+     * per-entry and recorded (docs/standards-track.md); anything else is
      * dropped before it reaches a consumer.
      *
      * @var list<string>
@@ -48,15 +48,29 @@ final class TtpAttackPatternBuilder
     private const ALLOWED_SOURCE_NAMES = ['mitre-attack', 'mitre-f3'];
 
     /**
-     * Canonical URL base per source, for the sources whose format has been verified
-     * against the live site. A source absent from this map emits its reference
-     * without a URL rather than with a guessed one.
+     * Canonical URL base per source, verified against that source's own catalogue.
+     *
+     * Every entry of {@see ALLOWED_SOURCE_NAMES} must have a base here: the lookup
+     * below is total, so a missing one would emit a malformed url built from an
+     * empty base, which is worse than no url at all. Adding a source means verifying
+     * its url format first. testEveryAllowedSourceHasAUrlBase enforces the pair.
      *
      * @var array<string, string>
      */
     private const SOURCE_URL_BASES = [
         'mitre-attack' => 'https://attack.mitre.org/techniques/',
+        'mitre-f3' => 'https://ctid.mitre.org/fraud/techniques/',
     ];
+
+    /**
+     * Sources that address a sub-technique as a path segment (T1566.001 ->
+     * T1566/001/) and end the url with a slash. ATT&CK does; F3 does not — it keeps
+     * the dot and has no trailing slash, for its own ids and for the 43 ATT&CK ids
+     * it re-uses alike.
+     *
+     * @var list<string>
+     */
+    private const ATTACK_STYLE_URLS = ['mitre-attack'];
 
     private const EXTENSION_SCHEMA_VERSION = '1.0';
 
@@ -232,10 +246,13 @@ final class TtpAttackPatternBuilder
      * dropped silently rather than published to consumers.
      *
      * A URL is attached only for sources whose canonical URL format has been
-     * verified against the live site ({@see SOURCE_URL_BASES}). MITRE F3 references
-     * are emitted without one: the canonical technique URL on ctid.mitre.org is not
-     * confirmed, and a guessed URL in a shared feed is worse than no URL at all,
-     * because consumers follow it.
+     * verified ({@see SOURCE_URL_BASES}). For F3 it was read straight out of the
+     * pinned bundle: all 123 attack-patterns carry
+     * https://ctid.mitre.org/fraud/techniques/<external_id>, with no exception and
+     * no trailing slash, including the 43 ATT&CK ids F3 re-uses. Emitting it matters
+     * beyond convenience: consumers key external references on the url first, so a
+     * reference without one does not merge with the same technique coming from the
+     * official F3 bundle. See docs/standards-track.md.
      *
      * @return list<array{source_name: string, external_id: string, url?: string}>|null
      */
@@ -264,12 +281,14 @@ final class TtpAttackPatternBuilder
                 'external_id' => $externalId,
             ];
 
-            $urlBase = self::SOURCE_URL_BASES[$sourceName] ?? null;
+            // Every allowed source has a verified url base, so this is a total lookup.
+            $urlBase = self::SOURCE_URL_BASES[$sourceName];
 
-            if ($urlBase !== null) {
-                // Sub-technique ids address as a path segment: T1566.001 -> T1566/001.
-                $reference['url'] = $urlBase . str_replace('.', '/', $externalId) . '/';
-            }
+            $reference['url'] = \in_array($sourceName, self::ATTACK_STYLE_URLS, true)
+                // Sub-technique ids address as a path segment: T1566.001 -> T1566/001/.
+                ? $urlBase . str_replace('.', '/', $externalId) . '/'
+                // F3 addresses every id verbatim: F1020.001 -> .../F1020.001, no trailing slash.
+                : $urlBase . $externalId;
 
             $refs[] = $reference;
         }
