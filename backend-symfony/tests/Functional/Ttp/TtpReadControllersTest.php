@@ -8,6 +8,7 @@ use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
+use App\Domain\Communication\Ttp;
 
 /**
  * Functional coverage of the TTP read endpoints: RBAC, 404 conventions, the
@@ -318,7 +319,7 @@ final class TtpReadControllersTest extends WebTestCase
         $this->assertResponseIsSuccessful();
 
         $data = $this->json();
-        self::assertSame('1.0', $data['taxonomy_version']);
+        self::assertSame(Ttp::TAXONOMY_VERSION, $data['taxonomy_version']);
 
         $ttps = $data['ttps'];
         self::assertCount(27, $ttps);
