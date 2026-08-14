@@ -212,6 +212,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the seed is idempotent (`ON CONFLICT DO NOTHING`) with `--purge` / `--dry-run`.
 - The whole module sits behind `TTP_EXTRACTION_ENABLED` (default on) and fails safe:
   disabled or failing extraction never affects ingestion, IOC extraction or replies.
+- **The taxonomy is now mapped to MITRE F3, and the references travel to consumers.**
+  Twenty-two of the twenty-seven techniques carried no external reference at all, and
+  `mitre-f3` was allowed by the schema while being used nowhere — a vocabulary that
+  connected to nothing. All 27 were mapped one by one against **F3 v1.1**, read from the
+  official STIX 2.1 bundle pinned by commit and SHA-256, with counts obtained by parsing
+  the file rather than from a summary. Two traps are worth recording for whoever repeats
+  this: **F3 v1.1 has 8 tactics, not the 7 of v1.0** (Defense Evasion was split into
+  Stealth and Defense Impairment, so a mapping built from the older list is wrong from the
+  start), and the repository publishes no releases or tags, with `f3-v1.json` and
+  `f3-v1.1.json` identical on `main` — only a commit SHA identifies a version. Every quoted
+  id is checked by script against the closed set of 123, which is what caught `T1566`,
+  `T1566.001`, `T1566.002` and `T1656`: they exist in ATT&CK but **are not in F3**. Only
+  `T1598` is in both. Outcome: 2 covered, 13 partially aligned, 12 with no F3 description
+  we could match. **The 12 empty `external_refs` record that no match was found, not that
+  F3 has a hole** — the corpus cannot establish the latter, and `docs/standards-track.md`
+  says so. The 15 with a match carry the canonical `ctid.mitre.org` url, which matters
+  beyond convenience: consumers key external references on the url first, so a reference
+  without one would not merge with the same technique arriving from the official F3 bundle.
+- **The backfill writes all 27 codes, and a test now stops the class of bug that made it
+  necessary.** The original seed migration inserts with `ON CONFLICT (code) DO NOTHING`, so
+  editing its constant updates nothing on a database that already ran it — while the STIX
+  export reads the table, not the seed. Changing a mapping therefore needs a data migration,
+  and CI could not see its absence, because fixtures build test databases from the seed and
+  never from migrations: the whole suite stayed green while production served the old
+  references. `testExternalRefsHaveABackfillMigration` closes that. The backfill writes
+  every code including the empty ones — writing only the non-empty ones would leave a
+  reference the mapping has since dropped in place forever, which is the same silent-drift
+  bug one level down. `taxonomy-v1.1.json` is published beside `taxonomy-v1.0.json`, which
+  is left untouched so anything that pinned it keeps working.
+- **What this is not.** The evidence base does not support proposing techniques to a
+  standards body, and the record says so plainly: 98.2% of TTP observations in the database
+  are synthetic (`demo-seed`), real extraction has produced 6 observations over 6 techniques
+  at one conversation each, and no technique reaches the five-conversation threshold that
+  was written down before the measurement. This is a vocabulary alignment, not a claim about
+  the world.
 
 ### Runtime safety guards
 - **PolicyGuard now rejects messenger-link and redirect-email pivots at send time** (`t.me` /
