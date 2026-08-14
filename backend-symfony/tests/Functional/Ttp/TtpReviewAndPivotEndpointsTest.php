@@ -391,10 +391,30 @@ final class TtpReviewAndPivotEndpointsTest extends WebTestCase
         self::assertSame('mitre-attack', $t001['external_refs'][0]['source_name']);
         self::assertSame('T1566', $t001['external_refs'][0]['external_id']);
 
-        // A taxonomy entry without ATT&CK mapping keeps an empty list.
+        // SB-T017 used to be the "no mapping" example. The F3 mapping gave it
+        // two references, so it now pins the opposite: that F3 references are
+        // actually served by this endpoint.
         $t017 = $byCode['SB-T017'];
         self::assertNotEmpty($t017['examples']);
-        self::assertSame([], $t017['external_refs']);
+        self::assertSame(
+            ['mitre-f3', 'mitre-f3'],
+            array_column($t017['external_refs'], 'source_name'),
+        );
+
+        // A taxonomy entry we found no mapping for keeps an empty list. That
+        // empty array records "we found no match", not "the catalogue has a
+        // hole" — see docs/standards-track.md. Chosen dynamically: naming a
+        // code here is what made this test wrong in the first place.
+        $unmapped = array_values(array_filter(
+            $ttps,
+            static fn (array $entry): bool => $entry['external_refs'] === [],
+        ));
+        self::assertNotSame(
+            [],
+            $unmapped,
+            'The taxonomy is expected to contain entries with no external mapping.',
+        );
+        self::assertNotEmpty($unmapped[0]['examples']);
     }
 
     // ─── message ordering tiebreak ─────────────────────────────────────

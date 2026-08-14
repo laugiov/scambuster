@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Safety & observability fixes
 
+- **A taxonomy test only passed on a database that had not run the F3 backfill.**
+  `TtpReviewAndPivotEndpointsTest` used `SB-T017` as its example of an entry with no external
+  mapping and asserted an empty `external_refs`. The F3 mapping gave that entry two
+  references, so on any fully migrated database the assertion was false. It survived because
+  CI does not run the `functional` suite (`phpunit.ci.xml` omits it — see the comment in
+  `.github/workflows/ci.yml`) and the local run that accompanied the F3 change was made
+  against a database that had not yet applied the backfill migration. The test now pins the
+  F3 references it actually serves, and picks its "no mapping" example dynamically instead of
+  naming a code that a future mapping can silently invalidate.
+
 - **The inbound mail no longer chooses who receives our reply.** The reply path picked its
   recipient from `reply_to` before falling back to `from`. That was believed to be inert,
   on the reasoning that the parser stores the header as `reply-to` with a hyphen so the
