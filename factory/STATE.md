@@ -3,8 +3,18 @@
 The setup runs in phases, each restartable from a fresh session. **This file is
 the memory**: chat history is not. Update it at the end of every phase.
 
-Branch: `claude/scambuster-factory-setup-5eind5`. Nothing is pushed during setup;
-no PR is opened.
+Branch: `claude/scambuster-factory-setup-5eind5`.
+
+**Current state**: the five setup phases ran on this branch with nothing pushed
+and no PR opened, as the setup required. That phase is over. The maintainer then
+pushed the branch and opened **PR #61** (`Pipeline: chore`), and work has
+continued on the branch since: the `chore` pipeline type itself was added *after*
+the PR was open, because PR #61 could not truthfully declare any of the three
+original types.
+
+So a session reading this file should expect an open PR, a branch that is pushed,
+and commits made after the PR was created. Push freely; do not merge — the
+factory never merges, and that rule outlives the setup.
 
 ## Phases
 
