@@ -53,6 +53,18 @@ Reasoning for 6–8 is in `factory/DISCOVERY.md` §5 under "Resolved". The
 sensitive-path list is now closed and becomes `escalation_triggers.sensitive_paths`
 in `factory/gates.yaml` in Phase 3.
 
+## PR #61 review fixes
+
+Applied on the branch after the PR was opened, at the maintainer's request:
+
+| # | Fix |
+|---|---|
+| 1 | The hardcoded DSN from `found-issues.md` issue 8 is registered as **`SEC-001`** in `factory/security-findings.md`, status `open`. Not fixed here — it goes through its own `/factory-security` run. |
+| 2 | Decision 12 now names its authority (`maintainer, PR #61 review`) like every other row. |
+| 3 | The branch-state paragraph at the top of this file was stale: it still claimed nothing was pushed and no PR was open. |
+| 4 | PR body confirmed: `Pipeline: chore` is on its own line at the top, and all 13 checks were green on head SHA `befb6b0` (12 success, `Traceability` correctly skipped for a chore PR). Nothing to change. |
+| 5 | `factory/benchmark/score.py` crashed with `UnicodeEncodeError` on a non-UTF-8 stream, and printed `?` for a defect with no `id`. Both fixed; verified in ASCII and UTF-8. |
+
 ## Setup complete
 
 All five phases are done. The factory has never been exercised on a real change:
