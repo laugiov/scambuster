@@ -17,13 +17,29 @@ rules below when a change touches them.
 only:
 
 - **`Domain/`** — entities, value objects, domain services, repository
-  *interfaces*, domain events. Depends on nothing but PHP and its own types. No
-  Doctrine, no Symfony HTTP, no HTTP client, no filesystem, no clock, no
-  randomness reached directly. Anything the domain needs from the outside world
-  is expressed as an interface it owns.
+  *interfaces*, domain events. No Symfony HTTP, no HTTP client, no filesystem, no
+  clock or randomness reached directly. Anything the domain needs from the
+  outside world is expressed as an interface it owns.
+
+  **On Doctrine, state the truth rather than the ideal**: 24 of the 73 files in
+  `src/Domain` carry Doctrine *mapping attributes* (`use Doctrine\ORM\Mapping as
+  ORM`, plus `Common\Collections` and `DBAL\Types\Types`). Domain entities are
+  annotated entities. This is a deliberate, dominant pattern in this codebase,
+  not an accident, and the constitution does not pretend otherwise.
+
+  What holds absolutely, and what the gates enforce: **the Domain never reaches
+  persistence at runtime.** No `EntityManager`, no repository implementation, no
+  `QueryBuilder`, no `createQuery`, no DBAL `Connection`, no `persist`/`flush`.
+  Verified: the only textual match in `src/Domain` is inside a comment. Mapping
+  metadata describes the shape of an entity; reaching the database is behaviour,
+  and behaviour is what belongs on the other side of the boundary.
 - **`Application/`** — use cases and orchestration. Depends on `Domain` and on
   the port interfaces under `Application/<Context>/Port/`. Never on
-  `Infrastructure`, never on `UI`.
+  `Infrastructure`, never on `UI`. Two files break this today —
+  `Scambaiting/PersonaPerformanceHandler.php` and `Scambaiting/PersonaOptimizer.php`
+  both import `App\Infrastructure\Doctrine\Repository\PersonaPerformanceStatsRepository`.
+  They are recorded as debt in `factory/found-issues.md`; the rule stands and the
+  gates block *new* violations.
 - **`Infrastructure/`** — the adapters. Implements the ports and the `Domain`
   repository interfaces (Doctrine, LLM providers, mailer, SIEM, audit). May
   depend on `Domain` and `Application`. Nothing depends on it at compile time,
@@ -67,10 +83,15 @@ and why `architecture-reviewer` reads every change that crosses a layer.
   present in the image, must state in the PR which algorithm the change resolves
   to and ship a test that asserts it.
 - **No reflection-based entity mutation.** Entities are constructed and changed
-  through their own constructors and methods — in application code, in fixtures
-  and in tests alike. `ReflectionProperty::setValue` on a domain object is a
-  blocking objection wherever it appears. A test that needs a state the domain
+  through their own constructors and methods. `ReflectionProperty::setValue` on a
+  domain object is a blocking objection in new code, wherever it appears —
+  application code, fixtures and tests alike. A test that needs a state the domain
   cannot express is telling you the domain is missing a method.
+  **Existing debt**: 8 test files already do this (50 `setValue` calls across
+  `src` and `tests`), mostly to age a `Conversation` or swap a collaborator. They
+  are recorded in `factory/found-issues.md`. The gates scan the diff against the
+  merge base, so the rule binds new code without blocking every PR on inherited
+  debt.
 - **No check-then-insert.** A read followed by a conditional write is a race, not
   a guard. Uniqueness is enforced by a database constraint and handled on
   violation, or serialized with `symfony/lock` (already a dependency). "It has

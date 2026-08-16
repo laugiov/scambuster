@@ -14,19 +14,13 @@ no PR is opened.
 | 1 | Spec Kit v0.16.4 installed and committed, constitution written, `factory/speckit-inventory.md` | done |
 | 2 | `docs/factory/pipelines.md`, `.claude/commands/factory-{feature,bug,security}.md`, `factory/security-findings.md` | done |
 | 3 | `factory/gates.yaml`, `.claude/agents/*`, objection format, iteration rules, `docs/factory/templates/gate-report.md`, `scripts/factory/adversarial-review.sh` | done |
-| 4 | `.github/workflows/factory-gates.yml`, security-scan tool decision, PR template fields | not started |
+| 4 | `.github/workflows/factory-gates.yml`, `.semgrep/`, patch-coverage + traceability scripts, PR template fields | done |
 | 5 | `factory/benchmark/`, `docs/factory/README.md` | not started |
 
 ## Forward references — documents that point at files not yet created
 
-Phase 3 resolved its own forward references: `factory/gates.yaml`,
-`docs/factory/templates/gate-report.md` and the four `.claude/agents/*` profiles
-now exist. What remains points at Phase 4:
-
-| Referenced by | Missing file | Lands in |
-|---|---|---|
-| `/factory-feature`, `pipelines.md`, `gates.yaml` | traceability job in `.github/workflows/factory-gates.yml` | Phase 4 |
-| all three commands, gate-report template | the `Pipeline:` line in the PR template | Phase 4 |
+None left. Phase 4 created `.github/workflows/factory-gates.yml` and the
+`Pipeline:` line in the PR template, which were the last two.
 
 ## Decisions taken (do not relitigate without saying so)
 
@@ -40,6 +34,9 @@ now exist. What remains points at Phase 4:
 | 6 | Frontend auth files are **sensitive**: `api/client.ts`, `store/authStore.ts`, `components/layout/AuthGuard.tsx`, `pages/Login.tsx` | delegated to Claude, phase 2 review |
 | 7 | `n8n/workflows/**` and `n8n/n8n-init.sh` are **sensitive** — out of pipeline scope, but a change there is an escalation trigger | delegated to Claude, phase 2 review |
 | 8 | **No separate "session" path.** Covered by `security.yaml`, `framework.yaml` and `src/UI/Http/Auth/**`, since the API firewalls are stateless JWT | delegated to Claude, phase 2 review |
+| 9 | Security scan tool is **Semgrep** (pinned 1.173.0, CI-only, no composer dependency), with repo-specific rules in `.semgrep/constitution.yml` that encode the constitution | maintainer, phase 4 |
+| 10 | `factory-gates.yml` does **not** duplicate tests/PHPStan/coverage; it waits for `ci.yml`'s jobs on the same SHA instead | maintainer, phase 4 |
+| 11 | Coverage gate is **patch coverage**, computed inside `ci.yml`'s existing test job; Codecov keeps the project-level base comparison | maintainer, phase 4 |
 
 Reasoning for 6–8 is in `factory/DISCOVERY.md` §5 under "Resolved". The
 sensitive-path list is now closed and becomes `escalation_triggers.sensitive_paths`
@@ -50,5 +47,12 @@ in `factory/gates.yaml` in Phase 3.
 - Whether `composer.json`'s `>=8.2` floor should be raised to match the 8.3
   runtime (`DISCOVERY.md` §6.1). An application change, out of scope for this
   setup.
-- The security-scan tool for Phase 4 (Semgrep vs Psalm taint mode vs something
-  else) — a proposal plus a decision is owed at the start of Phase 4.
+- **Two thresholds are uncalibrated and will need a first pass of real PRs**:
+  the patch-coverage minimum (80%, in `ci.yml`) and whether Semgrep's registry
+  rulesets (`p/php`, `p/security-audit`) can be made blocking. Neither could be
+  set from a checkout alone — the registry rulesets have never been run against
+  this codebase, so their finding count is unknown. The registry step is
+  `continue-on-error: true` until that triage happens.
+- The constitution's layering rules are enforced against the **diff**, not the
+  whole tree: 11 pre-existing violations are recorded in `factory/found-issues.md`
+  (issues 5, 6, 8). Fixing them is separate work, each through its own pipeline.

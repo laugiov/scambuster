@@ -69,6 +69,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Full history: the patch coverage gate at the end of this job diffs
+          # the PR against its base, which the default depth-1 checkout cannot do.
+          fetch-depth: 0
 
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
@@ -183,6 +187,28 @@ jobs:
           files: ./coverage-unit-integration.xml,./coverage-e2e.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      # Factory gate: are the lines this PR changed actually covered?
+      #
+      # Runs here rather than in factory-gates.yml because the clover reports
+      # already exist in this job — computing it elsewhere would mean running the
+      # whole suite with coverage a second time. Codecov keeps the project-level
+      # "not below base" comparison (target: auto); this answers the narrower and
+      # more actionable question of whether the PR adds untested code.
+      #
+      # The threshold has NOT been calibrated against this repository's history —
+      # it cannot be, from a checkout alone. Adjust it here after the first few
+      # PRs rather than letting a wrong number get worked around.
+      - name: Patch coverage gate
+        if: github.event_name == 'pull_request'
+        env:
+          FACTORY_PATCH_COVERAGE_MIN: '80'
+        run: |
+          python3 scripts/factory/patch-coverage.py \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --min "$FACTORY_PATCH_COVERAGE_MIN" \
+            coverage-unit-integration.xml coverage-e2e.xml
 
   security:
     name: Security Scanning

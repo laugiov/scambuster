@@ -1,0 +1,213 @@
+# Factory gates.
+#
+# This workflow carries ONLY what the factory adds. Tests, PHPStan, code style,
+# coverage, composer audit, Gitleaks, Trivy and the frontend gates already run in
+# ci.yml; duplicating six Docker-building jobs on every PR would double CI cost
+# for no extra signal. This workflow instead:
+#
+#   1. reads the machine-readable `Pipeline:` line from the PR body,
+#   2. checks requirement-id traceability (feature pipeline only),
+#   3. runs Semgrep, including rules that encode the constitution,
+#   4. waits for ci.yml's jobs on the same commit and fails if any of them did.
+#
+# So the full gate set is: this workflow AND ci.yml. Job 4 is what makes that
+# statement enforceable from one place.
+
+name: Factory gates
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Which pipeline is this PR? Everything downstream keys off the answer.
+  #
+  # The PR body is untrusted input written by whoever opened the PR. It is read
+  # through github-script and passed via outputs — never interpolated into a
+  # `run:` block, where `$(…)` or a backtick in a PR description would execute.
+  # ---------------------------------------------------------------------------
+  pipeline-type:
+    name: Pipeline type
+    runs-on: ubuntu-latest
+    outputs:
+      pipeline: ${{ steps.parse.outputs.pipeline }}
+      spec_dir: ${{ steps.parse.outputs.spec_dir }}
+    steps:
+      - id: parse
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+
+            const pipelineMatch = body.match(/^\s*Pipeline:\s*(feature|bug|security)\s*$/mi);
+            if (!pipelineMatch) {
+              core.setFailed(
+                'The PR body must contain a machine-readable pipeline line:\n' +
+                '  Pipeline: feature | bug | security\n' +
+                'It selects which gates apply. See .github/pull_request_template.md.'
+              );
+              return;
+            }
+            const pipeline = pipelineMatch[1].toLowerCase();
+
+            // Spec id is required for the feature pipeline and meaningless for
+            // the others, whose specification is a failing test.
+            const specMatch = body.match(/^\s*Spec:\s*(\S+)\s*$/mi);
+            if (pipeline === 'feature' && !specMatch) {
+              core.setFailed(
+                'The feature pipeline requires a spec line:\n' +
+                '  Spec: specs/<branch>/spec.md'
+              );
+              return;
+            }
+
+            core.setOutput('pipeline', pipeline);
+            core.setOutput('spec_dir', specMatch ? specMatch[1].replace(/\/spec\.md$/, '') : '');
+            core.info(`pipeline=${pipeline} spec_dir=${specMatch ? specMatch[1] : '(none)'}`);
+
+  # ---------------------------------------------------------------------------
+  # Traceability — feature pipeline only.
+  #
+  # Bug and security PRs have no spec: their specification is the failing test,
+  # so requiring requirement ids there would fail a correct change.
+  # ---------------------------------------------------------------------------
+  traceability:
+    name: Traceability (requirement ids)
+    runs-on: ubuntu-latest
+    needs: pipeline-type
+    if: needs.pipeline-type.outputs.pipeline == 'feature'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check that every task and commit cites a requirement id
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SPEC_DIR: ${{ needs.pipeline-type.outputs.spec_dir }}
+        run: |
+          python3 scripts/factory/check-traceability.py \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            ${SPEC_DIR:+--spec-dir "$SPEC_DIR"}
+
+  # ---------------------------------------------------------------------------
+  # Semgrep.
+  #
+  # Two configs, one blocking and one not:
+  #
+  #   .semgrep/constitution.yml  rules that encode this project's constitution.
+  #                              Blocking. No other tool knows these rules and
+  #                              the repository has no other enforcement of them.
+  #
+  #   p/php, p/security-audit    the registry rulesets. Reported, not blocking,
+  #                              until their findings on this codebase have been
+  #                              triaged once — see factory/found-issues.md.
+  #                              Flip `continue-on-error` when that is done.
+  #
+  # Both scan the diff against the merge base (`--baseline-commit`), so inherited
+  # violations do not fail every PR while new ones do. Without that, the two
+  # known Application->Infrastructure imports and the 8 test files using
+  # reflection would block day one, and the gate would be switched off within a
+  # week.
+  # ---------------------------------------------------------------------------
+  security-scan:
+    name: Security scan (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # Version-pinned pip install rather than a container image: the repo pins
+      # actions by SHA, and a container tag without a digest is a weaker pin than
+      # an exact version on PyPI. Same approach ci.yml takes for gitleaks.
+      - name: Install Semgrep
+        run: pipx install semgrep==1.173.0
+
+      - name: Constitution rules (blocking)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          semgrep scan \
+            --config .semgrep/constitution.yml \
+            --baseline-commit "$BASE_SHA" \
+            --error \
+            --metrics=off
+
+      - name: Registry rulesets (reported, not yet blocking)
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          semgrep scan \
+            --config p/php \
+            --config p/security-audit \
+            --baseline-commit "$BASE_SHA" \
+            --metrics=off
+
+  # ---------------------------------------------------------------------------
+  # ci.yml is where tests, static analysis, style and coverage live. This job
+  # makes "the factory gates passed" a single statement by waiting for those
+  # jobs on the same commit.
+  #
+  # It polls rather than using workflow_run, because workflow_run cannot read the
+  # PR body this workflow keys off. The poll is bounded; a timeout fails the job
+  # rather than passing on incomplete information.
+  # ---------------------------------------------------------------------------
+  ci-gates:
+    name: ci.yml gates on this commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const required = [
+              'Static Analysis (PHPStan)',
+              'Code Style (PHP-CS-Fixer)',
+              'Backend Tests (Unit + Integration)',
+              'Security Scanning',
+              'Frontend (TypeScript, Lint, Tests, Build)',
+            ];
+            const ref = context.payload.pull_request.head.sha;
+            const deadline = Date.now() + 40 * 60 * 1000;
+            const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+            while (Date.now() < deadline) {
+              const { data } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                per_page: 100,
+              });
+              const byName = new Map(data.check_runs.map((c) => [c.name, c]));
+
+              const failed = required.filter(
+                (n) => byName.get(n)?.status === 'completed' &&
+                       !['success', 'skipped'].includes(byName.get(n).conclusion)
+              );
+              if (failed.length) {
+                core.setFailed(`ci.yml jobs failed on ${ref.slice(0, 12)}: ${failed.join(', ')}`);
+                return;
+              }
+
+              const pending = required.filter((n) => byName.get(n)?.status !== 'completed');
+              if (!pending.length) {
+                core.info(`All ci.yml gates green on ${ref.slice(0, 12)}.`);
+                return;
+              }
+              core.info(`waiting on: ${pending.join(', ')}`);
+              await wait(30000);
+            }
+            core.setFailed(
+              'Timed out waiting for ci.yml. Treat this as "the gates did not run", ' +
+              'not as "the gates passed".'
+            );
