@@ -15,7 +15,7 @@ no PR is opened.
 | 2 | `docs/factory/pipelines.md`, `.claude/commands/factory-{feature,bug,security}.md`, `factory/security-findings.md` | done |
 | 3 | `factory/gates.yaml`, `.claude/agents/*`, objection format, iteration rules, `docs/factory/templates/gate-report.md`, `scripts/factory/adversarial-review.sh` | done |
 | 4 | `.github/workflows/factory-gates.yml`, `.semgrep/`, patch-coverage + traceability scripts, PR template fields | done |
-| 5 | `factory/benchmark/`, `docs/factory/README.md` | not started |
+| 5 | `factory/benchmark/`, `docs/factory/README.md` | done |
 
 ## Forward references — documents that point at files not yet created
 
@@ -41,6 +41,18 @@ None left. Phase 4 created `.github/workflows/factory-gates.yml` and the
 Reasoning for 6–8 is in `factory/DISCOVERY.md` §5 under "Resolved". The
 sensitive-path list is now closed and becomes `escalation_triggers.sensitive_paths`
 in `factory/gates.yaml` in Phase 3.
+
+## Setup complete
+
+All five phases are done. The factory has never been exercised on a real change:
+every pipeline, gate and reviewer profile is untested against actual work, and no
+benchmark has been run — that is deliberate, since the benchmark must be run by
+the maintainer with defects they seeded themselves.
+
+Nothing in this setup ran the repository's own gates either: this environment has
+no Docker daemon, so `make test`, `make stan` and the style check could not
+execute here. Semgrep is the one gate that was actually run, and its rules are
+verified against the real codebase (27 findings across 11 sites).
 
 ## Still open — not blocking
 

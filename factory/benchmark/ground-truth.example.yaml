@@ -1,0 +1,63 @@
+# Ground-truth template for a factory benchmark run.
+#
+# ⚠  DO NOT KEEP A REAL GROUND-TRUTH FILE INSIDE THIS REPOSITORY.
+#
+# This file is the template — it contains no real defects and is safe to commit.
+# The real one, listing the defects you actually seeded, must live in a directory
+# OUTSIDE the worktree. A pipeline agent explores the filesystem; anything inside
+# the worktree can be read, and .gitignore does not hide a file from a process
+# that lists a directory. An agent that reads the answer key produces a perfect
+# score and tells you nothing.
+#
+#   ~/scambuster-benchmarks/run-2026-08-16.yaml     good
+#   ./factory/benchmark/ground-truth.yaml           useless, even gitignored
+#
+# See README.md for the protocol.
+
+run:
+  id: example-run
+  date: 2026-08-16
+  # Which artifact you injected defects into, and which pipeline stage should
+  # have caught them. Recorded so a low score can be read as "the reviewers
+  # missed it" rather than "the defect was never reachable at that stage".
+  artifact: specs/042-persona-mirror/spec.md
+  stage: G1
+  notes: >-
+    Seeded by hand before starting the run. The factory session was fresh and had
+    no access to this file.
+
+defects:
+
+  - id: D-001
+    # The requirement the defect was injected INTO. This is the join key: a
+    # defect counts as detected only when a BLOCKING objection cites this id.
+    requirement_id: FR-003
+    # Where in the artifact, precisely enough to re-find it.
+    location: "spec.md, Functional Requirements, FR-003, second sentence"
+    # What kind of flaw. Free text, but keep a small vocabulary across runs so
+    # results are comparable: ambiguity, missing-failure-mode, contradiction,
+    # untestable-criterion, missing-authorization, unsafe-default, scope-creep.
+    defect_type: missing-authorization
+    # blocker | major | minor — your judgement of how bad it would be if shipped.
+    severity: blocker
+    description: >-
+      FR-003 says an analyst can update a persona but never states which role is
+      required, so any authenticated user would pass a literal reading.
+
+  - id: D-002
+    requirement_id: SC-002
+    location: "spec.md, Success Criteria, SC-002"
+    defect_type: untestable-criterion
+    severity: minor
+    description: >-
+      SC-002 claims the screen feels responsive. Nothing measurable, so no task
+      can ever verify it.
+
+  - id: D-003
+    requirement_id: FR-007
+    location: "spec.md, Functional Requirements, FR-007"
+    defect_type: contradiction
+    severity: major
+    description: >-
+      FR-007 requires personas to be deletable; FR-002 requires every conversation
+      to keep a permanent link to its persona. Both cannot hold.
