@@ -47,6 +47,34 @@ OBJECTION_RE = re.compile(r"^(BLOCKING|ADVISORY)\s*;\s*([^;]+?)\s*;\s*(.+)$")
 REQUIREMENT_ID_RE = re.compile(r"^(?:FR|SC)-\d{3}$")
 
 
+def _encodable(text: str, stream) -> bool:
+    encoding = getattr(stream, "encoding", None) or ""
+    try:
+        text.encode(encoding)
+        return True
+    except (LookupError, UnicodeEncodeError, TypeError):
+        return False
+
+
+# The report used box-drawing and warning glyphs unconditionally. On a terminal
+# whose encoding cannot represent them — LANG=C, a bare CI shell, a Windows code
+# page — printing raised UnicodeEncodeError and killed the run mid-table, so the
+# benchmark produced one row and a traceback instead of a score. Degrade to ASCII
+# rather than lose the result.
+BRANCH = "└─" if _encodable("└─", sys.stdout) else "->"
+WARN = "⚠ " if _encodable("⚠", sys.stderr) else "!!"
+
+# The two constants above keep the table readable, but they are not enough on
+# their own: the prose in this script is full of em dashes, and any one of them
+# crashes the run just as effectively as a box-drawing character. Rather than
+# hunt every non-ASCII character in every message, make the streams tolerant —
+# an unrepresentable character becomes "?" and the run finishes. Losing one
+# dash beats losing the score.
+for _stream in (sys.stdout, sys.stderr):
+    if not _encodable("—", _stream) and hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(errors="replace")
+
+
 def repo_root() -> Path:
     """The repository this script belongs to, independent of the caller's cwd."""
     here = Path(__file__).resolve()
@@ -128,7 +156,7 @@ def main() -> int:
     # which is exactly the case where a reassuring score is most misleading.
     if is_inside_repo(args.ground_truth):
         print(
-            "\n⚠  WARNING: the ground-truth file is inside the worktree. A pipeline "
+            f"\n{WARN} WARNING: the ground-truth file is inside the worktree. A pipeline "
             "agent exploring the filesystem could have read it, so this score is "
             "not evidence of anything. Move it to a directory outside the repo and "
             "re-run the benchmark.\n",
@@ -147,7 +175,13 @@ def main() -> int:
     # key was malformed". Fail loudly instead.
     malformed = []
     for i, defect in enumerate(defects, 1):
-        did = defect.get("id", f"#{i}")
+        did = str(defect.get("id", "")).strip()
+        if not did:
+            # Previously this fell back to "?" in the DEFECT column, which made a
+            # malformed entry look like a scored one and left no way to tell which
+            # defect the row referred to.
+            malformed.append(f"entry #{i}: no `id` field")
+            did = f"#{i}"
         req = str(defect.get("requirement_id", "")).strip()
         if not req:
             malformed.append(f"{did}: no `requirement_id` field (check the spelling)")
@@ -155,8 +189,9 @@ def main() -> int:
             malformed.append(f"{did}: requirement_id {req!r} is not an FR-### or SC-### id")
     if malformed:
         print(
-            "error: the ground truth cannot be scored as written. The requirement id "
-            "is the join key — without it a defect can never be detected:",
+            "error: the ground truth cannot be scored as written. Every defect needs "
+            "an `id` to be reported against, and a `requirement_id` — the join key, "
+            "without which a defect can never be detected:",
             file=sys.stderr,
         )
         for problem in malformed:
@@ -183,7 +218,7 @@ def main() -> int:
             verdict, evidence = "MISSED", ""
         results.append(
             {
-                "defect_id": defect.get("id", "?"),
+                "defect_id": str(defect["id"]).strip(),  # validated above
                 "requirement_id": req,
                 "defect_type": defect.get("defect_type", ""),
                 "severity": defect.get("severity", ""),
@@ -226,7 +261,7 @@ def main() -> int:
     for r in results:
         print(f"{r['defect_id'].ljust(width)}  {r['requirement_id']:<8} {r['verdict']:<9} {r['defect_type']}")
         if r["evidence"]:
-            print(f"{' ' * (width + 2)}  └─ {r['evidence'][:70]}")
+            print(f"{' ' * (width + 2)}  {BRANCH} {r['evidence'][:70]}")
 
     print(f"\ndetected {counts['DETECTED']}/{total}   partial {counts['PARTIAL']}   missed {counts['MISSED']}")
     print(f"detection rate: {rate:.1f}%")
