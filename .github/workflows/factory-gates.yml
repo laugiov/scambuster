@@ -59,12 +59,23 @@ jobs:
 
             // Spec id is required for the feature pipeline and meaningless for
             // the others, whose specification is a failing test.
-            const specMatch = body.match(/^\s*Spec:\s*(\S+)\s*$/mi);
+            // Charset-restricted on purpose. This value becomes a command-line
+            // argument downstream, so an unconstrained match would let a PR
+            // description inject flags ("Spec: x --min 0"). No shell execution is
+            // possible either way — the value travels through env, never through
+            // string interpolation — but an injected argument is still a way to
+            // weaken a gate from outside.
+            const specMatch = body.match(/^\s*Spec:\s*(specs\/[A-Za-z0-9._\/-]+)\s*$/mi);
             if (pipeline === 'feature' && !specMatch) {
               core.setFailed(
-                'The feature pipeline requires a spec line:\n' +
-                '  Spec: specs/<branch>/spec.md'
+                'The feature pipeline requires a spec line naming a path under specs/:\n' +
+                '  Spec: specs/<branch>/spec.md\n' +
+                'Allowed characters: letters, digits, dot, underscore, dash, slash.'
               );
+              return;
+            }
+            if (specMatch && specMatch[1].includes('..')) {
+              core.setFailed('Spec path must not contain "..".');
               return;
             }
 
@@ -170,44 +181,71 @@ jobs:
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const required = [
+            // Two rules, because either one alone fails in a different direction.
+            //
+            // 1. ANY check run on this commit that is not one of ours must not
+            //    have failed. An allowlist of names alone would silently stop
+            //    covering a job the day it is renamed, and it cannot express the
+            //    Trivy matrix, whose check-run names carry a generated suffix
+            //    ("… (dev, infra/docker/backend/Dockerfile)").
+            //
+            // 2. A named minimum set must be present and green. "Nothing failed"
+            //    passes vacuously when ci.yml never ran at all, so presence has
+            //    to be asserted separately. Names here are the non-matrix jobs,
+            //    verified against ci.yml.
+            const REQUIRED_PRESENT = [
               'Static Analysis (PHPStan)',
               'Code Style (PHP-CS-Fixer)',
               'Backend Tests (Unit + Integration)',
               'Security Scanning',
               'Frontend (TypeScript, Lint, Tests, Build)',
             ];
+            // This workflow's own jobs, which must not be waited on — job 4
+            // waiting for job 4 would deadlock until the timeout.
+            const OURS = [
+              'Pipeline type',
+              'Traceability (requirement ids)',
+              'Security scan (Semgrep)',
+              'ci.yml gates on this commit',
+            ];
+
             const ref = context.payload.pull_request.head.sha;
             const deadline = Date.now() + 40 * 60 * 1000;
             const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
             while (Date.now() < deadline) {
-              const { data } = await github.rest.checks.listForRef({
+              const runs = await github.paginate(github.rest.checks.listForRef, {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 ref,
                 per_page: 100,
               });
-              const byName = new Map(data.check_runs.map((c) => [c.name, c]));
+              const others = runs.filter((c) => !OURS.includes(c.name));
 
-              const failed = required.filter(
-                (n) => byName.get(n)?.status === 'completed' &&
-                       !['success', 'skipped'].includes(byName.get(n).conclusion)
+              const failed = others.filter(
+                (c) => c.status === 'completed' &&
+                       !['success', 'skipped', 'neutral'].includes(c.conclusion)
               );
               if (failed.length) {
-                core.setFailed(`ci.yml jobs failed on ${ref.slice(0, 12)}: ${failed.join(', ')}`);
+                core.setFailed(
+                  `Failed on ${ref.slice(0, 12)}: ` +
+                  failed.map((c) => `${c.name} (${c.conclusion})`).join(', ')
+                );
                 return;
               }
 
-              const pending = required.filter((n) => byName.get(n)?.status !== 'completed');
-              if (!pending.length) {
-                core.info(`All ci.yml gates green on ${ref.slice(0, 12)}.`);
+              const names = new Set(others.map((c) => c.name));
+              const missing = REQUIRED_PRESENT.filter((n) => !names.has(n));
+              const pending = others.filter((c) => c.status !== 'completed').map((c) => c.name);
+
+              if (!missing.length && !pending.length) {
+                core.info(`All ${others.length} checks green on ${ref.slice(0, 12)}.`);
                 return;
               }
-              core.info(`waiting on: ${pending.join(', ')}`);
+              core.info(`waiting on: ${[...missing, ...pending].join(', ') || '(none)'}`);
               await wait(30000);
             }
             core.setFailed(
-              'Timed out waiting for ci.yml. Treat this as "the gates did not run", ' +
-              'not as "the gates passed".'
+              'Timed out waiting for the other checks. Treat this as "the gates did ' +
+              'not run", not as "the gates passed".'
             );

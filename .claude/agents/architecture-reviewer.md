@@ -27,12 +27,23 @@ no migration. Do not ask to be.
 
 **The dependency direction, which is the whole rule:**
 
-- `Domain` depends on nothing but PHP and its own types. No Doctrine, no Symfony
-  HTTP, no HTTP client, no filesystem, no clock or randomness reached directly.
-  A `use Doctrine\…` in `src/Domain/` is the clearest objection you will ever
-  write.
+- `Domain` holds no Symfony HTTP, no HTTP client, no filesystem, no clock or
+  randomness reached directly.
+  **On Doctrine, know what this codebase actually is before you object**: 24 of
+  the 73 files in `src/Domain` carry Doctrine *mapping attributes*. Annotated
+  entities are the dominant, deliberate pattern here, and objecting to
+  `use Doctrine\ORM\Mapping as ORM` in a domain entity is objecting to the
+  architecture the project chose — raise that as an advisory about the pattern,
+  not as a violation of it. What is a real violation, and what you should hunt
+  for, is the Domain **reaching persistence at runtime**: an `EntityManager`, a
+  `Connection`, a `QueryBuilder`, a `persist`/`flush`, or a `use App\Infrastructure\`.
+  Mapping metadata describes an entity's shape; querying the database is
+  behaviour, and behaviour belongs on the other side of the boundary.
 - `Application` depends on `Domain` and on its own `Port` interfaces. Never on
-  `Infrastructure`, never on `UI`.
+  `Infrastructure`, never on `UI`. Two files break this today
+  (`Application/Scambaiting/PersonaPerformanceHandler.php`, `PersonaOptimizer.php`);
+  they are known debt in `factory/found-issues.md`, so do not re-report them —
+  report anything new.
 - `Infrastructure` implements ports and repository interfaces. Nothing depends on
   it at compile time — only through the container.
 - `UI` validates input, calls one `Application` service, shapes the response. No

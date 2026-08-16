@@ -142,9 +142,11 @@ gates check; it is not aspirational.
    is what CI runs. Note that **`make cs-fixer` is the fixer, not the check** — it
    runs without `--dry-run` and rewrites files. Run it, then confirm it left the
    worktree unchanged.
-4. `composer audit` reports no new advisory; Gitleaks is clean. Both fail the CI
-   `security` job. Whether that job is *required* to merge is a branch-protection
-   setting outside this repository's files.
+4. `composer audit` reports no new advisory; Gitleaks is clean; Trivy reports no
+   fixable CRITICAL/HIGH; the Semgrep rules in `.semgrep/constitution.yml`
+   introduce no new violation against the merge base. Whether these jobs are
+   *required* to merge is a branch-protection setting outside this repository's
+   files.
 5. If `frontend-react/` was touched: `npm run typecheck`, `npm run lint`,
    `npm run test` and `npm run build` all pass.
 6. Coverage is not below the base branch.
