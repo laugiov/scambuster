@@ -44,6 +44,34 @@ except ImportError:
     sys.exit(2)
 
 OBJECTION_RE = re.compile(r"^(BLOCKING|ADVISORY)\s*;\s*([^;]+?)\s*;\s*(.+)$")
+REQUIREMENT_ID_RE = re.compile(r"^(?:FR|SC)-\d{3}$")
+
+
+def repo_root() -> Path:
+    """The repository this script belongs to, independent of the caller's cwd."""
+    here = Path(__file__).resolve()
+    try:
+        import subprocess
+
+        out = subprocess.run(
+            ["git", "-C", str(here.parent), "rev-parse", "--show-toplevel"],
+            check=True, capture_output=True, text=True,
+        ).stdout.strip()
+        if out:
+            return Path(out).resolve()
+    except Exception:
+        pass
+    # factory/benchmark/score.py -> repo root is two levels up.
+    return here.parent.parent.parent
+
+
+def is_inside_repo(path: Path) -> bool:
+    root = repo_root()
+    try:
+        path.resolve().relative_to(root)
+        return True
+    except ValueError:
+        return False
 
 
 def load_objections(paths: list[Path]) -> list[tuple[str, str, str, Path]]:
@@ -92,11 +120,13 @@ def main() -> int:
     # A ground truth inside the worktree means the run is not trustworthy: an
     # agent could have read it. Say so loudly rather than printing a score that
     # looks fine.
-    try:
-        inside = args.ground_truth.resolve().is_relative_to(Path.cwd().resolve())
-    except AttributeError:  # Python < 3.9
-        inside = str(args.ground_truth.resolve()).startswith(str(Path.cwd().resolve()))
-    if inside:
+    #
+    # The boundary is the repository root, derived from THIS FILE's location —
+    # not from the current directory. Using cwd meant the check silently did not
+    # fire when the script was invoked from elsewhere, e.g.
+    #   cd /tmp && python3 /repo/factory/benchmark/score.py --ground-truth /repo/...
+    # which is exactly the case where a reassuring score is most misleading.
+    if is_inside_repo(args.ground_truth):
         print(
             "\n⚠  WARNING: the ground-truth file is inside the worktree. A pipeline "
             "agent exploring the filesystem could have read it, so this score is "
@@ -109,6 +139,28 @@ def main() -> int:
     defects = data.get("defects") or []
     if not defects:
         print("error: ground truth lists no defects", file=sys.stderr)
+        return 2
+
+    # Validate the ground truth before scoring anything. A misspelled field name
+    # would otherwise mark every defect MISSED and print "detection rate 0.0%",
+    # which reads as "the factory caught nothing" when the truth is "the answer
+    # key was malformed". Fail loudly instead.
+    malformed = []
+    for i, defect in enumerate(defects, 1):
+        did = defect.get("id", f"#{i}")
+        req = str(defect.get("requirement_id", "")).strip()
+        if not req:
+            malformed.append(f"{did}: no `requirement_id` field (check the spelling)")
+        elif not REQUIREMENT_ID_RE.match(req):
+            malformed.append(f"{did}: requirement_id {req!r} is not an FR-### or SC-### id")
+    if malformed:
+        print(
+            "error: the ground truth cannot be scored as written. The requirement id "
+            "is the join key — without it a defect can never be detected:",
+            file=sys.stderr,
+        )
+        for problem in malformed:
+            print(f"  - {problem}", file=sys.stderr)
         return 2
 
     objections = load_objections(args.reports)

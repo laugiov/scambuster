@@ -55,7 +55,10 @@ defect type, severity.
 
 The **requirement id is the join key**. A defect injected somewhere with no
 requirement id cannot be scored — the whole detection rule is "did a blocking
-objection cite this id".
+objection cite this id". `score.py` therefore refuses to run unless every defect
+carries a `requirement_id` in `FR-###` or `SC-###` form, rather than scoring a
+malformed key as a string of misses and printing a 0% rate that reads like a
+factory failure.
 
 **4. Run the stage in a fresh session.** No mention of the benchmark, no hint
 that defects were seeded. Let the reviewers and gates do their normal work and
