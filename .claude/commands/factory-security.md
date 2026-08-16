@@ -82,7 +82,8 @@ together and to decide which variants get their own run, in what order. **Stop.*
 
 ## Exit criteria
 
-The exploit test passes, `make test` is green, `make stan` is clean,
-`make cs-fixer` produces no diff, every variant carries a `SEC-###` ID in
+The exploit test passes, `make test` is green, `make stan` is clean, style is
+clean (`make cs-fixer` **rewrites files** — clean means it changed nothing and
+CI's `--dry-run` agrees), every variant carries a `SEC-###` ID in
 `factory/security-findings.md`, and both human gates have a gate report the
 maintainer signed off.

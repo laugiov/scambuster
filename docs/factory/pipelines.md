@@ -32,8 +32,10 @@ is not.
    `factory/gates.yaml` stops the pipeline until the maintainer answers. In the
    security pipeline this holds regardless of any configuration.
 6. **Definition of done is the constitution's, not the pipeline's.** A pipeline
-   step that reports success without `make test`, `make stan` and `make cs-fixer`
-   green has reported nothing.
+   step that reports success without having actually run `make test`, `make stan`
+   and the style check has reported nothing. Careful with the last one:
+   **`make cs-fixer` rewrites files** — it has no `--dry-run`. The check is that
+   it leaves the worktree unchanged; CI runs `--dry-run --diff` instead.
 7. **Nothing outside the change's scope gets touched.** A defect noticed in
    passing goes to `factory/found-issues.md`; it does not get fixed in the same
    PR.
@@ -82,7 +84,7 @@ Full Spec Kit flow. Two human gates.
 5. `/speckit-tasks` — the task list. **Every task cites the requirement IDs it
    covers**, written into the task line itself: `T012 [US1] (FR-003, FR-004) …`.
    The Spec Kit template does not do this by default; the factory requires it and
-   CI enforces it.
+   the traceability job in `.github/workflows/factory-gates.yml` enforces it.
 6. `/speckit-analyze` — cross-artifact consistency. Any inconsistency it reports
    is resolved before implementation starts, not noted and carried.
 7. `/speckit-implement` — one task at a time, one commit per task, each commit
@@ -119,7 +121,7 @@ failing test, committed → fix → green
    analysis is clean.
 
 **Exit criteria**: the reproduction test passes, `make test` is green,
-`make stan` is clean, `make cs-fixer` produces no diff. The PR shows both
+`make stan` is clean, style is clean. The PR shows both
 commits — red then green — so a reviewer can see the test was written first.
 
 **Escalation still applies.** If the fix touches a sensitive path, adds a

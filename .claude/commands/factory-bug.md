@@ -51,7 +51,9 @@ restart under `/factory-feature`.
 - the reproduction test passes;
 - `make test` is green (unit + integration + functional);
 - `make stan` is clean at level 8 over `src`;
-- `make cs-fixer` produces no diff;
+- style is clean — run `make cs-fixer`, then check `git status`: it **rewrites
+  files** rather than reporting, so "clean" means it changed nothing. If it did
+  change something, commit that separately from the fix;
 - if `frontend-react/` was touched: typecheck, lint, test, build.
 
 Report what you ran and what it printed. "Should pass" is not a result.

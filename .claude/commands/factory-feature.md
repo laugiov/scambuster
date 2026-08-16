@@ -55,8 +55,9 @@ requirement IDs it covers:
 - [ ] T012 [P] [US1] (FR-003, FR-004) Add PersonaSelector port in src/Application/…
 ```
 
-The Spec Kit template does not add these; the factory requires them and CI fails
-the PR without them. A task covering no requirement is either scope nobody asked
+The Spec Kit template does not add these; the factory requires them, and the
+traceability job in `.github/workflows/factory-gates.yml` fails the PR without
+them. A task covering no requirement is either scope nobody asked
 for or a missing requirement — resolve which, do not leave it uncited.
 
 **6. Analyze** — run `/speckit-analyze`. Resolve every inconsistency it reports
@@ -83,6 +84,7 @@ locally — CI does not run the `functional` suite. **Stop.**
 
 ## Exit criteria
 
-`make test` green, `make stan` clean at level 8 over `src`, `make cs-fixer` with
-no diff, frontend gates green if `frontend-react/` was touched, coverage not below
-base, and every `FR-###` traceable to a task and a commit.
+`make test` green, `make stan` clean at level 8 over `src`, style clean
+(`make cs-fixer` **rewrites files** — clean means it changed nothing), frontend
+gates green if `frontend-react/` was touched, coverage not below base, and every
+`FR-###` traceable to a task and a commit.

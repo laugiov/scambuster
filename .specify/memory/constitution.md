@@ -79,7 +79,7 @@ and why `architecture-reviewer` reads every change that crosses a layer.
   `symfony/validator`, before anything reaches `Application`. Layers below assume
   validated input and must not re-derive it defensively.
 - **Secrets never enter the repository.** Gitleaks scans full history on every PR
-  and is a merge gate. Encrypted persistence goes through
+  and fails the build on any finding. Encrypted persistence goes through
   `Infrastructure/Doctrine/Type/EncryptedStringType`.
 - **This system sends email to third parties.** Changes to prompts, to
   `Application/LLM/PolicyGuard`, to `Application/Guard/**` or to the mailer path
@@ -117,8 +117,13 @@ gates check; it is not aspirational.
    what `phpstan.neon` configures and what CI actually runs. (`phpstan.dist.neon`
    at level 6 is unused and the `composer phpstan` script's `--level=max` is not
    the gate; see `factory/found-issues.md`.)
-3. `make cs-fixer` produces no diff.
-4. `composer audit` reports no new advisory; Gitleaks is clean.
+3. Code style is clean: `php-cs-fixer fix --dry-run --diff` reports nothing, which
+   is what CI runs. Note that **`make cs-fixer` is the fixer, not the check** — it
+   runs without `--dry-run` and rewrites files. Run it, then confirm it left the
+   worktree unchanged.
+4. `composer audit` reports no new advisory; Gitleaks is clean. Both fail the CI
+   `security` job. Whether that job is *required* to merge is a branch-protection
+   setting outside this repository's files.
 5. If `frontend-react/` was touched: `npm run typecheck`, `npm run lint`,
    `npm run test` and `npm run build` all pass.
 6. Coverage is not below the base branch.
