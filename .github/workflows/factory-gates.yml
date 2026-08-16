@@ -46,11 +46,11 @@ jobs:
           script: |
             const body = context.payload.pull_request.body || '';
 
-            const pipelineMatch = body.match(/^\s*Pipeline:\s*(feature|bug|security)\s*$/mi);
+            const pipelineMatch = body.match(/^\s*Pipeline:\s*(feature|bug|security|chore)\s*$/mi);
             if (!pipelineMatch) {
               core.setFailed(
                 'The PR body must contain a machine-readable pipeline line:\n' +
-                '  Pipeline: feature | bug | security\n' +
+                '  Pipeline: feature | bug | security | chore\n' +
                 'It selects which gates apply. See .github/pull_request_template.md.'
               );
               return;
@@ -109,6 +109,43 @@ jobs:
             --base "$BASE_SHA" \
             --head "$HEAD_SHA" \
             ${SPEC_DIR:+--spec-dir "$SPEC_DIR"}
+
+  # ---------------------------------------------------------------------------
+  # `chore` exists so process, documentation and CI changes can declare
+  # themselves honestly instead of being mislabelled as a bug to get through.
+  # It skips traceability, which makes it the cheap way out — so it is policed:
+  # a chore PR that touches application source is rejected, and the change has
+  # to be resubmitted under a pipeline that specifies it.
+  # ---------------------------------------------------------------------------
+  chore-scope:
+    name: Chore scope (no application code)
+    runs-on: ubuntu-latest
+    needs: pipeline-type
+    if: needs.pipeline-type.outputs.pipeline == 'chore'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Reject application code in a chore PR
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          offending=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" \
+            -- 'backend-symfony/src/**' 'backend-symfony/tests/**' \
+               'backend-symfony/migrations/**' 'frontend-react/src/**' || true)
+          if [ -n "$offending" ]; then
+            echo "::error::A chore PR must not change application code. Files:"
+            echo "$offending" | sed 's/^/  /'
+            echo ""
+            echo "Chore is for process, documentation and CI only. If this change"
+            echo "alters behaviour, it needs a pipeline that specifies it:"
+            echo "  Pipeline: feature  — new or changed behaviour"
+            echo "  Pipeline: bug      — a failing reproduction test, committed first"
+            exit 1
+          fi
+          echo "No application code touched. Chore scope respected."
 
   # ---------------------------------------------------------------------------
   # Semgrep.
@@ -202,9 +239,13 @@ jobs:
             ];
             // This workflow's own jobs, which must not be waited on — job 4
             // waiting for job 4 would deadlock until the timeout.
+            // Keep in sync with this workflow's job names. A job missing here is
+            // waited on by the job itself, and its failures get reported as if
+            // ci.yml had produced them.
             const OURS = [
               'Pipeline type',
               'Traceability (requirement ids)',
+              'Chore scope (no application code)',
               'Security scan (Semgrep)',
               'ci.yml gates on this commit',
             ];

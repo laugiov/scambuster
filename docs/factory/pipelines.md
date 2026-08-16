@@ -8,6 +8,17 @@ Every change to ScamBuster goes through one of three pipelines: **feature**,
 | Feature | `/factory-feature` | New or changed behaviour that needs to be specified before it is built. |
 | Bug | `/factory-bug` | Existing behaviour is wrong and the correct behaviour is not in dispute. |
 | Security | `/factory-security` | A vulnerability, or a change to authentication, crypto, or what the system sends to third parties. |
+| Chore | *(no command)* | Process, documentation or CI only. **Changes no application code at all.** |
+
+**On `chore`.** It exists because the alternative is worse: without it, a change
+to a workflow file or a README has to be mislabelled as a bug to get through, and
+a label everyone knows is a lie stops carrying information. Chore skips
+traceability, which makes it the cheap way out, so it is policed mechanically —
+a chore PR touching `backend-symfony/src`, `backend-symfony/tests`,
+`backend-symfony/migrations` or `frontend-react/src` is rejected by CI and has to
+be resubmitted under a pipeline that specifies it. It has no command and no
+reviewer profile: there is nothing to specify, so there is nothing to gate beyond
+the ordinary CI. The factory's own setup was a chore PR.
 
 If a bug fix turns out to need a design decision, stop and restart it as a
 feature. If a feature turns out to be a vulnerability, stop and restart it as

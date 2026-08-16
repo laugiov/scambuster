@@ -15,6 +15,7 @@ Pick the pipeline by the nature of the work, then run its command:
 | Build or change behaviour | `/factory-feature <what it should do>` | A spec is written. You approve it before any code. |
 | Fix something broken | `/factory-bug <what breaks, how to trigger it>` | A test that reproduces the bug is written and committed **before** the fix. |
 | Handle a vulnerability | `/factory-security <the suspected flaw>` | A root-cause analysis is written. You approve it before any fix is even sketched. |
+| Change process, docs or CI only | no command — put `Pipeline: chore` in the PR | Ordinary CI, no traceability. Rejected if it touches application code. |
 
 Not sure? If the correct behaviour is obvious and only the code is wrong, it is a
 bug. If someone has to decide what "correct" means, it is a feature. If it touches

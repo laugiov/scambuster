@@ -2,13 +2,19 @@
 The three lines below are read by .github/workflows/factory-gates.yml. Keep them
 at the top, one per line, exactly in this shape.
 
-  Pipeline:  feature | bug | security   (required — selects which gates apply)
-  Spec:      path to spec.md            (required for feature; omit otherwise)
-  Gates:     links to the gate reports  (required when a gate report exists)
+  Pipeline:  feature | bug | security | chore  (required — selects the gates)
+  Spec:      path to spec.md                   (required for feature only)
+  Gates:     links to the gate reports         (when a gate report exists)
 
-For a change made outside the factory, use `Pipeline: bug` for a fix and
-`Pipeline: feature` for anything specified. There is no "none": every PR into
-main goes through a pipeline.
+Choosing:
+  feature   new or changed behaviour, specified first
+  bug       behaviour is wrong; a failing reproduction test is committed first
+  security  a vulnerability, or auth/crypto/outbound-content changes
+  chore     process, docs or CI only — changes NO application code
+
+`chore` skips the traceability gate, so it is checked: a chore PR that touches
+backend-symfony/{src,tests,migrations} or frontend-react/src is rejected. There
+is no "none" — every PR into main declares one of the four.
 -->
 
 Pipeline:
