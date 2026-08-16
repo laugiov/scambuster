@@ -16,7 +16,9 @@ recorded).
 
 ## Register
 
-_No findings recorded yet._
+| ID | Class | Location | Impact | Found by | Status |
+|---|---|---|---|---|---|
+| `SEC-001` | Hardcoded credentials in source | `backend-symfony/src/Application/Meta/PreprodCopyService.php:15` | A preprod host with a throwaway password, so impact is low — but it is a credential in a public repository, and it will be copied the next time someone needs a DSN. Gitleaks does not match it: `.gitleaks.toml` looks for secret *shapes*, and a weak internal password inside a DSN is not one. | reported (setup, Semgrep rule `hardcoded-dsn-credentials`) | open |
 
 <!--
 When adding an entry, keep the register append-only: never delete a row, change
