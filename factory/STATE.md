@@ -37,7 +37,7 @@ None left. Phase 4 created `.github/workflows/factory-gates.yml` and the
 | 9 | Security scan tool is **Semgrep** (pinned 1.173.0, CI-only, no composer dependency), with repo-specific rules in `.semgrep/constitution.yml` that encode the constitution | maintainer, phase 4 |
 | 10 | `factory-gates.yml` does **not** duplicate tests/PHPStan/coverage; it waits for `ci.yml`'s jobs on the same SHA instead | maintainer, phase 4 |
 | 11 | Coverage gate is **patch coverage**, computed inside `ci.yml`'s existing test job; Codecov keeps the project-level base comparison | maintainer, phase 4 |
-| 12 | A fourth pipeline type, **`chore`**, for process/docs/CI changes that touch no application code. Added after PR #61 — the factory's own setup PR could not declare any of the three existing types truthfully | post-setup |
+| 12 | A fourth pipeline type, **`chore`**, for process/docs/CI changes that touch no application code. Added after PR #61 — the factory's own setup PR could not declare any of the three existing types truthfully | maintainer, PR #61 review |
 
 Reasoning for 6–8 is in `factory/DISCOVERY.md` §5 under "Resolved". The
 sensitive-path list is now closed and becomes `escalation_triggers.sensitive_paths`
