@@ -98,7 +98,7 @@ security-relevant; **proposed** = judgement call, tell me to keep or drop.
 | Area | Paths |
 |---|---|
 | Auth (code) | `backend-symfony/src/UI/Http/Auth/**`, `src/Application/Auth/**` (incl. `Oidc/`, `TotpVerifier.php`, `LoginHashGenerator.php`), `src/Infrastructure/Auth/**`, `src/Security/**` (voters, `TaxiiApiKeyAuthenticator`, `CustomAccessDeniedHandler`, `SecretPolicy`) |
-| Auth (config) | `backend-symfony/config/packages/security.yaml`, `lexik_jwt_authentication.yaml`, `scheb_2fa.yaml`, `nelmio_cors.yaml`, `rate_limiter.yaml`, `config/packages/{test,prod,e2e}/security.yaml` |
+| Auth (config) | `backend-symfony/config/packages/security.yaml`, `lexik_jwt_authentication.yaml`, `scheb_2fa.yaml`, `nelmio_cors.yaml`, `rate_limiter.yaml`, `config/packages/test/security.yaml`, `config/packages/e2e/security.yaml` (there is no `config/packages/prod/security.yaml` — `prod/` holds only `doctrine.yaml`) |
 | Identity model | `backend-symfony/src/Domain/User/**` (`User`, `Permission`, `RefreshToken`, repositories) |
 | Crypto | `src/Infrastructure/Doctrine/Type/EncryptedStringType.php`, `src/Application/Communication/Smtp/SmtpDsnEncryptor.php`, `src/Application/Audit/AuditHmacChainer.php`, `src/Application/Audit/**`, `src/Infrastructure/Audit/**` |
 | Upload | `src/UI/Http/Communication/UploadAttachmentController.php`, `src/Application/Communication/AttachmentHandler.php`, `src/Application/Communication/Dto/AttachmentInput.php` |
@@ -112,7 +112,7 @@ security-relevant; **proposed** = judgement call, tell me to keep or drop.
 |---|---|---|
 | Outbound content safety | `src/Application/LLM/Prompt/**`, `src/Application/LLM/PolicyGuard.php`, `src/Application/Guard/**`, `src/Infrastructure/Guard/**`, `src/Domain/Prompt/**` | This system generates and sends email to third parties. A prompt or guard regression is a safety incident, and the repo already treats prompt changes as gate-worthy (GUARD baseline, `make guard`, `guard-nightly.yml`). |
 | Outbound mail | `src/Application/Communication/Smtp/**`, `src/Infrastructure/Mailer/**`, `config/packages/mailer.yaml` | Controls who receives generated replies; commit `9fbe52c` was exactly this class of bug. |
-| Unauthenticated / machine surfaces | `src/UI/Http/Internal/**`, `src/UI/Http/Taxii/**` | Reached by n8n and by TAXII clients with a static API key, not by an analyst JWT. |
+| Machine-consumed surfaces | `src/UI/Http/Internal/**`, `src/UI/Http/Taxii/**` | Consumed by automation (n8n, TAXII clients) rather than by the analyst UI, so a regression here is not caught by anyone looking at a screen. Both are authenticated: `access_control` requires `ROLE_ADMIN` on `^/api/v1/internal`, and `^/api/v1/taxii2` additionally accepts a static `TAXII_API_KEY` via HTTP Basic / `X-TAXII-API-KEY` (`App\Security\TaxiiApiKeyAuthenticator`) — that second, non-JWT credential path is the part worth gating. |
 | Supply chain / deploy | `.github/workflows/**`, `infra/docker/**`, `docker-compose*.yml`, `backend-symfony/composer.json`, `composer.lock` | A change here changes what runs in production or what gates a PR. |
 
 ### Dropped / uncertain — need your call
@@ -122,8 +122,9 @@ security-relevant; **proposed** = judgement call, tell me to keep or drop.
   on the login path (`ApiCsrfTokenListener`, `CsrfTokenController`). I propose
   covering this via `security.yaml` + `src/UI/Http/Auth/**` rather than as a
   separate "session" path. Confirm.
-- **Frontend**: `frontend-react/src/**` handles the JWT client-side. Not in the
-  starting set. Should token storage / auth UI count as sensitive?
+- **Frontend**: `frontend-react/src/api/client.ts` holds the access and refresh
+  tokens in module-scope memory (not `localStorage`) and drives the 401-refresh
+  loop. Not in the starting set. Should it count as sensitive?
 - **`n8n/**` workflow JSON**: orchestrates ingestion and sending. Sensitive or not?
 
 ## 6. Contradictions with the prompt's assumptions — I need decisions
@@ -180,12 +181,16 @@ These block me from writing the constitution. I have not adapted silently.
 
 ## 7. What I could not verify here
 
-- Nothing was executed: `make test`, `make stan`, and `php-cs-fixer` all run
-  inside Docker Compose containers that need Postgres and Redis. Docker is
-  installed in this environment but I did not start the stack (read-only phase,
-  and network/service availability is unknown). **No test or analysis run in this
-  session backs any statement above** — all of it is read from configuration.
-- Whether the `sodium` extension is present at runtime (see §6.4).
+- Nothing was executed. `make test`, `make stan`, and `php-cs-fixer` all run
+  inside Docker Compose containers, and **there is no Docker daemon in this
+  environment** — the `docker` client binary exists but
+  `/var/run/docker.sock` does not, so no container can be started here at all.
+  **No test or analysis run backs any statement above** — all of it is read from
+  configuration. This also means the factory's gates can never be executed from
+  a session like this one; they run on your machine or in GitHub Actions.
+- Whether the `sodium` extension is present at runtime (see §6.4). I tried to
+  settle it with `docker run --rm php:8.3.27-cli` and could not, for the reason
+  above.
 - Actual current coverage numbers (Codecov-side, `target: auto` means "compare to
   base", so there is no numeric floor committed in the repo).
 
