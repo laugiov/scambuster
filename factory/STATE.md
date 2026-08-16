@@ -13,23 +13,20 @@ no PR is opened.
 | 0 | Discovery: `factory/DISCOVERY.md`, `factory/found-issues.md` | done |
 | 1 | Spec Kit v0.16.4 installed and committed, constitution written, `factory/speckit-inventory.md` | done |
 | 2 | `docs/factory/pipelines.md`, `.claude/commands/factory-{feature,bug,security}.md`, `factory/security-findings.md` | done |
-| 3 | `factory/gates.yaml`, `.claude/agents/*`, objection format, iteration rules, `docs/factory/templates/gate-report.md`, `scripts/factory/adversarial-review.sh` | not started |
+| 3 | `factory/gates.yaml`, `.claude/agents/*`, objection format, iteration rules, `docs/factory/templates/gate-report.md`, `scripts/factory/adversarial-review.sh` | done |
 | 4 | `.github/workflows/factory-gates.yml`, security-scan tool decision, PR template fields | not started |
 | 5 | `factory/benchmark/`, `docs/factory/README.md` | not started |
 
 ## Forward references — documents that point at files not yet created
 
-Phase 2 documents already reference Phase 3 and Phase 4 artifacts. A pipeline run
-started before those phases land will hit a missing file. This is the prompt's
-sequencing, not an oversight, but it is real:
+Phase 3 resolved its own forward references: `factory/gates.yaml`,
+`docs/factory/templates/gate-report.md` and the four `.claude/agents/*` profiles
+now exist. What remains points at Phase 4:
 
 | Referenced by | Missing file | Lands in |
 |---|---|---|
-| all three commands, `pipelines.md` | `factory/gates.yaml` | Phase 3 |
-| `/factory-feature`, `/factory-security` | `docs/factory/templates/gate-report.md` | Phase 3 |
-| `/factory-feature` | `.claude/agents/{security,architecture,qa}-reviewer` | Phase 3 |
-| `/factory-feature`, `pipelines.md` | traceability job in `.github/workflows/factory-gates.yml` | Phase 4 |
-| all three commands | the `Pipeline:` line in the PR template | Phase 4 |
+| `/factory-feature`, `pipelines.md`, `gates.yaml` | traceability job in `.github/workflows/factory-gates.yml` | Phase 4 |
+| all three commands, gate-report template | the `Pipeline:` line in the PR template | Phase 4 |
 
 ## Decisions taken (do not relitigate without saying so)
 

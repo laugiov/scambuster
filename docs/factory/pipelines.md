@@ -58,6 +58,89 @@ pipeline, where there is no spec, the failing test's path plays that role.
 
 ---
 
+## The standard objection format
+
+**One format, used everywhere**: gate reports, reviewer subagents, the adversarial
+script, and the benchmark scoring. One objection per line, three fields separated
+by semicolons:
+
+```
+BLOCKING|ADVISORY ; requirement ID or failing-test path ; short description
+```
+
+Examples:
+
+```
+BLOCKING ; FR-003 ; Upload accepts any MIME type; the spec allows PDF and EML only
+BLOCKING ; tests/Unit/Domain/User/UserTest.php::testEmailIsNormalised ; fails on HEAD
+ADVISORY ; FR-007 ; Error response leaks the internal exception class name
+ADVISORY ; SC-002 ; No load test backs the 1000-concurrent-user criterion
+```
+
+Rules that make it machine-parseable:
+
+- A line is an objection if and only if it matches
+  `^(BLOCKING|ADVISORY)\s*;\s*([^;]+?)\s*;\s*(.+)$`. Anything else on the line is
+  prose and is ignored by every parser.
+- Severity is uppercase. Field 2 is a single `FR-###`, `SC-###`, `SEC-###`, or a
+  test path (optionally `::testMethod`). Field 3 is free text and **must not
+  contain a semicolon**, so that field 2 can never be swallowed by a description.
+- Objections may appear anywhere in a document. Grouping them in a fenced block
+  is good practice for humans; parsers do not require it.
+- One line, one objection. Two problems are two lines, even in the same file.
+
+### What makes an objection BLOCKING
+
+This is the rule that decides whether a stage stops, so it is stated once and
+applies to every reviewer, every pipeline, and the benchmark:
+
+> An objection is **BLOCKING** only if it **cites a requirement ID that exists in
+> the spec**, or **comes with a failing executable test**. Everything else is
+> **ADVISORY** and cannot block the stage.
+
+Consequences, all intended:
+
+- "This design is fragile" with no requirement ID and no failing test is ADVISORY.
+  It may be right, and it still does not stop the pipeline.
+- A requirement ID that appears in an objection but **not in the spec** does not
+  make it BLOCKING. Reviewers cannot invent `FR-###` values to gain authority; a
+  parser that cannot find the ID in `specs/<branch>/spec.md` downgrades the
+  objection to ADVISORY and says so.
+- In the bug and security pipelines there is no spec, so the only route to
+  BLOCKING is a failing executable test — which is exactly what those pipelines
+  produce first.
+- Advisory objections are never deleted. They go into the gate report's advisory
+  section, and the maintainer decides whether any of them deserves its own run.
+
+## Iteration rules
+
+**Acceptance criteria are fixed before review starts.** For any stage, they are
+the output of `/speckit-checklist` plus the `auto_pass_criteria` for that stage
+transition in `factory/gates.yaml` — determined and written down before a reviewer
+reads the artifact. Criteria discovered during review are advisory by
+construction: a bar raised mid-review is a bar the author never had a chance to
+meet.
+
+**Maximum 2 adversarial iterations per stage.** One iteration is: reviewer raises
+objections → author responds or revises. If the stage has not converged after two,
+**stop and escalate to the maintainer** with a disagreement summary containing,
+for each unresolved objection:
+
+- the objection line in standard format;
+- the reviewer's claim and the evidence for it (file, line, test, spec ID);
+- the author's counter-claim and its evidence;
+- what would settle it — the test that would need to exist, or the decision only
+  the maintainer can make.
+
+No third round. A third round is where two agents converge on agreeing with each
+other rather than on being right, and it burns budget producing confidence rather
+than information.
+
+**Convergence** means: no BLOCKING objections remain, and every ADVISORY one has
+been recorded in the gate report. It does not mean the reviewer is satisfied.
+
+---
+
 ## 1. `/factory-feature`
 
 Full Spec Kit flow. Two human gates.
