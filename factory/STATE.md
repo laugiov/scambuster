@@ -40,18 +40,18 @@ sequencing, not an oversight, but it is real:
 | 3 | Constitution says password hashing **must resolve to** Argon2id; `algorithm: auto` stays as-is | maintainer, phase 1 |
 | 4 | Factory scope is **backend + frontend**; `n8n/`, `infra/`, `scripts/` are out of pipeline scope but bound by the security rules | maintainer, phase 1 |
 | 5 | Spec Kit pinned to `v0.16.4`; upgrading is a deliberate, separate change | phase 1 |
+| 6 | Frontend auth files are **sensitive**: `api/client.ts`, `store/authStore.ts`, `components/layout/AuthGuard.tsx`, `pages/Login.tsx` | delegated to Claude, phase 2 review |
+| 7 | `n8n/workflows/**` and `n8n/n8n-init.sh` are **sensitive** — out of pipeline scope, but a change there is an escalation trigger | delegated to Claude, phase 2 review |
+| 8 | **No separate "session" path.** Covered by `security.yaml`, `framework.yaml` and `src/UI/Http/Auth/**`, since the API firewalls are stateless JWT | delegated to Claude, phase 2 review |
 
-## Still open — blocking Phase 3
+Reasoning for 6–8 is in `factory/DISCOVERY.md` §5 under "Resolved". The
+sensitive-path list is now closed and becomes `escalation_triggers.sensitive_paths`
+in `factory/gates.yaml` in Phase 3.
 
-Three sensitive-path questions from `factory/DISCOVERY.md` §5:
+## Still open — not blocking
 
-1. Does `frontend-react/src/api/client.ts` (holds the JWT in memory, drives the
-   401-refresh loop) count as a sensitive path?
-2. Does `n8n/` count, given it orchestrates ingestion and sending?
-3. Session handling: proposal is to cover it through `config/packages/security.yaml`
-   plus `src/UI/Http/Auth/**` rather than as a separate "session" entry, since the
-   API firewalls are stateless JWT.
-
-Also open, from `DISCOVERY.md` §6 and not yet needed: whether `composer.json`'s
-`>=8.2` floor should be raised to match the 8.3 runtime (an application change,
-out of scope for this setup).
+- Whether `composer.json`'s `>=8.2` floor should be raised to match the 8.3
+  runtime (`DISCOVERY.md` §6.1). An application change, out of scope for this
+  setup.
+- The security-scan tool for Phase 4 (Semgrep vs Psalm taint mode vs something
+  else) — a proposal plus a decision is owed at the start of Phase 4.

@@ -98,7 +98,7 @@ security-relevant; **proposed** = judgement call, tell me to keep or drop.
 | Area | Paths |
 |---|---|
 | Auth (code) | `backend-symfony/src/UI/Http/Auth/**`, `src/Application/Auth/**` (incl. `Oidc/`, `TotpVerifier.php`, `LoginHashGenerator.php`), `src/Infrastructure/Auth/**`, `src/Security/**` (voters, `TaxiiApiKeyAuthenticator`, `CustomAccessDeniedHandler`, `SecretPolicy`) |
-| Auth (config) | `backend-symfony/config/packages/security.yaml`, `lexik_jwt_authentication.yaml`, `scheb_2fa.yaml`, `nelmio_cors.yaml`, `rate_limiter.yaml`, `config/packages/test/security.yaml`, `config/packages/e2e/security.yaml` (there is no `config/packages/prod/security.yaml` — `prod/` holds only `doctrine.yaml`) |
+| Auth (config) | `backend-symfony/config/packages/security.yaml`, `framework.yaml` (session + CSRF directives), `lexik_jwt_authentication.yaml`, `scheb_2fa.yaml`, `nelmio_cors.yaml`, `rate_limiter.yaml`, `config/packages/test/security.yaml`, `config/packages/e2e/security.yaml` (there is no `config/packages/prod/security.yaml` — `prod/` holds only `doctrine.yaml`) |
 | Identity model | `backend-symfony/src/Domain/User/**` (`User`, `Permission`, `RefreshToken`, repositories) |
 | Crypto | `src/Infrastructure/Doctrine/Type/EncryptedStringType.php`, `src/Application/Communication/Smtp/SmtpDsnEncryptor.php`, `src/Application/Audit/AuditHmacChainer.php`, `src/Application/Audit/**`, `src/Infrastructure/Audit/**` |
 | Upload | `src/UI/Http/Communication/UploadAttachmentController.php`, `src/Application/Communication/AttachmentHandler.php`, `src/Application/Communication/Dto/AttachmentInput.php` |
@@ -115,17 +115,16 @@ security-relevant; **proposed** = judgement call, tell me to keep or drop.
 | Machine-consumed surfaces | `src/UI/Http/Internal/**`, `src/UI/Http/Taxii/**` | Consumed by automation (n8n, TAXII clients) rather than by the analyst UI, so a regression here is not caught by anyone looking at a screen. Both are authenticated: `access_control` requires `ROLE_ADMIN` on `^/api/v1/internal`, and `^/api/v1/taxii2` additionally accepts a static `TAXII_API_KEY` via HTTP Basic / `X-TAXII-API-KEY` (`App\Security\TaxiiApiKeyAuthenticator`) — that second, non-JWT credential path is the part worth gating. |
 | Supply chain / deploy | `.github/workflows/**`, `infra/docker/**`, `docker-compose*.yml`, `backend-symfony/composer.json`, `composer.lock` | A change here changes what runs in production or what gates a PR. |
 
-### Dropped / uncertain — need your call
+### Resolved (decided 2026-08-16, recorded in `factory/STATE.md`)
 
-- **Session**: the API firewalls are `stateless: true` (JWT). Sessions exist in
-  `framework.yaml` (`session: true`, mock-file storage in test) and CSRF is used
-  on the login path (`ApiCsrfTokenListener`, `CsrfTokenController`). I propose
-  covering this via `security.yaml` + `src/UI/Http/Auth/**` rather than as a
-  separate "session" path. Confirm.
-- **Frontend**: `frontend-react/src/api/client.ts` holds the access and refresh
-  tokens in module-scope memory (not `localStorage`) and drives the 401-refresh
-  loop. Not in the starting set. Should it count as sensitive?
-- **`n8n/**` workflow JSON**: orchestrates ingestion and sending. Sensitive or not?
+The three open questions are settled. All three are **sensitive**, with the
+reasons below.
+
+| Area | Paths | Decision and why |
+|---|---|---|
+| Session | — | **No separate entry.** The API firewalls are `stateless: true` (JWT); sessions exist in `framework.yaml` and CSRF is used on the login path (`ApiCsrfTokenListener`, `CsrfTokenController`), but every file that decides session or CSRF behaviour is already inside `config/packages/security.yaml`, `framework.yaml` and `src/UI/Http/Auth/**`. A separate "session" path would list the same files under a second name and make the trigger set harder to reason about. `config/packages/framework.yaml` is added to the auth-config row for the session directives. |
+| Frontend auth | `frontend-react/src/api/client.ts`, `src/store/authStore.ts`, `src/components/layout/AuthGuard.tsx`, `src/pages/Login.tsx` | **Sensitive.** `client.ts` holds both tokens and drives the 401-refresh loop — a defect there replays credentials or leaks them to the wrong host. `AuthGuard.tsx` is an authorization decision, and while the real enforcement is server-side, a broken guard still exposes UI and fires calls it should not. The frontend is in pipeline scope, so this costs nothing extra. |
+| n8n workflows | `n8n/workflows/**`, `n8n/n8n-init.sh` | **Sensitive.** `WF-REPLY-SEND-v1.json` decides who receives a generated reply — precisely the class of defect fixed in `9fbe52c` ("Stop the inbound mail from choosing who receives our reply"). `scripts/validate-n8n-workflows.sh` exists because credentials and hostnames can be hardcoded in these files. `n8n/` stays outside *pipeline* scope (decision 4) but a change to it is an escalation trigger. |
 
 ## 6. Contradictions with the prompt's assumptions — I need decisions
 
