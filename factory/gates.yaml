@@ -8,6 +8,15 @@
 # Authority: .specify/memory/constitution.md governs; this file implements it.
 # Prose: docs/factory/pipelines.md. When they disagree, the constitution wins and
 # this file is the thing that gets fixed.
+#
+# HOW TO READ auto_pass_criteria.transitions
+#   Each transition is a list whose items are of exactly two kinds:
+#     - a bare identifier with NO whitespace -> a reference into
+#       auto_pass_criteria.definitions. It MUST resolve. An identifier that does
+#       not resolve is an error in this file, never a criterion in its own right.
+#     - a string containing whitespace -> a literal criterion, read as written.
+#   The rule exists so a typo fails loudly: without it, `tests_greeen` would be
+#   silently accepted as a prose criterion and the gate would pass on nothing.
 
 version: 1
 

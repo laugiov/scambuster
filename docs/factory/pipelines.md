@@ -82,9 +82,14 @@ Rules that make it machine-parseable:
 - A line is an objection if and only if it matches
   `^(BLOCKING|ADVISORY)\s*;\s*([^;]+?)\s*;\s*(.+)$`. Anything else on the line is
   prose and is ignored by every parser.
-- Severity is uppercase. Field 2 is a single `FR-###`, `SC-###`, `SEC-###`, or a
-  test path (optionally `::testMethod`). Field 3 is free text and **must not
-  contain a semicolon**, so that field 2 can never be swallowed by a description.
+- Severity is uppercase — `blocking` in lowercase is not an objection line, and a
+  parser will skip it silently.
+- Field 2 is a single `FR-###`, `SC-###`, `SEC-###`, or a test path (optionally
+  `::testMethod`). Field 3 is free text and **must not contain a semicolon**.
+  The regex above is safe either way — its second group is lazy, so field 2 is
+  never swallowed — but simpler consumers that split the line on `;` would see
+  four fields instead of three, and `scripts/factory/adversarial-review.sh`
+  normalises every separator on the line. Keep descriptions semicolon-free.
 - Objections may appear anywhere in a document. Grouping them in a fenced block
   is good practice for humans; parsers do not require it.
 - One line, one objection. Two problems are two lines, even in the same file.

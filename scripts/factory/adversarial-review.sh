@@ -7,9 +7,15 @@
 # TWO MODES
 # ---------------------------------------------------------------------------
 #
-# 1. LOCAL (default). Runs the `adversarial-critic` subagent defined in
+# 1. LOCAL (default). Dispatches to the `adversarial-critic` subagent defined in
 #    .claude/agents/adversarial-critic.md. Nothing leaves this machine beyond
 #    whatever your Claude Code session already sends.
+#
+#    Be precise about what this mode does: a shell script cannot spawn a
+#    subagent. It prints the instruction on stdout, and the Claude Code session
+#    that invoked the script runs the subagent. So local mode produces an
+#    instruction, not objections — the objections come from the agent afterwards.
+#    External mode, by contrast, returns objection lines directly.
 #
 # 2. EXTERNAL. Sends the artifact to a different model's API and maps its reply
 #    into the standard objection format. A second model disagrees in different
@@ -38,9 +44,13 @@
 #   scripts/factory/adversarial-review.sh specs/042-persona-mirror/spec.md spec
 #   git diff main...HEAD > /tmp/d.patch && scripts/factory/adversarial-review.sh /tmp/d.patch diff
 #
-# Output: objection lines on stdout, diagnostics on stderr. Paste the objections
-# into the gate report. Exit codes: 0 review ran (with or without objections),
-# 1 usage or configuration error, 2 provider call failed.
+# Output: diagnostics on stderr; on stdout, the subagent instruction (local mode)
+# or objection lines (external mode). Paste objections into the gate report.
+# Exit codes: 0 the script did its job, 1 usage or configuration error, 2 the
+# provider call failed or returned nothing usable.
+#
+# Exit 0 in local mode means "the instruction was emitted", NOT "the review
+# passed". Nothing here can report a verdict; only the reviewer can.
 #
 # The executor is deliberately swappable: the factory's gates do not depend on
 # which model runs this. Adding a provider means adding one branch below and
@@ -79,6 +89,7 @@ fi
     if [[ "$PROVIDER" == "local" ]]; then
         echo " provider : local (adversarial-critic subagent)"
         echo " content  : stays on this machine"
+        echo " note     : emits the instruction; the session runs the subagent"
     else
         echo " provider : $PROVIDER  [EXTERNAL]"
         echo " model    : ${FACTORY_REVIEW_MODEL:-<unset>}"
