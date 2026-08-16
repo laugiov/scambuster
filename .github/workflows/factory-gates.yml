@@ -18,6 +18,11 @@ name: Factory gates
 on:
   pull_request:
     branches: [main]
+    # `edited` matters here and is NOT in the default set (opened, synchronize,
+    # reopened). This workflow reads the PR body, so without it a maintainer who
+    # fixes the `Pipeline:` line sees nothing happen and has to push an empty
+    # commit to re-run a gate that is failing on text they already corrected.
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
