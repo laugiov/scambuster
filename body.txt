@@ -1,2 +1,0 @@
-Pipeline: chore
-Deploy-impact: none — CI-only build plumbing, no runtime config or image entrypoint changed

@@ -150,6 +150,11 @@ sbom-*.json
 ###############################################################################
 local/
 
+# Written at the repository root by factory-gates.yml (github-script dumps the
+# PR body there for check-docs-impact.py and check-deploy-impact.py). Ephemeral
+# on a runner; a stray file if anyone runs those gates locally.
+pr-body.txt
+
 ###############################################################################
 #  ✅  End --------------------------------------------------------------------
 ###############################################################################
