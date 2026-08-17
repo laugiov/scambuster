@@ -186,15 +186,33 @@ Full Spec Kit flow. Two human gates.
    the traceability job in `.github/workflows/factory-gates.yml` enforces it.
 6. `/speckit-analyze` — cross-artifact consistency. Any inconsistency it reports
    is resolved before implementation starts, not noted and carried.
-7. `/speckit-implement` — one task at a time, one commit per task, each commit
-   message citing the requirement IDs. Tests ship with the behaviour, in the same
-   commit.
+7. `/speckit-implement` — one task at a time, **test-first**. Each task produces
+   **two commits, in this order**: a commit touching only test files, then the
+   implementation. Both cite the task and its requirement IDs.
+
+   ```
+   test(communication): persona update rejects non-admin (T012) (FR-003)
+   feat(communication): enforce ROLE_ADMIN on persona update (T012) (FR-003)
+   ```
+
+   The order is checked in CI from the history, so it cannot be reconstructed
+   afterwards. A task that genuinely cannot be driven by a test — a pure rename, a
+   config move — carries `TDD-exempt: <reason>` in the implementation commit body:
+   it does not fail the build, it surfaces in the gate report.
+
+   Two things the order gate cannot do, which is why `qa-reviewer` still reads
+   the tests: it cannot tell whether the test was ever red, and an empty test file
+   satisfies it.
+
+   The suite is green before any reviewer or gate is asked to look. A reviewer
+   reading broken code reviews the wrong thing.
 8. **G2 — blocking.** The PR is opened with both gate reports attached. The
    maintainer reviews it and runs `make test` locally, because CI does not run the
    `functional` suite.
 
 **Exit criteria**: definition of done in the constitution, plus every `FR-###` in
-the spec traceable to at least one task and one commit.
+the spec traceable to at least one task and one commit, TDD order respected, and
+documentation either updated or declared unaffected in the PR body.
 
 ---
 

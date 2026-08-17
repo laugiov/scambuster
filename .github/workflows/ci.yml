@@ -220,18 +220,38 @@ jobs:
       # and survivor rate are unknown, and a gate that fails unpredictably on its
       # first day gets switched off. Read the MSI in the gate report for a few
       # PRs, then drop continue-on-error and set the threshold deliberately.
+      # The changed-file list is computed HERE, on the runner, and passed to
+      # Infection with --filter. Its --git-diff-base option cannot be used: the
+      # container mounts ./backend-symfony as /app, and .git lives at the repo
+      # root, so git inside the container has no repository to diff against. That
+      # would have failed on every run and been swallowed by continue-on-error —
+      # a gate reporting nothing while looking like it ran.
+      #
+      # Infection re-runs the suite to collect its own coverage: the clover report
+      # produced above is not the coverage-xml + junit pair it can reuse. Hence
+      # the timeout, and hence restricting it to the files the PR touched.
       - name: Mutation testing on changed files (reported, not blocking)
         if: github.event_name == 'pull_request'
         continue-on-error: true
         timeout-minutes: 20
         run: |
-          docker compose exec backend-test vendor/bin/infection \
+          CHANGED=$(git diff --name-only --diff-filter=AM \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            -- 'backend-symfony/src/*.php' 'backend-symfony/src/**/*.php' \
+            | sed 's|^backend-symfony/||' | paste -sd, -)
+
+          if [ -z "$CHANGED" ]; then
+            echo "No PHP source changed; mutation testing not applicable."
+            exit 0
+          fi
+
+          echo "Mutating: $CHANGED"
+          docker compose exec -T backend-test vendor/bin/infection \
             --threads=4 \
-            --git-diff-filter=AM \
-            --git-diff-base=origin/${{ github.event.pull_request.base.ref }} \
+            --filter="$CHANGED" \
             --min-msi=0 --min-covered-msi=0 \
             --no-progress --no-interaction \
-            || echo "::warning::Infection did not complete. Recorded as 'not run', not as 'passed'."
+            || echo "::warning::Infection did not complete. Record this as 'not run' in the gate report, never as 'passed'."
 
   security:
     name: Security Scanning

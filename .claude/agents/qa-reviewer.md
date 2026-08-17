@@ -39,7 +39,8 @@ judge; their testability is.
 
 **On the implementation:**
 
-- Tests ship in the same commit as the behaviour they cover.
+- Tests ship in the same PR as the behaviour they cover, and in the commit
+  *before* it — see the order rule below. Never after.
 - **Order, in every pipeline**: the test is committed *before* the code it
   covers, and its failure was observed. In bug and security PRs that is the
   reproduction or exploit test; in feature PRs it is one test-only commit per

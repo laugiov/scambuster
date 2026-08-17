@@ -21,6 +21,40 @@ Not sure? If the correct behaviour is obvious and only the code is wrong, it is 
 bug. If someone has to decide what "correct" means, it is a feature. If it touches
 authentication, crypto, or what the system sends to a stranger, it is security.
 
+## Three rules that apply to every change
+
+**Test first, always.** The failing test is committed before the code it covers —
+in every pipeline, features included. In a feature that means two commits per
+task: the test-only one, then the implementation. CI checks the order in the
+commit history, so it cannot be arranged after the fact. A task that truly cannot
+be driven by a test carries `TDD-exempt: <reason>` in its commit body; that does
+not fail the build, it shows up in the gate report for you to judge.
+
+The order gate is deliberately dumb: an empty test satisfies it. `qa-reviewer`
+reads the tests and asks the question the gate cannot — would this have failed
+before the implementation landed?
+
+**Green before review.** The suite is green before any reviewer or gate is asked
+to look. Nobody reviews code that does not run.
+
+**Documentation is part of the change.** Touch an HTTP controller, a console
+command, routing, bundle config, a migration, a UI page, `.env.dist` or the
+Makefile, and `docs/` moves too — or the PR body says why not:
+
+```
+Docs-impact: none — internal endpoint, absent from the API reference
+```
+
+Saying "none" is fine and takes ten seconds. Saying nothing fails the build,
+because an unticked checkbox is how a runbook goes stale without anyone deciding
+that it should.
+
+**On test quality**, Infection runs on the files a PR changes and reports its
+mutation score in the gate report. Coverage says a line ran; mutation says a test
+would have noticed if the line were wrong. It does not block yet — it has never
+run in CI on this codebase, so the threshold has to be calibrated on real PRs
+first.
+
 Switching mid-flight is normal and expected. Continuing in the wrong pipeline is
 not.
 
