@@ -29,6 +29,18 @@ permissions:
   pull-requests: read
   checks: read
 
+# Matches the group in ci.yml, and has to. The "ci.yml gates on this commit" job
+# polls for up to 40 minutes, so without this a superseded run keeps watching an
+# old SHA, sees ci.yml's jobs get cancelled by *its* concurrency group, and
+# reports a red gate on a commit nobody is looking at any more. That happened on
+# 284b1ad: the gate correctly refused to call a cancelled check a pass, and the
+# result was still a misleading red mark on the PR. Cancel the stale watcher
+# instead of teaching the gate to ignore cancellations — a cancelled check is
+# genuinely not a passed one, and that rule is worth more than the noise it costs.
+concurrency:
+  group: factory-gates-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
 
   # ---------------------------------------------------------------------------
