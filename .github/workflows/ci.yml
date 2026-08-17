@@ -79,10 +79,19 @@ jobs:
   # run does, and it is the only change here that cannot be defeated by GitHub
   # tightening the limit further.
   #
-  # The image travels as an artifact instead of being rebuilt. That is not a
-  # trade of speed for reliability — a build costs ~2.5 min per job, the upload
-  # ~1 min once and the download ~40 s per consumer, so the run gets slightly
-  # cheaper as well as deterministic: every job now tests the *same* image.
+  # The image travels as an artifact instead of being rebuilt. Measured on the
+  # first green run (754) against the last green run of main (31988125536):
+  #
+  #   image build            2m36s, once, on the critical path
+  #   artifact upload        ~4s (281 MB)
+  #   download + docker load 12s + 19s per consumer
+  #   whole run              12m13s, against 10m04s before
+  #
+  # So it costs about **two minutes of wall clock**, not nothing. An earlier
+  # version of this comment claimed the run got cheaper; the measurement says
+  # otherwise and the claim is withdrawn. What the two minutes buy is four
+  # concurrent dependency resolutions becoming one, and every job testing the
+  # *same* image rather than a second build of the same Dockerfile.
   build-backend-image:
     name: Build backend image (once per run)
     runs-on: ubuntu-latest
