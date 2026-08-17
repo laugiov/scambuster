@@ -20,14 +20,26 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
 
 # Copy Composer files and install ALL dependencies (dev+prod) for build
 #
-# Retried, and authenticated when a token is supplied. Composer pulls every
-# package as a dist archive from api.github.com / codeload.github.com;
-# unauthenticated those are rate-limited per IP (HTTP 429) and shed load under
-# pressure (HTTP 504), and `Source fallback is disabled` means a single failed
-# download aborts the build with exit 100. CI builds this image in four jobs
-# that start in the same second, so the ceiling is reached by our own
-# concurrency — that is what killed run 747 on `main`. Same bounded-retry shape
-# as the pecl install above.
+# Composer pulls every package as a dist archive from api.github.com, which
+# redirects to codeload.github.com. `Source fallback is disabled` means a single
+# failed download of ~200 aborts the build with exit 100. CI builds this image in
+# four jobs that start in the same second, so the request burst is our own doing
+# — that is what killed run 747 on `main`.
+#
+# Three levers, and they do different jobs. Run 748 measured which:
+#
+#   COMPOSER_AUTH_JSON        raises the api.github.com ceiling from 60/hour per
+#                             IP to 1000. This removed the HTTP 504s.
+#   COMPOSER_MAX_PARALLEL_HTTP  Composer opens 12 connections by default. The
+#                             remaining failures were HTTP 429 from
+#                             *codeload*.github.com, whose per-IP abuse limit a
+#                             github-oauth token does NOT lift — Composer cannot
+#                             carry the Authorization header across the redirect
+#                             to another host. Only a smaller burst helps there.
+#   retry                     three attempts, 60-89s then 120-149s. Jittered from
+#                             /dev/urandom on purpose: with a fixed backoff all
+#                             four jobs retry in the same second and reproduce
+#                             the burst that caused the 429.
 #
 # COMPOSER_AUTH_JSON is declared and consumed in this build stage only. An ARG
 # value is recorded in the history of the stage that declares it, and this stage
@@ -37,11 +49,15 @@ ARG COMPOSER_AUTH_JSON=""
 COPY backend-symfony/composer.* ./
 RUN set -eu; \
     if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
+    export COMPOSER_MAX_PARALLEL_HTTP="${COMPOSER_MAX_PARALLEL_HTTP:-6}"; \
     ok=0; \
     for attempt in 1 2 3; do \
         if composer install --no-interaction --no-scripts --no-progress; then ok=1; break; fi; \
         echo "composer install failed (attempt $attempt/3)"; \
-        if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
+        if [ "$attempt" -lt 3 ]; then \
+            jitter=$(od -An -N1 -tu1 /dev/urandom | tr -d " "); \
+            sleep $((attempt * 60 + jitter % 30)); \
+        fi; \
     done; \
     if [ "$ok" -ne 1 ]; then \
         echo "composer install failed 3 times. Not a flake to retry past — check GitHub reachability and rate limits."; \

@@ -40,11 +40,15 @@ ARG COMPOSER_AUTH_JSON=""
 COPY backend-symfony/composer.* ./
 RUN set -eu; \
     if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
+    export COMPOSER_MAX_PARALLEL_HTTP="${COMPOSER_MAX_PARALLEL_HTTP:-6}"; \
     ok=0; \
     for attempt in 1 2 3; do \
         if composer install --no-interaction --no-scripts --no-progress; then ok=1; break; fi; \
         echo "composer install failed (attempt $attempt/3)"; \
-        if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
+        if [ "$attempt" -lt 3 ]; then \
+            jitter=$(od -An -N1 -tu1 /dev/urandom | tr -d " "); \
+            sleep $((attempt * 60 + jitter % 30)); \
+        fi; \
     done; \
     [ "$ok" -eq 1 ]
 COPY backend-symfony/ ./

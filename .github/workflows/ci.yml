@@ -18,8 +18,17 @@ permissions:
 # raises the ceiling to 1000/hour. Actions masks it in logs, and every Dockerfile
 # consumes it in a build stage that the multi-stage COPY discards, so it never
 # reaches an image that ships.
+#
+# The token is not sufficient on its own, and run 748 is the evidence: it removed
+# the 504s and left HTTP 429 from *codeload*.github.com, which is where
+# api.github.com redirects the actual zip. Composer cannot carry an Authorization
+# header across a redirect to another host, so codeload sees an anonymous request
+# and applies a per-IP abuse limit no token lifts. The only thing that helps there
+# is a smaller burst — hence COMPOSER_MAX_PARALLEL_HTTP below, against Composer's
+# default of 12 open connections per install, times four concurrent builds.
 env:
   COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+  COMPOSER_MAX_PARALLEL_HTTP: '6'
 
 jobs:
   static-analysis:

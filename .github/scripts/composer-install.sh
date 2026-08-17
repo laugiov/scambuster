@@ -81,9 +81,11 @@ exec_env=(-e "COMPOSER_CACHE_DIR=$CONTAINER_CACHE")
 if [ -n "${COMPOSER_AUTH:-}" ]; then
   exec_env+=(-e "COMPOSER_AUTH=$COMPOSER_AUTH")
 fi
+if [ -n "${COMPOSER_MAX_PARALLEL_HTTP:-}" ]; then
+  exec_env+=(-e "COMPOSER_MAX_PARALLEL_HTTP=$COMPOSER_MAX_PARALLEL_HTTP")
+fi
 
 attempts=3
-delay=15
 
 for attempt in $(seq 1 "$attempts"); do
   if docker compose exec --user root "${exec_env[@]}" "$SERVICE" \
@@ -98,9 +100,12 @@ for attempt in $(seq 1 "$attempts"); do
     exit 1
   fi
 
+  # Jittered on purpose. A fixed backoff makes the jobs of a run retry in the
+  # same second, which reproduces the burst that drew the 429 in the first place.
+  jitter=$(od -An -N1 -tu1 /dev/urandom | tr -d ' ')
+  delay=$((attempt * 60 + jitter % 30))
   echo "::warning::composer install failed in '$SERVICE' (attempt $attempt/$attempts); retrying in ${delay}s."
   sleep "$delay"
-  delay=$((delay * 2))
 done
 
 # The install runs as root inside the container, so the cache lands on the host
