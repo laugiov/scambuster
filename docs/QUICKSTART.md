@@ -222,6 +222,26 @@ The `vendor/` directory may have wrong permissions. Run:
 chmod -R 777 backend-symfony/vendor backend-symfony/var
 ```
 
+### My code change has no effect in the container
+
+Two different causes, and they need different fixes.
+
+**Application source** is bind-mounted (`./backend-symfony:/app`), so edits under
+`src/` are live — no rebuild, at most a container restart.
+
+**Anything baked into the image** is not: `composer.lock`, the Dockerfile, PHP
+extensions. The backend services share one image tag, `scambuster-backend:ci`,
+and once it exists on your machine `docker compose up` reuses it rather than
+rebuilding. Force it:
+
+```bash
+docker compose up -d --build backend-dev
+```
+
+The tag is shared by `backend-dev`, `backend-test`, `backend-e2e`,
+`backend-preprod`, `scheduler` and `canary-worker`, so a stale image affects all
+six at once — including the containers your tests run in.
+
 ### n8n shows "Workflow does not exist" error
 
 The workflow IDs were not injected properly. Restart n8n:

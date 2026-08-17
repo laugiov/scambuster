@@ -56,10 +56,19 @@ services:
   backend-dev: &backend-dev
     # Named explicitly so CI can build this image once per run and hand the same
     # one to every job (`docker load` + `docker compose up` with no --build).
-    # Compose still builds it on demand when the tag is absent, so local
-    # `docker compose up` and `up --build` behave exactly as before — and
-    # backend-test/e2e/preprod, which inherit this anchor, now share the one
-    # image instead of triggering a rebuild each.
+    # Compose still builds it on demand when the tag is absent, so on a clean
+    # machine local behaviour is unchanged.
+    #
+    # It is NOT unchanged once the tag exists locally. `docker compose up` then
+    # reuses the image and does not rebuild it, so anything baked into the image
+    # — composer.lock, the Dockerfile, PHP extensions — keeps running at the
+    # version it had when the image was built. Use `docker compose up --build`
+    # after changing any of those, or you will debug a fix that is not in the
+    # container.
+    #
+    # And this tag is SHARED: backend-test, backend-e2e, backend-preprod,
+    # scheduler and canary-worker all inherit it from this anchor. One stale
+    # image is now six stale services rather than one.
     image: scambuster-backend:ci
     build:
       context: .

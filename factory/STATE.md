@@ -140,6 +140,22 @@ The protocol asks for hand-seeding, and a hand-seeded run is still worth doing.
 | 4 | `unjustified-assumption` added to the benchmark taxonomy, which is now declared **append-only**. | Run 002 used a term the table lacked and left the call to the maintainer. Adding beats renaming: renaming rewrites the per-type history of every earlier run. |
 | 5 | Benchmark detection rule now compares the objection's severity against the **seeded** severity (`blocker`/`major` need BLOCKING, `minor` is caught by ADVISORY). `score.py` rejects a ground truth with no valid severity, and reports minor defects that drew BLOCKING. | The old rule scored a `minor` correctly raised as ADVISORY as a miss, so the only way to score well was to block on everything — the exact loudness the unseeded-blocking count warns about. |
 
+## What in the CI fix is still inference, and what would disprove it
+
+Several commits fix behaviour that only appears under CI load, diagnosed from run
+logs rather than a controlled test. The numbers in row 1f are measured. These are
+not — each is a reading that fitted the evidence, with the observation that would
+break it. The next person to see a red install step should know which of these
+was a guess.
+
+| Assumption | Confidence | What would falsify it |
+|---|---|---|
+| codeload throttling is the remaining cause, independent of our volume | **high** — run 750 got 429/429/502 fetching a 40 KB first-party action tarball, before any step ran | A run where dependency downloads fail with 429 while action tarballs and unrelated GitHub endpoints are healthy. That would put the cause back inside our own traffic. |
+| `COMPOSER_MAX_PARALLEL_HTTP=6` is a useful ceiling | **low — never tuned.** 6 was picked as half of Composer's default | 429s persisting with a single serialised build at 6. Then the burst was never the variable, and the number is cargo. Nobody has compared 6 against 12 or 3 on this repo. |
+| 3 attempts at 60-149s jittered backoff is enough | **low — never observed to help.** No dist attempt has recovered on attempt 2 or 3; the successes came from a healthy codeload or the source fallback | A failure log showing attempt 2 or 3 succeeding on dist would confirm it. Its continued absence means the retry is buying nothing and only the fallback matters. |
+| `--prefer-source` completes end to end | **half-proved.** Run 753 got its build stage through while codeload refused archives, then died in the prune. The prune is fixed and the fixed path has not run | Anything after the build stage failing on a source-installed vendor. See row 1g. |
+| The layer cache holds across runs | **proved once** — 2m36s cold, 48s warm, exact-key hit | A build that pays the cold price with composer.lock and the Dockerfile both unchanged. |
+
 ## Setup complete
 
 All five phases are done. The factory has never been exercised on a real change:

@@ -29,8 +29,14 @@ run:
 defects:
 
   - id: D-001
-    # The requirement the defect was injected INTO. This is the join key: a
-    # defect counts as detected only when a BLOCKING objection cites this id.
+    # The requirement the defect was injected INTO. This is the join key: an
+    # objection is matched to a defect by citing this id, and nothing else.
+    #
+    # Whether that match counts as DETECTED depends on the objection's severity
+    # against `severity` below. The mapping lives in EXPECTED_OBJECTION in
+    # score.py and is stated once in README.md — deliberately not repeated here,
+    # because the sentence this replaces was a copy of the old rule that outlived
+    # it by exactly one commit.
     requirement_id: FR-003
     # Where in the artifact, precisely enough to re-find it.
     location: "spec.md, Functional Requirements, FR-003, second sentence"

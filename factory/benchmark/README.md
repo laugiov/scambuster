@@ -69,12 +69,15 @@ run, so run 002's per-type rates stand as measured.
 defect id, the requirement id it was injected into, location in the artifact,
 defect type, severity.
 
-The **requirement id is the join key**. A defect injected somewhere with no
-requirement id cannot be scored — the whole detection rule is "did a blocking
-objection cite this id". `score.py` therefore refuses to run unless every defect
-carries a `requirement_id` in `FR-###` or `SC-###` form, rather than scoring a
-malformed key as a string of misses and printing a 0% rate that reads like a
-factory failure.
+The **requirement id is the join key**: an objection is matched to a defect by
+citing this id, and nothing else, so a defect injected somewhere with no
+requirement id cannot be scored at all. Whether a matched objection *counts* is
+then decided by severity — see the detection rule below.
+
+`score.py` therefore refuses to run unless every defect carries a
+`requirement_id` in `FR-###` or `SC-###` form **and** a valid `severity`, rather
+than scoring a malformed key as a string of misses and printing a 0% rate that
+reads like a factory failure.
 
 **4. Run the stage in a fresh session.** No mention of the benchmark, no hint
 that defects were seeded. Let the reviewers and gates do their normal work and

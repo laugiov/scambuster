@@ -187,9 +187,22 @@ jobs:
   # ---------------------------------------------------------------------------
   # `chore` exists so process, documentation and CI changes can declare
   # themselves honestly instead of being mislabelled as a bug to get through.
-  # It skips traceability, which makes it the cheap way out — so it is policed:
-  # a chore PR that touches application source is rejected, and the change has
-  # to be resubmitted under a pipeline that specifies it.
+  # It skips traceability, which makes it the cheap way out — so it is policed
+  # in two tiers:
+  #
+  #   deny   application code. Hard failure, no escape hatch. Resubmit under a
+  #          pipeline that specifies the change.
+  #   warn   the deployment surface (infra/docker, compose files, .env.dist).
+  #          Allowed — PR #63 legitimately had to touch it — but it must carry a
+  #          `Deploy-impact:` line saying what a deployer needs to know.
+  #
+  # The second tier exists because PR #63 walked through this gate having changed
+  # Dockerfile.prod, the demo Dockerfile and docker-compose.yml. The gate was
+  # right by its own rules and wrong about the promise it enforces.
+  #
+  # The job NAME below is load-bearing: it appears verbatim in the OURS list of
+  # the "ci.yml gates on this commit" job. Renaming it without updating that list
+  # makes the wait job wait on itself until the 40-minute timeout.
   # ---------------------------------------------------------------------------
   chore-scope:
     name: Chore scope (no application code)
@@ -220,6 +233,28 @@ jobs:
             exit 1
           fi
           echo "No application code touched. Chore scope respected."
+
+      # Second, softer tier. The deny list above is absolute; this one allows the
+      # change and insists it be declared. See scripts/factory/check-deploy-impact.py
+      # for why extending the deny list would have been the wrong fix.
+      #
+      # The PR body is untrusted input, so it reaches the script through a file
+      # written by github-script rather than through shell interpolation — same
+      # handling as the documentation gate above.
+      - name: Write the PR body to a file
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            fs.writeFileSync('pr-body.txt', context.payload.pull_request.body || '');
+
+      - name: Require a Deploy-impact line when the deployment surface changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 scripts/factory/check-deploy-impact.py \
+            --base "$BASE_SHA" --head "$HEAD_SHA" --pr-body-file pr-body.txt
 
   # ---------------------------------------------------------------------------
   # Semgrep.
