@@ -172,8 +172,15 @@ opposite.
 
 ## Smallest change that would address the misses
 
-**Not applied. Diagnosis first, as the run required.** Three additions, no rewriting, no
-change to any activation matrix or iteration rule:
+**Diagnosed first, then applied at the maintainer's instruction** — after this run was
+scored and committed, so the diagnosis stands on its own and can be re-read against the
+profiles as they were. Three additions to `.claude/agents/adversarial-critic.md` and
+`.claude/agents/security-reviewer.md`: no rewriting, no change to any activation matrix,
+no change to any iteration rule.
+
+**These profiles are now untested.** The 60% above was measured against the previous
+text and says nothing about the new one. Whether the additions help is an open question
+until a run with a fresh artifact answers it.
 
 **1. `adversarial-critic`, under "How to attack → A spec"** — one bullet:
 
@@ -199,9 +206,10 @@ change to any activation matrix or iteration rule:
 Addition 2 alone would have caught D-006 (blocker) and D-009. Addition 1 targets D-010.
 Together they address all three real misses without touching what already works at 100%.
 
-**Do not apply these and re-run against this same artifact.** The reviewers would then be
-tuned to a spec whose defects are known, and the second score would measure the tuning.
-Seed a fresh spec — by hand, ideally — and compare.
+**Do not re-run against this same artifact now that they are applied.** The profiles are
+tuned to a spec whose defects are known, so a second score on `spec-002-seeded.md` would
+measure the tuning and would come out high for the wrong reason. Run 003 needs a fresh
+spec — hand-seeded, ideally — and only then is the comparison with 60% meaningful.
 
 ## Vocabulary
 

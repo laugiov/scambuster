@@ -113,8 +113,12 @@ Run 002's diagnosis, in one line each, so a future session does not re-derive it
 `contradiction`, `unjustified-assumption` and `missing-authorization` scored 100%;
 `missing-failure-mode` and `untestable-criterion` scored 0%; of 24 objections exactly
 one cited an `SC-###`, and both seeded SC defects were missed. Three profile additions
-are proposed in the run README and **deliberately not applied** — applying them and
-re-running against the same artifact would measure the tuning, not the profiles.
+are set out in the run README and were **applied after the run was scored and committed**,
+at the maintainer's instruction: two to `adversarial-critic` (read the spec against
+itself, attack the `SC-###` section) and one to `security-reviewer` (check the success
+criteria). Both profiles are therefore **untested as they now stand** — the 60% measured
+the previous text. Run 003 must use a fresh artifact: re-running against
+`spec-002-seeded.md` would measure the tuning and score high for the wrong reason.
 
 One caveat travels with that number: a subagent chose the defects, not the maintainer.
 The protocol asks for hand-seeding, and a hand-seeded run is still worth doing.

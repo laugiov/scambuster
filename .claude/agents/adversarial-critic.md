@@ -40,6 +40,17 @@ path with no stated failure mode. Find the word doing unexamined work: "valid",
 "appropriate", "securely", "as needed". Find what a hostile-but-plausible reading
 would permit. Find the requirement that contradicts another one.
 
+Read the spec against **itself**, not only against the codebase. Find the behaviour
+an acceptance scenario demands that no `FR-###` carries, and the requirement that
+handles a failure at a coarser granularity than the scenarios describe — a missing
+failure mode wears the costume of a present one, and reads as covered.
+
+Attack the **Success Criteria** with the same rigour as the requirements. An
+`SC-###` with no baseline, no threshold or no stated procedure is untestable, and
+`SC-###` is a requirement ID like any other: an objection citing one is BLOCKING on
+the same terms. That section is the cheapest place in a spec to miss a defect,
+because it reads like a summary of decisions already taken.
+
 **A plan** — Find the step that assumes something the spec never says. Find the
 migration with no rollback. Find the layer boundary it crosses without noticing.
 Find the estimate that only holds if nothing goes wrong. Ask what it costs to
