@@ -65,6 +65,50 @@ Applied on the branch after the PR was opened, at the maintainer's request:
 | 4 | PR body confirmed: `Pipeline: chore` is on its own line at the top, and all 13 checks were green on head SHA `befb6b0` (12 success, `Traceability` correctly skipped for a chore PR). Nothing to change. |
 | 5 | `factory/benchmark/score.py` crashed with `UnicodeEncodeError` on a non-UTF-8 stream, and printed `?` for a defect with no `id`. Both fixed; verified in ASCII and UTF-8. |
 
+## Benchmark artifacts live outside the repository — including the clean spec
+
+**Read this before starting a benchmark run. It is not obvious and it cost run 001.**
+
+`factory/benchmark/README.md` says the *ground truth* must live outside the worktree.
+That rule is necessary and it is not sufficient. **The clean, pre-seeding spec must
+stay outside the worktree too**, and must never be copied in, even temporarily.
+
+The reason is the mirror image of the ground-truth rule. If the clean spec is
+committed and the maintainer then seeds defects into it, `git diff` — or `git log -p`
+once the seeded version is committed — shows exactly which lines carry the defects.
+The G1 reviewers are subagents with `Bash` and `Grep`. A reviewer reading the diff
+scores near 100% and measures nothing. It is worse than reading the answer key:
+reading the ground truth produces an absurd result someone notices, while reading the
+diff produces a plausible one nobody questions.
+
+Forbidding `git diff` in the reviewer prompts is a guarantee by instruction, given to
+agents whose job is to explore. Keep it as a secondary defence — it is free — but do
+not rely on it. Make the file unreachable instead.
+
+**This environment makes the mistake easy to walk into.** A stop hook
+(`~/.claude/stop-hook-git-check.sh`) requires every untracked file in the worktree to
+be committed and pushed, and it fires at the end of the turn. A benchmark artifact
+left untracked in the worktree *will* be committed, whatever the session intended.
+The hook cannot see what is not in the worktree, so the only reliable place for a
+clean spec is outside it:
+
+```
+~/factory-benchmark/spec-002-clean.md     good — hook cannot see it, git cannot see it
+specs/002-.../spec.md   (untracked)       will be committed by the hook, run invalidated
+```
+
+What still belongs in the repository, and must: the gate report, the run README, the
+score output. Those are produced *after* the reviewers have read the artifact, so
+committing them corrupts nothing.
+
+The seeded spec stays outside the worktree as well. At review time the maintainer
+gives its path and the session reads it where it is.
+
+| Run | Artifact | Status |
+|---|---|---|
+| 001 | `specs/001-cluster-stix-export/spec.md` | **abandoned, never scored** — clean spec committed as `9ca9b59` before seeding, and the feature turned out to be already implemented. Both reasons in `factory/benchmark/runs/001/README.md`. Kept deliberately; history not rewritten. |
+| 002 | `~/factory-benchmark/spec-002-clean.md` | clean spec written outside the worktree, feature verified absent from the repository |
+
 ## Setup complete
 
 All five phases are done. The factory has never been exercised on a real change:
