@@ -41,9 +41,6 @@ backend-symfony/var/test/
 backend-symfony/var/uploads/
 backend-symfony/var/smoke/
 backend-symfony/vendor/
-# Composer's download cache. Lives under the bind-mounted /app so CI can restore
-# it with actions/cache; see .github/scripts/composer-install.sh.
-backend-symfony/.composer-cache/
 
 # PHP tools
 .phpunit.result.cache

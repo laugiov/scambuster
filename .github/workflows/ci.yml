@@ -18,26 +18,48 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Composer resolves every package as a dist archive from api.github.com /
-# codeload.github.com. Unauthenticated that ceiling is 60 requests/hour per IP,
-# and this workflow resolves the same tree eleven times per run across jobs that
-# all start in the same second. That is what killed run 747 on `main`: HTTP 429
-# interleaved with 504, four jobs dead on the same minute, inside the image
-# build rather than in any step named "Install dependencies". The job token
-# raises the ceiling to 1000/hour. Actions masks it in logs, and every Dockerfile
-# consumes it in a build stage that the multi-stage COPY discards, so it never
-# reaches an image that ships.
+# ── Why this workflow looks the way it does ──────────────────────────────────
 #
-# The token is not sufficient on its own, and run 748 is the evidence: it removed
-# the 504s and left HTTP 429 from *codeload*.github.com, which is where
-# api.github.com redirects the actual zip. Composer cannot carry an Authorization
-# header across a redirect to another host, so codeload sees an anonymous request
-# and applies a per-IP abuse limit no token lifts. Nothing raises that ceiling —
-# only making fewer requests helps. So the real fix is the `build-backend-image`
-# job below: the image is built ONCE per run and shipped to the other jobs, which
-# takes the run from four concurrent dependency resolutions to one.
-# COMPOSER_MAX_PARALLEL_HTTP stays as a second line of defence for the builds
-# that remain (one dev, plus prod and demo in the scanning matrix, serialised).
+# Everything below is about one host: codeload.github.com. Composer resolves each
+# package as a dist archive from api.github.com, which redirects the actual zip
+# there. Composer does not carry the Authorization header across a redirect to a
+# different host — correctly — so codeload sees an anonymous request under a
+# per-IP limit that no token lifts.
+#
+# What was established, run by run, rather than assumed:
+#
+#   747 (main)  HTTP 504 from api.github.com interleaved with 429 from codeload.
+#               Merged past on PR #62 as "a transient 504". It was not transient:
+#               it reproduced on main and on three runs of PR #63.
+#   748         The job token removed every 504. The 429s from codeload remained,
+#               so authentication fixes half of this and cannot fix the other.
+#   750         The runner failed to download a 40 KB *first-party action tarball*
+#               (actions/download-artifact) from codeload: 429, 429, then 502,
+#               before a single workflow step had run.
+#
+# That last one matters more than the rest, and it corrects an earlier reading
+# written into this file: the story was "our own concurrency is rate-limiting
+# us". A 429 on an action tarball is not something this workflow's Composer
+# volume can cause — the runner fetches actions before our steps exist. codeload
+# is throttling or degraded for these runners independently of what we ask of it.
+#
+# So the changes here are made on their own merits — fewer requests is right
+# whatever the cause — and NOT on a claim that they make codeload reliable:
+#
+#   - `build-backend-image` builds the image ONCE per run and ships it as an
+#     artifact. Four concurrent dependency resolutions become one.
+#   - That build is layer-cached (keyed on composer.lock + the Dockerfile), so in
+#     the steady state the dependency downloads do not happen at all. This is the
+#     only caching that removes them; a host-side Composer cache cannot reach
+#     inside a build.
+#   - The token, COMPOSER_MAX_PARALLEL_HTTP and a jittered retry remain as depth.
+#   - A concurrency group cancels superseded PR runs.
+#
+# What none of it fixes: when codeload refuses to serve action tarballs, jobs die
+# before reaching any of this. That is outside the repository's control and must
+# be named in the gate report as such — with evidence, per the gate-trust rule in
+# docs/factory/README.md. "Infrastructure" is a finding to be shown, never an
+# assumption to wave a red run through on.
 env:
   COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
   COMPOSER_MAX_PARALLEL_HTTP: '6'
@@ -71,12 +93,38 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      # Keyed on the lock file and the Dockerfile — the two inputs that decide
+      # what `composer install` downloads. On a hit, BuildKit reuses the layer
+      # and the ~200 archive requests to codeload.github.com are never made at
+      # all. That is the only form of caching that removes them: a host-side
+      # Composer cache cannot reach inside a build, which is why the earlier
+      # per-job `actions/cache` steps have been dropped in favour of this one.
+      - name: Cache the image build layers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: /tmp/.buildx-cache
+          key: buildx-backend-${{ hashFiles('backend-symfony/composer.lock', 'infra/docker/backend/Dockerfile') }}
+          restore-keys: buildx-backend-
+
       - name: Build the dev/test image
         run: |
-          docker build \
+          # A builder with the docker-container driver: the default driver
+          # cannot export a layer cache, so --cache-to would be silently useless.
+          docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null \
+            || docker buildx use ci-builder
+
+          docker buildx build \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
             --build-arg COMPOSER_AUTH_JSON="$COMPOSER_AUTH" \
             -f infra/docker/backend/Dockerfile \
-            -t scambuster-backend:ci .
+            -t scambuster-backend:ci \
+            --load .
+
+          # buildx cannot write the cache in place; without this swap the entry
+          # grows without bound across runs.
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Export the image
         run: |
@@ -104,26 +152,6 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
-      # Keyed on the lock file, and deliberately shared across every job in this
-      # workflow rather than scoped per job. On a warm run all jobs restore the
-      # same entry and none of them saves. On a cold one they race to save it,
-      # one wins and the others log "cache already exists" — harmless, and the
-      # steady state is a single cache serving the whole run. Do not "fix" that
-      # warning by giving each job its own key: that stores the same 200 MB four
-      # times and evicts the frontend's npm cache.
-      #
-      # Calibrate your expectations before reading a timing off this: the
-      # containerised install steps already run in 6-12 s from the Composer cache
-      # baked into the image, so this cache is a floor, not a speed-up. It earns
-      # its keep when composer.lock moves ahead of that image cache. The step
-      # that costs minutes and that actually fails is the image build, which no
-      # host-side cache can reach — see the report on this PR.
-      - name: Cache Composer packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: backend-symfony/.composer-cache
-          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
-          restore-keys: composer-${{ runner.os }}-
 
       - name: Load the backend image built once for this run
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -163,12 +191,6 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
-      - name: Cache Composer packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: backend-symfony/.composer-cache
-          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
-          restore-keys: composer-${{ runner.os }}-
 
       - name: Load the backend image built once for this run
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -209,12 +231,6 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
-      - name: Cache Composer packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: backend-symfony/.composer-cache
-          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
-          restore-keys: composer-${{ runner.os }}-
 
       - name: Load the backend image built once for this run
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -427,12 +443,6 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
-      - name: Cache Composer packages
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
-        with:
-          path: backend-symfony/.composer-cache
-          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
-          restore-keys: composer-${{ runner.os }}-
 
       - name: Load the backend image built once for this run
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
