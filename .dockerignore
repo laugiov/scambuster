@@ -22,6 +22,11 @@ backend-symfony/config/jwt/*.pem
 
 # ── Regenerated during the image build ──
 backend-symfony/vendor
+# Composer's download cache: hundreds of MB that CI restores into the worktree
+# before installing dependencies. It must never enter a build context — the
+# Dockerfiles COPY backend-symfony/ wholesale, so without this line every CI
+# image would carry the cache and Trivy would scan it.
+backend-symfony/.composer-cache
 frontend-react/node_modules
 frontend-react/dist
 

@@ -19,8 +19,34 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer
 
 # Copy Composer files and install ALL dependencies (dev+prod) for build
+#
+# Retried, and authenticated when a token is supplied. Composer pulls every
+# package as a dist archive from api.github.com / codeload.github.com;
+# unauthenticated those are rate-limited per IP (HTTP 429) and shed load under
+# pressure (HTTP 504), and `Source fallback is disabled` means a single failed
+# download aborts the build with exit 100. CI builds this image in four jobs
+# that start in the same second, so the ceiling is reached by our own
+# concurrency — that is what killed run 747 on `main`. Same bounded-retry shape
+# as the pecl install above.
+#
+# COMPOSER_AUTH_JSON is declared and consumed in this build stage only. An ARG
+# value is recorded in the history of the stage that declares it, and this stage
+# is discarded by the `COPY --from=build` below, so the token never reaches the
+# image that ships.
+ARG COMPOSER_AUTH_JSON=""
 COPY backend-symfony/composer.* ./
-RUN composer install --no-interaction --no-scripts --no-progress
+RUN set -eu; \
+    if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
+    ok=0; \
+    for attempt in 1 2 3; do \
+        if composer install --no-interaction --no-scripts --no-progress; then ok=1; break; fi; \
+        echo "composer install failed (attempt $attempt/3)"; \
+        if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
+    done; \
+    if [ "$ok" -ne 1 ]; then \
+        echo "composer install failed 3 times. Not a flake to retry past — check GitHub reachability and rate limits."; \
+        exit 1; \
+    fi
 
 # Copy the rest of the application code
 COPY backend-symfony/ ./
@@ -57,9 +83,18 @@ RUN apt-get update \
 # Copy built application from the build stage
 COPY --from=build /app /app
 
-# Install only production dependencies
-RUN composer install --no-dev --prefer-dist --optimize-autoloader \
-    --no-interaction --no-scripts --no-progress
+# Install only production dependencies. vendor/ arrives populated from the build
+# stage so this mostly prunes, but it can still reach the network — same bounded
+# retry, no token: nothing declared in this stage may end up in image history.
+RUN set -eu; \
+    ok=0; \
+    for attempt in 1 2 3; do \
+        if composer install --no-dev --prefer-dist --optimize-autoloader \
+            --no-interaction --no-scripts --no-progress; then ok=1; break; fi; \
+        echo "composer install --no-dev failed (attempt $attempt/3)"; \
+        if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
+    done; \
+    [ "$ok" -eq 1 ]
 
 # Make the backup mount point writable by the runtime user. A freshly created
 # named volume inherits this directory's ownership, so the scheduled pg_dump

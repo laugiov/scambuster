@@ -57,6 +57,13 @@ services:
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
+      args:
+        # Empty for local development, where an unauthenticated `composer install`
+        # is one request tree and never hits a rate limit. CI sets COMPOSER_AUTH
+        # to the job's GitHub token, because it resolves the same tree in several
+        # jobs at once and gets HTTP 429 for it. Consumed in the build stage only
+        # — see infra/docker/backend/Dockerfile.
+        COMPOSER_AUTH_JSON: ${COMPOSER_AUTH:-}
     environment:
       - APP_API_BASE_URL=${APP_API_BASE_URL}
     env_file:

@@ -27,11 +27,23 @@ RUN apt-get update \
 RUN curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer --version=2.6.6
 
+# Retried, and authenticated when a token is supplied — see the long note in
+# infra/docker/backend/Dockerfile. Declared and consumed in this build stage
+# only, which the multi-stage COPY discards, so no token reaches the demo image.
+ARG COMPOSER_AUTH_JSON=""
 COPY backend-symfony/composer.* ./
 # Include dev dependencies (needed for fixtures).
 # Cache-bust 2026-05-10: the previous cached install layer was built against
 # Composer >= 2.7, which silently produces a vendor/ without autoload_runtime.php.
-RUN composer install --no-interaction --no-scripts --no-progress
+RUN set -eu; \
+    if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
+    ok=0; \
+    for attempt in 1 2 3; do \
+        if composer install --no-interaction --no-scripts --no-progress; then ok=1; break; fi; \
+        echo "composer install failed (attempt $attempt/3)"; \
+        if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
+    done; \
+    [ "$ok" -eq 1 ]
 
 COPY backend-symfony/ ./
 

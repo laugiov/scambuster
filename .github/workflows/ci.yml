@@ -9,6 +9,18 @@ on:
 permissions:
   contents: read
 
+# Composer resolves every package as a dist archive from api.github.com /
+# codeload.github.com. Unauthenticated that ceiling is 60 requests/hour per IP,
+# and this workflow resolves the same tree eleven times per run across jobs that
+# all start in the same second. That is what killed run 747 on `main`: HTTP 429
+# interleaved with 504, four jobs dead on the same minute, inside the image
+# build rather than in any step named "Install dependencies". The job token
+# raises the ceiling to 1000/hour. Actions masks it in logs, and every Dockerfile
+# consumes it in a build stage that the multi-stage COPY discards, so it never
+# reaches an image that ships.
+env:
+  COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+
 jobs:
   static-analysis:
     name: Static Analysis (PHPStan)
@@ -20,6 +32,20 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      # Keyed on the lock file, and deliberately shared across every job in this
+      # workflow rather than scoped per job. On a warm run all jobs restore the
+      # same entry and none of them saves. On a cold one they race to save it,
+      # one wins and the others log "cache already exists" — harmless, and the
+      # steady state is a single cache serving the whole run. Do not "fix" that
+      # warning by giving each job its own key: that stores the same 200 MB four
+      # times and evicts the frontend's npm cache.
+      - name: Cache Composer packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: backend-symfony/.composer-cache
+          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
       - name: Start containers
         run: docker compose up -d --build postgres redis backend-dev
 
@@ -27,7 +53,7 @@ jobs:
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+        run: bash .github/scripts/composer-install.sh backend-dev
 
       - name: Fix permissions
         run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
@@ -48,6 +74,13 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      - name: Cache Composer packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: backend-symfony/.composer-cache
+          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
       - name: Start containers
         run: docker compose up -d --build postgres redis backend-dev
 
@@ -55,7 +88,7 @@ jobs:
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+        run: bash .github/scripts/composer-install.sh backend-dev
 
       - name: Fix permissions
         run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
@@ -77,6 +110,13 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      - name: Cache Composer packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: backend-symfony/.composer-cache
+          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
       - name: Start services
         run: docker compose up -d --build postgres redis backend-test
 
@@ -87,9 +127,13 @@ jobs:
           echo "Waiting for backend-test..."
           for i in $(seq 1 30); do docker compose exec backend-test php -v > /dev/null 2>&1 && break || sleep 2; done
 
+      # The `2>/dev/null` that used to be on the install line is gone on purpose:
+      # it discarded exactly the "Failed to download ... (HTTP/2 429)" lines that
+      # explain why this step fails, which is part of why five red runs on PR #62
+      # were read as one transient 504.
       - name: Install dependencies
         run: |
-          docker compose exec --user root backend-test composer install --no-interaction --no-progress 2>/dev/null
+          bash .github/scripts/composer-install.sh backend-test
           docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
 
       - name: Setup database
@@ -156,7 +200,7 @@ jobs:
       - name: Setup E2E database
         if: always()
         run: |
-          docker compose exec --user root backend-e2e composer install --no-interaction --no-progress 2>/dev/null
+          bash .github/scripts/composer-install.sh backend-e2e
           docker compose exec --user root backend-e2e sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
           docker compose exec backend-e2e php bin/console doctrine:database:create --if-not-exists --env=e2e
           docker compose exec backend-e2e php bin/console doctrine:migrations:migrate --no-interaction --env=e2e
@@ -274,10 +318,17 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      - name: Cache Composer packages
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: backend-symfony/.composer-cache
+          key: composer-${{ runner.os }}-${{ hashFiles('backend-symfony/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
       - name: Composer audit (PHP SCA)
         run: |
           docker compose up -d --build backend-dev
-          docker compose exec --user root backend-dev composer install --no-interaction --no-progress 2>/dev/null
+          bash .github/scripts/composer-install.sh backend-dev
           # Blocking on NEW vulnerabilities, ignoring known/accepted CVEs.
           # Previously-ignored entries were cleared (Symfony 7.4 + PHPUnit 10.5.63
           # upgrades fixed them). Keep this set in sync with scripts/preflight-check.sh
@@ -379,8 +430,13 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      # COMPOSER_AUTH_JSON is consumed in each Dockerfile's build stage, which
+      # the multi-stage COPY discards — the scanned image carries no token.
       - name: Build ${{ matrix.name }} image
-        run: docker build -t scambuster-${{ matrix.name }}:ci -f ${{ matrix.dockerfile }} .
+        run: |
+          docker build -t scambuster-${{ matrix.name }}:ci \
+            --build-arg COMPOSER_AUTH_JSON="$COMPOSER_AUTH" \
+            -f ${{ matrix.dockerfile }} .
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
