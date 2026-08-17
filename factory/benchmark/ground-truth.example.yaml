@@ -34,11 +34,19 @@ defects:
     requirement_id: FR-003
     # Where in the artifact, precisely enough to re-find it.
     location: "spec.md, Functional Requirements, FR-003, second sentence"
-    # What kind of flaw. Free text, but keep a small vocabulary across runs so
-    # results are comparable: ambiguity, missing-failure-mode, contradiction,
-    # untestable-criterion, missing-authorization, unsafe-default, scope-creep.
+    # What kind of flaw. Drawn from the taxonomy in README.md, which is
+    # append-only so per-type rates stay comparable across runs: ambiguity,
+    # missing-failure-mode, contradiction, untestable-criterion,
+    # missing-authorization, unsafe-default, scope-creep, unjustified-assumption.
+    # Need a category that is not there? Add it to the table — do not reuse a
+    # near-miss term, and do not rename an existing one.
     defect_type: missing-authorization
     # blocker | major | minor — your judgement of how bad it would be if shipped.
+    #
+    # Required, and load-bearing: the detection rule compares the objection's
+    # severity against this one. A blocker or major is caught only by a BLOCKING
+    # objection; a minor is caught by an ADVISORY. score.py rejects a ground
+    # truth with a missing or misspelled severity rather than scoring around it.
     severity: blocker
     description: >-
       FR-003 says an analyst can update a persona but never states which role is

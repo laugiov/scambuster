@@ -107,7 +107,7 @@ gives its path and the session reads it where it is.
 | Run | Artifact | Status |
 |---|---|---|
 | 001 | `specs/001-cluster-stix-export/spec.md` | **abandoned, never scored** — clean spec committed as `9ca9b59` before seeding, and the feature turned out to be already implemented. Both reasons in `factory/benchmark/runs/001/README.md`. Kept deliberately; history not rewritten. |
-| 002 | `~/factory-benchmark/spec-002-clean.md` | **scored: 60%** (6/10 detected, 1 partial, 3 missed, 0 true false positives). Clean spec outside the worktree, feature verified absent, defects seeded by a subagent so no reviewer and no orchestrator knew their location. `factory/benchmark/runs/002/`. |
+| 002 | `~/factory-benchmark/spec-002-clean.md` | **scored: 60%** (6/10 detected, 1 partial, 3 missed, 0 true false positives). Clean spec outside the worktree, feature verified absent, defects seeded by a subagent so no reviewer and no orchestrator knew their location. `factory/benchmark/runs/002/`. **Measured under the pre-2026-08-17 detection rule** (DETECTED iff BLOCKING, at every severity). Deliberately not re-scored — 60% stands for this run and is not comparable to any rate produced after the rule change. |
 
 Run 002's diagnosis, in one line each, so a future session does not re-derive it:
 `contradiction`, `unjustified-assumption` and `missing-authorization` scored 100%;
@@ -122,6 +122,16 @@ the previous text. Run 003 must use a fresh artifact: re-running against
 
 One caveat travels with that number: a subagent chose the defects, not the maintainer.
 The protocol asks for hand-seeding, and a hand-seeded run is still worth doing.
+
+## Changes made after PR #62 merged (chore PR, CI integrity + triage)
+
+| # | Change | Why it is here and not in a pipeline run |
+|---|---|---|
+| 1 | `ci.yml` caches the Composer cache keyed on `composer.lock`, installs through `.github/scripts/composer-install.sh` (bounded retry), and authenticates Composer's GitHub downloads with the job token. Every Dockerfile's `composer install` gained the same bounded retry. | PR #62 was merged past five red runs read as one transient GitHub 504. The run on `main` at `3abdb7c` then failed **the same way**, in four jobs at once — so the transient reading was wrong. Cause: unauthenticated dist downloads from `api.github.com` / `codeload.github.com` under a 60-request/hour per-IP ceiling, reached by this workflow's own concurrency (HTTP 429 interleaved with 504), inside the **image build** (`Dockerfile:23`) rather than in any step named "Install dependencies". |
+| 2 | `docs/factory/README.md` gains **"Trusting the gates"**: a red run is never merged on the assumption that it is infrastructure. | The rule that would have caught #1 at the time. |
+| 3 | `SEC-002` registered: Redis runs with no `requirepass` on a network assumed trusted. Triaged as a **hardening gap, not an exposure** — no compose file publishes the port. Not fixed here. | One vulnerability, one PR. |
+| 4 | `unjustified-assumption` added to the benchmark taxonomy, which is now declared **append-only**. | Run 002 used a term the table lacked and left the call to the maintainer. Adding beats renaming: renaming rewrites the per-type history of every earlier run. |
+| 5 | Benchmark detection rule now compares the objection's severity against the **seeded** severity (`blocker`/`major` need BLOCKING, `minor` is caught by ADVISORY). `score.py` rejects a ground truth with no valid severity, and reports minor defects that drew BLOCKING. | The old rule scored a `minor` correctly raised as ADVISORY as a miss, so the only way to score well was to block on everything — the exact loudness the unseeded-blocking count warns about. |
 
 ## Setup complete
 
