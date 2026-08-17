@@ -48,7 +48,7 @@ COPY backend-symfony/composer.* ./
 # Cache-bust 2026-05-10: the previous cached install layer was built against
 # Composer >= 2.7, which silently produces a vendor/ without autoload_runtime.php.
 RUN set -eu; \
-    export COMPOSER_MAX_PARALLEL_HTTP="${COMPOSER_MAX_PARALLEL_HTTP:-6}"; \
+    export COMPOSER_MAX_PARALLEL_HTTP=6; \
     ok=0; \
     extra=""; \
     for attempt in 1 2 3; do \

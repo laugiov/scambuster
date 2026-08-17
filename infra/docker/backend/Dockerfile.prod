@@ -40,7 +40,7 @@ ARG COMPOSER_AUTH_JSON=""
 COPY backend-symfony/composer.* ./
 RUN set -eu; \
     if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
-    export COMPOSER_MAX_PARALLEL_HTTP="${COMPOSER_MAX_PARALLEL_HTTP:-6}"; \
+    export COMPOSER_MAX_PARALLEL_HTTP=6; \
     ok=0; \
     extra=""; \
     for attempt in 1 2 3; do \

@@ -143,11 +143,27 @@ measures, arriving on a seeded requirement where that count cannot see it.
 ## Reading the output
 
 ```
+DEFECT  REQ      SEVERITY NEEDED    RAISED    VERDICT   TYPE
+D-001   FR-003   minor    ADVISORY  ADVISORY  DETECTED  unjustified-assumption
+D-006   FR-011   blocker  BLOCKING  ADVISORY  PARTIAL   missing-failure-mode
+D-009   SC-006   major    BLOCKING  -         MISSED    missing-failure-mode
+
 detected 4/7   partial 2   missed 1
 detection rate: 57.1%
 
+2 defect(s) drew an objection weaker than they warranted — a blocker or major
+raised only as advisory.
+
+Blocked on minor defects: D-004. Counted as detected, but a gate that stops a
+merge over a minor defect is the same loudness the unseeded-blocking count
+measures, landing on a seeded requirement where that count cannot see it.
+
 Blocking objections on requirements with no seeded defect: FR-011, FR-014.
 ```
+
+`NEEDED` is what the seeded severity demanded, `RAISED` is the strongest
+objection that cited the requirement. When `RAISED` is weaker than `NEEDED` the
+verdict is PARTIAL — the reviewer noticed and nothing stopped.
 
 Read the rate **next to** that last line. A reviewer that blocks everything
 detects everything, and scores 100%. If blocking objections on unseeded

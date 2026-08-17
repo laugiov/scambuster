@@ -32,7 +32,15 @@ RUN curl -sS https://getcomposer.org/installer | php -- \
 #                               Authorization header across a redirect to another
 #                               host, so codeload sees an anonymous request.
 #   COMPOSER_MAX_PARALLEL_HTTP  12 open connections by default; 6 here. Reduces
-#                               the burst, does not change the ceiling.
+#                               the burst, does not change the ceiling. Set
+#                               literally, NOT from the environment: a build only
+#                               sees variables declared as ARG and passed with
+#                               --build-arg, and this one is neither. It used to
+#                               read ${COMPOSER_MAX_PARALLEL_HTTP:-6}, which was
+#                               a lie with the right answer — the fallback always
+#                               won, so changing the workflow env would have
+#                               silently changed nothing here. Tune it by editing
+#                               this line in all three Dockerfiles.
 #   retry, jittered             a fixed backoff makes every job of a run retry in
 #                               the same second and recreate the burst.
 #   --prefer-source (attempt 3) the one that changes *which host* is asked.
@@ -57,7 +65,7 @@ ARG COMPOSER_AUTH_JSON=""
 COPY backend-symfony/composer.* ./
 RUN set -eu; \
     if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
-    export COMPOSER_MAX_PARALLEL_HTTP="${COMPOSER_MAX_PARALLEL_HTTP:-6}"; \
+    export COMPOSER_MAX_PARALLEL_HTTP=6; \
     ok=0; \
     extra=""; \
     for attempt in 1 2 3; do \
@@ -135,11 +143,15 @@ RUN set -eu; \
     done; \
     [ "$ok" -eq 1 ]
 
-# The --prefer-source fallback in the build stage leaves a full git working copy
-# inside every vendor package. Harmless to run, but it inflates the image, the
-# artifact every CI job downloads, and the surface Trivy scans — for history no
-# runtime needs. A no-op on the normal dist path, where there is nothing to find.
-RUN find /app/vendor -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true
+# NOT stripped here, deliberately — unlike the prod and demo images.
+#
+# CI runs `composer install` *inside a container from this image* (see
+# .github/scripts/composer-install.sh). After a --prefer-source build, vendor/
+# packages are recorded in installed.json as source installs; removing their .git
+# would leave Composer with a source install it cannot verify, and its likely
+# response is to reinstall — a full download at the one moment that path runs,
+# which is when codeload is already refusing traffic. The image carries a little
+# git history instead. Cheap insurance against making a bad day worse.
 
 # Make the backup mount point writable by the runtime user. A freshly created
 # named volume inherits this directory's ownership, so the scheduled pg_dump
