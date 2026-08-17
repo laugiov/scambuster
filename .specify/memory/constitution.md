@@ -109,6 +109,16 @@ and why `architecture-reviewer` reads every change that crosses a layer.
 
 ### IV. Testing rules (NON-NEGOTIABLE)
 
+- **Test-first, in every pipeline, including features.** For each task `T###`,
+  the failing test is committed on its own — a commit touching only test files
+  and citing that task — before any commit implementing it. Order is verifiable
+  in history and cannot be reconstructed afterwards, which is exactly why it is
+  the rule rather than an intention. `.github/workflows/factory-gates.yml`
+  enforces it; `TDD-exempt: <reason>` in a commit body downgrades it to an
+  advisory that a human reads in the gate report.
+  Order is necessary and not sufficient: an empty test satisfies the gate, so
+  `qa-reviewer` still checks that the test was seen failing and asserts
+  something.
 - Every behaviour change ships with tests in the same PR.
 - **A bug fix ships with a failing reproduction test, committed before the fix.**
   The test's first commit must demonstrate the bug; the fix's commit turns it
@@ -120,6 +130,17 @@ and why `architecture-reviewer` reads every change that crosses a layer.
   `functional` suite (`phpunit.ci.xml` omits it deliberately). `make test` runs it
   locally and the human gate covers it.
 - Tests state intent. A test named after the method it calls documents nothing.
+- **Mutation testing measures whether the tests would notice.** Infection is
+  configured in this repository (`make mutation`, min MSI 70 / covered MSI 80).
+  It runs on the PR's changed files and its result is reported in the gate
+  report. It is not blocking yet — it has never run in CI here, so its cost and
+  its survivor rate on this codebase are unknown. Calibrate, then make it block.
+- **Documentation is part of the change.** A PR that touches an HTTP controller,
+  a console command, routing, bundle configuration, a migration, a UI page, the
+  environment template or a make target updates `docs/` — or states in the PR
+  body `Docs-impact: none — <reason>`. Saying "none" is legitimate and cheap;
+  saying nothing is not, because an unticked checkbox is how a runbook goes
+  stale without anyone deciding that it should.
 
 ### V. Traceability
 

@@ -94,6 +94,10 @@ checking, not an empty table.
 | style (`--dry-run`) | pass / fail / **not run** | |
 | frontend gates | pass / fail / n/a | only if `frontend-react/` was touched |
 | coverage vs base | | |
+| patch coverage | | % of changed lines covered |
+| mutation score (Infection) | | MSI on changed files — reported, not blocking |
+| TDD order | pass / fail / n/a | feature pipeline only; list any `TDD-exempt` claims |
+| documentation impact | | docs updated, or the `Docs-impact: none` reason |
 | `/speckit-analyze` | | |
 | tasks cite requirement IDs | | |
 

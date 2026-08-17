@@ -40,10 +40,31 @@ judge; their testability is.
 **On the implementation:**
 
 - Tests ship in the same commit as the behaviour they cover.
-- **Order, in the bug and security pipelines**: the reproduction or exploit test
-  is committed *before* the fix, and its failure was observed. Check the commit
-  order with `git log` — do not take the PR description's word for it. A test
-  written after the fix proves only that the code does what it now does.
+- **Order, in every pipeline**: the test is committed *before* the code it
+  covers, and its failure was observed. In bug and security PRs that is the
+  reproduction or exploit test; in feature PRs it is one test-only commit per
+  task `T###`. Check with `git log` — do not take the PR description's word for
+  it. A test written after the code proves only that the code does what it now
+  does.
+- **CI checks the order; you check the substance.** The `TDD order` job proves a
+  test-only commit came first. It cannot tell whether that test asserted
+  anything, or was ever red. An empty test file passes it. So for each task, read
+  the test commit and ask: would this have failed before the implementation
+  landed? If it would have passed, the order was theatre and the objection is
+  yours to raise.
+- **`TDD-exempt` claims.** Each one is a task somebody decided could not be
+  driven by a test. Read the reason. A pure rename is a fair claim; "the test was
+  hard to write" is the case for writing it.
+- **Documentation.** If the change touches an HTTP controller, a console command,
+  routing, bundle configuration, a migration, a UI page, `.env.dist` or the
+  Makefile, `docs/` should have moved too — or the PR body carries
+  `Docs-impact: none — <reason>`. When a reason is given, judge it: an internal
+  endpoint may genuinely need no docs, a new public route almost never does not.
+- **Mutation score.** Infection runs on the changed files and its MSI is in the
+  gate report. It does not block. A high line coverage with many surviving
+  mutants means tests that execute code without checking it — that is worth an
+  objection naming the surviving mutant, which is as concrete as an objection
+  gets.
 - The right layer: unit for domain logic, integration when the database is
   needed, functional at the HTTP boundary. **CI does not run the `functional`
   suite** (`phpunit.ci.xml` omits it), so a behaviour covered *only* functionally

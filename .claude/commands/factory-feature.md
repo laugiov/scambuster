@@ -64,11 +64,35 @@ for or a missing requirement — resolve which, do not leave it uncited.
 before implementing. Have `qa-reviewer` review the task list for test coverage of
 each requirement.
 
-**7. Implement** — run `/speckit-implement`, one task at a time:
-- one commit per task, message citing the requirement IDs;
-- tests ship in the same commit as the behaviour they cover;
-- after each task, the suite stays green — you do not accumulate a red suite and
-  fix it at the end;
+**7. Implement** — run `/speckit-implement`, one task at a time, **test-first**:
+
+Each task produces **two commits, in this order**:
+
+1. **The failing test.** Touching only test files, citing the task and its
+   requirement IDs. Run it, watch it fail, and keep the output — you will need it
+   at G2. A test you never saw red proves nothing.
+2. **The implementation.** The smallest change that turns it green.
+
+```
+test(communication): persona update rejects non-admin (T012) (FR-003)
+feat(communication): enforce ROLE_ADMIN on persona update (T012) (FR-003)
+```
+
+The order is checked in CI from the commit history, so it cannot be reconstructed
+afterwards. If a task genuinely cannot be driven by a test — a pure rename, a
+config move — write `TDD-exempt: <reason>` in the implementation commit body. It
+does not fail the build; it appears in the gate report where the maintainer reads
+it, so use it when it is true and not to move faster.
+
+Also:
+- **the full suite is green before you ask for any review.** You do not
+  accumulate a red suite and fix it at the end, and you never present a stage to
+  a reviewer or to a gate with failing tests — a reviewer reading broken code
+  reviews the wrong thing;
+- update `docs/` in the same PR when the change touches an HTTP controller, a
+  console command, routing, bundle configuration, a migration, a UI page, the
+  environment template or a make target. If none is needed, put
+  `Docs-impact: none — <reason>` in the PR body. CI checks this;
 - if a task turns out to need a decision the spec does not settle, stop and ask.
   Do not widen the spec by implementing your best guess.
 

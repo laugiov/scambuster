@@ -105,6 +105,15 @@ auto_pass_criteria:
       description: "Patch and project coverage not below the base branch (Codecov, target: auto)"
     no_blocking_objections:
       description: "No BLOCKING objection remains open; advisories are recorded in the gate report"
+    tdd_order_respected:
+      description: "For every task, a test-only commit citing it precedes the implementation commit. Order only — that the test was seen failing is qa-reviewer's check"
+      command: "python3 scripts/factory/check-tdd-order.py --base <base> --head <head>"
+    docs_impact_declared:
+      description: "A user-visible change updates docs/, or the PR body carries `Docs-impact: none — <reason>`"
+      command: "python3 scripts/factory/check-docs-impact.py --base <base> --head <head> --pr-body-file <file>"
+    mutation_score_reported:
+      description: "Infection ran on the changed files and its MSI is in the gate report. NOT blocking yet — never run in CI on this codebase, so cost and survivor rate are unknown"
+      blocking: false
 
   transitions:
 
@@ -127,8 +136,12 @@ auto_pass_criteria:
         - style_clean
         - frontend_gates
         - coverage_not_below_base
+        - tdd_order_respected
+        - docs_impact_declared
+        - mutation_score_reported
         - no_blocking_objections
         - "every FR-### traces to at least one task and one commit"
+        - "the full suite was green before any reviewer or gate was asked to look"
 
     bug:
       reproduce_to_fix:

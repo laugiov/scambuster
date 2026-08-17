@@ -210,6 +210,29 @@ jobs:
             --min "$FACTORY_PATCH_COVERAGE_MIN" \
             coverage-unit-integration.xml coverage-e2e.xml
 
+      # Factory gate: mutation testing on the changed files.
+      #
+      # Coverage says a line ran; mutation says a test would have noticed if the
+      # line were wrong. Infection is already configured here (infection.json5,
+      # min MSI 70 / covered 80) but has only ever been a manual `make mutation`.
+      #
+      # NOT blocking: it has never run in CI on this codebase, so its duration
+      # and survivor rate are unknown, and a gate that fails unpredictably on its
+      # first day gets switched off. Read the MSI in the gate report for a few
+      # PRs, then drop continue-on-error and set the threshold deliberately.
+      - name: Mutation testing on changed files (reported, not blocking)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        timeout-minutes: 20
+        run: |
+          docker compose exec backend-test vendor/bin/infection \
+            --threads=4 \
+            --git-diff-filter=AM \
+            --git-diff-base=origin/${{ github.event.pull_request.base.ref }} \
+            --min-msi=0 --min-covered-msi=0 \
+            --no-progress --no-interaction \
+            || echo "::warning::Infection did not complete. Recorded as 'not run', not as 'passed'."
+
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
