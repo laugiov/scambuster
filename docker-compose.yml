@@ -54,9 +54,32 @@ services:
       - scambuster
 
   backend-dev: &backend-dev
+    # Named explicitly so CI can build this image once per run and hand the same
+    # one to every job (`docker load` + `docker compose up` with no --build).
+    # Compose still builds it on demand when the tag is absent, so on a clean
+    # machine local behaviour is unchanged.
+    #
+    # It is NOT unchanged once the tag exists locally. `docker compose up` then
+    # reuses the image and does not rebuild it, so anything baked into the image
+    # — composer.lock, the Dockerfile, PHP extensions — keeps running at the
+    # version it had when the image was built. Use `docker compose up --build`
+    # after changing any of those, or you will debug a fix that is not in the
+    # container.
+    #
+    # And this tag is SHARED: backend-test, backend-e2e, backend-preprod,
+    # scheduler and canary-worker all inherit it from this anchor. One stale
+    # image is now six stale services rather than one.
+    image: scambuster-backend:ci
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
+      args:
+        # Empty for local development, where an unauthenticated `composer install`
+        # is one request tree and never hits a rate limit. CI sets COMPOSER_AUTH
+        # to the job's GitHub token, because it resolves the same tree in several
+        # jobs at once and gets HTTP 429 for it. Consumed in the build stage only
+        # — see infra/docker/backend/Dockerfile.
+        COMPOSER_AUTH_JSON: ${COMPOSER_AUTH:-}
     environment:
       - APP_API_BASE_URL=${APP_API_BASE_URL}
     env_file:

@@ -9,10 +9,105 @@ on:
 permissions:
   contents: read
 
+# A superseded run does not stop on its own: pushing twice to a PR leaves two
+# runs resolving the same dependency tree against codeload.github.com at once,
+# which doubles exactly the burst this workflow is trying not to make. Cancel the
+# old one. Not on `main` or `demo` — there, every commit's result is a record
+# worth having, and pushes are rare enough that they do not stack.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# ── Why this workflow looks the way it does ──────────────────────────────────
+#
+# Everything below is about one host: codeload.github.com. Composer resolves each
+# package as a dist archive from api.github.com, which redirects the actual zip
+# there. Composer does not carry the Authorization header across a redirect to a
+# different host — correctly — so codeload sees an anonymous request under a
+# per-IP limit that no token lifts.
+#
+# What was established, run by run, rather than assumed:
+#
+#   747 (main)  HTTP 504 from api.github.com interleaved with 429 from codeload.
+#               Merged past on PR #62 as "a transient 504". It was not transient:
+#               it reproduced on main and on three runs of PR #63.
+#   748         The job token removed every 504. The 429s from codeload remained,
+#               so authentication fixes half of this and cannot fix the other.
+#   750         The runner failed to download a 40 KB *first-party action tarball*
+#               (actions/download-artifact) from codeload: 429, 429, then 502,
+#               before a single workflow step had run.
+#
+# That last one matters more than the rest, and it corrects an earlier reading
+# written into this file: the story was "our own concurrency is rate-limiting
+# us". A 429 on an action tarball is not something this workflow's Composer
+# volume can cause — the runner fetches actions before our steps exist. codeload
+# is throttling or degraded for these runners independently of what we ask of it.
+#
+# So the changes here are made on their own merits — fewer requests is right
+# whatever the cause — and NOT on a claim that they make codeload reliable:
+#
+#   - `build-backend-image` builds the image ONCE per run and ships it as an
+#     artifact. Four concurrent dependency resolutions become one.
+#   - That build is layer-cached (keyed on composer.lock + the Dockerfile), so in
+#     the steady state the dependency downloads do not happen at all. This is the
+#     only caching that removes them; a host-side Composer cache cannot reach
+#     inside a build.
+#   - The token, COMPOSER_MAX_PARALLEL_HTTP and a jittered retry remain as depth.
+#   - A concurrency group cancels superseded PR runs.
+#
+# What none of it fixes: when codeload refuses to serve action tarballs, jobs die
+# before reaching any of this. That is outside the repository's control and must
+# be named in the gate report as such — with evidence, per the gate-trust rule in
+# docs/factory/README.md. "Infrastructure" is a finding to be shown, never an
+# assumption to wave a red run through on.
+#
+# ── On the two environment variables ─────────────────────────────────────────
+#
+# COMPOSER_AUTH and COMPOSER_MAX_PARALLEL_HTTP are set per job rather than here.
+# The token grants nothing a job does not already have via secrets.GITHUB_TOKEN,
+# so this is tidiness rather than a control — but `frontend` has no use for it,
+# and the demo image is actively broken by it (see below). Keeping the blast
+# radius equal to the need is cheaper to reason about than remembering which
+# consumers tolerate it.
+#
+# COMPOSER_MAX_PARALLEL_HTTP applies ONLY to the containerised installs that go
+# through composer-install.sh. Image builds cannot see it — a build only receives
+# variables declared as ARG and passed with --build-arg — so the three Dockerfiles
+# set 6 literally. Changing the per-job value does not change any build.
+
 jobs:
-  static-analysis:
-    name: Static Analysis (PHPStan)
+  # Build the backend image ONCE per run, and ship it to the other jobs.
+  #
+  # This job is the fix for the 429s, and it is structural rather than a tuning
+  # knob. Composer pulls ~200 dist archives from codeload.github.com, which
+  # applies a per-IP abuse limit that no token lifts (see the note above). Four
+  # jobs each running `docker compose up --build` produced four of those bursts
+  # from one runner IP in the same second. That is what took `main` down at
+  # 3abdb7c, and runs 748 and 749 of this PR with it.
+  #
+  # Fewer parallel connections and a jittered backoff improved the odds. They did
+  # not remove the cause: N concurrent full dependency resolutions. One build per
+  # run does, and it is the only change here that cannot be defeated by GitHub
+  # tightening the limit further.
+  #
+  # The image travels as an artifact instead of being rebuilt. Measured on the
+  # first green run (754) against the last green run of main (31988125536):
+  #
+  #   image build            2m36s, once, on the critical path
+  #   artifact upload        ~4s (281 MB)
+  #   download + docker load 12s + 19s per consumer
+  #   whole run              12m13s, against 10m04s before
+  #
+  # So it costs about **two minutes of wall clock**, not nothing. An earlier
+  # version of this comment claimed the run got cheaper; the measurement says
+  # otherwise and the claim is withdrawn. What the two minutes buy is four
+  # concurrent dependency resolutions becoming one, and every job testing the
+  # *same* image rather than a second build of the same Dockerfile.
+  build-backend-image:
+    name: Build backend image (once per run)
     runs-on: ubuntu-latest
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -20,14 +115,85 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      # Keyed on the lock file and the Dockerfile — the two inputs that decide
+      # what `composer install` downloads. On a hit, BuildKit reuses the layer
+      # and the ~200 archive requests to codeload.github.com are never made at
+      # all. That is the only form of caching that removes them: a host-side
+      # Composer cache cannot reach inside a build, which is why the earlier
+      # per-job `actions/cache` steps have been dropped in favour of this one.
+      - name: Cache the image build layers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: /tmp/.buildx-cache
+          key: buildx-backend-${{ hashFiles('backend-symfony/composer.lock', 'infra/docker/backend/Dockerfile') }}
+          restore-keys: buildx-backend-
+
+      - name: Build the dev/test image
+        run: |
+          # A builder with the docker-container driver: the default driver
+          # cannot export a layer cache, so --cache-to would be silently useless.
+          docker buildx create --name ci-builder --driver docker-container --use 2>/dev/null \
+            || docker buildx use ci-builder
+
+          docker buildx build \
+            --cache-from type=local,src=/tmp/.buildx-cache \
+            --cache-to type=local,dest=/tmp/.buildx-cache-new,mode=max \
+            --build-arg COMPOSER_AUTH_JSON="$COMPOSER_AUTH" \
+            -f infra/docker/backend/Dockerfile \
+            -t scambuster-backend:ci \
+            --load .
+
+          # buildx cannot write the cache in place; without this swap the entry
+          # grows without bound across runs.
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Export the image
+        run: |
+          docker save scambuster-backend:ci | gzip -1 > /tmp/backend-image.tar.gz
+          ls -lh /tmp/backend-image.tar.gz
+
+      - name: Upload the image
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: backend-image
+          path: /tmp/backend-image.tar.gz
+          retention-days: 1
+          # Already gzipped above; letting the action zip it again costs a minute
+          # and saves nothing.
+          compression-level: 0
+
+  static-analysis:
+    name: Static Analysis (PHPStan)
+    runs-on: ubuntu-latest
+    needs: [build-backend-image]
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+      COMPOSER_MAX_PARALLEL_HTTP: '6'
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Create environment files
+        run: bash .github/scripts/create-ci-env.sh
+
+      - name: Load the backend image built once for this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-image
+          path: /tmp
+
+      - name: Import it into the daemon
+        run: docker load < /tmp/backend-image.tar.gz
+
       - name: Start containers
-        run: docker compose up -d --build postgres redis backend-dev
+        run: docker compose up -d postgres redis backend-dev
 
       - name: Wait for services
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+        run: bash .github/scripts/composer-install.sh backend-dev
 
       - name: Fix permissions
         run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
@@ -41,6 +207,10 @@ jobs:
   code-style:
     name: Code Style (PHP-CS-Fixer)
     runs-on: ubuntu-latest
+    needs: [build-backend-image]
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+      COMPOSER_MAX_PARALLEL_HTTP: '6'
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -48,14 +218,23 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      - name: Load the backend image built once for this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-image
+          path: /tmp
+
+      - name: Import it into the daemon
+        run: docker load < /tmp/backend-image.tar.gz
+
       - name: Start containers
-        run: docker compose up -d --build postgres redis backend-dev
+        run: docker compose up -d postgres redis backend-dev
 
       - name: Wait for services
         run: make wait-healthy
 
       - name: Install dependencies
-        run: docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+        run: bash .github/scripts/composer-install.sh backend-dev
 
       - name: Fix permissions
         run: docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var"
@@ -66,6 +245,10 @@ jobs:
   backend-tests:
     name: Backend Tests (Unit + Integration)
     runs-on: ubuntu-latest
+    needs: [build-backend-image]
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+      COMPOSER_MAX_PARALLEL_HTTP: '6'
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -77,8 +260,17 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      - name: Load the backend image built once for this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-image
+          path: /tmp
+
+      - name: Import it into the daemon
+        run: docker load < /tmp/backend-image.tar.gz
+
       - name: Start services
-        run: docker compose up -d --build postgres redis backend-test
+        run: docker compose up -d postgres redis backend-test
 
       - name: Wait for healthy services
         run: |
@@ -87,9 +279,13 @@ jobs:
           echo "Waiting for backend-test..."
           for i in $(seq 1 30); do docker compose exec backend-test php -v > /dev/null 2>&1 && break || sleep 2; done
 
+      # The `2>/dev/null` that used to be on the install line is gone on purpose:
+      # it discarded exactly the "Failed to download ... (HTTP/2 429)" lines that
+      # explain why this step fails, which is part of why five red runs on PR #62
+      # were read as one transient 504.
       - name: Install dependencies
         run: |
-          docker compose exec --user root backend-test composer install --no-interaction --no-progress 2>/dev/null
+          bash .github/scripts/composer-install.sh backend-test
           docker compose exec --user root backend-test sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
 
       - name: Setup database
@@ -150,13 +346,13 @@ jobs:
       - name: Start E2E container
         if: always()
         run: |
-          docker compose up -d --build backend-e2e
+          docker compose up -d backend-e2e
           for i in $(seq 1 30); do docker compose exec backend-e2e php -v > /dev/null 2>&1 && break || sleep 2; done
 
       - name: Setup E2E database
         if: always()
         run: |
-          docker compose exec --user root backend-e2e composer install --no-interaction --no-progress 2>/dev/null
+          bash .github/scripts/composer-install.sh backend-e2e
           docker compose exec --user root backend-e2e sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
           docker compose exec backend-e2e php bin/console doctrine:database:create --if-not-exists --env=e2e
           docker compose exec backend-e2e php bin/console doctrine:migrations:migrate --no-interaction --env=e2e
@@ -256,6 +452,10 @@ jobs:
   security:
     name: Security Scanning
     runs-on: ubuntu-latest
+    needs: [build-backend-image]
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+      COMPOSER_MAX_PARALLEL_HTTP: '6'
     # The workflow's top-level permissions are 'contents: read'. The Gitleaks
     # action additionally needs to list a PR's commits via
     # GET /repos/{owner}/{repo}/pulls/{n}/commits, which requires
@@ -274,10 +474,19 @@ jobs:
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
 
+      - name: Load the backend image built once for this run
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-image
+          path: /tmp
+
+      - name: Import it into the daemon
+        run: docker load < /tmp/backend-image.tar.gz
+
       - name: Composer audit (PHP SCA)
         run: |
-          docker compose up -d --build backend-dev
-          docker compose exec --user root backend-dev composer install --no-interaction --no-progress 2>/dev/null
+          docker compose up -d backend-dev
+          bash .github/scripts/composer-install.sh backend-dev
           # Blocking on NEW vulnerabilities, ignoring known/accepted CVEs.
           # Previously-ignored entries were cleared (Symfony 7.4 + PHPUnit 10.5.63
           # upgrades fixed them). Keep this set in sync with scripts/preflight-check.sh
@@ -360,7 +569,9 @@ jobs:
   container-security:
     name: Container Security (Trivy + SBOM)
     runs-on: ubuntu-latest
-    needs: [static-analysis]
+    needs: [build-backend-image, static-analysis]
+    env:
+      COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
     # Blocking gate. The Dockerfiles run `apt-get upgrade` so fixable base-image
     # CVEs are patched at build time; unfixable ones (perl-base, kernel headers,
     # ncurses — no upstream patch, not reachable from our PHP runtime) are skipped
@@ -370,17 +581,58 @@ jobs:
     # self-contained production image that actually gets deployed/published.
     strategy:
       fail-fast: false
+      # One at a time. Each of these builds resolves the full dependency tree
+      # against codeload.github.com, and three of them in parallel is the same
+      # burst that made this workflow unreliable in the first place — just
+      # displaced to a later stage of the run. This is a scanning job, not one
+      # anybody waits on, so serialising it costs nothing that matters.
+      max-parallel: 1
       matrix:
         include:
-          - { name: dev, dockerfile: infra/docker/backend/Dockerfile }
+          # `dev` carries no dockerfile on purpose: it is not built here any
+          # more, it is the artifact from build-backend-image. Leaving the path
+          # in would suggest this job exercises that Dockerfile, which it no
+          # longer does — build-backend-image is what proves it builds.
+          - { name: dev }
           - { name: prod, dockerfile: infra/docker/backend/Dockerfile.prod }
           - { name: demo, dockerfile: infra/docker/demo/Dockerfile.backend }
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      # The dev image was already built once for this run. Reusing it removes a
+      # fourth dependency resolution, and it makes the scan mean more: what gets
+      # scanned is then byte-for-byte the image the tests actually ran against,
+      # rather than a second build that merely used the same Dockerfile.
+      - name: Reuse the prebuilt dev image
+        if: matrix.name == 'dev'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: backend-image
+          path: /tmp
+
+      - name: Import the prebuilt dev image
+        if: matrix.name == 'dev'
+        run: |
+          docker load < /tmp/backend-image.tar.gz
+          docker tag scambuster-backend:ci scambuster-dev:ci
+
+      # COMPOSER_AUTH_JSON is consumed in the build stage, which the multi-stage
+      # COPY discards — the scanned image carries no token. The demo image is the
+      # exception and does not declare the ARG at all: it pins Composer 2.6.6,
+      # which rejects any token containing an underscore and so aborts instantly
+      # on a modern `ghs_` one. See infra/docker/demo/Dockerfile.backend.
       - name: Build ${{ matrix.name }} image
-        run: docker build -t scambuster-${{ matrix.name }}:ci -f ${{ matrix.dockerfile }} .
+        if: matrix.name != 'dev'
+        run: |
+          if [ "${{ matrix.name }}" = "demo" ]; then
+            docker build -t scambuster-demo:ci \
+              -f ${{ matrix.dockerfile }} .
+          else
+            docker build -t scambuster-${{ matrix.name }}:ci \
+              --build-arg COMPOSER_AUTH_JSON="$COMPOSER_AUTH" \
+              -f ${{ matrix.dockerfile }} .
+          fi
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0

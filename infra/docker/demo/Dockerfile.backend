@@ -27,11 +27,49 @@ RUN apt-get update \
 RUN curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer --version=2.6.6
 
+# Retried like the other two images — but deliberately NOT authenticated, and
+# this is the one place that difference is load-bearing.
+#
+# This stage pins Composer 2.6.6 (see the note above; newer Composer breaks
+# autoload_runtime.php here). That version rejects any github-oauth token
+# containing an underscore, and every modern GitHub token has one — `ghs_`,
+# `ghp_`, `github_pat_`. Passing the job token here does not degrade to
+# unauthenticated: Composer aborts before it makes a single request, in 0.2s:
+#
+#     In BaseIO.php line 139:
+#       Your github oauth token for github.com contains invalid characters: "ghs_1..."
+#
+# So a token that helps the other two images is fatal to this one. It is left out
+# rather than worked around, because the pin is the real constraint and the demo
+# image resolves one dependency tree per run — far from any rate limit. The
+# bounded retry and the --prefer-source fallback below still apply.
 COPY backend-symfony/composer.* ./
 # Include dev dependencies (needed for fixtures).
 # Cache-bust 2026-05-10: the previous cached install layer was built against
 # Composer >= 2.7, which silently produces a vendor/ without autoload_runtime.php.
-RUN composer install --no-interaction --no-scripts --no-progress
+RUN set -eu; \
+    export COMPOSER_MAX_PARALLEL_HTTP=6; \
+    ok=0; \
+    extra=""; \
+    for attempt in 1 2 3; do \
+        if composer install --no-interaction --no-scripts --no-progress $extra; then ok=1; break; fi; \
+        echo "composer install failed (attempt $attempt/3)"; \
+        if [ "$attempt" -eq 1 ]; then \
+            jitter=$(od -An -N1 -tu1 /dev/urandom | tr -d " "); \
+            sleep $((60 + jitter % 30)); \
+        elif [ "$attempt" -eq 2 ]; then \
+            echo "dist archives are not being served; falling back to --prefer-source (git clone from github.com, not codeload)"; \
+            extra="--prefer-source"; \
+            sleep 10; \
+        fi; \
+    done; \
+    [ "$ok" -eq 1 ]
+
+# The --prefer-source fallback in the build stage leaves a full git working copy
+# inside every vendor package. Harmless to run, but it inflates the image, the
+# artifact every CI job downloads, and the surface Trivy scans — for history no
+# runtime needs. A no-op on the normal dist path, where there is nothing to find.
+RUN find /app/vendor -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true
 
 COPY backend-symfony/ ./
 

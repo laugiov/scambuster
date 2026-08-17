@@ -1,10 +1,12 @@
 <!--
-The three lines below are read by .github/workflows/factory-gates.yml. Keep them
+The four lines below are read by .github/workflows/factory-gates.yml. Keep them
 at the top, one per line, exactly in this shape.
 
-  Pipeline:  feature | bug | security | chore  (required — selects the gates)
-  Spec:      path to spec.md                   (required for feature only)
-  Gates:     links to the gate reports         (when a gate report exists)
+  Pipeline:       feature | bug | security | chore  (required — selects the gates)
+  Spec:           path to spec.md                   (required for feature only)
+  Gates:          links to the gate reports         (when a gate report exists)
+  Deploy-impact:  what a deployer needs to know     (required for a chore PR that
+                  touches infra/docker/**, docker-compose*.yml or .env.dist)
 
 Choosing:
   feature   new or changed behaviour, specified first
@@ -15,11 +17,18 @@ Choosing:
 `chore` skips the traceability gate, so it is checked: a chore PR that touches
 backend-symfony/{src,tests,migrations} or frontend-react/src is rejected. There
 is no "none" — every PR into main declares one of the four.
+
+`Deploy-impact:` is the softer second tier. Container images, compose files and
+the environment template decide what runs in production and on the public demo,
+and a chore PR is allowed to change them — but not silently, because "chore"
+promises no behaviour change. Say what a deployer would want to have been told;
+"none — <reason>" is a fine answer, "none" on its own is not.
 -->
 
 Pipeline:
 Spec:
 Gates:
+Deploy-impact:
 
 ## Summary
 

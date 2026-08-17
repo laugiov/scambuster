@@ -31,8 +31,31 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 RUN curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer
+# Retried, and authenticated when a token is supplied — see the long note in
+# infra/docker/backend/Dockerfile for why an unauthenticated `composer install`
+# is the least reliable step in CI. COMPOSER_AUTH_JSON is declared and consumed
+# in this build stage only, which the multi-stage COPY below discards, so the
+# token never reaches the published production image.
+ARG COMPOSER_AUTH_JSON=""
 COPY backend-symfony/composer.* ./
-RUN composer install --no-interaction --no-scripts --no-progress
+RUN set -eu; \
+    if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
+    export COMPOSER_MAX_PARALLEL_HTTP=6; \
+    ok=0; \
+    extra=""; \
+    for attempt in 1 2 3; do \
+        if composer install --no-interaction --no-scripts --no-progress $extra; then ok=1; break; fi; \
+        echo "composer install failed (attempt $attempt/3)"; \
+        if [ "$attempt" -eq 1 ]; then \
+            jitter=$(od -An -N1 -tu1 /dev/urandom | tr -d " "); \
+            sleep $((60 + jitter % 30)); \
+        elif [ "$attempt" -eq 2 ]; then \
+            echo "dist archives are not being served; falling back to --prefer-source (git clone from github.com, not codeload)"; \
+            extra="--prefer-source"; \
+            sleep 10; \
+        fi; \
+    done; \
+    [ "$ok" -eq 1 ]
 COPY backend-symfony/ ./
 
 # ── Stage 3: production runtime (php-fpm + nginx + supervisord) ──────────────
@@ -93,9 +116,25 @@ WORKDIR /app
 COPY --from=build    /app     /app
 COPY --from=frontend /fe/dist /app/public-frontend
 
-# Install production-only dependencies
-RUN composer install --no-dev --prefer-dist --optimize-autoloader \
-    --no-interaction --no-scripts --no-progress
+# Install production-only dependencies. Bounded retry, and deliberately no token:
+# this is the final stage, and anything declared here lands in the published
+# image's history.
+RUN set -eu; \
+    export COMPOSER_DISCARD_CHANGES=true; \
+    ok=0; \
+    for attempt in 1 2 3; do \
+        if composer install --no-dev --prefer-dist --optimize-autoloader \
+            --no-interaction --no-scripts --no-progress; then ok=1; break; fi; \
+        echo "composer install --no-dev failed (attempt $attempt/3)"; \
+        if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
+    done; \
+    [ "$ok" -eq 1 ]
+
+# The --prefer-source fallback in the build stage leaves a full git working copy
+# inside every vendor package. Harmless to run, but it inflates the image, the
+# artifact every CI job downloads, and the surface Trivy scans — for history no
+# runtime needs. A no-op on the normal dist path, where there is nothing to find.
+RUN find /app/vendor -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true
 
 # nginx site + supervisor program set + scheduler + prod entrypoint
 COPY infra/docker/backend/nginx-prod.conf            /etc/nginx/sites-available/default

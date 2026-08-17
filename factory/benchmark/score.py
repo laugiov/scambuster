@@ -6,15 +6,25 @@ compares them against a ground-truth file that lists the defects you injected.
 
     BLOCKING|ADVISORY ; requirement ID or failing-test path ; short description
 
-Detection rule — implemented here, stated in README.md, and deliberately strict:
+Detection rule — implemented here and stated in README.md. An objection counts as
+a catch when its severity is at least the severity the defect deserved:
 
-    DETECTED  a BLOCKING objection cites the defect's requirement id
-    PARTIAL   only ADVISORY objections cite it. Someone noticed; nothing stopped.
+    seeded severity   an objection catches it at        because
+    blocker           BLOCKING                          it must not ship
+    major             BLOCKING                          it must not ship
+    minor             ADVISORY (BLOCKING also counts)   flagging it is the right call
+
+    DETECTED  an objection cites the requirement id at or above that bar
+    PARTIAL   an objection cites it but below the bar — a blocker or major that
+              drew only advisories. Someone noticed; nothing stopped.
     MISSED    no objection cites it at all
 
-The asymmetry is the point. An advisory does not stop a pipeline, so counting it
-as a catch would measure whether the reviewers *mentioned* the problem, when what
-matters is whether the factory would have *shipped* it.
+Until 2026-08-17 the rule was flatly "DETECTED iff BLOCKING", which scored a
+`minor` defect correctly raised as ADVISORY as a miss — punishing the reviewers
+for proportionate judgement, and pushing the profiles toward blocking on
+everything, which the unseeded-blocking count exists to warn about. Run 002's
+60% was measured under the old rule and is not comparable to rates produced
+after it; see README.md.
 
 Usage:
     score.py --ground-truth ~/scambuster-benchmarks/run-01.yaml <gate-report>...
@@ -45,6 +55,16 @@ except ImportError:
 
 OBJECTION_RE = re.compile(r"^(BLOCKING|ADVISORY)\s*;\s*([^;]+?)\s*;\s*(.+)$")
 REQUIREMENT_ID_RE = re.compile(r"^(?:FR|SC)-\d{3}$")
+
+# The objection severity a defect of each seeded severity has to draw before it
+# counts as caught. A blocker or a major has to actually stop the pipeline; a
+# minor is caught the moment someone says it out loud, because raising a minor
+# defect as advisory is the correct response and not a failure to detect.
+#
+# Severity is therefore load-bearing in the ground truth, which is why an entry
+# without a valid one is rejected below rather than defaulted.
+EXPECTED_OBJECTION = {"blocker": "BLOCKING", "major": "BLOCKING", "minor": "ADVISORY"}
+SEVERITY_RANK = {"ADVISORY": 0, "BLOCKING": 1}
 
 
 def _encodable(text: str, stream) -> bool:
@@ -187,6 +207,17 @@ def main() -> int:
             malformed.append(f"{did}: no `requirement_id` field (check the spelling)")
         elif not REQUIREMENT_ID_RE.match(req):
             malformed.append(f"{did}: requirement_id {req!r} is not an FR-### or SC-### id")
+        # Severity decides which objection severity counts as a catch, so a
+        # missing or misspelled one would quietly change the score rather than
+        # fail. Same reasoning as requirement_id above.
+        sev = str(defect.get("severity", "")).strip().lower()
+        if not sev:
+            malformed.append(f"{did}: no `severity` field — the detection rule compares against it")
+        elif sev not in EXPECTED_OBJECTION:
+            malformed.append(
+                f"{did}: severity {sev!r} is not one of "
+                f"{', '.join(sorted(EXPECTED_OBJECTION))}"
+            )
     if malformed:
         print(
             "error: the ground truth cannot be scored as written. Every defect needs "
@@ -210,18 +241,33 @@ def main() -> int:
     results = []
     for defect in defects:
         req = str(defect.get("requirement_id", "")).strip()
+        severity = str(defect.get("severity", "")).strip().lower()  # validated above
+        expected = EXPECTED_OBJECTION[severity]
+
+        # The strongest objection citing this requirement is the one that decides
+        # the verdict: an advisory alongside a blocking one changes nothing.
         if req in blocking_by_id:
-            verdict, evidence = "DETECTED", blocking_by_id[req][0][0]
+            raised, evidence = "BLOCKING", blocking_by_id[req][0][0]
         elif req in advisory_by_id:
-            verdict, evidence = "PARTIAL", advisory_by_id[req][0][0]
+            raised, evidence = "ADVISORY", advisory_by_id[req][0][0]
         else:
-            verdict, evidence = "MISSED", ""
+            raised, evidence = "", ""
+
+        if not raised:
+            verdict = "MISSED"
+        elif SEVERITY_RANK[raised] >= SEVERITY_RANK[expected]:
+            verdict = "DETECTED"
+        else:
+            verdict = "PARTIAL"
+
         results.append(
             {
                 "defect_id": str(defect["id"]).strip(),  # validated above
                 "requirement_id": req,
                 "defect_type": defect.get("defect_type", ""),
-                "severity": defect.get("severity", ""),
+                "severity": severity,
+                "expected_objection": expected,
+                "raised_objection": raised,
                 "verdict": verdict,
                 "evidence": evidence,
             }
@@ -238,6 +284,16 @@ def main() -> int:
     seeded_ids = {r["requirement_id"] for r in results}
     unseeded_blocking = sorted(set(blocking_by_id) - seeded_ids)
 
+    # Minor defects that drew a BLOCKING objection. They count as detected — the
+    # reviewer found the thing — but blocking a merge over a minor defect is the
+    # loudness the unseeded-blocking line warns about, arriving on a seeded
+    # requirement where that line cannot see it.
+    over_escalated = [
+        r["defect_id"] for r in results
+        if r["raised_objection"]
+        and SEVERITY_RANK[r["raised_objection"]] > SEVERITY_RANK[r["expected_objection"]]
+    ]
+
     if args.json:
         print(json.dumps(
             {
@@ -246,6 +302,7 @@ def main() -> int:
                 "total": total,
                 "detection_rate": round(rate, 1),
                 "blocking_on_unseeded_requirements": unseeded_blocking,
+                "over_escalated": over_escalated,
                 "results": results,
             },
             indent=2,
@@ -256,10 +313,14 @@ def main() -> int:
         return 0
 
     width = max((len(r["defect_id"]) for r in results), default=8)
-    print(f"\n{'DEFECT'.ljust(width)}  {'REQ':<8} {'VERDICT':<9} TYPE")
-    print("-" * (width + 40))
+    print(f"\n{'DEFECT'.ljust(width)}  {'REQ':<8} {'SEVERITY':<8} {'NEEDED':<9} {'RAISED':<9} {'VERDICT':<9} TYPE")
+    print("-" * (width + 66))
     for r in results:
-        print(f"{r['defect_id'].ljust(width)}  {r['requirement_id']:<8} {r['verdict']:<9} {r['defect_type']}")
+        print(
+            f"{r['defect_id'].ljust(width)}  {r['requirement_id']:<8} {r['severity']:<8} "
+            f"{r['expected_objection']:<9} {r['raised_objection'] or '-':<9} "
+            f"{r['verdict']:<9} {r['defect_type']}"
+        )
         if r["evidence"]:
             print(f"{' ' * (width + 2)}  {BRANCH} {r['evidence'][:70]}")
 
@@ -268,8 +329,16 @@ def main() -> int:
 
     if counts["PARTIAL"]:
         print(
-            f"\n{counts['PARTIAL']} defect(s) drew only advisory objections. Someone "
-            f"noticed and nothing stopped — that is a miss for shipping purposes."
+            f"\n{counts['PARTIAL']} defect(s) drew an objection weaker than they "
+            f"warranted — a blocker or major raised only as advisory. Someone "
+            f"noticed and nothing stopped, which is a miss for shipping purposes."
+        )
+    if over_escalated:
+        print(
+            f"\nBlocked on minor defects: {', '.join(over_escalated)}. Counted as "
+            f"detected, but a gate that stops a merge over a minor defect is the "
+            f"same loudness the unseeded-blocking count measures, landing on a "
+            f"seeded requirement where that count cannot see it."
         )
     if unseeded_blocking:
         print(

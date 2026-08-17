@@ -37,28 +37,47 @@ works too.
 several types, at several severities. A useful set is mostly *plausible* defects:
 anything a careless reader would catch measures nothing.
 
-Suggested vocabulary — keep it stable across runs so results compare:
+The defect vocabulary — the taxonomy — is **append-only**:
 
-| Type | What it looks like |
-|---|---|
-| `ambiguity` | a word doing unexamined work: "valid", "appropriate", "securely" |
-| `missing-failure-mode` | happy path specified, nothing about what happens when it fails |
-| `missing-authorization` | an action with no stated role or permission |
-| `contradiction` | two requirements that cannot both hold |
-| `untestable-criterion` | a success criterion nothing can ever verify |
-| `unsafe-default` | a default that is convenient and wrong |
-| `scope-creep` | a requirement nobody asked for |
+| Type | What it looks like | Since |
+|---|---|---|
+| `ambiguity` | a word doing unexamined work: "valid", "appropriate", "securely" | 001 |
+| `missing-failure-mode` | happy path specified, nothing about what happens when it fails | 001 |
+| `missing-authorization` | an action with no stated role or permission | 001 |
+| `contradiction` | two requirements that cannot both hold | 001 |
+| `untestable-criterion` | a success criterion nothing can ever verify | 001 |
+| `unsafe-default` | a default that is convenient and wrong | 001 |
+| `scope-creep` | a requirement nobody asked for | 001 |
+| `unjustified-assumption` | a technical or architectural choice asserted with no reason given | 002 |
+
+**Append-only means: add a term, never rename or remove one.** The per-type
+detection rates are the benchmark's most useful output — they say which reviewer
+profile to sharpen — and they are only readable across runs if a type means the
+same thing in run 002 as in run 012. Renaming a category silently rewrites the
+history of every run that used it, and a run scored under the old name can no
+longer be compared to anything. If a term turns out to be wrong, add the right
+one and leave the old one in the table with a note; the cost of a slightly untidy
+table is nothing next to the cost of a comparison you cannot trust.
+
+`unjustified-assumption` arrived that way. Run 002 needed a category the table
+did not have, used it, and left the decision to the maintainer rather than
+bending an existing term — the nearest candidates, `unsafe-default` and
+`scope-creep`, mean something else. It is added here rather than renamed in the
+run, so run 002's per-type rates stand as measured.
 
 **3. Write the ground truth** outside the repo, using the template's fields:
 defect id, the requirement id it was injected into, location in the artifact,
 defect type, severity.
 
-The **requirement id is the join key**. A defect injected somewhere with no
-requirement id cannot be scored — the whole detection rule is "did a blocking
-objection cite this id". `score.py` therefore refuses to run unless every defect
-carries a `requirement_id` in `FR-###` or `SC-###` form, rather than scoring a
-malformed key as a string of misses and printing a 0% rate that reads like a
-factory failure.
+The **requirement id is the join key**: an objection is matched to a defect by
+citing this id, and nothing else, so a defect injected somewhere with no
+requirement id cannot be scored at all. Whether a matched objection *counts* is
+then decided by severity — see the detection rule below.
+
+`score.py` therefore refuses to run unless every defect carries a
+`requirement_id` in `FR-###` or `SC-###` form **and** a valid `severity`, rather
+than scoring a malformed key as a string of misses and printing a 0% rate that
+reads like a factory failure.
 
 **4. Run the stage in a fresh session.** No mention of the benchmark, no hint
 that defects were seeded. Let the reviewers and gates do their normal work and
@@ -77,33 +96,77 @@ is read recursively for `*.md`.
 
 ## Detection rule
 
-Implemented in `score.py`, and strict on purpose:
+Implemented in `score.py`. A defect is caught when the objection it drew is at
+least as strong as the defect deserved — so the rule needs the **seeded
+severity**, and `score.py` refuses to run on a ground truth whose entries lack a
+valid one:
+
+| Seeded severity | Caught by an objection of | Why |
+|---|---|---|
+| `blocker` | **BLOCKING** | it must not ship |
+| `major` | **BLOCKING** | it must not ship |
+| `minor` | **ADVISORY** (BLOCKING also counts) | saying it out loud is the right call |
 
 | Verdict | When |
 |---|---|
-| **DETECTED** | a **BLOCKING** objection cites the defect's requirement id |
-| **PARTIAL** | only **ADVISORY** objections cite it |
+| **DETECTED** | an objection cites the requirement id at or above that bar |
+| **PARTIAL** | an objection cites it below the bar — a `blocker` or `major` that drew only advisories |
 | **MISSED** | no objection cites it at all |
 
-An advisory does not stop a pipeline. Counting it as a catch would measure
-whether the reviewers *mentioned* the problem, when what matters is whether the
-factory would have *shipped* it. So PARTIAL is reported separately and is **not**
-counted in the detection rate.
+PARTIAL is reported separately and is **not** counted in the detection rate. A
+blocker raised as an advisory does not stop a pipeline, and counting it would
+measure whether the reviewers *mentioned* the problem when what matters is
+whether the factory would have *shipped* it.
 
-Remember the rule from `docs/factory/pipelines.md` that produces these severities:
-an objection is BLOCKING only if it cites a requirement id that exists in the
-spec, or comes with a failing executable test. A reviewer who is right but has
-neither will score PARTIAL — and that is the honest result, because that
-objection would not have stopped the merge either.
+Remember the rule from `docs/factory/pipelines.md` that produces these
+severities: an objection is BLOCKING only if it cites a requirement id that
+exists in the spec, or comes with a failing executable test. A reviewer who is
+right about a blocker but has neither will score PARTIAL — the honest result,
+because that objection would not have stopped the merge either.
+
+**This rule changed on 2026-08-17, after run 002 was scored.** It used to be flatly
+"DETECTED iff BLOCKING", at every severity. That scored a `minor` defect correctly
+raised as ADVISORY as a miss: it punished the reviewers for proportionate
+judgement, and the only way to score well under it was to block on everything —
+which is exactly what the unseeded-blocking count exists to warn about. The two
+pressures pointed in opposite directions and the scoring rule was the one that
+was wrong.
+
+**Run 002's 60% stands as the number for that run.** It is not re-scored under
+this rule and it is not comparable to any rate produced after it. Both of run
+002's `minor` defects happened to draw BLOCKING objections, so re-scoring would
+not move the figure — but a number that means "measured under the old rule" is
+worth more than one silently recomputed, and the first rate produced under this
+rule is a new baseline rather than a comparison.
+
+`score.py` also now reports **minor defects that drew a BLOCKING objection**. They
+count as detected, and they are the same over-blocking the unseeded count
+measures, arriving on a seeded requirement where that count cannot see it.
 
 ## Reading the output
 
 ```
+DEFECT  REQ      SEVERITY NEEDED    RAISED    VERDICT   TYPE
+D-001   FR-003   minor    ADVISORY  ADVISORY  DETECTED  unjustified-assumption
+D-006   FR-011   blocker  BLOCKING  ADVISORY  PARTIAL   missing-failure-mode
+D-009   SC-006   major    BLOCKING  -         MISSED    missing-failure-mode
+
 detected 4/7   partial 2   missed 1
 detection rate: 57.1%
 
+2 defect(s) drew an objection weaker than they warranted — a blocker or major
+raised only as advisory.
+
+Blocked on minor defects: D-004. Counted as detected, but a gate that stops a
+merge over a minor defect is the same loudness the unseeded-blocking count
+measures, landing on a seeded requirement where that count cannot see it.
+
 Blocking objections on requirements with no seeded defect: FR-011, FR-014.
 ```
+
+`NEEDED` is what the seeded severity demanded, `RAISED` is the strongest
+objection that cited the requirement. When `RAISED` is weaker than `NEEDED` the
+verdict is PARTIAL — the reviewer noticed and nothing stopped.
 
 Read the rate **next to** that last line. A reviewer that blocks everything
 detects everything, and scores 100%. If blocking objections on unseeded

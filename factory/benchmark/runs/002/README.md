@@ -225,6 +225,19 @@ renamed to an existing one before run 003 — otherwise run 003 is not comparabl
 one. **Left for the maintainer**; changing the shared vocabulary is not a decision this
 run should take on its own.
 
+> **Resolved, 2026-08-17.** The term was **added** to the taxonomy rather than renamed
+> into an existing category, and the taxonomy is now declared append-only in
+> `factory/benchmark/README.md`. This run's per-type rates therefore stand as measured
+> and stay comparable with run 003.
+>
+> The **detection rule changed in the same pass** and this run is deliberately **not**
+> re-scored: **60% stands as the number for run 002**. A defect is now caught by an
+> objection at or above the severity it deserved, so a `minor` correctly raised as
+> ADVISORY counts as detected instead of as a miss. Both `minor` defects here (D-001,
+> D-003) drew BLOCKING objections, so re-scoring would leave the figure unchanged — but
+> the rate above means "measured under the old rule", and the first rate produced under
+> the new one is a fresh baseline, not a comparison with this number.
+
 ## Reusable output
 
 `adversarial-critic` volunteered three executable tests that would settle its top three

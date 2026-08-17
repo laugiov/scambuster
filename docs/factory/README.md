@@ -107,6 +107,20 @@ which appears when reviewers did not converge in two rounds. That one is a real
 decision waiting for you: two claims, two pieces of evidence, and what would
 settle it.
 
+## Trusting the gates
+
+**A red run is never merged on the assumption that it is infrastructure.** Either
+the cause is found and named, or the run is re-run and passes — there is no third
+outcome, and "probably a transient" is not a cause. The rule does not soften for a
+failure that looks like someone else's network: PR #62 was merged past five red
+runs diagnosed as a transient GitHub 504, and the same install then failed on
+`main` at `3abdb7c`, in four jobs at once, for a reason that had been sitting in
+the log the whole time — unauthenticated dependency downloads hitting GitHub's
+per-IP rate limit, produced by this workflow's own concurrency. A repeated
+failure is evidence against the transient reading, not noise around it. Judge the
+diagnosis by whether it explains the repetition, and treat a failure you decide to
+ignore as a gate switched off for every change after this one, not just for yours.
+
 ## Running the benchmark
 
 The factory claims its gates catch defects. This checks whether they do.

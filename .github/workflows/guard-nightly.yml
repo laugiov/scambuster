@@ -26,6 +26,13 @@ concurrency:
   group: guard-nightly
   cancel-in-progress: false
 
+# Same reason as ci.yml: an unauthenticated `composer install` pulls dist
+# archives from api.github.com under a 60-request/hour per-IP ceiling. This
+# workflow only installs once so it is far from the limit, but a paid ~35-minute
+# LLM run is a bad thing to lose to a 504 on a dependency download.
+env:
+  COMPOSER_AUTH: '{"github-oauth":{"github.com":"${{ github.token }}"}}'
+
 jobs:
   preflight:
     name: Check LLM secret
@@ -80,7 +87,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          docker compose exec --user root backend-dev composer install --no-interaction --no-progress
+          bash .github/scripts/composer-install.sh backend-dev
           docker compose exec --user root backend-dev sh -c "chown -R 10001:10001 /app/vendor /app/var 2>/dev/null || true"
 
       - name: Setup database (dev env — real LLM client, fixtures seed personas)
