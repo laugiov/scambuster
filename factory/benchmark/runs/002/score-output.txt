@@ -1,0 +1,28 @@
+read 1 report(s), 24 objection(s)
+
+DEFECT  REQ      VERDICT   TYPE
+---------------------------------------------
+D-001  FR-003   DETECTED  unjustified-assumption
+         └─ FR-003 introduces a signed 24-hour link to the cluster detail screen w
+D-002  FR-004   DETECTED  contradiction
+         └─ FR-004 requires the notification to list the anchor indicators the clu
+D-003  FR-006   DETECTED  unjustified-assumption
+         └─ FR-006 mandates that the recipient list live in "the platform's key-va
+D-004  FR-007   DETECTED  missing-authorization
+         └─ FR-007 requires administrator privilege only for modification, leaving
+D-005  FR-009   DETECTED  missing-authorization
+         └─ FR-009 makes a persona-address recipient a warning only, and no requir
+D-006  FR-011   MISSED    missing-failure-mode
+D-007  FR-014   PARTIAL   untestable-criterion
+         └─ FR-014 asks for "an appropriate level of detail" which is not falsifia
+D-008  FR-017   DETECTED  contradiction
+         └─ FR-017 orders ingestion to hold cluster creation open until every reci
+D-009  SC-006   MISSED    missing-failure-mode
+D-010  SC-008   MISSED    untestable-criterion
+
+detected 6/10   partial 1   missed 3
+detection rate: 60.0%
+
+1 defect(s) drew only advisory objections. Someone noticed and nothing stopped — that is a miss for shipping purposes.
+
+Blocking objections on requirements with no seeded defect: FR-002, FR-005. Read the detection rate alongside this: a reviewer that blocks everything detects everything.

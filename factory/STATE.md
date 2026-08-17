@@ -107,7 +107,17 @@ gives its path and the session reads it where it is.
 | Run | Artifact | Status |
 |---|---|---|
 | 001 | `specs/001-cluster-stix-export/spec.md` | **abandoned, never scored** — clean spec committed as `9ca9b59` before seeding, and the feature turned out to be already implemented. Both reasons in `factory/benchmark/runs/001/README.md`. Kept deliberately; history not rewritten. |
-| 002 | `~/factory-benchmark/spec-002-clean.md` | clean spec written outside the worktree, feature verified absent from the repository |
+| 002 | `~/factory-benchmark/spec-002-clean.md` | **scored: 60%** (6/10 detected, 1 partial, 3 missed, 0 true false positives). Clean spec outside the worktree, feature verified absent, defects seeded by a subagent so no reviewer and no orchestrator knew their location. `factory/benchmark/runs/002/`. |
+
+Run 002's diagnosis, in one line each, so a future session does not re-derive it:
+`contradiction`, `unjustified-assumption` and `missing-authorization` scored 100%;
+`missing-failure-mode` and `untestable-criterion` scored 0%; of 24 objections exactly
+one cited an `SC-###`, and both seeded SC defects were missed. Three profile additions
+are proposed in the run README and **deliberately not applied** — applying them and
+re-running against the same artifact would measure the tuning, not the profiles.
+
+One caveat travels with that number: a subagent chose the defects, not the maintainer.
+The protocol asks for hand-seeding, and a hand-seeded run is still worth doing.
 
 ## Setup complete
 
