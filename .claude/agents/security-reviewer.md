@@ -54,6 +54,12 @@ safe" but "does this spec force safety to be decided later, by whoever implement
 it?" An unstated authorization level, an unstated retention period, an unstated
 failure mode on an auth path — each is a requirement missing from the spec.
 
+Check the **success criteria** too, not only the functional requirements. A security
+property with no `SC-###` able to verify it will not be tested, and an `SC-###` that
+measures only the path where nothing fails leaves every failure path unverified.
+`SC-###` is a requirement ID like any other, so an objection citing one is BLOCKING
+on the same terms as one citing an `FR-###`.
+
 ## How you report
 
 One objection per line, exactly:
