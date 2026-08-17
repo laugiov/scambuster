@@ -42,12 +42,17 @@ RUN set -eu; \
     if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
     export COMPOSER_MAX_PARALLEL_HTTP="${COMPOSER_MAX_PARALLEL_HTTP:-6}"; \
     ok=0; \
+    extra=""; \
     for attempt in 1 2 3; do \
-        if composer install --no-interaction --no-scripts --no-progress; then ok=1; break; fi; \
+        if composer install --no-interaction --no-scripts --no-progress $extra; then ok=1; break; fi; \
         echo "composer install failed (attempt $attempt/3)"; \
-        if [ "$attempt" -lt 3 ]; then \
+        if [ "$attempt" -eq 1 ]; then \
             jitter=$(od -An -N1 -tu1 /dev/urandom | tr -d " "); \
-            sleep $((attempt * 60 + jitter % 30)); \
+            sleep $((60 + jitter % 30)); \
+        elif [ "$attempt" -eq 2 ]; then \
+            echo "dist archives are not being served; falling back to --prefer-source (git clone from github.com, not codeload)"; \
+            extra="--prefer-source"; \
+            sleep 10; \
         fi; \
     done; \
     [ "$ok" -eq 1 ]
