@@ -54,6 +54,13 @@ services:
       - scambuster
 
   backend-dev: &backend-dev
+    # Named explicitly so CI can build this image once per run and hand the same
+    # one to every job (`docker load` + `docker compose up` with no --build).
+    # Compose still builds it on demand when the tag is absent, so local
+    # `docker compose up` and `up --build` behave exactly as before — and
+    # backend-test/e2e/preprod, which inherit this anchor, now share the one
+    # image instead of triggering a rebuild each.
+    image: scambuster-backend:ci
     build:
       context: .
       dockerfile: infra/docker/backend/Dockerfile
