@@ -27,16 +27,27 @@ RUN apt-get update \
 RUN curl -sS https://getcomposer.org/installer | php -- \
         --install-dir=/usr/local/bin --filename=composer --version=2.6.6
 
-# Retried, and authenticated when a token is supplied — see the long note in
-# infra/docker/backend/Dockerfile. Declared and consumed in this build stage
-# only, which the multi-stage COPY discards, so no token reaches the demo image.
-ARG COMPOSER_AUTH_JSON=""
+# Retried like the other two images — but deliberately NOT authenticated, and
+# this is the one place that difference is load-bearing.
+#
+# This stage pins Composer 2.6.6 (see the note above; newer Composer breaks
+# autoload_runtime.php here). That version rejects any github-oauth token
+# containing an underscore, and every modern GitHub token has one — `ghs_`,
+# `ghp_`, `github_pat_`. Passing the job token here does not degrade to
+# unauthenticated: Composer aborts before it makes a single request, in 0.2s:
+#
+#     In BaseIO.php line 139:
+#       Your github oauth token for github.com contains invalid characters: "ghs_1..."
+#
+# So a token that helps the other two images is fatal to this one. It is left out
+# rather than worked around, because the pin is the real constraint and the demo
+# image resolves one dependency tree per run — far from any rate limit. The
+# bounded retry and the --prefer-source fallback below still apply.
 COPY backend-symfony/composer.* ./
 # Include dev dependencies (needed for fixtures).
 # Cache-bust 2026-05-10: the previous cached install layer was built against
 # Composer >= 2.7, which silently produces a vendor/ without autoload_runtime.php.
 RUN set -eu; \
-    if [ -n "$COMPOSER_AUTH_JSON" ]; then export COMPOSER_AUTH="$COMPOSER_AUTH_JSON"; fi; \
     export COMPOSER_MAX_PARALLEL_HTTP="${COMPOSER_MAX_PARALLEL_HTTP:-6}"; \
     ok=0; \
     extra=""; \

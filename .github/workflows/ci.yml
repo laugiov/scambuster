@@ -589,14 +589,22 @@ jobs:
           docker load < /tmp/backend-image.tar.gz
           docker tag scambuster-backend:ci scambuster-dev:ci
 
-      # COMPOSER_AUTH_JSON is consumed in each Dockerfile's build stage, which
-      # the multi-stage COPY discards — the scanned image carries no token.
+      # COMPOSER_AUTH_JSON is consumed in the build stage, which the multi-stage
+      # COPY discards — the scanned image carries no token. The demo image is the
+      # exception and does not declare the ARG at all: it pins Composer 2.6.6,
+      # which rejects any token containing an underscore and so aborts instantly
+      # on a modern `ghs_` one. See infra/docker/demo/Dockerfile.backend.
       - name: Build ${{ matrix.name }} image
         if: matrix.name != 'dev'
         run: |
-          docker build -t scambuster-${{ matrix.name }}:ci \
-            --build-arg COMPOSER_AUTH_JSON="$COMPOSER_AUTH" \
-            -f ${{ matrix.dockerfile }} .
+          if [ "${{ matrix.name }}" = "demo" ]; then
+            docker build -t scambuster-demo:ci \
+              -f ${{ matrix.dockerfile }} .
+          else
+            docker build -t scambuster-${{ matrix.name }}:ci \
+              --build-arg COMPOSER_AUTH_JSON="$COMPOSER_AUTH" \
+              -f ${{ matrix.dockerfile }} .
+          fi
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
