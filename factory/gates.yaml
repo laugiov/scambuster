@@ -1,0 +1,277 @@
+# ScamBuster factory gates — machine-readable.
+#
+# Three sections:
+#   blocking_human_gates  stages that stop until the maintainer answers
+#   auto_pass_criteria    what every other stage transition must satisfy to advance
+#   escalation_triggers   conditions that force maintainer review even on auto-pass
+#
+# Authority: .specify/memory/constitution.md governs; this file implements it.
+# Prose: docs/factory/pipelines.md. When they disagree, the constitution wins and
+# this file is the thing that gets fixed.
+#
+# HOW TO READ auto_pass_criteria.transitions
+#   Each transition is a list whose items are of exactly two kinds:
+#     - a bare identifier with NO whitespace -> a reference into
+#       auto_pass_criteria.definitions. It MUST resolve. An identifier that does
+#       not resolve is an error in this file, never a criterion in its own right.
+#     - a string containing whitespace -> a literal criterion, read as written.
+#   The rule exists so a typo fails loudly: without it, `tests_greeen` would be
+#   silently accepted as a prose criterion and the gate would pass on nothing.
+
+version: 1
+
+# ---------------------------------------------------------------------------
+# Human gates. A pipeline stops here and waits. None of these auto-passes.
+# ---------------------------------------------------------------------------
+blocking_human_gates:
+
+  - id: G1
+    pipeline: feature
+    after_stage: plan
+    approves: "the spec and the plan"
+    reviewers: [security-reviewer, architecture-reviewer]
+    gate_report_required: true
+    entry_conditions:
+      - "no [NEEDS CLARIFICATION] marker left in the spec"
+      - "every functional requirement has an FR-### id"
+      - "the plan states layers touched, ports added or changed, migrations, and projected diff size"
+      - "if the projected diff exceeds max_changed_lines, the plan states how it splits into stacked PRs"
+
+  - id: G2
+    pipeline: feature
+    after_stage: implement
+    approves: "the final pull request"
+    reviewers: [qa-reviewer]
+    gate_report_required: true
+    entry_conditions:
+      - "all auto_pass_criteria for implement_to_pr are met"
+      - "every FR-### traces to at least one task and one commit"
+      - "both gate reports are attached to the PR"
+    maintainer_actions:
+      - "read the PR diff"
+      - "run `make test` locally — CI does not run the functional suite"
+
+  - id: SEC-G1
+    pipeline: security
+    after_stage: root_cause_analysis
+    approves: "the root cause"
+    never_auto_pass: true   # cannot be skipped by any configuration, including this file
+    gate_report_required: true
+    entry_conditions:
+      - "vulnerability class named precisely"
+      - "every entry point cited as file:line, with the authentication level required"
+      - "impact stated with its preconditions"
+      - "no fix proposed, sketched or implemented yet"
+
+  - id: SEC-G2
+    pipeline: security
+    after_stage: variant_analysis
+    approves: "the fix and the variant list"
+    never_auto_pass: true
+    reviewers: [security-reviewer]
+    gate_report_required: true
+    entry_conditions:
+      - "the exploit test failed before the fix and passes after it"
+      - "variant search terms are recorded"
+      - "every real variant has a SEC-### id in factory/security-findings.md"
+      - "no variant is fixed in this pull request"
+
+# ---------------------------------------------------------------------------
+# Auto-pass criteria. Every stage transition that is not a human gate.
+# A transition advances only when every criterion listed for it holds.
+# ---------------------------------------------------------------------------
+auto_pass_criteria:
+
+  # Shared definitions, referenced by name below.
+  definitions:
+    tests_green:
+      description: "Full suite green: unit + integration + functional"
+      command: "make test"
+    static_analysis_clean:
+      description: "PHPStan level 8 over backend-symfony/src — what CI runs"
+      command: "make stan"
+    style_clean:
+      description: "php-cs-fixer reports nothing. NOTE: `make cs-fixer` rewrites files; clean means it changed nothing"
+      command: "docker compose exec backend-dev vendor/bin/php-cs-fixer fix --dry-run --diff --using-cache=no"
+    frontend_gates:
+      description: "Only when frontend-react/ is touched"
+      commands: ["npm run typecheck", "npm run lint", "npm run test", "npm run build"]
+    analyze_clean:
+      description: "The installed /speckit-analyze skill reports no inconsistency across spec, plan and tasks"
+    tasks_cite_requirements:
+      description: "Every task line cites at least one FR-### or SC-### that exists in the spec"
+      pattern: '^\s*-\s*\[[ x]\]\s*T\d{3}.*\((FR|SC)-\d{3}(,\s*(FR|SC)-\d{3})*\)'
+    coverage_not_below_base:
+      description: "Patch and project coverage not below the base branch (Codecov, target: auto)"
+    no_blocking_objections:
+      description: "No BLOCKING objection remains open; advisories are recorded in the gate report"
+    tdd_order_respected:
+      description: "For every task, a test-only commit citing it precedes the implementation commit. Order only — that the test was seen failing is qa-reviewer's check"
+      command: "python3 scripts/factory/check-tdd-order.py --base <base> --head <head>"
+    docs_impact_declared:
+      description: "A user-visible change updates docs/, or the PR body carries `Docs-impact: none — <reason>`"
+      command: "python3 scripts/factory/check-docs-impact.py --base <base> --head <head> --pr-body-file <file>"
+    mutation_score_reported:
+      description: "Infection ran on the changed files and its MSI is in the gate report. NOT blocking yet — never run in CI on this codebase, so cost and survivor rate are unknown"
+      blocking: false
+
+  transitions:
+
+    feature:
+      specify_to_clarify:
+        - "every functional requirement has an FR-### id"
+        - "every success criterion has an SC-### id"
+      clarify_to_plan:
+        - "no [NEEDS CLARIFICATION] marker remains"
+        - no_blocking_objections
+      tasks_to_analyze:
+        - tasks_cite_requirements
+        - no_blocking_objections
+      analyze_to_implement:
+        - analyze_clean
+        - tasks_cite_requirements
+      implement_to_pr:
+        - tests_green
+        - static_analysis_clean
+        - style_clean
+        - frontend_gates
+        - coverage_not_below_base
+        - tdd_order_respected
+        - docs_impact_declared
+        - mutation_score_reported
+        - no_blocking_objections
+        - "every FR-### traces to at least one task and one commit"
+        - "the full suite was green before any reviewer or gate was asked to look"
+
+    bug:
+      reproduce_to_fix:
+        - "the reproduction test exists, was run, and was observed failing"
+        - "the failing output is recorded"
+        - "the reproduction test is committed alone, before any production change"
+      fix_to_pr:
+        - "the reproduction test now passes"
+        - tests_green
+        - static_analysis_clean
+        - style_clean
+        - frontend_gates
+        - coverage_not_below_base
+        - no_blocking_objections
+
+    security:
+      poc_to_fix:
+        - "the exploit test exists, was run, and was observed failing"
+        - "SEC-G1 was approved by the maintainer"
+      fix_to_variant_analysis:
+        - "the exploit test now passes"
+        - tests_green
+        - static_analysis_clean
+        - style_clean
+        - coverage_not_below_base
+
+# ---------------------------------------------------------------------------
+# Escalation triggers. Any one of these forces maintainer review even when the
+# stage's auto_pass_criteria are all met. They apply to EVERY pipeline,
+# including bug fixes.
+#
+# A trigger never blocks silently: the pipeline names every trigger it evaluated
+# and its result, so "none fired" is a statement someone made, not an absence.
+# ---------------------------------------------------------------------------
+escalation_triggers:
+
+  sensitive_paths:
+    description: "Changed files match a security-sensitive path. List closed 2026-08-16; reasoning in factory/DISCOVERY.md §5."
+    paths:
+      # -- backend: authentication and authorization
+      - "backend-symfony/src/UI/Http/Auth/**"
+      - "backend-symfony/src/Application/Auth/**"
+      - "backend-symfony/src/Infrastructure/Auth/**"
+      - "backend-symfony/src/Security/**"
+      - "backend-symfony/src/Domain/User/**"
+      # -- backend: auth, session and CSRF configuration
+      - "backend-symfony/config/packages/security.yaml"
+      - "backend-symfony/config/packages/framework.yaml"
+      - "backend-symfony/config/packages/lexik_jwt_authentication.yaml"
+      - "backend-symfony/config/packages/scheb_2fa.yaml"
+      - "backend-symfony/config/packages/nelmio_cors.yaml"
+      - "backend-symfony/config/packages/rate_limiter.yaml"
+      - "backend-symfony/config/packages/test/security.yaml"
+      - "backend-symfony/config/packages/e2e/security.yaml"
+      # -- backend: cryptography and audit integrity
+      - "backend-symfony/src/Infrastructure/Doctrine/Type/EncryptedStringType.php"
+      - "backend-symfony/src/Application/Communication/Smtp/**"
+      - "backend-symfony/src/Application/Audit/**"
+      - "backend-symfony/src/Infrastructure/Audit/**"
+      # -- backend: file upload
+      - "backend-symfony/src/UI/Http/Communication/UploadAttachmentController.php"
+      - "backend-symfony/src/Application/Communication/AttachmentHandler.php"
+      - "backend-symfony/src/Application/Communication/Dto/AttachmentInput.php"
+      # -- backend: persona
+      - "backend-symfony/src/UI/Http/Personas/**"
+      - "backend-symfony/src/UI/Http/Communication/CreatePersonaController.php"
+      - "backend-symfony/src/UI/Http/Communication/UpdatePersonaController.php"
+      - "backend-symfony/src/UI/Http/Communication/TogglePersonaActiveController.php"
+      - "backend-symfony/src/UI/Http/Scambaiting/SelectPersonaController.php"
+      # -- backend: what an unattended system says to a real person, and who receives it
+      - "backend-symfony/src/Application/LLM/Prompt/**"
+      - "backend-symfony/src/Application/LLM/PolicyGuard.php"
+      - "backend-symfony/src/Application/Guard/**"
+      - "backend-symfony/src/Infrastructure/Guard/**"
+      - "backend-symfony/src/Domain/Prompt/**"
+      - "backend-symfony/src/Infrastructure/Mailer/**"
+      - "backend-symfony/config/packages/mailer.yaml"
+      # -- backend: machine-consumed surfaces
+      - "backend-symfony/src/UI/Http/Internal/**"
+      - "backend-symfony/src/UI/Http/Taxii/**"
+      # -- schema and secrets policy
+      - "backend-symfony/migrations/**"
+      - ".gitleaks.toml"
+      - ".env.dist"
+      - ".env.test"
+      - ".env.e2e"
+      # -- frontend: credential handling and the authorization guard
+      - "frontend-react/src/api/client.ts"
+      - "frontend-react/src/store/authStore.ts"
+      - "frontend-react/src/components/layout/AuthGuard.tsx"
+      - "frontend-react/src/pages/Login.tsx"
+      # -- orchestration: decides what is ingested and who receives a reply
+      - "n8n/workflows/**"
+      - "n8n/n8n-init.sh"
+      # -- supply chain and what gates a PR
+      - ".github/workflows/**"
+      - "infra/docker/**"
+      - "docker-compose*.yml"
+      - "backend-symfony/composer.json"
+      - "backend-symfony/composer.lock"
+
+  migration_present:
+    description: "A Doctrine migration is added or changed. Schema changes are not reversible by a revert."
+    paths:
+      - "backend-symfony/migrations/**"
+
+  public_api_changed:
+    description: "The contract other systems depend on changed — HTTP routes, their DTOs, the OpenAPI description, or the shared TypeScript types."
+    detect:
+      - "added, removed or altered #[Route] attribute under backend-symfony/src/UI/Http/**"
+      - "any change under backend-symfony/src/UI/Http/Dto/**"
+      - "backend-symfony/config/packages/nelmio_api_doc.yaml"
+      - "backend-symfony/config/routes.yaml or config/routes/**"
+      - "frontend-react/src/types/api.ts"
+
+  new_dependency:
+    description: "A dependency was added. Someone must decide whether the project takes on that supply chain."
+    detect:
+      - "a new entry in backend-symfony/composer.json require or require-dev"
+      - "a new entry in frontend-react/package.json dependencies or devDependencies"
+      - "a new action or a changed action pin in .github/workflows/**"
+
+  large_diff:
+    description: "Diff above the small-diff rule. Split into stacked PRs instead."
+    max_changed_lines: 400
+    counts: "added + deleted lines, excluding lockfiles and generated files"
+    excludes:
+      - "backend-symfony/composer.lock"
+      - "frontend-react/package-lock.json"
+
+  adversarial_not_converged:
+    description: "Two adversarial iterations passed without convergence. Escalate with a disagreement summary."
+    max_iterations: 2

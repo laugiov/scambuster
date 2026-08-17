@@ -1,0 +1,29 @@
+# Semgrep's built-in defaults exclude test directories. That silently disabled
+# the constitution's reflection rule — which applies to tests explicitly, since
+# that is where reflection-based entity mutation actually happens here. A rule
+# that cannot fire reads as coverage while providing none, so the defaults are
+# replaced with this explicit list.
+#
+# Defining this file replaces semgrep's defaults entirely. Everything that must
+# stay excluded is therefore named below.
+
+vendor/
+node_modules/
+.git/
+var/
+backend-symfony/vendor/
+backend-symfony/var/
+frontend-react/node_modules/
+frontend-react/dist/
+
+# Generated or vendored assets
+*.min.js
+*.lock
+composer.lock
+package-lock.json
+
+# Large fixture data, not code under review
+scambuster-dataset-sample.json
+backend-symfony/tests/fixtures/
+
+# NOT excluded, deliberately: backend-symfony/tests/** and frontend-react/src/**

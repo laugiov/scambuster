@@ -6,7 +6,6 @@
 Thumbs.db
 .idea/
 .vscode/
-.claude/
 *.swp
 *.swo
 
@@ -155,8 +154,23 @@ local/
 #  ✅  End --------------------------------------------------------------------
 ###############################################################################
 
-.specify/
-specs/
+###############################################################################
+#  🏭  Software factory (versioned on purpose) --------------------------------
+###############################################################################
+# .claude/, .specify/ and specs/ used to be ignored wholesale. They now hold the
+# spec-driven process itself — constitution, reviewer subagents, pipeline
+# commands, feature specs — and the factory's rule is that the repo files are its
+# only memory. An ignored process is a process that does not survive a fresh
+# checkout, so these are tracked.
+#
+# What stays out is only what can carry credentials or is purely local: agent
+# tools may drop auth tokens into the agent folder, and settings.local.json is
+# per-developer by design.
+.claude/settings.local.json
+.claude/*.local.json
+.claude/.credentials.json
+.claude/shell-snapshots/
+.claude/todos/
+
 backend-symfony/config/jwt/
 CLAUDE.md
-specs/

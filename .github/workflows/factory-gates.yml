@@ -1,0 +1,356 @@
+# Factory gates.
+#
+# This workflow carries ONLY what the factory adds. Tests, PHPStan, code style,
+# coverage, composer audit, Gitleaks, Trivy and the frontend gates already run in
+# ci.yml; duplicating six Docker-building jobs on every PR would double CI cost
+# for no extra signal. This workflow instead:
+#
+#   1. reads the machine-readable `Pipeline:` line from the PR body,
+#   2. checks requirement-id traceability (feature pipeline only),
+#   3. runs Semgrep, including rules that encode the constitution,
+#   4. waits for ci.yml's jobs on the same commit and fails if any of them did.
+#
+# So the full gate set is: this workflow AND ci.yml. Job 4 is what makes that
+# statement enforceable from one place.
+
+name: Factory gates
+
+on:
+  pull_request:
+    branches: [main]
+    # `edited` matters here and is NOT in the default set (opened, synchronize,
+    # reopened). This workflow reads the PR body, so without it a maintainer who
+    # fixes the `Pipeline:` line sees nothing happen and has to push an empty
+    # commit to re-run a gate that is failing on text they already corrected.
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: read
+
+jobs:
+
+  # ---------------------------------------------------------------------------
+  # Which pipeline is this PR? Everything downstream keys off the answer.
+  #
+  # The PR body is untrusted input written by whoever opened the PR. It is read
+  # through github-script and passed via outputs — never interpolated into a
+  # `run:` block, where `$(…)` or a backtick in a PR description would execute.
+  # ---------------------------------------------------------------------------
+  pipeline-type:
+    name: Pipeline type
+    runs-on: ubuntu-latest
+    outputs:
+      pipeline: ${{ steps.parse.outputs.pipeline }}
+      spec_dir: ${{ steps.parse.outputs.spec_dir }}
+    steps:
+      - id: parse
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+
+            const pipelineMatch = body.match(/^\s*Pipeline:\s*(feature|bug|security|chore)\s*$/mi);
+            if (!pipelineMatch) {
+              core.setFailed(
+                'The PR body must contain a machine-readable pipeline line:\n' +
+                '  Pipeline: feature | bug | security | chore\n' +
+                'It selects which gates apply. See .github/pull_request_template.md.'
+              );
+              return;
+            }
+            const pipeline = pipelineMatch[1].toLowerCase();
+
+            // Spec id is required for the feature pipeline and meaningless for
+            // the others, whose specification is a failing test.
+            // Charset-restricted on purpose. This value becomes a command-line
+            // argument downstream, so an unconstrained match would let a PR
+            // description inject flags ("Spec: x --min 0"). No shell execution is
+            // possible either way — the value travels through env, never through
+            // string interpolation — but an injected argument is still a way to
+            // weaken a gate from outside.
+            const specMatch = body.match(/^\s*Spec:\s*(specs\/[A-Za-z0-9._\/-]+)\s*$/mi);
+            if (pipeline === 'feature' && !specMatch) {
+              core.setFailed(
+                'The feature pipeline requires a spec line naming a path under specs/:\n' +
+                '  Spec: specs/<branch>/spec.md\n' +
+                'Allowed characters: letters, digits, dot, underscore, dash, slash.'
+              );
+              return;
+            }
+            if (specMatch && specMatch[1].includes('..')) {
+              core.setFailed('Spec path must not contain "..".');
+              return;
+            }
+
+            core.setOutput('pipeline', pipeline);
+            core.setOutput('spec_dir', specMatch ? specMatch[1].replace(/\/spec\.md$/, '') : '');
+            core.info(`pipeline=${pipeline} spec_dir=${specMatch ? specMatch[1] : '(none)'}`);
+
+  # ---------------------------------------------------------------------------
+  # Traceability — feature pipeline only.
+  #
+  # Bug and security PRs have no spec: their specification is the failing test,
+  # so requiring requirement ids there would fail a correct change.
+  # ---------------------------------------------------------------------------
+  traceability:
+    name: Traceability (requirement ids)
+    runs-on: ubuntu-latest
+    needs: pipeline-type
+    if: needs.pipeline-type.outputs.pipeline == 'feature'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check that every task and commit cites a requirement id
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          SPEC_DIR: ${{ needs.pipeline-type.outputs.spec_dir }}
+        run: |
+          python3 scripts/factory/check-traceability.py \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            ${SPEC_DIR:+--spec-dir "$SPEC_DIR"}
+
+  # ---------------------------------------------------------------------------
+  # TDD order — feature pipeline only. The bug and security pipelines enforce
+  # test-first by construction, since their first step is a committed failing
+  # test; features had no such rule, which left the pipeline where most code is
+  # written as the only one without TDD.
+  #
+  # This checks ORDER, which history can prove. Whether the test was ever seen
+  # failing, and whether it asserts anything, is qa-reviewer's job.
+  # ---------------------------------------------------------------------------
+  tdd-order:
+    name: TDD order (test before implementation)
+    runs-on: ubuntu-latest
+    needs: pipeline-type
+    if: needs.pipeline-type.outputs.pipeline == 'feature'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Check that each task's failing test was committed first
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 scripts/factory/check-tdd-order.py --base "$BASE_SHA" --head "$HEAD_SHA"
+
+  # ---------------------------------------------------------------------------
+  # Documentation — feature pipeline only.
+  #
+  # The PR body is untrusted input, so it goes to the script through a file
+  # written by github-script rather than through shell interpolation.
+  # ---------------------------------------------------------------------------
+  docs-impact:
+    name: Documentation impact
+    runs-on: ubuntu-latest
+    needs: pipeline-type
+    if: needs.pipeline-type.outputs.pipeline == 'feature'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Write the PR body to a file
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            fs.writeFileSync('pr-body.txt', context.payload.pull_request.body || '');
+
+      - name: Check that a user-visible change updates the documentation
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 scripts/factory/check-docs-impact.py \
+            --base "$BASE_SHA" --head "$HEAD_SHA" --pr-body-file pr-body.txt
+
+  # ---------------------------------------------------------------------------
+  # `chore` exists so process, documentation and CI changes can declare
+  # themselves honestly instead of being mislabelled as a bug to get through.
+  # It skips traceability, which makes it the cheap way out — so it is policed:
+  # a chore PR that touches application source is rejected, and the change has
+  # to be resubmitted under a pipeline that specifies it.
+  # ---------------------------------------------------------------------------
+  chore-scope:
+    name: Chore scope (no application code)
+    runs-on: ubuntu-latest
+    needs: pipeline-type
+    if: needs.pipeline-type.outputs.pipeline == 'chore'
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Reject application code in a chore PR
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          offending=$(git diff --name-only "$BASE_SHA...$HEAD_SHA" \
+            -- 'backend-symfony/src/**' 'backend-symfony/tests/**' \
+               'backend-symfony/migrations/**' 'frontend-react/src/**' || true)
+          if [ -n "$offending" ]; then
+            echo "::error::A chore PR must not change application code. Files:"
+            echo "$offending" | sed 's/^/  /'
+            echo ""
+            echo "Chore is for process, documentation and CI only. If this change"
+            echo "alters behaviour, it needs a pipeline that specifies it:"
+            echo "  Pipeline: feature  — new or changed behaviour"
+            echo "  Pipeline: bug      — a failing reproduction test, committed first"
+            exit 1
+          fi
+          echo "No application code touched. Chore scope respected."
+
+  # ---------------------------------------------------------------------------
+  # Semgrep.
+  #
+  # Two configs, one blocking and one not:
+  #
+  #   .semgrep/constitution.yml  rules that encode this project's constitution.
+  #                              Blocking. No other tool knows these rules and
+  #                              the repository has no other enforcement of them.
+  #
+  #   p/php, p/security-audit    the registry rulesets. Reported, not blocking,
+  #                              until their findings on this codebase have been
+  #                              triaged once — see factory/found-issues.md.
+  #                              Flip `continue-on-error` when that is done.
+  #
+  # Both scan the diff against the merge base (`--baseline-commit`), so inherited
+  # violations do not fail every PR while new ones do. Without that, the two
+  # known Application->Infrastructure imports and the 8 test files using
+  # reflection would block day one, and the gate would be switched off within a
+  # week.
+  # ---------------------------------------------------------------------------
+  security-scan:
+    name: Security scan (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      # Version-pinned pip install rather than a container image: the repo pins
+      # actions by SHA, and a container tag without a digest is a weaker pin than
+      # an exact version on PyPI. Same approach ci.yml takes for gitleaks.
+      - name: Install Semgrep
+        run: pipx install semgrep==1.173.0
+
+      - name: Constitution rules (blocking)
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          semgrep scan \
+            --config .semgrep/constitution.yml \
+            --baseline-commit "$BASE_SHA" \
+            --error \
+            --metrics=off
+
+      - name: Registry rulesets (reported, not yet blocking)
+        continue-on-error: true
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          semgrep scan \
+            --config p/php \
+            --config p/security-audit \
+            --baseline-commit "$BASE_SHA" \
+            --metrics=off
+
+  # ---------------------------------------------------------------------------
+  # ci.yml is where tests, static analysis, style and coverage live. This job
+  # makes "the factory gates passed" a single statement by waiting for those
+  # jobs on the same commit.
+  #
+  # It polls rather than using workflow_run, because workflow_run cannot read the
+  # PR body this workflow keys off. The poll is bounded; a timeout fails the job
+  # rather than passing on incomplete information.
+  # ---------------------------------------------------------------------------
+  ci-gates:
+    name: ci.yml gates on this commit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            // Two rules, because either one alone fails in a different direction.
+            //
+            // 1. ANY check run on this commit that is not one of ours must not
+            //    have failed. An allowlist of names alone would silently stop
+            //    covering a job the day it is renamed, and it cannot express the
+            //    Trivy matrix, whose check-run names carry a generated suffix
+            //    ("… (dev, infra/docker/backend/Dockerfile)").
+            //
+            // 2. A named minimum set must be present and green. "Nothing failed"
+            //    passes vacuously when ci.yml never ran at all, so presence has
+            //    to be asserted separately. Names here are the non-matrix jobs,
+            //    verified against ci.yml.
+            const REQUIRED_PRESENT = [
+              'Static Analysis (PHPStan)',
+              'Code Style (PHP-CS-Fixer)',
+              'Backend Tests (Unit + Integration)',
+              'Security Scanning',
+              'Frontend (TypeScript, Lint, Tests, Build)',
+            ];
+            // This workflow's own jobs, which must not be waited on — job 4
+            // waiting for job 4 would deadlock until the timeout.
+            // Keep in sync with this workflow's job names. A job missing here is
+            // waited on by the job itself, and its failures get reported as if
+            // ci.yml had produced them.
+            const OURS = [
+              'Pipeline type',
+              'Traceability (requirement ids)',
+              'TDD order (test before implementation)',
+              'Documentation impact',
+              'Chore scope (no application code)',
+              'Security scan (Semgrep)',
+              'ci.yml gates on this commit',
+            ];
+
+            const ref = context.payload.pull_request.head.sha;
+            const deadline = Date.now() + 40 * 60 * 1000;
+            const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+            while (Date.now() < deadline) {
+              const runs = await github.paginate(github.rest.checks.listForRef, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref,
+                per_page: 100,
+              });
+              const others = runs.filter((c) => !OURS.includes(c.name));
+
+              const failed = others.filter(
+                (c) => c.status === 'completed' &&
+                       !['success', 'skipped', 'neutral'].includes(c.conclusion)
+              );
+              if (failed.length) {
+                core.setFailed(
+                  `Failed on ${ref.slice(0, 12)}: ` +
+                  failed.map((c) => `${c.name} (${c.conclusion})`).join(', ')
+                );
+                return;
+              }
+
+              const names = new Set(others.map((c) => c.name));
+              const missing = REQUIRED_PRESENT.filter((n) => !names.has(n));
+              const pending = others.filter((c) => c.status !== 'completed').map((c) => c.name);
+
+              if (!missing.length && !pending.length) {
+                core.info(`All ${others.length} checks green on ${ref.slice(0, 12)}.`);
+                return;
+              }
+              core.info(`waiting on: ${[...missing, ...pending].join(', ') || '(none)'}`);
+              await wait(30000);
+            }
+            core.setFailed(
+              'Timed out waiting for the other checks. Treat this as "the gates did ' +
+              'not run", not as "the gates passed".'
+            );

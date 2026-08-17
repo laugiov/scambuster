@@ -69,6 +69,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          # Full history: the patch coverage gate at the end of this job diffs
+          # the PR against its base, which the default depth-1 checkout cannot do.
+          fetch-depth: 0
 
       - name: Create environment files
         run: bash .github/scripts/create-ci-env.sh
@@ -183,6 +187,71 @@ jobs:
           files: ./coverage-unit-integration.xml,./coverage-e2e.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+      # Factory gate: are the lines this PR changed actually covered?
+      #
+      # Runs here rather than in factory-gates.yml because the clover reports
+      # already exist in this job — computing it elsewhere would mean running the
+      # whole suite with coverage a second time. Codecov keeps the project-level
+      # "not below base" comparison (target: auto); this answers the narrower and
+      # more actionable question of whether the PR adds untested code.
+      #
+      # The threshold has NOT been calibrated against this repository's history —
+      # it cannot be, from a checkout alone. Adjust it here after the first few
+      # PRs rather than letting a wrong number get worked around.
+      - name: Patch coverage gate
+        if: github.event_name == 'pull_request'
+        env:
+          FACTORY_PATCH_COVERAGE_MIN: '80'
+        run: |
+          python3 scripts/factory/patch-coverage.py \
+            --base "${{ github.event.pull_request.base.sha }}" \
+            --head "${{ github.event.pull_request.head.sha }}" \
+            --min "$FACTORY_PATCH_COVERAGE_MIN" \
+            coverage-unit-integration.xml coverage-e2e.xml
+
+      # Factory gate: mutation testing on the changed files.
+      #
+      # Coverage says a line ran; mutation says a test would have noticed if the
+      # line were wrong. Infection is already configured here (infection.json5,
+      # min MSI 70 / covered 80) but has only ever been a manual `make mutation`.
+      #
+      # NOT blocking: it has never run in CI on this codebase, so its duration
+      # and survivor rate are unknown, and a gate that fails unpredictably on its
+      # first day gets switched off. Read the MSI in the gate report for a few
+      # PRs, then drop continue-on-error and set the threshold deliberately.
+      # The changed-file list is computed HERE, on the runner, and passed to
+      # Infection with --filter. Its --git-diff-base option cannot be used: the
+      # container mounts ./backend-symfony as /app, and .git lives at the repo
+      # root, so git inside the container has no repository to diff against. That
+      # would have failed on every run and been swallowed by continue-on-error —
+      # a gate reporting nothing while looking like it ran.
+      #
+      # Infection re-runs the suite to collect its own coverage: the clover report
+      # produced above is not the coverage-xml + junit pair it can reuse. Hence
+      # the timeout, and hence restricting it to the files the PR touched.
+      - name: Mutation testing on changed files (reported, not blocking)
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        timeout-minutes: 20
+        run: |
+          CHANGED=$(git diff --name-only --diff-filter=AM \
+            "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" \
+            -- 'backend-symfony/src/*.php' 'backend-symfony/src/**/*.php' \
+            | sed 's|^backend-symfony/||' | paste -sd, -)
+
+          if [ -z "$CHANGED" ]; then
+            echo "No PHP source changed; mutation testing not applicable."
+            exit 0
+          fi
+
+          echo "Mutating: $CHANGED"
+          docker compose exec -T backend-test vendor/bin/infection \
+            --threads=4 \
+            --filter="$CHANGED" \
+            --min-msi=0 --min-covered-msi=0 \
+            --no-progress --no-interaction \
+            || echo "::warning::Infection did not complete. Record this as 'not run' in the gate report, never as 'passed'."
 
   security:
     name: Security Scanning

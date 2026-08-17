@@ -1,0 +1,169 @@
+# Semgrep rules that encode ScamBuster's constitution.
+#
+# These are not generic security rules — the registry rulesets (p/php,
+# p/security-audit) cover those. These enforce the specific rules in
+# .specify/memory/constitution.md that no off-the-shelf tool knows about, and
+# that this repository has no other automated enforcement for.
+#
+# Run:  semgrep --config .semgrep/constitution.yml --error
+#
+# Severity ERROR means the CI job fails. Add a rule here only when the
+# constitution states it and a violation is unambiguous from the code alone —
+# a rule that needs human judgement belongs in a reviewer profile, not here.
+
+rules:
+
+  # -- Principle I: the Domain layer depends on nothing ---------------------
+
+  # Deliberately NOT "no Doctrine in Domain". 24 of the 73 files in src/Domain
+  # carry Doctrine mapping attributes — annotated entities are this codebase's
+  # dominant pattern, and a rule banning them would fail on day one and be
+  # switched off by the end of the week. What is genuinely absent from Domain
+  # today, and must stay absent, is *reaching persistence at runtime*. Mapping
+  # metadata describes an entity's shape; querying the database is behaviour.
+  - id: domain-reaches-persistence
+    languages: [php]
+    severity: ERROR
+    paths:
+      include:
+        - "backend-symfony/src/Domain/**"
+    patterns:
+      - pattern-either:
+          - pattern-regex: '^use\s+Doctrine\\ORM\\EntityManager'
+          - pattern-regex: '^use\s+Doctrine\\DBAL\\Connection'
+          - pattern-regex: '^use\s+Doctrine\\ORM\\QueryBuilder'
+          - pattern-regex: '^use\s+App\\Infrastructure\\'
+          - pattern: $EM->persist(...)
+          - pattern: $EM->flush(...)
+          - pattern: $EM->createQuery(...)
+          - pattern: $EM->createQueryBuilder(...)
+    message: >-
+      Constitution I: the Domain layer must not reach persistence at runtime.
+      Doctrine mapping attributes on an entity are accepted here; an
+      EntityManager, a Connection, a QueryBuilder or a persist/flush call is not.
+      Express what the domain needs as an interface it owns
+      (Domain/<Context>/Repository) and implement it in
+      Infrastructure/Doctrine/Repository.
+
+  - id: domain-imports-symfony-http
+    languages: [php]
+    severity: ERROR
+    paths:
+      include:
+        - "backend-symfony/src/Domain/**"
+    patterns:
+      - pattern-regex: '^use\s+Symfony\\Component\\(HttpFoundation|HttpKernel|HttpClient)\\'
+    message: >-
+      Constitution I: the Domain layer must not know about HTTP. Move the
+      request/response handling to UI/Http and pass plain values into the domain.
+
+  - id: application-imports-infrastructure
+    languages: [php]
+    severity: ERROR
+    paths:
+      include:
+        - "backend-symfony/src/Application/**"
+    patterns:
+      - pattern-regex: '^use\s+App\\Infrastructure\\'
+    message: >-
+      Constitution I: Application must not depend on Infrastructure. Depend on a
+      Port interface under Application/<Context>/Port and let the container wire
+      the adapter.
+
+  - id: ui-uses-doctrine-directly
+    languages: [php]
+    severity: ERROR
+    paths:
+      include:
+        - "backend-symfony/src/UI/Http/**"
+    patterns:
+      - pattern-regex: '^use\s+Doctrine\\ORM\\EntityManager'
+    message: >-
+      Constitution I: controllers translate input and delegate. Injecting an
+      EntityManager into UI/Http puts persistence in the adapter layer — call an
+      Application service instead.
+
+  # -- Principle III: no reflection-based entity mutation -------------------
+
+  # Matches the CONSTRUCTION of a ReflectionProperty, not the setValue() call.
+  # That is deliberate and was arrived at by testing, not by preference: semgrep
+  # 1.173 does not match a `$r = new \ReflectionProperty(...); ... $r->setValue(...)`
+  # sequence in PHP, so a mutation-only rule would silently never fire — worse
+  # than no rule, because it reads as coverage. Matching the construction is
+  # broader: it also catches read-only reflection. That is an acceptable price,
+  # and the message says so, since reaching into an entity's private state at all
+  # is the smell the constitution is pointing at.
+  - id: reflection-entity-mutation
+    languages: [php]
+    severity: ERROR
+    paths:
+      include:
+        - "backend-symfony/src/**"
+        - "backend-symfony/tests/**"
+      exclude:
+        - "backend-symfony/src/Infrastructure/Doctrine/**"
+    pattern-either:
+      - pattern: new ReflectionProperty(...)
+      - pattern: new \ReflectionProperty(...)
+    message: >-
+      Constitution III: entities are built and changed through their own
+      constructors and methods, in production code, fixtures and tests alike. A
+      test that needs a state the domain cannot express is telling you the domain
+      is missing a method. This rule flags any ReflectionProperty on an entity,
+      reads included — if the read is genuinely legitimate, add a nosemgrep
+      comment naming the reason.
+
+  # -- Principle III: no check-then-insert ---------------------------------
+  #
+  # Deliberately narrow: it fires on a lookup whose *negative* result guards a
+  # persist. That is the shape of the race. A lookup followed by an unrelated
+  # persist does not match, which is the point — a rule that cries wolf gets
+  # disabled, and then it protects nothing.
+
+  - id: check-then-insert
+    languages: [php]
+    severity: ERROR
+    paths:
+      include:
+        - "backend-symfony/src/**"
+    # Formulated as "a persist INSIDE a null-check on a lookup" rather than as one
+    # nested pattern: semgrep matches the `pattern` + `pattern-inside` pair in PHP
+    # but not the equivalent single nested block. Verified against a repro.
+    patterns:
+      - pattern: $EM->persist(...)
+      - pattern-either:
+          - pattern-inside: |
+              $EXISTING = $REPO->findOneBy(...);
+              ...
+              if ($EXISTING === null) { ... }
+          - pattern-inside: |
+              $EXISTING = $REPO->findOneBy(...);
+              ...
+              if (!$EXISTING) { ... }
+          - pattern-inside: |
+              if ($REPO->findOneBy(...) === null) { ... }
+    message: >-
+      Constitution III: this is a check-then-insert race. Two requests can both
+      pass the lookup before either writes. Enforce uniqueness with a database
+      constraint and handle the violation, or serialise with symfony/lock (already
+      a dependency). "It has never happened in practice" is not evidence.
+
+  # -- Principle III: secrets never enter the repository -------------------
+  #
+  # Gitleaks already scans history for secret *shapes*. This catches the
+  # narrower case Gitleaks cannot know about: a credential passed inline to the
+  # project's own encryption and DSN helpers.
+
+  - id: hardcoded-dsn-credentials
+    languages: [php]
+    severity: ERROR
+    paths:
+      include:
+        - "backend-symfony/src/**"
+      exclude:
+        - "backend-symfony/src/DataFixtures/**"
+    patterns:
+      - pattern-regex: '["''](?:smtp|imap|postgres(?:ql)?|redis)://[^"''\s:]+:[^"''\s@]+@'
+    message: >-
+      Constitution III: a DSN with inline credentials is a secret in code. Read
+      it from the environment, and for persisted values use EncryptedStringType.
