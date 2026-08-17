@@ -54,6 +54,12 @@ RUN set -eu; \
     done; \
     [ "$ok" -eq 1 ]
 
+# The --prefer-source fallback in the build stage leaves a full git working copy
+# inside every vendor package. Harmless to run, but it inflates the image, the
+# artifact every CI job downloads, and the surface Trivy scans — for history no
+# runtime needs. A no-op on the normal dist path, where there is nothing to find.
+RUN find /app/vendor -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true
+
 COPY backend-symfony/ ./
 
 # Drop rector — a dev-only refactoring CLI the demo never executes at runtime.

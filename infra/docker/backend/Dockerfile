@@ -115,7 +115,17 @@ COPY --from=build /app /app
 # Install only production dependencies. vendor/ arrives populated from the build
 # stage so this mostly prunes, but it can still reach the network — same bounded
 # retry, no token: nothing declared in this stage may end up in image history.
+#
+# COMPOSER_DISCARD_CHANGES is what makes the build stage's --prefer-source
+# fallback survive this step. A source install leaves a git working copy in each
+# vendor package; COPY --from does not reproduce it byte-for-byte, so Composer
+# sees "Source directory /app/vendor/... has uncommitted changes" and refuses to
+# remove a dev package it was asked to prune. Run 753 died exactly there, one
+# stage after the fallback had done its job. Discarding those changes is correct
+# here and nowhere else: this vendor tree is a build artifact, not a checkout
+# anyone edits.
 RUN set -eu; \
+    export COMPOSER_DISCARD_CHANGES=true; \
     ok=0; \
     for attempt in 1 2 3; do \
         if composer install --no-dev --prefer-dist --optimize-autoloader \
@@ -124,6 +134,12 @@ RUN set -eu; \
         if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
     done; \
     [ "$ok" -eq 1 ]
+
+# The --prefer-source fallback in the build stage leaves a full git working copy
+# inside every vendor package. Harmless to run, but it inflates the image, the
+# artifact every CI job downloads, and the surface Trivy scans — for history no
+# runtime needs. A no-op on the normal dist path, where there is nothing to find.
+RUN find /app/vendor -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true
 
 # Make the backup mount point writable by the runtime user. A freshly created
 # named volume inherits this directory's ownership, so the scheduled pg_dump

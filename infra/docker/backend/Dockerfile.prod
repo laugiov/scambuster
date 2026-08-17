@@ -120,6 +120,7 @@ COPY --from=frontend /fe/dist /app/public-frontend
 # this is the final stage, and anything declared here lands in the published
 # image's history.
 RUN set -eu; \
+    export COMPOSER_DISCARD_CHANGES=true; \
     ok=0; \
     for attempt in 1 2 3; do \
         if composer install --no-dev --prefer-dist --optimize-autoloader \
@@ -128,6 +129,12 @@ RUN set -eu; \
         if [ "$attempt" -lt 3 ]; then sleep $((attempt * 20)); fi; \
     done; \
     [ "$ok" -eq 1 ]
+
+# The --prefer-source fallback in the build stage leaves a full git working copy
+# inside every vendor package. Harmless to run, but it inflates the image, the
+# artifact every CI job downloads, and the surface Trivy scans — for history no
+# runtime needs. A no-op on the normal dist path, where there is nothing to find.
+RUN find /app/vendor -type d -name .git -prune -exec rm -rf {} + 2>/dev/null || true
 
 # nginx site + supervisor program set + scheduler + prod entrypoint
 COPY infra/docker/backend/nginx-prod.conf            /etc/nginx/sites-available/default
