@@ -50,11 +50,30 @@ help: ##@Command Show help
 # ======================================================================
 #  DOCKER
 # ======================================================================
-up:          ##@docker Start the stack in foreground
+up: ensure-vendor         ##@docker Start the stack in foreground
 	$(DC) up
 
-upd:         ##@docker Start the stack in background
+upd: ensure-vendor        ##@docker Start the stack in background
 	$(DC) up -d
+
+# The backend services bind-mount ./backend-symfony over /app, which shadows the
+# vendor/ tree the image builds in. vendor/ is gitignored, so on a fresh clone
+# there is nothing behind the mount and public/index.php dies on
+# `Failed opening required '/app/vendor/autoload_runtime.php'` before it can
+# answer /healthz. Install once, here, so `make upd` gives a working stack.
+#
+# Guarded on autoload_runtime.php: once vendor/ is populated this is a single
+# `test -f` and the normal path costs nothing. The directories are created and
+# chmodded first because the image runs as USER 10001, which cannot write into a
+# root-owned or host-user-owned directory it did not create (Linux hosts).
+# `--no-deps` keeps postgres and redis out of it: composer needs neither.
+ensure-vendor: ##@docker Install PHP dependencies if vendor/ is missing (first run only)
+	@if [ ! -f backend-symfony/vendor/autoload_runtime.php ]; then \
+	  echo "backend-symfony/vendor is empty (fresh clone) — installing PHP dependencies once..."; \
+	  mkdir -p backend-symfony/vendor backend-symfony/var backend-symfony/var/cache backend-symfony/var/log backend-symfony/public/bundles; \
+	  chmod -R 777 backend-symfony/vendor backend-symfony/var backend-symfony/public/bundles 2>/dev/null || true; \
+	  $(DC) run --rm --no-deps $(PHP_CONTAINER_DEV) composer install --no-interaction --no-progress; \
+	fi
 
 down:        ##@docker Stop and remove containers
 	$(DC) down
@@ -483,7 +502,7 @@ testOne: ##@test Run a single integration/unit test (q=filter)
 #  .PHONY DECLARATION
 # ======================================================================
 .PHONY: help \
-        up upd down ps build log-backend log-db \
+        up upd ensure-vendor down ps build log-backend log-db \
         composer composer-test composer-install composer-update composer-require composer-require-dev composer-remove \
         cc cc-test console console-test debug-router \
         migration migration-diff migration-generate create-database reset-db schema-create \

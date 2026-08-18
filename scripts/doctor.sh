@@ -64,6 +64,23 @@ check_var "INGEST_LOGIN" "user@example.com"
 
 echo ""
 
+# ─── BACKEND DEPENDENCIES ───
+# The backend services bind-mount ./backend-symfony over /app, which shadows the
+# vendor/ tree baked into the image. vendor/ is gitignored, so on a fresh clone
+# there is nothing behind the mount and public/index.php fails on
+# `Failed opening required '/app/vendor/autoload_runtime.php'`. Checked before
+# connectivity, because that is what a missing vendor/ looks like from below:
+# the container is up and every port answers, but /healthz returns a PHP fatal.
+echo "BACKEND DEPENDENCIES"
+
+if [ -f backend-symfony/vendor/autoload_runtime.php ]; then
+  ok "PHP dependencies — backend-symfony/vendor installed"
+else
+  fail "PHP dependencies — backend-symfony/vendor/autoload_runtime.php missing. Run 'make composer-install' (or 'make upd', which installs it on first run)."
+fi
+
+echo ""
+
 # ─── CONNECTIVITY ───
 echo "CONNECTIVITY"
 
