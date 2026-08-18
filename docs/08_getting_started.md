@@ -85,12 +85,13 @@ You should see the following services:
 | `frontend` | 3002 | React frontend |
 | `n8n` | 5678 | Workflow automation |
 
-Verify the backend is responding:
-
-```bash
-curl -s http://localhost:8081/healthz
-# Expected: {"status":"ok"}
-```
+> **Don't curl the backend yet.** The containers are up, but the backend has no
+> PHP dependencies until step 3. The `backend-dev` service bind-mounts
+> `./backend-symfony` over `/app` so your local edits are live without a rebuild,
+> and that mount hides the `vendor/` directory the image was built with. `vendor/`
+> is gitignored, so on a fresh clone there is nothing behind the mount.
+> `make up` / `make upd` install it for you the first time (see `make ensure-vendor`),
+> which is why the first start takes a few minutes. Verify the API in step 3.
 
 ---
 
@@ -105,6 +106,13 @@ make migration
 
 # Load fixtures (reference data + default users)
 make fixtures-dev
+```
+
+Now that `vendor/` is populated, verify the backend is responding:
+
+```bash
+curl -s http://localhost:8081/healthz
+# Expected: {"status":"ok"}
 ```
 
 > **What `make migration` does**: executes all Doctrine migrations to create the schema (tables, indexes, foreign keys, views).
@@ -631,6 +639,21 @@ lsof -i :6379  # redis
 make build
 make up
 ```
+
+### `Failed opening required '/app/vendor/autoload_runtime.php'`
+
+The backend container is running but every request returns this PHP fatal error.
+`backend-symfony/vendor/` is empty: it is gitignored, and the `./backend-symfony:/app`
+bind-mount hides the copy baked into the image. Install the dependencies into your
+working copy:
+
+```bash
+make composer-install
+```
+
+`make up` / `make upd` do this automatically on a fresh clone, and `make doctor`
+reports it explicitly. Do not remove the bind-mount — it is what makes local edits
+visible without rebuilding the image.
 
 ### "Cannot find the redis extension" error
 
