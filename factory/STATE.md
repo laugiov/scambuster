@@ -182,3 +182,37 @@ verified against the real codebase (27 findings across 11 sites).
 - The constitution's layering rules are enforced against the **diff**, not the
   whole tree: 11 pre-existing violations are recorded in `factory/found-issues.md`
   (issues 5, 6, 8). Fixing them is separate work, each through its own pipeline.
+
+## Pipeline runs on real work
+
+The "Setup complete" section above says the factory "has never been exercised on
+a real change" and that "no benchmark has been run". Both were true when written
+and are no longer. Left in place rather than rewritten — this table is the
+correction, and a state file that quietly edits its own past is not a memory.
+
+| Run | Pipeline | Artifact | Outcome |
+|---|---|---|---|
+| benchmark 002 | — | `factory/benchmark/runs/002/` | 60% detection, scored under the pre-2026-08-17 rule. Not comparable to later rates; see `factory/benchmark/README.md`. |
+| PR #63 | `chore` | CI dependency install, SEC-002 triage, benchmark loose ends | merged as `5482f40` |
+| SEC-001 | `security` | `factory/security/SEC-001/` | **in progress** — stopped at SEC-G1, awaiting approval of the root cause |
+
+The SEC-001 run is the first time the security pipeline has run on real work. Its
+run directory carries a friction note (`factory/security/SEC-001/friction.md`)
+recording where the pipeline was overhead and where a gate changed the output —
+read it before changing the pipeline definition, not after.
+
+Two conventions that run had to invent because nothing defined them, both worth
+settling deliberately rather than by precedent:
+
+- **Where a security run's artifacts live.** `docs/factory/templates/gate-report.md`
+  names a path for the feature pipeline and one for the bug pipeline, and none
+  for security. The run used `factory/security/<SEC-###>/`.
+- **What the disclosure rule means for an already-public finding.** The rule
+  keeps unfixed-vulnerability detail out of public issues, PR bodies and commit
+  messages; SEC-001 has been in the public repository since `7e71739`
+  (2026-08-05), and the gate report itself is a committed file.
+
+One thing that run cannot deliver: it is **not comparable** with the earlier
+SEC-001 session in `prompts-test-factory.md`, because that prompt was
+unavailable and the framing was rewritten. Any difference between the two is a
+difference in the pipeline or in the prompt, and nothing distinguishes them.
