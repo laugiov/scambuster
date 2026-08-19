@@ -13,15 +13,15 @@
   <img src="frontend-react/public/scambuster_screenshots.gif" alt="ScamBuster Operations Dashboard" width="100%" />
 </p>
 
-## Try it
-
-**Hosted demo** — [demo.scambuster.ai](https://demo.scambuster.ai), login `user@example.com` / `Un1que$trongPassword2024`.
-
-**Local demo** — `make demo-up`, then http://localhost:3002: no API key, no account, no mailbox ([guide](docs/DEMO.md)).
-
 Most security programs block and forget: the mail goes, the attacker's infrastructure and money rails stay unobserved. ScamBuster engages instead, inbound-only and under policy, turning the exchange into IOCs, actor profiles and tagged tactics ([why](docs/01_problem_statement.md)).
 
 ScamBuster was presented at Black Hat USA 2026 in the Human Factor track.
+
+## Try it
+
+**Hosted demo** -- [demo.scambuster.ai](https://demo.scambuster.ai), login `user@example.com` / `Un1que$trongPassword2024`.
+
+**Local demo** -- `make demo-up`, then http://localhost:3002: no API key, no account, no mailbox ([guide](docs/DEMO.md)).
 
 ## How it works
 
@@ -42,7 +42,7 @@ Multilingual by design: detection rules and persona prompts carry non-English co
 
 ## What it produces
 
-- **STIX 2.1 bundle** per conversation — indicators, threat-actor, sightings, observed-data, attack-patterns, relationships
+- **STIX 2.1 bundle** per conversation -- indicators, threat-actor, sightings, observed-data, attack-patterns, relationships
 - **TAXII 2.1 server** with delta sync
 - **MISP Event JSON** export
 - **SIEM export** in CEF, ECS or JSON, file or syslog
@@ -91,7 +91,7 @@ Left as placeholders, it boots in demo mode and says so.
 - **Email only, inbound only.** No SMS, chat or voice; it never writes first.
 - **Not a control.** It blocks and filters nothing; it does not replace mail security.
 - **One verified export path.** OpenCTI; TAXII, MISP and SIEM are untested live.
-- **No published metric for the TTP module** — it postdates the evaluation window; precision awaits an operator-run audit.
+- **No published metric for the TTP module** -- it postdates the evaluation window; precision awaits an operator-run audit.
 - **Read-only review.** The TTP queue is triage only; campaign attribution stays manual.
 - **Output depends on the model.** Mock replies are synthetic; personas and rules are seed data you tune; demo data is seeded, not live output.
 - **One host, your risk.** Docker Compose on one machine, no HA; local legality is yours to establish.
@@ -121,4 +121,4 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [Discussions](https://github.com/laugiov
 
 ## Contact
 
-Laurent Giovannoni — [scambuster.ai](https://scambuster.ai) · [LinkedIn](https://linkedin.com/in/giovannonilaurent) · [SECURITY.md](SECURITY.md).
+Laurent Giovannoni -- [scambuster.ai](https://scambuster.ai) · [LinkedIn](https://linkedin.com/in/giovannonilaurent) · [SECURITY.md](SECURITY.md).
