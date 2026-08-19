@@ -55,7 +55,10 @@ already have a profile unless `--force` is given).
   returns the profile JSON or `404` when none exists yet.
 - **STIX export** — a clustered threat-actor SDO carries the profile as an
   `x_scambuster_actor_psych` custom extension (schema_version 1.0), alongside the
-  existing `x_scambuster_actor` extension, for downstream CTI (OpenCTI / MISP).
+  existing `x_scambuster_actor` extension (engagement metrics), for downstream CTI
+  (OpenCTI / MISP). The same SDO carries MITRE ATT&CK technique mapping and `indicates`
+  relationships to every IOC of the conversation, and the bundle is validated for import
+  into **OpenCTI** — see the [OpenCTI Integration guide](11_opencti_integration.md).
 
 ## Running it
 
@@ -101,8 +104,8 @@ threat-actor intelligence capabilities:
   near zero, so downstream CTI deprioritises rejected IOCs. See the
   [API reference](12_api_quick_reference.md#threat-actor-intelligence).
 - **Explicit STIX evidence** — the export makes the "seen N times" signal a first-class
-  STIX `sighting` SDO, and standard-observable IOCs also emit `observed-data` + a Cyber
-  Observable Object. The actor psychological profile rides along as the
+  STIX `sighting` SDO on each indicator (count, first and last seen, where-sighted), and
+  standard-observable IOCs also emit `observed-data` + a Cyber Observable Object. The actor psychological profile rides along as the
   `x_scambuster_actor_psych` extension on the clustered threat-actor SDO. See the
   [TAXII / STIX guide](16_taxii_server.md).
 - **Temporal analysis** — `GET /api/v1/clusters/{id}/temporal` surfaces *when* an actor is

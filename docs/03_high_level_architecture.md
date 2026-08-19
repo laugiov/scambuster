@@ -304,6 +304,9 @@ Each scam type has a dedicated lifecycle policy controlling timeouts, turn limit
 
 **Reopen window**: Long-engagement scam types allow reopening within 48-72h if the scammer returns.
 
+**Reply cadence**: every reply passes through **human delay simulation** (configurable
+cadence, randomized timing, time-of-day awareness) to mimic realistic response patterns.
+
 ---
 
 ## Prompt Injection Detection
@@ -381,11 +384,37 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 | **Framework** | Symfony 7.4 | Enterprise-grade, security features |
 | **Database** | PostgreSQL 15 | JSON support, reliability, access control |
 | **Cache & Locks** | Redis 7 | Rate limiting, distributed locks |
-| **LLM** | OpenAI API (GPT-4o-mini generation by default, configurable; GPT-4o-mini validation) | Cost-effective default, upgradable to larger models for generation |
+| **Frontend** | React 19, TypeScript, TailwindCSS, i18n (EN/FR) | Operations dashboard and analyst screens |
+| **LLM** | Multi-provider — OpenAI, Anthropic, Ollama (full local), Mock (dev). OpenAI API by default (GPT-4o-mini generation, configurable; GPT-4o-mini validation) | Cost-effective default, upgradable to larger models for generation; provider switched with one env var |
 | **Embeddings** | OpenAI text-embedding-3-small | Semantic similarity for campaign clustering ($0.02/1M tokens) |
-| **Orchestration** | n8n | Visual debugging, 400+ integrations |
+| **Orchestration** | n8n (self-hosted) | Visual debugging, 400+ integrations |
 | **Secrets** | Environment variables / Docker secrets | IMAP credentials, API keys |
+| **Monitoring** | Prometheus metrics, LLM cost tracking, pipeline tracing | Operational visibility per reply and per call |
+| **Infrastructure** | Docker Compose, GitHub Actions CI | Single-host deployment, automated checks |
+| **SIEM** | CEF, ECS, JSON — pluggable connector | See [SIEM Export](#siem-export) above |
 | **CI/CD** | GitHub Actions | PHPStan, PHP-CS-Fixer, PHPUnit |
+
+> **Data sovereignty**: Deploy with `LLM_PROVIDER=ollama` for 100% on-premise processing.
+> No data leaves your infrastructure.
+
+---
+
+## Repository Layout
+
+```
+scambuster/
+  backend-symfony/         # PHP/Symfony backend (DDD)
+    src/
+      Domain/              # Entities, value objects, enums, events
+      Application/         # Handlers, services, orchestrators
+      Infrastructure/      # Doctrine repos, external APIs, listeners
+      UI/Http/             # Controllers (single __invoke)
+    tests/                 # PHPUnit (unit, integration, E2E)
+  frontend-react/          # React 19 dashboard
+  n8n/                     # Workflow definitions
+  infra/                   # Docker configs
+  docs/                    # Documentation guides
+```
 
 ---
 

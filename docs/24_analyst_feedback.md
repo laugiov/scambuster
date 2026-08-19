@@ -101,5 +101,10 @@ Nothing in the reply/scambaiting path is touched.
 > can my analysts still correct it?" Yes, and the correction is authoritative and audited, not a local
 > annotation that dies in one screen.
 
+The feedback loop is one of the first-party (no external enrichment) capabilities of the
+threat-actor intelligence stack, alongside fuzzy actor clustering, psychological profiling
+and explicit STIX evidence — see
+[Threat-Actor Profiling](21_threat_actor_profiling.md#part-of-the-threat-actor-intelligence-stack).
+
 See also: [Reading the Threat-Actor screen](23_reading_the_threat_actor_screen.md) for the actor-level
 view these indicators roll up into.

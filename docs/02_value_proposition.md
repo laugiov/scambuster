@@ -85,6 +85,24 @@ ScamBuster combines regex patterns with LLM understanding:
 - Payment services (Western Union, MoneyGram MTCNs)
 - Identity documents, company names
 
+#### Contextual enrichment
+
+Each conversation yields **deduplicated** IOCs (emails, domains, IPs, IBANs, crypto
+wallets, phones, Telegram usernames, file hashes…) enriched with **semantic context**:
+
+| Enrichment | What it records |
+|------------|-----------------|
+| **Role in the scam narrative** | Payment destination, phishing lure, contact channel |
+| **Stimulus type** | What our persona did in the reply that preceded the reveal |
+| **Urgency scoring** | How much pressure the surrounding message carries |
+| **Context excerpt** | A short, **PII-free** quote showing how the IOC was used |
+
+The enrichment prompt itself is operator-configurable (`contextual_enrichment`) — see
+[Prompt Customization](25_prompt_customization.md). The stimulus attribution is what the
+stimulus → TTP → IOC crossing is built from ([TTP Intelligence](27_ttp_intelligence.md)),
+and an analyst verdict can override the confidence attached to any of these IOCs
+([Analyst Feedback](24_analyst_feedback.md)).
+
 ### 3. Adaptive Learning (Research Innovation)
 
 **Novel application of contextual multi-armed bandits to scambaiting.** To our knowledge, this is among the earliest documented implementations combining RL-based persona selection with automated honeypot engagement in a production-oriented, measurable setup.
