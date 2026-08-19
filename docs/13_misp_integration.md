@@ -10,7 +10,7 @@ ScamBuster exports IOCs as **MISP Event JSON**, ready for import into any MISP 2
 
 ### Which path to use
 
-| | This page — MISP Event export | [TAXII feed](16_taxii_server.md) |
+| | This page -- MISP Event export | [TAXII feed](16_taxii_server.md) |
 |---|---|---|
 | Trigger | you call the endpoint, one conversation at a time | the consumer polls on a schedule |
 | Format | MISP Event JSON (native) | STIX 2.1 |
@@ -179,7 +179,7 @@ MISP Connection Test
 | 401 Unauthorized | Check your MISP API key is valid and has read/write permissions |
 | Connection refused | Verify MISP_URL is correct and MISP is reachable from the Docker network |
 | No IOCs in export | The conversation may not have extracted IOCs yet. Check `/api/v1/communication/conversation/{id}/iocs` |
-| **Event returns with `"Attribute": []` although the conversation has IOCs** | Those observations carry no export metadata — they were written outside the ingest path (seeded demo dataset, or stored before the metadata step existed). The export now derives the mapping on the fly, so this should no longer happen; to also fix the stored rows (the IOC Explorer reads them for its export mapping), run `docker compose exec backend-dev bin/console app:migrate-iocs-export-metadata`. It is idempotent and skips already-enriched rows. `make demo-load` runs it automatically. |
+| **Event returns with `"Attribute": []` although the conversation has IOCs** | Those observations carry no export metadata -- they were written outside the ingest path (seeded demo dataset, or stored before the metadata step existed). The export now derives the mapping on the fly, so this should no longer happen; to also fix the stored rows (the IOC Explorer reads them for its export mapping), run `docker compose exec backend-dev bin/console app:migrate-iocs-export-metadata`. It is idempotent and skips already-enriched rows. `make demo-load` runs it automatically. |
 | Missing MISP types | IOC types not in the mapping table default to `Other / other`. Check `IocExportMapper.php` for supported types |
 | TLS certificate error | If using self-signed certificates, set `MISP_VERIFY_SSL=false` in `.env` |
 

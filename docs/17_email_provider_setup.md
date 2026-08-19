@@ -1,6 +1,6 @@
 # Email Provider Setup Guide
 
-ScamBuster uses standard IMAP/SMTP protocols for email — no Gmail OAuth required.
+ScamBuster uses standard IMAP/SMTP protocols for email -- no Gmail OAuth required.
 
 ## Supported Providers
 
@@ -36,8 +36,8 @@ MAILER_DSN=smtps://your-honeypot@gmail.com:abcdefghijklmnop@smtp.gmail.com:465
 
 Symfony Mailer uses a DSN (Data Source Name) string:
 
-- `smtps://` = TLS implicit (port 465) — use for Gmail, Yahoo
-- `smtp://` = STARTTLS (port 587) — use for Outlook, custom servers
+- `smtps://` = TLS implicit (port 465) -- use for Gmail, Yahoo
+- `smtp://` = STARTTLS (port 587) -- use for Outlook, custom servers
 
 Format: `smtp[s]://username:password@host:port`
 
@@ -56,10 +56,10 @@ inbound message, so no node logic or backend code changes when you add a mailbox
 Each new mailbox needs three things: a row in the backend, its own IMAP trigger in
 n8n, and its address excluded from IOC extraction. Budget a few minutes per mailbox.
 
-### Step 1 — Register the mailbox in the backend
+### Step 1 -- Register the mailbox in the backend
 
 Do this **first**. If mail lands on a mailbox with no backend row, ingestion throws
-`Unknown account_id` — and because the IMAP trigger marks messages as read before
+`Unknown account_id` -- and because the IMAP trigger marks messages as read before
 the failure while searching only `UNSEEN`, those messages are never re-fetched.
 They are lost, not queued.
 
@@ -77,33 +77,33 @@ rest), so each mailbox replies from its own address. Repeat once per mailbox.
 
 `--label` is optional but recommended: a mailbox without one displays as `--` in the
 dashboard's *Mailbox* column and cannot be picked in its mailbox filter. `--smtp-dsn`
-is optional too — omit it and the mailbox replies through the global `MAILER_DSN`,
+is optional too -- omit it and the mailbox replies through the global `MAILER_DSN`,
 which misaligns DKIM/SPF when the reply-from domain differs.
 
-### Step 2 — Give the mailbox its own IMAP trigger in n8n
+### Step 2 -- Give the mailbox its own IMAP trigger in n8n
 
 An `IMAP Email Trigger` node binds exactly **one** IMAP credential, so one node polls
 exactly one mailbox. Duplicate `WF-INTAKE-EMAIL-V2`, create an IMAP credential for
 the new mailbox, and point the **duplicate's** trigger node at it.
 
-> Do not repoint the existing workflow's node at the new credential — that moves your
+> Do not repoint the existing workflow's node at the new credential -- that moves your
 > first mailbox onto the second one instead of adding it.
 
 One workflow per mailbox is the recommended layout. Several trigger nodes inside a
 single workflow do work (n8n activates every trigger node), but n8n aborts activation
-of the entire workflow if any one trigger fails to start — so one expired app password
+of the entire workflow if any one trigger fails to start -- so one expired app password
 would stop collection on every mailbox sharing that workflow.
 
 Apply the [reliable IMAP polling settings](08_getting_started.md#reliable-imap-polling-for-the-n8n-intake-workflows)
 to every new trigger, or that mailbox will drop messages.
 
-### Step 3 — Exclude the new address from IOC extraction
+### Step 3 -- Exclude the new address from IOC extraction
 
 Add the address to `HONEYPOT_EMAIL_ADDRESSES` in `.env` (comma-separated; it defaults
 to `HONEYPOT_IMAP_USER` alone). Skip this and your own honeypot address is extracted
 as an IOC and shipped to your CTI feeds.
 
-If your honeypots share a domain you own, set `HONEYPOT_DOMAINS` instead — one entry
+If your honeypots share a domain you own, set `HONEYPOT_DOMAINS` instead -- one entry
 covers every mailbox on that domain, present and future. Restart the backend after
 editing either variable.
 

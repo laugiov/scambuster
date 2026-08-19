@@ -1,7 +1,7 @@
 # Data Classification
 
 ScamBuster is a scambaiting honeypot: it engages scammers from **synthetic operator
-identities** and stores what those scammers send. This shapes its data classification —
+identities** and stores what those scammers send. This shapes its data classification --
 most stored content is *attacker-supplied*, not the personal data of protected individuals.
 
 ## Classification levels
@@ -17,9 +17,9 @@ most stored content is *attacker-supplied*, not the personal data of protected i
 
 | Data | Class | Where | Control |
 |------|-------|-------|---------|
-| Scammer email bodies / subjects / headers | ATTACKER-SUPPLIED | `message.body_text`, `body_html`, `headers` | RBAC (`conversation:read`); PII-masked in logs. **Plaintext at rest by design** — see rationale. |
-| Extracted IOCs (wallets, IBAN, phones, URLs…) | INTERNAL | `observed_ioc`, `indicator` | RBAC (`ioc:read`), TLP marking. Financial identifiers may belong to mule/victim account holders (third-party PII): export-held until analyst confirmation — see [mule/victim account policy](mule-victim-account-policy.md) |
-| Synthetic operator persona content | ATTACKER-SUPPLIED context | personas, outbound replies | Synthetic identities — not real-person PII |
+| Scammer email bodies / subjects / headers | ATTACKER-SUPPLIED | `message.body_text`, `body_html`, `headers` | RBAC (`conversation:read`); PII-masked in logs. **Plaintext at rest by design** -- see rationale. |
+| Extracted IOCs (wallets, IBAN, phones, URLs…) | INTERNAL | `observed_ioc`, `indicator` | RBAC (`ioc:read`), TLP marking. Financial identifiers may belong to mule/victim account holders (third-party PII): export-held until analyst confirmation -- see [mule/victim account policy](mule-victim-account-policy.md) |
+| Synthetic operator persona content | ATTACKER-SUPPLIED context | personas, outbound replies | Synthetic identities -- not real-person PII |
 | Honeypot mailbox addresses | INTERNAL | `mail_account.email_address` | Never committed to git; OPSEC pre-commit gate |
 | Per-account SMTP DSN | **SECRET** | `mail_account.smtp_dsn_encrypted` | **Encrypted at rest** (libsodium secretbox) |
 | TOTP secrets | **SECRET** | `EncryptedStringType` | **Encrypted at rest** (libsodium secretbox) |
@@ -34,7 +34,7 @@ persona**, on a mailbox that receives **only** unsolicited scam mail. It is not 
 data of a customer, employee, or protected data subject; it is adversary-supplied evidence.
 Consequently:
 
-- Field-level encryption of bodies is **not** applied — it would break the Campaign-Radar
+- Field-level encryption of bodies is **not** applied -- it would break the Campaign-Radar
   content search (`WHERE body_text ILIKE`, the pg_trgm index) and the IOC-context tooling
   for no meaningful subject-privacy gain, since there is no protected subject.
 - Confidentiality is enforced instead by **access control** (RBAC + admin-gated endpoints),
@@ -48,5 +48,5 @@ mailboxes and apply field-level encryption (a separate control) before doing so.
 
 ## Retention (see the DPIA + GDPR record)
 - Conversation content: **soft-deleted at 6 months**, hard-deleted at 12 months (`PurgeService`, automatic).
-- Audit log: **12-month retention is policy** — the integrity chain is preserved and archive/purge
+- Audit log: **12-month retention is policy** -- the integrity chain is preserved and archive/purge
   is an operator procedure; there is no automatic audit-log purge command.

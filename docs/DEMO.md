@@ -1,4 +1,4 @@
-# ScamBuster — Demo Mode
+# ScamBuster -- Demo Mode
 
 Try ScamBuster without any API key, email account, or configuration.
 
@@ -38,8 +38,8 @@ The demo includes 36 pre-loaded conversations, 482 IOCs, pipeline monitoring, co
 ## What does NOT work in demo mode
 
 - **Email ingestion**: No IMAP polling (n8n is not running)
-- **LLM reply generation**: `LLM_PROVIDER=mock` — no real API calls
-- **Email sending**: `MAILER_DSN=null://null` — no SMTP
+- **LLM reply generation**: `LLM_PROVIDER=mock` -- no real API calls
+- **Email sending**: `MAILER_DSN=null://null` -- no SMTP
 - **n8n workflows**: n8n is not included in the demo stack
 
 > **Want the full experience?** Follow the [Quickstart Guide](QUICKSTART.md) to deploy ScamBuster with live email ingestion, LLM-powered replies, and automated workflows.
@@ -94,13 +94,13 @@ On subsequent starts, the entrypoint detects existing data, skips seeding, and o
 >   are genuine verbatim substrings of the demo messages with correct offsets.
 > - **Stimulus types** (`ioc_context.stimulus_type`, used by the stimulus → TTP →
 >   IOC timeline and the Stimulus × TTP matrix) vary per message along a plausible
->   per-scam-type arc keyed to the turn position — first-contact revelations are
+>   per-scam-type arc keyed to the turn position -- first-contact revelations are
 >   `PASSIVE`, later ones progress through trust-building, requests, payment and
->   urgency — replacing the earlier one-value-per-scam-type placeholder. The
+>   urgency -- replacing the earlier one-value-per-scam-type placeholder. The
 >   linked stimulus message (`stimulus_msg_id`) is the real preceding outbound.
 >
-> All of these rows are deterministic, seeded approximations — **not** real
-> model output — and each is stamped so it stays distinguishable from real data:
+> All of these rows are deterministic, seeded approximations -- **not** real
+> model output -- and each is stamped so it stays distinguishable from real data:
 > TTP observations carry `ttp_observation.extraction_model = demo-seed`, and the
 > enriched IOC-context rows (semantic role, stimulus type, etc.) carry
 > `ioc_context.enrichment_model = demo-seed`.

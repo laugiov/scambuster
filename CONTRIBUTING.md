@@ -63,7 +63,7 @@ make cs-fixer      # Code style (PHP-CS-Fixer)
 
 This project follows the [Contributor Covenant v2.1](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code. Please report unacceptable behavior via [GitHub Security Advisories](https://github.com/laugiov/scambuster/security/advisories/new).
 
-ScamBuster is a **defensive research tool** — contributions must align with ethical and legal guidelines (see [SECURITY.md](SECURITY.md)).
+ScamBuster is a **defensive research tool** -- contributions must align with ethical and legal guidelines (see [SECURITY.md](SECURITY.md)).
 
 ## Community
 

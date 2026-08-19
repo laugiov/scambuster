@@ -61,7 +61,7 @@ The system operator (deploying organization) acts as data controller. The softwa
   code-enforced). Third-party personal data can nonetheless *enter* the store
   through the adversary's own messages (impersonated executives, forwarded
   threads, and above all financial identifiers whose account holders may be
-  money mules — often scam victims themselves). Such data is treated as
+  money mules -- often scam victims themselves). Such data is treated as
   potential third-party victim data, not presumptively as threat-actor
   infrastructure: financial identifiers are withheld from every external feed
   until a human analyst confirms them

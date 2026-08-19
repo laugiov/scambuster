@@ -11,7 +11,7 @@ mailboxes, encrypted at rest in `./data/n8n/credentials/` using the
 provisioned automatically from `.env` by `n8n/n8n-init.sh` on first boot.
 
 The shipped workflows do all LLM work (classification, reply generation) by
-calling the backend over HTTP — they do **not** reference an LLM credential in
+calling the backend over HTTP -- they do **not** reference an LLM credential in
 n8n; the backend calls the provider directly with `LLM_API_KEY` from `.env`.
 
 > An `OpenAi account` credential may still be present in n8n from an earlier
@@ -20,7 +20,7 @@ n8n; the backend calls the provider directly with `LLM_API_KEY` from `.env`.
 
 ## Threat model
 
-- **DB exfiltration**: n8n credentials are NOT in PostgreSQL — they
+- **DB exfiltration**: n8n credentials are NOT in PostgreSQL -- they
   live in the host filesystem under `./data/n8n/`. A SQL injection
   on the application DB does not leak them.
 - **Filesystem exfiltration**: if `./data/n8n/credentials/` is leaked
@@ -46,7 +46,7 @@ Two separate backups must exist at all times:
 2. **Encryption key** (separate destination):
    - Store `N8N_ENCRYPTION_KEY` value in a password manager
      (1Password, Bitwarden, KeePass) under a dedicated entry titled
-     "ScamBuster — N8N_ENCRYPTION_KEY"
+     "ScamBuster -- N8N_ENCRYPTION_KEY"
    - The password manager backup is your separate destination
    - **NEVER** include `.env` in the same tar.gz as `./data/n8n/`
 
@@ -65,7 +65,7 @@ Run this every 6 months OR after any operator handover.
      --output=/tmp/n8n-creds-decrypted.json \
      --decrypted
    ```
-   This file is in **plaintext** — handle with care, never push to git.
+   This file is in **plaintext** -- handle with care, never push to git.
 
 3. **Generate a new key**:
    ```bash
@@ -115,7 +115,7 @@ Run this immediately if you suspect `.env` has been leaked or any
 operator with key access has departed.
 
 1. Follow the routine rotation steps 1-11 above.
-2. **Additionally rotate the underlying credentials themselves** —
+2. **Additionally rotate the underlying credentials themselves** --
    the encryption key change does not invalidate the credential
    passwords on the upstream services (Gmail, OpenAI, etc.). For
    each credential:
@@ -151,7 +151,7 @@ This is the worst-case scenario. There is no way to decrypt
    re-created automatically from `.env` by `n8n/n8n-init.sh` on boot. Any
    additional credentials added by hand (extra mailboxes, an SMTP relay used
    inside a workflow) must be re-created in the n8n UI. (LLM keys are not stored
-   in n8n — they stay in `.env`.)
+   in n8n -- they stay in `.env`.)
 5. **Trigger a test workflow** for each credential and verify it
    succeeds.
 6. **Document** the loss + recovery in the incident log.

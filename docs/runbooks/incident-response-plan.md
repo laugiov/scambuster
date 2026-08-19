@@ -28,7 +28,7 @@ See `RACI.md` for the responsibility matrix.
 ## 3. Containment, Eradication, Recovery
 | Action | How |
 |--------|-----|
-| Stop all outbound replies | **Kill switch** (`SCAMBUSTER_KILL_SWITCH` / admin toggle) — audited |
+| Stop all outbound replies | **Kill switch** (`SCAMBUSTER_KILL_SWITCH` / admin toggle) -- audited |
 | Cap/stop LLM spend | Budget cap `enforce` mode |
 | Revoke a compromised session | Invalidate the user's refresh tokens; disable the account |
 | Rotate a leaked key | Runbooks: `audit-hmac-key-rotation.md`, `totp-key-rotation.md`, JWT keys, `N8N_ENCRYPTION_KEY`, `APP_SECRET` |
@@ -45,17 +45,17 @@ See `RACI.md` for the responsibility matrix.
 
 ## Tabletop exercise (rehearse quarterly)
 
-> **Scenario — Leaked LLM API key + cost spike.** Monitoring shows LLM spend at 300% of the
+> **Scenario -- Leaked LLM API key + cost spike.** Monitoring shows LLM spend at 300% of the
 > daily budget; the `budget threshold` audit event fired overnight; a git push last week
 > accidentally included a real `.env`.
 >
-> Walk the team through: (1) detect — confirm via audit + cost dashboard; (2) contain — kill
+> Walk the team through: (1) detect -- confirm via audit + cost dashboard; (2) contain -- kill
 > switch + budget `enforce` + rotate the LLM key + rotate any other secret in the leaked
 > `.env` (APP_SECRET, JWT passphrase, N8N_ENCRYPTION_KEY, AUDIT_HMAC_KEY, DB password);
-> (3) eradicate — purge the key from git history if it was committed, force-push, verify with
-> gitleaks; (4) recover — new keys deployed, audit chain re-verified; (5) assess — was personal
-> data exposed? (likely no — scammer content only) → document the Art 33 no-notification
-> decision; (6) post-mortem — why did the pre-commit gitleaks hook not catch it?
+> (3) eradicate -- purge the key from git history if it was committed, force-push, verify with
+> gitleaks; (4) recover -- new keys deployed, audit chain re-verified; (5) assess -- was personal
+> data exposed? (likely no -- scammer content only) → document the Art 33 no-notification
+> decision; (6) post-mortem -- why did the pre-commit gitleaks hook not catch it?
 >
 > **Success criteria:** containment within 30 min, all secrets from the leaked file rotated,
 > a written decision on notifiability, and one preventive action logged.

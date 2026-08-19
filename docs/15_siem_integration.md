@@ -166,14 +166,14 @@ CEF:0|ScamBuster|HoneypotPlatform|1.0|AUTH_FAILURE|Authentication Failure|5|rt=1
 ```
 
 **Fields:**
-- `rt` — Event timestamp (milliseconds since epoch)
-- `cat` — Event category (authentication, threat, email, etc.)
-- `outcome` — Event outcome (success/failure)
-- `suser` — Source user (actor ID)
-- `src` — Source IP address
-- `cs1` — Trace ID for request correlation
-- `cs2` — Resource type (conversation, message, etc.)
-- `cs3` — Resource ID
+- `rt` -- Event timestamp (milliseconds since epoch)
+- `cat` -- Event category (authentication, threat, email, etc.)
+- `outcome` -- Event outcome (success/failure)
+- `suser` -- Source user (actor ID)
+- `src` -- Source IP address
+- `cs1` -- Trace ID for request correlation
+- `cs2` -- Resource type (conversation, message, etc.)
+- `cs3` -- Resource ID
 
 ### ECS (Elastic Common Schema)
 

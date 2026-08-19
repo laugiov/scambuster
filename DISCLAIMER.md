@@ -1,6 +1,6 @@
 # Disclaimer & Responsible Use
 
-ScamBuster is a **defensive security research tool**. It engages inbound scam email — mail that a scammer sends to a honeypot mailbox first — to extract threat intelligence in a controlled, policy-gated, auditable way. It is published for researchers, CERTs, SOC teams, and defenders.
+ScamBuster is a **defensive security research tool**. It engages inbound scam email -- mail that a scammer sends to a honeypot mailbox first -- to extract threat intelligence in a controlled, policy-gated, auditable way. It is published for researchers, CERTs, SOC teams, and defenders.
 
 Read this before deploying it.
 
@@ -8,7 +8,7 @@ Read this before deploying it.
 
 Operating ScamBuster is **your** responsibility. By deploying it you accept that:
 
-- **You confirm it is legal where you operate.** Automated engagement with third parties, collection of personal data, and honeypot operation are regulated differently across countries and sectors. Nothing here is legal advice — seek your own.
+- **You confirm it is legal where you operate.** Automated engagement with third parties, collection of personal data, and honeypot operation are regulated differently across countries and sectors. Nothing here is legal advice -- seek your own.
 - **It is inbound-only, and must stay that way.** ScamBuster replies only to senders who contact a honeypot first. Do not modify it to initiate contact, target specific individuals, harass, intimidate, dox, or retaliate against anyone.
 - **You are the data controller.** For any data you ingest you must apply the relevant lawful basis, data minimization, retention limits, and subject rights (e.g. GDPR Article 6(1)(f) where applicable). The project ships guardrails (PII filtering, retention, encryption at rest) but the obligations are yours.
 - **You keep it within its safety envelope.** The rate limits, content filters (PolicyGuard, LLM validator), kill switch, and audit trail exist to keep engagement safe. Disabling them is at your own risk.
@@ -26,14 +26,14 @@ ScamBuster is MIT-licensed, and we are honest about what that means: the license
 **legally permits** a fork to remove the inbound-only enforcement, PolicyGuard,
 the payment-instigation guard, the export holds, or any other safeguard. We
 chose a permissive license so defenders can adopt and adapt the platform freely
-— not to bless weaponized derivatives.
+-- not to bless weaponized derivatives.
 
 So this is stated plainly as the project's position rather than pretended as a
 license term:
 
 - The safety envelope is **load-bearing, not decorative**. A build that
   initiates contact, targets individuals, or strips the content guards is not
-  ScamBuster — it is a different tool that its operator owns morally and
+  ScamBuster -- it is a different tool that its operator owns morally and
   legally, alone.
 - Do not use the ScamBuster name, branding, or the authors' names to
   distribute or legitimize such a derivative.

@@ -31,7 +31,7 @@ ScamBuster (TAXII Server)
 ```
 
 > **Only the OpenCTI path has been exercised against a live instance.** The
-> others are standards-based — any TAXII 2.1 client can read these collections —
+> others are standards-based -- any TAXII 2.1 client can read these collections --
 > but the procedures below carry no such verification. Treat them as starting
 > points and expect to adjust.
 >
@@ -63,7 +63,7 @@ ScamBuster (TAXII Server)
 
 **An unattended consumer must use the API key.** Consumers store one credential
 and never refresh it, so a feed configured with a JWT ingests once and then fails
-every poll with `401` — silently, since the platform keeps the objects it already
+every poll with `401` -- silently, since the platform keeps the objects it already
 imported. Set it in `.env` and restart the backend:
 
 ```env
@@ -74,7 +74,7 @@ Empty (the default) leaves the feature off and the feed JWT-only. Keys shorter
 than 32 characters are ignored. Rotate by changing the value, restarting the
 backend, then updating each consumer.
 
-The key is deliberately **not** accepted as `Authorization: Bearer` — that
+The key is deliberately **not** accepted as `Authorization: Bearer` -- that
 namespace belongs to the JWT authenticator, and a request carrying both would be
 rejected by it. Send it as HTTP Basic (any username, key as password) or in the
 `X-TAXII-API-KEY` header.
@@ -164,7 +164,7 @@ curl -sS -H "Authorization: Bearer $TOKEN" \
 Full guide, including what lands where in the platform and the Docker networking
 traps: **[OpenCTI Integration](11_opencti_integration.md)**.
 
-In short — create **two** feeds, one per collection, because they carry different
+In short -- create **two** feeds, one per collection, because they carry different
 objects and a single feed on the IOC collection leaves the TTP and actor screens
 empty:
 
@@ -174,15 +174,15 @@ empty:
 | ScamBuster Threat Actors & TTPs | `a1b2c3d4-0003-4000-8000-000000000003` |
 
 Point both at the API root `http://<scambuster-host>:8081/api/v1/taxii2/api/`
-(version 2.1), authenticate with `TAXII_API_KEY` over HTTP Basic — `taxii:<key>`,
-never a JWT — and poll hourly.
+(version 2.1), authenticate with `TAXII_API_KEY` over HTTP Basic -- `taxii:<key>`,
+never a JWT -- and poll hourly.
 
 ### MISP
 
 > **Unverified path.** MISP's own feed formats are *MISP*, *Freetext* and *CSV*;
 > whether your MISP build can poll a TAXII 2.1 endpoint as a Feed depends on the
 > version and on whether the STIX import module is enabled. If it cannot, use the
-> per-conversation MISP Event export instead — it is the supported, tested path:
+> per-conversation MISP Event export instead -- it is the supported, tested path:
 > see [MISP Integration](13_misp_integration.md).
 
 1. Go to **Sync Actions** → **List Feeds**
@@ -194,7 +194,7 @@ never a JWT — and poll hourly.
    - **Delta Merge**: Enable (uses `added_after` parameter)
    - **Frequency**: Daily
 
-### TheHive — unverified
+### TheHive -- unverified
 
 > No TheHive or Cortex instance has been tested against this server, and
 > ScamBuster ships no TheHive-specific code. What follows is the standards-based
@@ -205,10 +205,10 @@ never a JWT — and poll hourly.
 3. Authenticate with `TAXII_API_KEY` (HTTP Basic, key as the password)
 4. TheHive can then create cases from high-confidence indicators
 
-### Splunk / QRadar / Elastic — unverified
+### Splunk / QRadar / Elastic -- unverified
 
 > Same caveat: never tested against a live instance. For pushing ScamBuster's
-> **audit events** to a SIEM there is a supported, implemented path — CEF, ECS or
+> **audit events** to a SIEM there is a supported, implemented path -- CEF, ECS or
 > JSON over file or syslog, see [SIEM Integration](15_siem_integration.md). The
 > TAXII route below is for pulling **IOCs** and is untested.
 
@@ -219,7 +219,7 @@ Use the TAXII 2.1 client integration available in your SIEM, authenticating with
 - **Elastic**: Threat Intel module with TAXII indicator feed
 
 > Every consumer on this page polls unattended, so all of them need the API key
-> rather than a JWT — a JWT expires after 900 seconds and the feed then fails
+> rather than a JWT -- a JWT expires after 900 seconds and the feed then fails
 > every poll with 401. See [Choosing a credential](#choosing-a-credential).
 
 ---
@@ -237,7 +237,7 @@ Use the TAXII 2.1 client integration available in your SIEM, authenticating with
 
 ### Authentication
 
-All endpoints require a credential. Two are accepted — see
+All endpoints require a credential. Two are accepted -- see
 [Choosing a credential](#choosing-a-credential):
 
 ```
@@ -247,7 +247,7 @@ X-TAXII-API-KEY: <key>                     # same key, header form
 ```
 
 A JWT user must hold the `ioc:read` permission. The API key grants exactly that
-permission, on `/api/v1/taxii2` only — it cannot reach any other endpoint.
+permission, on `/api/v1/taxii2` only -- it cannot reach any other endpoint.
 
 ### Query Parameters (Objects Endpoint)
 
@@ -291,11 +291,11 @@ The objects endpoint returns a STIX 2.1 envelope. When more objects remain,
 
 Two complementary mechanisms:
 
-- **Cursor (`next`)** — the robust way to walk a full collection. Each response with
+- **Cursor (`next`)** -- the robust way to walk a full collection. Each response with
   `more: true` includes an opaque `next` token; pass it back as `?next=<token>` to get
   the following page. The cursor is a total order over `(updated_at, indicator_id)`, so
   pagination is **skip-free even when many indicators share the same `updated_at`
-  second** — the failure mode a naive timestamp boundary suffers from. Treat the token
+  second** -- the failure mode a naive timestamp boundary suffers from. Treat the token
   as opaque; do not parse or fabricate it.
 
   ```bash
@@ -308,7 +308,7 @@ Two complementary mechanisms:
     "$BASE/collections/a1b2c3d4-0001-4000-8000-000000000001/objects/?limit=500&next=<token>" | jq '{more, next}'
   ```
 
-- **Delta sync (`added_after`)** — for incremental polling: persist the
+- **Delta sync (`added_after`)** -- for incremental polling: persist the
   `X-TAXII-Date-Added-Last` header and pass it as `added_after` on the next poll to pull
   only what changed. `added_after` and `next` compose (the cursor paginates within an
   `added_after` window).
@@ -335,7 +335,7 @@ threat-actor intelligence beyond the indicators:
 |--------|-----------------|
 | `sighting` (one per indicator) | The "seen N times" evidence made explicit: `count` (from indicator occurrences), `first_seen` / `last_seen`, and `where_sighted_refs` = the ScamBuster honeypot identity. Previously folded into indicator confidence. |
 | `observed-data` + SCO | For standard-observable IOC types (email-addr, domain-name, url, ipv4/6-addr, file) the raw observation layer: `first_observed` / `last_observed` / `number_observed` pointing to a Cyber Observable Object. Financial/contact types (IBAN, wallet, phone) keep indicator + sighting only (no standard SCO). |
-| `threat-actor` extension `x_scambuster_actor_psych` | On a **clustered** actor: the psychological fingerprint — dominant + secondary Cialdini levers, behavioural summary, escalation pattern, victim targeting, behavioural signals. See [Threat-Actor Profiling](21_threat_actor_profiling.md). |
+| `threat-actor` extension `x_scambuster_actor_psych` | On a **clustered** actor: the psychological fingerprint -- dominant + secondary Cialdini levers, behavioural summary, escalation pattern, victim targeting, behavioural signals. See [Threat-Actor Profiling](21_threat_actor_profiling.md). |
 | `note` `x_scambuster_mirror` | The Cognitive Mirror framing for the conversation's persona × scam type. |
 
 Analyst verdicts (see [feedback loop](12_api_quick_reference.md#threat-actor-intelligence)) are
@@ -352,14 +352,14 @@ POST /api/v1/iocs/export/feed        (permission: ioc:export)
 { "indicator_ids": ["<uuid>", ...], "format": "csv" | "ndjson" }
 ```
 
-- **`csv`** (default) — RFC 4180, one header row + one row per IOC (`Content-Type: text/csv`).
-- **`ndjson`** — one JSON object per line, for streaming ingestion / `jq` (`Content-Type: application/x-ndjson`).
+- **`csv`** (default) -- RFC 4180, one header row + one row per IOC (`Content-Type: text/csv`).
+- **`ndjson`** -- one JSON object per line, for streaming ingestion / `jq` (`Content-Type: application/x-ndjson`).
 
 Both carry the same authoritative columns straight from the database:
 `indicator_id, type, value, value_norm, tlp, score, occurrences, first_seen, last_seen, scam_type`.
 Selection is capped at 500 indicators, mirroring the STIX bundle export. Like that export
 (and unlike the shared TAXII feed) this is an authenticated analyst pull, so it does **not**
-strip TLP:RED — the caller is trusted via `ioc:export`.
+strip TLP:RED -- the caller is trusted via `ioc:export`.
 
 ```bash
 # Stream a selection straight into a SIEM as NDJSON
@@ -374,9 +374,9 @@ A conversation is classified with one **primary** scam type and, when the classi
 is confident enough, one or more **secondary** types (`conversation.secondary_scam_types`).
 Both surface in the exports so downstream CTI sees the full picture, not just the headline label:
 
-- **STIX** — the per-conversation bundle (`GET /conversations/{id}/export/stix`) adds each
+- **STIX** -- the per-conversation bundle (`GET /conversations/{id}/export/stix`) adds each
   secondary scam-type code to the indicator `labels`, alongside the primary (deduped).
-- **MISP** — the MISP Event (`GET /conversations/{id}/export/misp`) carries event-level `Tag[]`
+- **MISP** -- the MISP Event (`GET /conversations/{id}/export/misp`) carries event-level `Tag[]`
   for the primary **and** every secondary type, each mapped to standard machine tags:
 
   | Tag | Source | Example |
@@ -385,7 +385,7 @@ Both surface in the exports so downstream CTI sees the full picture, not just th
   | MITRE ATT&CK galaxy | `lkp_scam_type.attck_technique` → verified MISP cluster value | `misp-galaxy:mitre-attack-pattern="Phishing - T1566"` |
   | First-party scam type | scam-type code | `scambuster:scam-type="PHISHING"` |
 
-Tags are **deduplicated** — several scam types legitimately share one RSIT class or ATT&CK
+Tags are **deduplicated** -- several scam types legitimately share one RSIT class or ATT&CK
 technique (e.g. ROMANCE and TECH_SUPPORT both map to `rsit:fraud="scam"` / `T1656`), so the
 shared tag appears once. The ATT&CK galaxy value uses only the small set of **authoritatively
 verified** technique names present in the taxonomy; any unmapped technique emits **no** galaxy

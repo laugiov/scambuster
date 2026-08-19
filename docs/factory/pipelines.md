@@ -13,7 +13,7 @@ Every change to ScamBuster goes through one of three pipelines: **feature**,
 **On `chore`.** It exists because the alternative is worse: without it, a change
 to a workflow file or a README has to be mislabelled as a bug to get through, and
 a label everyone knows is a lie stops carrying information. Chore skips
-traceability, which makes it the cheap way out, so it is policed mechanically —
+traceability, which makes it the cheap way out, so it is policed mechanically --
 a chore PR touching `backend-symfony/src`, `backend-symfony/tests`,
 `backend-symfony/migrations` or `frontend-react/src` is rejected by CI and has to
 be resubmitted under a pipeline that specifies it. It has no command and no
@@ -28,7 +28,7 @@ is not.
 ## Rules common to all pipelines
 
 1. **Every pipeline ends in a pull request with its gate reports attached. The
-   factory never merges — the maintainer merges.** No pipeline has a step that
+   factory never merges -- the maintainer merges.** No pipeline has a step that
    pushes to `main`, closes an issue, or merges anything.
 2. **The escalation triggers in `factory/gates.yaml` apply to every pipeline,
    including bug fixes.** A one-line fix that touches a sensitive path or adds a
@@ -45,7 +45,7 @@ is not.
 6. **Definition of done is the constitution's, not the pipeline's.** A pipeline
    step that reports success without having actually run `make test`, `make stan`
    and the style check has reported nothing. Careful with the last one:
-   **`make cs-fixer` rewrites files** — it has no `--dry-run`. The check is that
+   **`make cs-fixer` rewrites files** -- it has no `--dry-run`. The check is that
    it leaves the worktree unchanged; CI runs `--dry-run --diff` instead.
 7. **Nothing outside the change's scope gets touched.** A defect noticed in
    passing goes to `factory/found-issues.md`; it does not get fixed in the same
@@ -53,7 +53,7 @@ is not.
 
 ## Identifier conventions
 
-Taken from the installed Spec Kit templates — use these, they are what the tools
+Taken from the installed Spec Kit templates -- use these, they are what the tools
 generate.
 
 | Prefix | Meaning | Lives in |
@@ -93,12 +93,12 @@ Rules that make it machine-parseable:
 - A line is an objection if and only if it matches
   `^(BLOCKING|ADVISORY)\s*;\s*([^;]+?)\s*;\s*(.+)$`. Anything else on the line is
   prose and is ignored by every parser.
-- Severity is uppercase — `blocking` in lowercase is not an objection line, and a
+- Severity is uppercase -- `blocking` in lowercase is not an objection line, and a
   parser will skip it silently.
 - Field 2 is a single `FR-###`, `SC-###`, `SEC-###`, or a test path (optionally
   `::testMethod`). Field 3 is free text and **must not contain a semicolon**.
-  The regex above is safe either way — its second group is lazy, so field 2 is
-  never swallowed — but simpler consumers that split the line on `;` would see
+  The regex above is safe either way -- its second group is lazy, so field 2 is
+  never swallowed -- but simpler consumers that split the line on `;` would see
   four fields instead of three, and `scripts/factory/adversarial-review.sh`
   normalises every separator on the line. Keep descriptions semicolon-free.
 - Objections may appear anywhere in a document. Grouping them in a fenced block
@@ -123,7 +123,7 @@ Consequences, all intended:
   parser that cannot find the ID in `specs/<branch>/spec.md` downgrades the
   objection to ADVISORY and says so.
 - In the bug and security pipelines there is no spec, so the only route to
-  BLOCKING is a failing executable test — which is exactly what those pipelines
+  BLOCKING is a failing executable test -- which is exactly what those pipelines
   produce first.
 - Advisory objections are never deleted. They go into the gate report's advisory
   section, and the maintainer decides whether any of them deserves its own run.
@@ -132,7 +132,7 @@ Consequences, all intended:
 
 **Acceptance criteria are fixed before review starts.** For any stage, they are
 the output of `/speckit-checklist` plus the `auto_pass_criteria` for that stage
-transition in `factory/gates.yaml` — determined and written down before a reviewer
+transition in `factory/gates.yaml` -- determined and written down before a reviewer
 reads the artifact. Criteria discovered during review are advisory by
 construction: a bar raised mid-review is a bar the author never had a chance to
 meet.
@@ -145,7 +145,7 @@ for each unresolved objection:
 - the objection line in standard format;
 - the reviewer's claim and the evidence for it (file, line, test, spec ID);
 - the author's counter-claim and its evidence;
-- what would settle it — the test that would need to exist, or the decision only
+- what would settle it -- the test that would need to exist, or the decision only
   the maintainer can make.
 
 No third round. A third round is where two agents converge on agreeing with each
@@ -171,22 +171,22 @@ Full Spec Kit flow. Two human gates.
 
 **Steps**
 
-1. `/speckit-specify` — the spec. Requirements get `FR-###` IDs, success criteria
+1. `/speckit-specify` -- the spec. Requirements get `FR-###` IDs, success criteria
    get `SC-###`. No implementation detail in the spec.
-2. `/speckit-clarify` — resolve every `[NEEDS CLARIFICATION]` marker. The spec
+2. `/speckit-clarify` -- resolve every `[NEEDS CLARIFICATION]` marker. The spec
    does not reach G1 with markers left in it.
-3. `/speckit-plan` — the plan. It names the layers touched, the ports added or
+3. `/speckit-plan` -- the plan. It names the layers touched, the ports added or
    changed, the migrations needed, and the projected diff size. If that projection
    exceeds 400 lines, the plan says how the work splits into stacked PRs.
-4. **G1 — blocking.** The maintainer reads the spec and the plan. `security-reviewer`
+4. **G1 -- blocking.** The maintainer reads the spec and the plan. `security-reviewer`
    reviews the spec; `architecture-reviewer` reviews the plan. Gate report produced.
-5. `/speckit-tasks` — the task list. **Every task cites the requirement IDs it
+5. `/speckit-tasks` -- the task list. **Every task cites the requirement IDs it
    covers**, written into the task line itself: `T012 [US1] (FR-003, FR-004) …`.
    The Spec Kit template does not do this by default; the factory requires it and
    the traceability job in `.github/workflows/factory-gates.yml` enforces it.
-6. `/speckit-analyze` — cross-artifact consistency. Any inconsistency it reports
+6. `/speckit-analyze` -- cross-artifact consistency. Any inconsistency it reports
    is resolved before implementation starts, not noted and carried.
-7. `/speckit-implement` — one task at a time, **test-first**. Each task produces
+7. `/speckit-implement` -- one task at a time, **test-first**. Each task produces
    **two commits, in this order**: a commit touching only test files, then the
    implementation. Both cite the task and its requirement IDs.
 
@@ -196,8 +196,8 @@ Full Spec Kit flow. Two human gates.
    ```
 
    The order is checked in CI from the history, so it cannot be reconstructed
-   afterwards. A task that genuinely cannot be driven by a test — a pure rename, a
-   config move — carries `TDD-exempt: <reason>` in the implementation commit body:
+   afterwards. A task that genuinely cannot be driven by a test -- a pure rename, a
+   config move -- carries `TDD-exempt: <reason>` in the implementation commit body:
    it does not fail the build, it surfaces in the gate report.
 
    Two things the order gate cannot do, which is why `qa-reviewer` still reads
@@ -206,7 +206,7 @@ Full Spec Kit flow. Two human gates.
 
    The suite is green before any reviewer or gate is asked to look. A reviewer
    reading broken code reviews the wrong thing.
-8. **G2 — blocking.** The PR is opened with both gate reports attached. The
+8. **G2 -- blocking.** The PR is opened with both gate reports attached. The
    maintainer reviews it and runs `make test` locally, because CI does not run the
    `functional` suite.
 
@@ -218,7 +218,7 @@ documentation either updated or declared unaffected in the PR body.
 
 ## 2. `/factory-bug`
 
-Reproduction first. No spec document — **the failing test is the spec.**
+Reproduction first. No spec document -- **the failing test is the spec.**
 
 ```
 failing test, committed → fix → green
@@ -239,7 +239,7 @@ failing test, committed → fix → green
 
 **Exit criteria**: the reproduction test passes, `make test` is green,
 `make stan` is clean, style is clean. The PR shows both
-commits — red then green — so a reviewer can see the test was written first.
+commits -- red then green -- so a reviewer can see the test was written first.
 
 **Escalation still applies.** If the fix touches a sensitive path, adds a
 migration, changes a public API, or exceeds 400 lines, the maintainer reviews it
@@ -247,7 +247,7 @@ even though a bug fix has no G1.
 
 **If the reproduction cannot be written**, stop and escalate. A bug that cannot
 be reproduced by a test is either not understood yet, or is a design question in
-disguise — in both cases it is not a bug-pipeline change.
+disguise -- in both cases it is not a bug-pipeline change.
 
 ---
 
@@ -264,15 +264,15 @@ root-cause analysis → ▣ approve root cause → failing exploit test (PoC)
 **Steps**
 
 **(a) Root-cause analysis, written.** A document stating:
-- **Vulnerability class** — injection, broken access control, race, insecure
+- **Vulnerability class** -- injection, broken access control, race, insecure
   deserialization, weak crypto, information disclosure, and so on. Name the class,
   because the class is what the variant analysis searches for.
-- **Entry points** — the routes, commands, message handlers or ingestion paths
+- **Entry points** -- the routes, commands, message handlers or ingestion paths
   through which untrusted input reaches the flaw. Cite `file:line`.
-- **Impact** — what an attacker gets: which data, whose account, what side effect.
+- **Impact** -- what an attacker gets: which data, whose account, what side effect.
   State the preconditions honestly, including authentication level required.
 
-**(b) HUMAN GATE — blocking, never auto-passed.** The maintainer approves the root
+**(b) HUMAN GATE -- blocking, never auto-passed.** The maintainer approves the root
 cause. Approving the root cause is what authorises work on the fix; a fix built
 before this gate is a fix built against a guess.
 
@@ -282,7 +282,7 @@ rule and same reason as the bug pipeline. It lives with the other tests and stay
 in the suite permanently as a regression guard.
 
 **(d) Fix.** The smallest change that closes the vulnerability. If the fix must be
-larger than 400 lines, split it and say so in the PR — but never split it in a way
+larger than 400 lines, split it and say so in the PR -- but never split it in a way
 that leaves the vulnerability half-open between PRs.
 
 **(e) Variant analysis.** Search the **whole codebase** for other instances of the
@@ -296,9 +296,9 @@ candidate with `file:line` and a one-line assessment.
 > the others.
 
 An empty variant list is a valid result, but it must be an actual search with the
-search terms recorded — not an assumption.
+search terms recorded -- not an assumption.
 
-**(f) HUMAN GATE — blocking, never auto-passed.** The maintainer reviews the fix
+**(f) HUMAN GATE -- blocking, never auto-passed.** The maintainer reviews the fix
 and the variant list together, then decides which variants get their own pipeline
 run and in what order.
 
