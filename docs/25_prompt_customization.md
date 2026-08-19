@@ -102,6 +102,20 @@ changes the style for **every** persona at once; editing a persona's description
 that persona. (A small set of CORE rules — anti-unmask, stay-on-email, no out-of-band channel,
 careful-buyer, language fidelity — is always applied and is never editable from either place.)
 
+## Multilingual by design
+
+Scammers operate in many languages, so ScamBuster does too. Detection rules (threats,
+authority impersonation, urgency cues), persona system prompts, and strategy guidance ship
+with non-English content **on purpose** — it is operational data that lets the honeypot
+engage scammers in their own language, and it is exactly the kind of content you are meant
+to adapt here.
+
+The codebase itself (identifiers, comments, logs) is English; the non-English strings you
+see in seed data and prompts are intentional, not untranslated code. Add or adapt languages
+by editing the persona and detection seed data — no code change. Language fidelity (replying
+in the language the scammer wrote in) is one of the CORE rules enforced in code, so an
+override can add a language but can never make a persona answer in the wrong one.
+
 ## What you can override today
 
 | Key | Prompt | Purpose |

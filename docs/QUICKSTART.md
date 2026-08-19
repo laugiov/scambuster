@@ -75,7 +75,20 @@ Everything else works out of the box with sensible defaults.
 
 > **No OpenAI key?** Set `LLM_PROVIDER=mock` in `.env` to run without an API key (replies will be synthetic). You can load sample data with `make demo-load` after setup.
 
+**LLM providers** (switch with one env var):
+
+| Provider | `LLM_PROVIDER=` | Data Location | Best For |
+|----------|-----------------|---------------|----------|
+| **OpenAI** | `openai` | Cloud | Best quality (GPT-4o) |
+| **Anthropic** | `anthropic` | Cloud | Alternative (Claude) |
+| **Ollama** | `ollama` | **100% local** | Sovereign deployment |
+| **Mock** | `mock` | Local | Demo (no API key, no cost) |
+
 ### 3. Launch ScamBuster
+
+**Two ways to deploy** — do it **by hand** with this guide, or hand it to an **AI agent**
+(Claude Code, Cursor, Copilot, …) with [AI_DEPLOYMENT.md](AI_DEPLOYMENT.md), a
+tool-agnostic runbook with the secret-handling and guardrails an agent needs.
 
 ```bash
 make quickstart
@@ -176,11 +189,14 @@ Check the results:
 
 ## Default credentials
 
-| Service | Login | Password |
-|---------|-------|----------|
-| **n8n** | `admin@scambuster.local` | `Scambuster2026!` |
-| **Backend API** | `user@example.com` | `Un1que$trongPassword2024` |
-| **PostgreSQL** | `postgres` | `postgres` |
+| Service | Login | Password | Role |
+|---------|-------|----------|------|
+| **n8n** | `admin@scambuster.local` | `Scambuster2026!` | n8n owner |
+| **Backend API** | `user@example.com` | `Un1que$trongPassword2024` | `ROLE_USER` |
+| **Backend API** | `admin@example.com` | `Un1que$trongPassword2024` | `ROLE_ADMIN` |
+| **PostgreSQL** | `postgres` | `postgres` | — |
+
+The two backend accounts are created by the fixtures `make quickstart` loads.
 
 ⚠️ **Change all default passwords before exposing ScamBuster to the internet.**
 
@@ -271,7 +287,15 @@ docker compose up -d --force-recreate backend-dev
 
 ## Production deployment
 
-For production, change these values in `.env`:
+`make quickstart` is the local/developer path (dev server, demo data). For a real
+deployment use the self-contained production image and compose file —
+**[Production deployment runbook](runbooks/production-deployment.md)**
+(`docker compose -f docker-compose.prod.yml up -d --build` — nginx + php-fpm, no demo
+data, migrations auto-run). An agent can follow the Production section of
+[AI_DEPLOYMENT.md](AI_DEPLOYMENT.md).
+
+Before exposing anything, change `POSTGRES_PASSWORD` (and `DATABASE_URL` to match) and
+`JWT_PASSPHRASE` (`openssl rand -hex 32`). In full, change these values in `.env`:
 
 ```env
 # Generate unique values
