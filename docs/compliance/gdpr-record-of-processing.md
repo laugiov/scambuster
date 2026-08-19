@@ -1,4 +1,4 @@
-# GDPR — Record of Processing Activities (Article 30)
+# GDPR -- Record of Processing Activities (Article 30)
 
 Template record for an operator deploying ScamBuster. Fill in the operator-specific
 fields (controller identity, DPO, jurisdictions). ScamBuster ships the technical
@@ -14,7 +14,7 @@ controls; the operator is the **data controller** and owns this record.
 ## 2. Purposes and lawful basis
 - **Purpose:** engage inbound scammers from synthetic honeypot identities to extract and
   share fraud indicators (accounts, wallets, phones, infrastructure) for detection and takedown.
-- **Lawful basis:** **Article 6(1)(f) — legitimate interests** (network/information security and
+- **Lawful basis:** **Article 6(1)(f) -- legitimate interests** (network/information security and
   fraud prevention; Recital 47 recognizes fraud-prevention as a legitimate interest). A
   balancing test is recorded in the DPIA (`docs/09_dpia_template.md`).
 - **No special-category data** is sought or required (Art 9).
@@ -23,13 +23,13 @@ controls; the operator is the **data controller** and owns this record.
 | Data subject | Categories of data |
 |--------------|--------------------|
 | The scammer (sender of unsolicited mail) | Self-supplied content: email address, message text, financial/contact IOCs they disclose |
-| Synthetic operator personas | Not data subjects — fabricated identities, no real person |
+| Synthetic operator personas | Not data subjects -- fabricated identities, no real person |
 
 **Note:** the honeypot receives only unsolicited adversary mail addressed to synthetic
 personas; it has no customer or employee data by design. Third-party personal data can
 still arrive *inside* adversary messages (impersonated identities, forwarded threads,
 financial identifiers whose holders may be mule/victim accounts). Financial identifiers
-are therefore export-held until analyst confirmation — see the
+are therefore export-held until analyst confirmation -- see the
 [mule/victim account policy](mule-victim-account-policy.md).
 
 ## 4. Recipients
@@ -40,7 +40,7 @@ are therefore export-held until analyst confirmation — see the
 ## 5. Processors / sub-processors
 | Processor | Role | Data exposed | Safeguard |
 |-----------|------|--------------|-----------|
-| LLM provider (OpenAI / Anthropic) | Reply generation, classification, IOC extraction | Scammer message text sent for inference | **DPA required** (see `data-processing-agreements.md`). Avoidable: run `LLM_PROVIDER=ollama` (fully local) or `mock` — then **no data leaves the operator's infrastructure**. |
+| LLM provider (OpenAI / Anthropic) | Reply generation, classification, IOC extraction | Scammer message text sent for inference | **DPA required** (see `data-processing-agreements.md`). Avoidable: run `LLM_PROVIDER=ollama` (fully local) or `mock` -- then **no data leaves the operator's infrastructure**. |
 | Hosting provider | Compute/storage | All stored data | Operator's standard hosting DPA |
 
 ## 6. International transfers
@@ -50,17 +50,17 @@ are therefore export-held until analyst confirmation — see the
 ## 7. Retention
 | Data | Retention | Mechanism |
 |------|-----------|-----------|
-| Conversation content | **90 days** soft-delete (policy ceiling: 6 months) → 12 months permanent erasure | Soft-delete: `app:cleanup:weekly`, automatic, Sundays 04:00 UTC (`--conv-days`, default 90). Permanent erasure: same weekly job, via `PurgeService`. **Reported only by default** — the eligible volume is logged on every run; the deletion itself requires the explicit `--erase` flag, which the scheduled invocation does not pass. |
+| Conversation content | **90 days** soft-delete (policy ceiling: 6 months) → 12 months permanent erasure | Soft-delete: `app:cleanup:weekly`, automatic, Sundays 04:00 UTC (`--conv-days`, default 90). Permanent erasure: same weekly job, via `PurgeService`. **Reported only by default** -- the eligible volume is logged on every run; the deletion itself requires the explicit `--erase` flag, which the scheduled invocation does not pass. |
 | Audit log | 12 months (policy) | integrity chain preserved; archive/purge is an operator procedure (not auto-purged) |
 
 **Scope of the soft-delete, stated honestly.** Only conversations whose status is `closed`
 are soft-deleted. A conversation that is never closed is not currently reached by the
-retention job — a known gap, tracked separately.
+retention job -- a known gap, tracked separately.
 
 **What "soft-delete" does and does not do.** It stamps a deletion timestamp on the
 conversation. Messages are deliberately *not* stamped: they are removed at permanent-erasure
 time, through the message foreign-key cascade. Until erasure runs, message content is still
-stored — which is why the eligible volume is reported on every weekly run rather than left
+stored -- which is why the eligible volume is reported on every weekly run rather than left
 unmeasured.
 
 ## 8. Technical & organisational measures (Art 32)

@@ -1,4 +1,4 @@
-# RACI — Security & Operations Responsibilities
+# RACI -- Security & Operations Responsibilities
 
 R = Responsible (does the work) · A = Accountable (final owner, one per row) ·
 C = Consulted · I = Informed.

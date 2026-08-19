@@ -4,7 +4,7 @@
 > story of how each was elicited, scammer TTPs on a scam kill chain, threat-actor
 > clusters with their psychological profile, and sightings.
 
-The transport is the [TAXII 2.1 server](16_taxii_server.md) — that page is the
+The transport is the [TAXII 2.1 server](16_taxii_server.md) -- that page is the
 protocol reference. This one is the integration guide: what to configure, what
 lands where in OpenCTI, and the traps.
 
@@ -14,11 +14,11 @@ lands where in OpenCTI, and the traps.
 
 - A running OpenCTI (validated against **7.260728.0**).
 - ScamBuster reachable from the OpenCTI **container**, not just from your browser
-  — see [Networking](#networking-opencti-in-docker) below.
+  -- see [Networking](#networking-opencti-in-docker) below.
 - `TAXII_API_KEY` set in ScamBuster's `.env`. **A JWT will not do**: it expires
   after 900 seconds, after which every poll returns `401`. What was already
   imported stays in the platform, so the feed looks populated while it has in
-  fact stopped — the failure is only visible in the OpenCTI logs.
+  fact stopped -- the failure is only visible in the OpenCTI logs.
 
 ```bash
 # in ScamBuster's .env, then restart the backend
@@ -42,7 +42,7 @@ In OpenCTI: **Data** → **Ingestion** → **TAXII Feeds** → **Add TAXII Feed*
 per row above:
 
 - **TAXII Server URL**: `http://<scambuster-host>:8081/api/v1/taxii2/api/`
-  (the API root — OpenCTI appends `collections/{id}/objects/` itself)
+  (the API root -- OpenCTI appends `collections/{id}/objects/` itself)
 - **Version**: `2.1`
 - **Collection**: the id from the table
 - **Authentication type**: `basic`, value `taxii:<your TAXII_API_KEY>`
@@ -59,7 +59,7 @@ If OpenCTI runs in Docker on the same host, a `localhost` URL points at the
 OpenCTI container itself, and **`host.docker.internal` does not resolve on Linux**
 unless you add it explicitly. Two options:
 
-**Shared Docker network (recommended)** — the containers then talk directly, no
+**Shared Docker network (recommended)** -- the containers then talk directly, no
 host ports involved:
 
 ```bash
@@ -75,11 +75,11 @@ http://backend-dev:8080/api/v1/taxii2/api/
 Make it survive a redeploy by declaring `scambuster_scambuster` as an external
 network in your OpenCTI compose file.
 
-**Host gateway** — keep the published port and target the bridge gateway address
+**Host gateway** -- keep the published port and target the bridge gateway address
 (`docker network inspect <network>` → `IPAM.Config[].Gateway`, typically
 `172.x.0.1`), e.g. `http://172.20.0.1:8081/api/v1/taxii2/api/`.
 
-Check before configuring the feed — a wrong URL surfaces as a silent, permanently
+Check before configuring the feed -- a wrong URL surfaces as a silent, permanently
 failing ingestion:
 
 ```bash
@@ -99,7 +99,7 @@ understand them, but everything that matters is mirrored onto standard fields:
 | ScamBuster intelligence | Where it lands |
 |---|---|
 | Elicitation story (turn, stimulus, semantic role, urgency, PII-free excerpt) | Indicator **description** |
-| Scam type, IOC role, stimulus, persona, analyst verdict | Indicator **labels** — `scam-type:…`, `ioc-role:…`, `stimulus:…`, `persona:…`, `analyst:…` |
+| Scam type, IOC role, stimulus, persona, analyst verdict | Indicator **labels** -- `scam-type:…`, `ioc-role:…`, `stimulus:…`, `persona:…`, `analyst:…` |
 | ATT&CK technique, MISP taxonomy | Indicator **external references** |
 | Scammer TTPs | **Attack patterns** with `scambuster-scam-phases` kill-chain phases |
 | TTP frequency per actor | **Sightings** (count, first/last seen) |
@@ -145,7 +145,7 @@ kill chains mitre-attack / defense-evasion
             scambuster-scam-phases / hook
 ```
 
-Nothing is lost in the merge — an analyst pivoting from ATT&CK finds the scam
+Nothing is lost in the merge -- an analyst pivoting from ATT&CK finds the scam
 phase, and one pivoting from the scam phase finds the ATT&CK technique.
 
 ---
@@ -160,7 +160,7 @@ OpenCTI workers, so counts climb for a few minutes after the first poll.
 docker logs <opencti-container> --since 10m 2>&1 | grep -iE "taxii|ingestion" | tail
 ```
 
-For reference, here is what one install produced — the seeded demo dataset plus a
+For reference, here is what one install produced -- the seeded demo dataset plus a
 single live-captured conversation, both feeds running. Your numbers will differ;
 the point is that all four rows are non-zero:
 
@@ -180,7 +180,7 @@ A zero in the second or third row means the `…0003` feed is missing or failing
 **Indicators arrive without observables.** OpenCTI creates Indicators from the
 feed but no Cyber Observables, so connectors that enrich observables
 (VirusTotal, AbuseIPDB, Shodan) have nothing to act on until observables exist.
-Turning that on is an OpenCTI-side decision — check your platform's rules engine
+Turning that on is an OpenCTI-side decision -- check your platform's rules engine
 and ingestion settings for the current release.
 
 **IOC types with no STIX equivalent stay opaque.** Message-IDs, Telegram handles,
@@ -195,7 +195,7 @@ own extended pattern types (`x-opencti-phone-number`, `x-opencti-bank-account`,
 ships the `identity` and `marking-definition` SDOs inside every unfiltered TAXII
 envelope, so `created_by_ref` and `object_marking_refs` resolve on a fresh
 platform. A response filtered with `?type=…` contains only the requested type, by
-design — do not build an ingestion on a type-filtered URL.
+design -- do not build an ingestion on a type-filtered URL.
 
 **Rotating `TAXII_API_KEY` breaks every consumer at once.** There is no overlap
 window: change the value, restart the backend, then update each feed's
@@ -210,14 +210,14 @@ authentication. Expect a few failed polls in between.
 | Ingestion runs once, then every poll returns `401` | The feed is configured with a JWT (900s lifetime). Use `TAXII_API_KEY` over HTTP Basic. |
 | `Feed fetch failed` from the first poll | The URL is unreachable *from the container*. Test with the `wget` above. |
 | Feed green, but no TTP or actor in OpenCTI | Only the IOC collection is wired. Add the `…0003` feed. |
-| Indicators arrive with no description or labels | ScamBuster predates the interoperability mirror — update, or check the objects on the wire with the API-root URL above. |
+| Indicators arrive with no description or labels | ScamBuster predates the interoperability mirror -- update, or check the objects on the wire with the API-root URL above. |
 | `Failed to patch taxii ingestion success status` in the OpenCTI logs | An OpenCTI-side warning on its own `last_execution_status` field (seen on 7.260728.0). Harmless, unrelated to ScamBuster. |
 
 ---
 
 ## Related
 
-- [TAXII 2.1 Server](16_taxii_server.md) — protocol, collections, pagination, credentials
-- [MISP Integration](13_misp_integration.md) — the other CTI path, per-conversation Event export
-- [Threat-Actor Profiling](21_threat_actor_profiling.md) — what the psychological profile means
-- [Reading the TTP screens](26_reading_the_ttp_screens.md) — the same TTP data inside ScamBuster
+- [TAXII 2.1 Server](16_taxii_server.md) -- protocol, collections, pagination, credentials
+- [MISP Integration](13_misp_integration.md) -- the other CTI path, per-conversation Event export
+- [Threat-Actor Profiling](21_threat_actor_profiling.md) -- what the psychological profile means
+- [Reading the TTP screens](26_reading_the_ttp_screens.md) -- the same TTP data inside ScamBuster

@@ -1,4 +1,4 @@
-# Standards track — status of the TTP taxonomy
+# Standards track -- status of the TTP taxonomy
 
 This is the decision record the taxonomy export command points to. It says what the taxonomy is,
 what it was mapped against, how the mapping was done, and why it is not published as a standard.
@@ -61,19 +61,19 @@ and no inter-annotator agreement.
 Five of the six pre-existing `mitre-attack` references point at ids that are **not among the 123 ids
 in the pinned bundle**: `T1566`, `T1566.001`, `T1566.002`, and `T1656` (which appears on two
 entries). Only `T1598` is in both catalogues. Whether that reflects a scoping decision by the CTID
-or something else is not something we checked — the bundle carries no scope statement. The practical
+or something else is not something we checked -- the bundle carries no scope statement. The practical
 lesson is narrower: an id that looks fraud-adjacent in ATT&CK is not necessarily in F3, so check
 membership against the bundle instead of assuming.
 
 ## Why it is not published as a standalone standard
 
 The evidence base does not support it. Measured on 2026-08-14, **98.2% of the TTP observations in
-the database are synthetic** — written by `scambuster:ttp:demo-seed`, which describes its own output
-as "deterministic, phrase-matched approximations — NOT real model extractions". Real extraction has
+the database are synthetic** -- written by `scambuster:ttp:demo-seed`, which describes its own output
+as "deterministic, phrase-matched approximations -- NOT real model extractions". Real extraction has
 produced **6 observations**, over 6 techniques, **one conversation each**, and only 2 of the 6 carry
 a quote found verbatim in the source text.
 
-The qualification threshold — five distinct conversations — was written down in the spec **before
+The qualification threshold -- five distinct conversations -- was written down in the spec **before
 the measurement**, not chosen afterwards. No technique reaches it.
 
 Proposing techniques to a standards body on that basis would not hold up, so we do not.
@@ -96,7 +96,7 @@ its only vocabulary, with an instruction never to emit a code outside the list. 
 cannot contradict the taxonomy, nor surface a technique it does not already contain.
 
 So the honest wording, here and in any future write-up, is **"behaviours our grid distinguishes that
-F3 does not distinguish"** — never "behaviours F3 does not cover".
+F3 does not distinguish"** -- never "behaviours F3 does not cover".
 
 ## Adding a source name
 
@@ -105,7 +105,7 @@ change: it needs a per-entry mapping exercise like the one above, a taxonomy ver
 compatibility note.
 
 Charm Security's HVE was considered and dropped. As of 2026-08-14 we found no published technique
-catalogue for it — only a CVE-style registration format (`arxiv.org/abs/2606.10083`), for which we
+catalogue for it -- only a CVE-style registration format (`arxiv.org/abs/2606.10083`), for which we
 found no released records. There is nothing to map against.
 
 We found no MISP galaxy for F3, so `TtpMispTagProvider` maps ATT&CK references only and F3
@@ -115,12 +115,12 @@ references produce no MISP tag. If a galaxy appears, that is the place to change
 
 `taxonomy-v1.0.json` and `taxonomy-v1.1.json` are both committed. A published file is never
 rewritten: v1.0 is exactly what it was, so anything that pinned it keeps working. v1.1 is v1.0 plus
-the F3 references — no code, phase, or definition changed.
+the F3 references -- no code, phase, or definition changed.
 
 Note for anyone editing the taxonomy: the seed migration inserts with `ON CONFLICT (code) DO
 NOTHING`, so on a database that already ran it, changing the seed updates no row. A mapping change
 needs a data migration as well. `TtpTaxonomyConsistencyTest::testExternalRefsHaveABackfillMigration`
-enforces that, and the backfill writes **all 27 codes**, empty ones included — writing only the
+enforces that, and the backfill writes **all 27 codes**, empty ones included -- writing only the
 non-empty ones would leave a dropped reference in place forever.
 
 _Last updated: 2026-08-14._

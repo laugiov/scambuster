@@ -14,11 +14,11 @@ operator (controller) must have a **Data Processing Agreement** with it.
 
 ## How to avoid an LLM DPA entirely
 
-ScamBuster supports fully-local inference — **no scammer content leaves the operator's
+ScamBuster supports fully-local inference -- **no scammer content leaves the operator's
 infrastructure**, so no LLM sub-processor and no international transfer:
 
-- `LLM_PROVIDER=ollama` — run an on-prem model (see the LLM provider docs).
-- `LLM_PROVIDER=mock` — deterministic synthetic replies (demo / no inference).
+- `LLM_PROVIDER=ollama` -- run an on-prem model (see the LLM provider docs).
+- `LLM_PROVIDER=mock` -- deterministic synthetic replies (demo / no inference).
 
 For sensitive deployments (CERT/government), **Ollama is the recommended posture**.
 

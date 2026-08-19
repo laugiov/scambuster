@@ -1,9 +1,9 @@
-# Enterprise SSO (OIDC) — optional
+# Enterprise SSO (OIDC) -- optional
 
 ScamBuster supports **optional** Single Sign-On via any OpenID Connect–compliant
 identity provider (Keycloak, Microsoft Entra ID, Okta, Google Workspace, Auth0, …).
 
-SSO is **off by default**. Password login is the default and is never disturbed —
+SSO is **off by default**. Password login is the default and is never disturbed --
 the OIDC endpoints return `404` until you explicitly enable the feature. Turning
 SSO on is purely additive: it gives operators a "Log in with SSO" path that mints
 the *same* local session (JWT + refresh token) a password login produces, so
@@ -75,14 +75,14 @@ Every variable is optional; leaving `OIDC_ENABLED=false` keeps SSO disabled.
 4. Restart the backend so the new environment is loaded, then browse to
    `/api/v1/auth/oidc/login`.
 
-Any other OIDC provider works the same way — only the discovery URL and client
+Any other OIDC provider works the same way -- only the discovery URL and client
 registration differ.
 
 ## Security notes
 
 - **HTTPS is required.** The state cookie is `Secure` + `HttpOnly` + `SameSite=Lax`
   and short-lived (10 min). Run behind TLS.
-- **Least privilege.** Auto-provisioning is off by default — unknown SSO identities
+- **Least privilege.** Auto-provisioning is off by default -- unknown SSO identities
   are refused until an admin creates the local account. Turn it on only with an
   `OIDC_ALLOWED_EMAIL_DOMAINS` allow-list.
 - **Secrets.** `OIDC_CLIENT_SECRET` is a secret: keep it in `.env.local` or your

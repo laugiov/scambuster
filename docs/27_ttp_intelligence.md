@@ -8,7 +8,7 @@ description of the module; for the analyst-facing screens it produces, see
 TTPs are tagged on inbound messages against a **closed, 27-entry taxonomy** spanning a
 six-phase scam kill chain (hook, trust-building, payment-request, escalation,
 channel-switch, exit). A stimulus is something **our persona** does; a TTP is something
-**the scammer** does — the two are kept strictly separate, and the analytical value is the
+**the scammer** does -- the two are kept strictly separate, and the analytical value is the
 crossing **stimulus → TTP → IOC**.
 
 > **Note on metrics.** The TTP module was added **after** the nine-month production window
@@ -18,10 +18,10 @@ crossing **stimulus → TTP → IOC**.
 
 ## Extraction
 
-**Inbound-only LLM tagging** — our own replies are never analysed. Each observation carries
+**Inbound-only LLM tagging** -- our own replies are never analysed. Each observation carries
 a confidence, a `confirmed` / `review` status (below a configurable threshold, nothing is
 silently dropped), a verbatim evidence quote (**stored internally only**, never in any API
-response or export — consumers see character offsets), and model/prompt provenance.
+response or export -- consumers see character offsets), and model/prompt provenance.
 
 ## Read APIs
 
@@ -49,7 +49,7 @@ taxonomy's own standards status is recorded in [standards-track.md](standards-tr
 
 `scambuster:ttp:backfill` (historical extraction, preview by default, budget-capped,
 idempotent) and `scambuster:ttp:audit-sample` (random-sample CSV for a manual precision
-audit — the only path by which evidence text leaves the database).
+audit -- the only path by which evidence text leaves the database).
 
 ## Feature flag and failure mode
 

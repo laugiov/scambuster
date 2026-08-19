@@ -286,7 +286,7 @@ the box. Outbound replies use the global `MAILER_DSN`. If you set
 > trigger has already marked it as read (`Action: Mark as Read`) and the workflow
 > only ever searches `UNSEEN`, so it is never fetched again.
 
-**Step 1 — register the mailbox in the backend.** The `--email` must exactly match
+**Step 1 -- register the mailbox in the backend.** The `--email` must exactly match
 the address that mailbox receives mail at (matching is case-insensitive, and only
 `is_active` accounts are considered):
 
@@ -300,19 +300,19 @@ docker compose exec backend-dev bin/console app:mail-account:add \
 ```
 
 `--owner-id` is a free-form owner identity (any UUID); reuse the same one across
-your mailboxes. `--smtp-dsn` is optional — without it the mailbox replies through
+your mailboxes. `--smtp-dsn` is optional -- without it the mailbox replies through
 the global `MAILER_DSN`, which breaks DKIM/SPF alignment if the reply-from domain
 differs. `--label` is optional too, but a mailbox without one shows as `--` in the
 dashboard's *Mailbox* column and cannot be selected in its mailbox filter.
 
-**Step 2 — give the mailbox its own IMAP trigger in n8n.** Duplicate
+**Step 2 -- give the mailbox its own IMAP trigger in n8n.** Duplicate
 `WF-INTAKE-EMAIL-V2`, create an IMAP credential for the new mailbox, and point the
 duplicate's `IMAP Email Trigger` node at that credential. Do **not** repoint the
 existing workflow's node: a node holds one credential, so that would move your
 first mailbox onto the second one rather than add it.
 
 One workflow per mailbox is the recommended layout. n8n does activate every trigger
-node in a workflow, so several triggers in a single workflow also work — but n8n
+node in a workflow, so several triggers in a single workflow also work -- but n8n
 aborts activation of the **whole** workflow if any one trigger fails to start, so a
 single expired app password would silently stop collection on every mailbox sharing
 that workflow.
@@ -320,11 +320,11 @@ that workflow.
 Apply the [reliable IMAP polling settings](#reliable-imap-polling-for-the-n8n-intake-workflows)
 to each new trigger, otherwise that mailbox will drop messages.
 
-**Step 3 — keep the new address out of your IOCs.** Add it to
+**Step 3 -- keep the new address out of your IOCs.** Add it to
 `HONEYPOT_EMAIL_ADDRESSES` in `.env` (comma-separated; it defaults to
 `HONEYPOT_IMAP_USER` only). Otherwise your own honeypot address is extracted as an
 IOC and exported to your CTI feeds. If all your honeypots live on a domain you own,
-set `HONEYPOT_DOMAINS` instead — one entry covers every current and future mailbox
+set `HONEYPOT_DOMAINS` instead -- one entry covers every current and future mailbox
 on that domain. Both are read at container start, so restart the backend after
 editing them.
 
@@ -375,7 +375,7 @@ To make the intake workflows reliable across providers, configure the IMAP trigg
 **Why this matters**:
 
 - `Force Reconnect Every Minutes = 2` instructs n8n to recycle the connection cleanly every 2 minutes, before any provider-side timeout has a chance to fire. The error path (`Connected closed unexpectedly` → reactivation) is never triggered.
-- `Fetch Only New Emails = false` disables n8n's internal UID tracking and forces a real `SEARCH UNSEEN` against the server at every reconnect. Combined with `Mark as Read`, the IMAP server itself becomes the source of truth for "already processed" — no internal state to desynchronize, no duplicates.
+- `Fetch Only New Emails = false` disables n8n's internal UID tracking and forces a real `SEARCH UNSEEN` against the server at every reconnect. Combined with `Mark as Read`, the IMAP server itself becomes the source of truth for "already processed" -- no internal state to desynchronize, no duplicates.
 
 This stateless-polling pattern is portable across all standards-compliant IMAP providers and works whether your provider keeps IDLE connections open for hours or closes them within minutes. Worst-case ingestion delay is about 2 minutes.
 
@@ -525,7 +525,7 @@ scambuster/
 
 A plain `docker compose up` (and `make quickstart`) starts the **default** services
 only. The others sit behind [Compose profiles](https://docs.docker.com/compose/how-tos/profiles/)
-and start when you name them explicitly (`docker compose up -d backend-test` —
+and start when you name them explicitly (`docker compose up -d backend-test` --
 naming a service auto-activates its profile) or activate the profile
 (`docker compose --profile preprod up -d`).
 
@@ -652,7 +652,7 @@ make composer-install
 ```
 
 `make up` / `make upd` do this automatically on a fresh clone, and `make doctor`
-reports it explicitly. Do not remove the bind-mount — it is what makes local edits
+reports it explicitly. Do not remove the bind-mount -- it is what makes local edits
 visible without rebuilding the image.
 
 ### "Cannot find the redis extension" error

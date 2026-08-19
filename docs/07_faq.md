@@ -55,8 +55,8 @@ ScamBuster uses **eight specialized agents**:
 2. **IocExtractor**: Extracts indicators (36 IOC types, hybrid regex + LLM)
 3. **Generator**: Creates contextual responses
 4. **Validator**: Ensures safety and quality (PolicyGuard + LLM scoring)
-5. **ConversationDirector**: Steers the Generator each turn — tracks what the correspondent has already revealed (so the persona never re-asks), infers the extraction objective from the scam's mechanics, and signals when an exchange is no longer productive so it can be closed
-6. **InjectionDetector**: Analyzes inbound messages for prompt-injection attempts (forensic, non-blocking — it observes and stores, it never blocks)
+5. **ConversationDirector**: Steers the Generator each turn -- tracks what the correspondent has already revealed (so the persona never re-asks), infers the extraction objective from the scam's mechanics, and signals when an exchange is no longer productive so it can be closed
+6. **InjectionDetector**: Analyzes inbound messages for prompt-injection attempts (forensic, non-blocking -- it observes and stores, it never blocks)
 7. **Orchestrator**: Coordinates agents and optimizes costs
 8. **TtpExtractor**: Tags scammer tactics (TTPs) on inbound messages against a closed 27-entry ATT&CK-aligned taxonomy (inbound-only, feature-flagged)
 

@@ -1,7 +1,7 @@
 # Deploying ScamBuster with an AI agent
 
-This runbook lets an AI coding agent (Claude Code, Cursor, Copilot, …) — or a
-human — install and run ScamBuster end to end. It was written against a real,
+This runbook lets an AI coding agent (Claude Code, Cursor, Copilot, …) -- or a
+human -- install and run ScamBuster end to end. It was written against a real,
 verified deployment. Follow it top to bottom.
 
 > **Single source of truth**: the exact commands live in [`docs/QUICKSTART.md`](QUICKSTART.md).
@@ -9,19 +9,19 @@ verified deployment. Follow it top to bottom.
 
 ---
 
-## Step 0 — Ask the operator for their details FIRST (before anything else)
+## Step 0 -- Ask the operator for their details FIRST (before anything else)
 
 **The `.env` must be fully filled in BEFORE you run `make quickstart`.** The install
 configures the honeypot mailbox and the n8n IMAP credential *from `.env` during the
-install itself* — so if the mailbox / SMTP / LLM values are still placeholders when
+install itself* -- so if the mailbox / SMTP / LLM values are still placeholders when
 you run `make quickstart`, live email capture and replies will silently not work,
 even though the dashboard looks alive (it shows demo data).
 
-So, as the very first action — **before cloning** — an AI agent must ask the operator
+So, as the very first action -- **before cloning** -- an AI agent must ask the operator
 to gather and provide these (some take a few minutes to obtain):
 
 - **Honeypot mailbox**: IMAP host + address + an **app password**
-  (Gmail: enable 2FA, then create an App Password — this can take a few minutes).
+  (Gmail: enable 2FA, then create an App Password -- this can take a few minutes).
 - **SMTP DSN** for sending replies (e.g. `smtps://user:app-password@smtp.gmail.com:465`).
 - **LLM API key** (OpenAI by default), or the decision to run demo-only with
   `LLM_PROVIDER=mock`.
@@ -31,7 +31,7 @@ explicitly chosen demo-only mode.
 
 ---
 
-## Guardrails (read first — do not skip)
+## Guardrails (read first -- do not skip)
 
 1. **`make quickstart` runs `docker compose down -v`, which DELETES the project's
    volumes.** Only run it on a **fresh/empty** environment. Before running it,
@@ -47,7 +47,7 @@ explicitly chosen demo-only mode.
    secret values back.
 3. **Do not commit `.env`.** It is git-ignored by design; keep it that way.
 4. This runbook was validated on **one environment** (Linux, Docker 28, x86). It is
-   not proof it works everywhere — see Troubleshooting for the known gotchas.
+   not proof it works everywhere -- see Troubleshooting for the known gotchas.
 
 ---
 
@@ -56,7 +56,7 @@ explicitly chosen demo-only mode.
 - **Docker** + **Docker Compose v2** (`docker compose version`).
 - **git**, **openssl**, **curl**.
 - ~**4 GB free disk** and ~**4 GB free RAM** for the stack (first build compiles PHP
-  extensions and pulls the n8n image — allow 5–15 min on a cold cache).
+  extensions and pulls the n8n image -- allow 5–15 min on a cold cache).
 - A **mailbox** to use as the honeypot: IMAP host + address + an **app password**
   (for Gmail: enable 2FA, then create an App Password), and an **SMTP DSN** for
   sending replies.
@@ -77,7 +77,7 @@ git clone <repo-url> scambuster && cd scambuster
 cp .env.dist .env
 ```
 
-### 3. Generate the crypto keys (agent does this — no human secret needed)
+### 3. Generate the crypto keys (agent does this -- no human secret needed)
 Write them straight into `.env`; do not echo the values:
 ```bash
 sed -i "s|^APP_SECRET=.*|APP_SECRET=$(openssl rand -hex 16)|" .env
@@ -87,12 +87,12 @@ sed -i "s|^AUDIT_HMAC_KEY=.*|AUDIT_HMAC_KEY=$(openssl rand -hex 32)|" .env
 ```
 
 ### 4. Fill in the operator's secrets (human edits the file)
-Ask the human to edit `.env` and set these — **in the file, not in the chat**:
+Ask the human to edit `.env` and set these -- **in the file, not in the chat**:
 - `HONEYPOT_IMAP_HOST` / `HONEYPOT_IMAP_PORT` (Gmail: `imap.gmail.com` / `993`)
-- `HONEYPOT_IMAP_USER` — the honeypot mailbox address
-- `HONEYPOT_IMAP_PASSWORD` — its IMAP app password
-- `MAILER_DSN` — e.g. `smtps://user:app-password@smtp.gmail.com:465`
-- `LLM_API_KEY` — the OpenAI key (leave `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o-mini`)
+- `HONEYPOT_IMAP_USER` -- the honeypot mailbox address
+- `HONEYPOT_IMAP_PASSWORD` -- its IMAP app password
+- `MAILER_DSN` -- e.g. `smtps://user:app-password@smtp.gmail.com:465`
+- `LLM_API_KEY` -- the OpenAI key (leave `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o-mini`)
 
 ### 5. Install (one command)
 ```bash
@@ -101,12 +101,12 @@ make quickstart
 It starts with a preflight (host ports, existing volumes) that runs **before** the
 destructive `down -v`, then builds the images, starts the stack, runs migrations +
 fixtures, generates JWT keys, loads a demo dataset, **auto-configures n8n** (admin
-account, workflow import + activation, and the IMAP credential — all derived from
+account, workflow import + activation, and the IMAP credential -- all derived from
 `.env`), and finishes by running `make doctor`. No manual n8n UI step is needed for
 the default mailbox.
 
 If the final `doctor` reports failures, the stack is up but **not usable for live
-mail** — fix `.env`, reload it with
+mail** -- fix `.env`, reload it with
 `docker compose up -d --force-recreate backend-dev scheduler`, and re-run `make doctor`.
 Do not report the deployment as working until doctor passes.
 
@@ -154,10 +154,10 @@ curl -s -o /dev/null -w "login %{http_code}\n" -X POST http://localhost:8081/api
   `container_name`s in a `docker-compose.override.yml`.
 - **`make quickstart` aborts with `Bind for 0.0.0.0:<port> failed: port is already
   allocated`.** The default stack publishes **8081** (backend), **3002** (frontend)
-  and **5678** (n8n) — **8082** (backend-preprod) and **5433** (postgres-preprod)
+  and **5678** (n8n) -- **8082** (backend-preprod) and **5433** (postgres-preprod)
   only with the `preprod` Compose profile active. An unrelated container on the host
   holding any of them stops the install. `make quickstart` checks the published
-  ports up front — before its destructive `down -v` — and names the
+  ports up front -- before its destructive `down -v` -- and names the
   offending container. Fix by stopping that container, or remap the port in
   `docker-compose.override.yml`:
 
@@ -184,7 +184,7 @@ curl -s -o /dev/null -w "login %{http_code}\n" -X POST http://localhost:8081/api
 
 Everything above uses the **developer** stack (`make quickstart`: `php -S`, a Vite
 dev server, and a demo dataset). For a **real** deployment, use the production compose
-file instead — one self-contained app image (nginx + php-fpm serving the API and the
+file instead -- one self-contained app image (nginx + php-fpm serving the API and the
 built frontend on a single port) plus PostgreSQL, Redis, n8n, and a scheduler.
 
 > **Single source of truth for prod:** [`docs/runbooks/production-deployment.md`](runbooks/production-deployment.md).
@@ -193,13 +193,13 @@ built frontend on a single port) plus PostgreSQL, Redis, n8n, and a scheduler.
 
 ### What differs from the quickstart (an agent must internalize this)
 
-- **Command:** `docker compose -f docker-compose.prod.yml up -d --build` — **not**
+- **Command:** `docker compose -f docker-compose.prod.yml up -d --build`, **not**
   `make quickstart`.
 - **It does NOT run `docker compose down -v`.** Unlike quickstart, the prod path never
   deletes volumes. Still: never run `down -v` against a prod stack you care about.
 - **Migrations run automatically on container boot**, followed by an idempotent,
   **insert-only** reference seed (channels, directions, 14 scam types, persona links,
-  default admin). Re-running is safe — it never updates or deletes rows.
+  default admin). Re-running is safe -- it never updates or deletes rows.
 - **No demo data.** The instance starts empty except for reference/lookup data.
 - **Secrets are real environment variables**, provided via `.env`, and are **not**
   baked into the image (a root `.dockerignore` excludes `.env` and the JWT keys from
@@ -212,16 +212,16 @@ built frontend on a single port) plus PostgreSQL, Redis, n8n, and a scheduler.
    `TOTP_ENCRYPTION_KEY`, `AUDIT_HMAC_KEY`, `N8N_ENCRYPTION_KEY`,
    `POSTGRES_PASSWORD`) with `openssl`, write them straight into `.env`, never echo
    them. `TOTP_ENCRYPTION_KEY` and `AUDIT_HMAC_KEY` **must** be `openssl rand -hex 32`
-   (64 hex chars) — the container fails fast otherwise.
+   (64 hex chars) -- the container fails fast otherwise.
 2. **Use `JWT_PASSPHRASE`, not `JWT_SECRET`.** Prod signs JWTs with RS256; the old
    `JWT_SECRET` HS256 value is not used.
-3. **The human provides** the honeypot mailbox, `MAILER_DSN`, and `LLM_API_KEY` — in
+3. **The human provides** the honeypot mailbox, `MAILER_DSN`, and `LLM_API_KEY` -- in
    the file, not the chat.
 4. **Change the seeded admin password immediately.** The seed creates
    `user@example.com` with a public default password so the first login works; rotate
    it before the instance is reachable with
    `bin/console app:user:set-password user@example.com` (or create your own admin with
-   `app:user:create --email=... --admin --generate` — see runbook §6 and User
+   `app:user:create --email=... --admin --generate`; see runbook §6 and User
    management). These commands hash via the app hasher and audit-log the change.
 5. **TLS is the operator's job:** the app is plain HTTP on `:8080`; a reverse proxy
    terminates TLS in front of it, and n8n (`:5678`) stays firewalled.

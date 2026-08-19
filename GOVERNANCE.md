@@ -34,9 +34,9 @@ Security vulnerabilities are handled via [SECURITY.md](SECURITY.md). Do NOT open
 Operators are the data controllers for their deployment. The compliance and
 governance material lives in [docs/compliance/](docs/compliance/README.md):
 data classification, GDPR record of processing (Art 30) + DPAs, breach-notification
-procedure (Art 33/34), and a living risk register. Operational security procedures —
+procedure (Art 33/34), and a living risk register. Operational security procedures --
 the [Incident Response Plan](docs/runbooks/incident-response-plan.md), post-mortem
-template, [RACI](docs/runbooks/RACI.md), and key-rotation runbooks — are under
+template, [RACI](docs/runbooks/RACI.md), and key-rotation runbooks -- are under
 [docs/runbooks/](docs/runbooks/).
 
 ## Code of Conduct

@@ -3,7 +3,7 @@
 The documentation entry point. Start with the [project README](../README.md) for what
 ScamBuster is and how to see it running; everything below is the detail.
 
-Community-driven: evaluate it yourself — run the demo, read the code, form your own view.
+Community-driven: evaluate it yourself -- run the demo, read the code, form your own view.
 
 ## Start here
 
@@ -35,7 +35,7 @@ Community-driven: evaluate it yourself — run the demo, read the code, form you
 | [Threat-Actor Profiling](21_threat_actor_profiling.md) | Per-actor psychological + behavioural fingerprint (Cialdini levers) |
 | [TTP Intelligence](27_ttp_intelligence.md) | Scammer tactics: taxonomy, extraction, APIs, export, feature flag |
 | [Analyst Feedback](24_analyst_feedback.md) | Human confirm / false-positive verdicts that become authoritative confidence across STIX, TAXII, MISP and CSV feeds |
-| [Reading the Threat-Actor screen](23_reading_the_threat_actor_screen.md) | Field guide to the Cluster Detail page — every indicator explained, with demo talking points |
+| [Reading the Threat-Actor screen](23_reading_the_threat_actor_screen.md) | Field guide to the Cluster Detail page -- every indicator explained, with demo talking points |
 | [Reading the TTP screens](26_reading_the_ttp_screens.md) | Field guide to the TTP Explorer tabs, per-TTP detail pages, review queue and conversation causality chips |
 | [Metrics Catalog](22_metrics_catalog.md) | Metric definitions and provenance |
 | [Data Validation](18_data_validation.md) | Audit commands for IOC, cluster, and classification quality |

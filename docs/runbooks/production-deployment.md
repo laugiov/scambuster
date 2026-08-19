@@ -1,7 +1,7 @@
 # Production deployment
 
 This runbook stands up a **real** ScamBuster instance from the production compose
-file — a self-contained application image (nginx + php-fpm, serving the API **and**
+file -- a self-contained application image (nginx + php-fpm, serving the API **and**
 the built React frontend on one port) plus PostgreSQL, Redis, n8n, and a scheduler.
 
 It is a separate, standalone path from the developer quickstart:
@@ -10,7 +10,7 @@ It is a separate, standalone path from the developer quickstart:
 |---|---|---|
 | App server | `php -S` (dev), Vite dev server (`:3002`) | nginx + php-fpm via supervisord, one port |
 | Frontend | separate dev server | built once, served same-origin by nginx |
-| Data | loads a **demo dataset** | **no** demo data — your data only |
+| Data | loads a **demo dataset** | **no** demo data -- your data only |
 | Reference/lookup data | fixtures | migrations + an idempotent SQL seed |
 | Secrets | bind-mounted `.env` | real environment variables, no secrets in the image |
 | `APP_ENV` | `dev` | `prod` (OPcache on, debug off) |
@@ -29,7 +29,7 @@ It is a separate, standalone path from the developer quickstart:
 - **Docker** + **Docker Compose v2** (`docker compose version`).
 - **git**, **openssl**.
 - ~**4 GB free disk** and ~**4 GB RAM**. The first build compiles PHP extensions,
-  builds the frontend, and pulls the n8n image — allow 5–15 min on a cold cache.
+  builds the frontend, and pulls the n8n image -- allow 5–15 min on a cold cache.
 - A **honeypot mailbox** (IMAP host + address + app password) and an **SMTP DSN**
   for sending replies.
 - An **LLM API key** (OpenAI by default), or `LLM_PROVIDER=mock` to run without one.
@@ -52,7 +52,7 @@ build context); the container writes its runtime `.env` from the environment at 
 
 ## 2. Generate the crypto secrets
 
-Write them straight into `.env` — do not echo the values:
+Write them straight into `.env` -- do not echo the values:
 
 ```bash
 sed -i "s|^APP_SECRET=.*|APP_SECRET=$(openssl rand -hex 16)|"            .env
@@ -64,7 +64,7 @@ sed -i "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 16)|"     
 ```
 
 The container **fails fast** at boot if `APP_SECRET`, `TOTP_ENCRYPTION_KEY`,
-`AUDIT_HMAC_KEY`, or `JWT_PASSPHRASE` are missing — it never boots half-configured.
+`AUDIT_HMAC_KEY`, or `JWT_PASSPHRASE` are missing -- it never boots half-configured.
 `TOTP_ENCRYPTION_KEY` and `AUDIT_HMAC_KEY` **must** be 64 hex chars (32 bytes) each.
 
 > The JWT signing keypair (RS256) is **generated inside the container on first boot**
@@ -72,17 +72,17 @@ The container **fails fast** at boot if `APP_SECRET`, `TOTP_ENCRYPTION_KEY`,
 
 ## 3. Fill in the operator's secrets
 
-Edit `.env` and set — **in the file, not on a command line**:
+Edit `.env` and set -- **in the file, not on a command line**:
 
 - `HONEYPOT_IMAP_HOST` / `HONEYPOT_IMAP_PORT` (Gmail: `imap.gmail.com` / `993`)
-- `HONEYPOT_IMAP_USER` — the honeypot mailbox address
-- `HONEYPOT_IMAP_PASSWORD` — its IMAP app password
-- `MAILER_DSN` — e.g. `smtps://user:app-password@smtp.gmail.com:465`
-- `LLM_API_KEY` — the OpenAI key (leave `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o-mini`)
-- `INGEST_LOGIN` / `INGEST_PASSWORD` — credentials n8n uses to post to the API
-- `CORS_ALLOW_ORIGIN` — the public origin you will serve from
+- `HONEYPOT_IMAP_USER` -- the honeypot mailbox address
+- `HONEYPOT_IMAP_PASSWORD` -- its IMAP app password
+- `MAILER_DSN` -- e.g. `smtps://user:app-password@smtp.gmail.com:465`
+- `LLM_API_KEY` -- the OpenAI key (leave `LLM_PROVIDER=openai`, `LLM_MODEL=gpt-4o-mini`)
+- `INGEST_LOGIN` / `INGEST_PASSWORD` -- credentials n8n uses to post to the API
+- `CORS_ALLOW_ORIGIN` -- the public origin you will serve from
   (e.g. `https://scambuster.example.com`)
-- `N8N_DEFAULT_USER_EMAIL` / `N8N_DEFAULT_USER_PASSWORD` — the n8n admin login
+- `N8N_DEFAULT_USER_EMAIL` / `N8N_DEFAULT_USER_PASSWORD` -- the n8n admin login
 
 Optional ports (default shown): `APP_PORT=8080`, `N8N_HTTP_PORT=5678`.
 
@@ -98,8 +98,8 @@ On first boot the app container automatically, in order:
 2. waits for PostgreSQL,
 3. generates the RS256 JWT keypair (once),
 4. runs all database migrations,
-5. seeds reference/lookup data — channels, directions, the 14 scam types, the
-   scam-type→persona links, and a default admin — with an **idempotent, insert-only**
+5. seeds reference/lookup data -- channels, directions, the 14 scam types, the
+   scam-type→persona links, and a default admin -- with an **idempotent, insert-only**
    seed (safe to re-run; it never updates or deletes),
 6. registers the honeypot mailbox from `.env`,
 7. starts nginx + php-fpm.
@@ -127,12 +127,12 @@ curl -s -X POST http://localhost:8080/api/v1/auth/login \
 - API docs: <http://localhost:8080/api/doc>
 - n8n: <http://localhost:5678>
 
-## 6. Change the default admin password — IMMEDIATELY
+## 6. Change the default admin password -- IMMEDIATELY
 
 The seed creates `user@example.com` with a **public, documented** password
 (`Un1que$trongPassword2024`) so you can log in the first time. **Change it before the
 instance is reachable by anyone else**, with the built-in CLI (interactive, hidden
-prompt — the password is never shown or stored in shell history):
+prompt -- the password is never shown or stored in shell history):
 
 ```bash
 docker compose -f docker-compose.prod.yml exec app bin/console app:user:set-password user@example.com
@@ -151,7 +151,7 @@ See [User management](#user-management) for the full command set.
 ## 7. Put TLS in front
 
 The app speaks plain HTTP on `:8080`. Terminate TLS with a reverse proxy and forward
-to it. Keep n8n (`:5678`) firewalled or behind the proxy with its own auth — do not
+to it. Keep n8n (`:5678`) firewalled or behind the proxy with its own auth -- do not
 expose it publicly. Minimal Caddy example:
 
 ```
@@ -176,7 +176,7 @@ the mailbox credentials) sits on `edge` only, so a compromised n8n **cannot reac
 PostgreSQL or Redis directly**. The app and scheduler are dual-homed: they reach
 the data store over `data` and keep the outbound access they need over `edge`.
 
-**Legitimate egress** (from `app` / `scheduler` on `edge`) — build your host
+**Legitimate egress** (from `app` / `scheduler` on `edge`) -- build your host
 firewall / egress allowlist from this list:
 
 | Destination | Purpose | When |
@@ -187,14 +187,14 @@ firewall / egress allowlist from this list:
 | Enrichment providers (VirusTotal / urlscan, if configured) | IOC scoring | Per IOC |
 
 Nothing else needs egress. For a fully self-contained deployment, run a local LLM
-(`LLM_PROVIDER=ollama`) and no external enrichment — then only SMTP/IMAP leave the
+(`LLM_PROVIDER=ollama`) and no external enrichment -- then only SMTP/IMAP leave the
 host, and `data` stays internal as shipped.
 
 **Embeddings follow `LLM_PROVIDER` too.** With `ollama` (or `mock`) the semantic
 vectors are produced locally, so no message text is sent out to be embedded. Set
 `LLM_EMBEDDING_MODEL` to your local embedding model (e.g. `nomic-embed-text`); the
 vector dimension is taken from the model output. **Switching the embedding model
-requires re-embedding the corpus** — vectors from different models/dimensions are
+requires re-embedding the corpus** -- vectors from different models/dimensions are
 not comparable. Each `message_vector` row records its `model_name` and `dim`, so a
 future backfill can detect and re-embed stale rows; re-run `app:generate-embeddings`
 after a switch.
@@ -257,9 +257,9 @@ checks, and stale-conversation closure on a ~30-minute loop. Watch it with:
 docker compose -f docker-compose.prod.yml logs -f scheduler
 ```
 
-### LLM provider resilience — circuit breaker
+### LLM provider resilience -- circuit breaker
 Every **chat/completion** call to the active LLM provider goes through a circuit
-breaker (embeddings are out of scope — those clients already fail safe to an empty
+breaker (embeddings are out of scope -- those clients already fail safe to an empty
 vector). After `LLM_CIRCUIT_BREAKER_THRESHOLD` consecutive provider-health failures
 (default 5) it **opens**: for the next `LLM_CIRCUIT_BREAKER_COOLDOWN` seconds
 (default 30) calls fail fast instead of hammering a provider that is already down.
@@ -268,7 +268,7 @@ success closes the breaker, the first failure re-opens it. State is shared acros
 the app, scheduler and canary-worker via Redis (`cache.app`).
 
 - **Only real outages count.** Timeouts, connection errors, 5xx and malformed
-  responses trip the breaker. Client-side errors — 4xx and 429 rate-limits — do
+  responses trip the breaker. Client-side errors -- 4xx and 429 rate-limits -- do
   **not**, so a burst of rejected requests (e.g. a flood pushing the provider into
   429s) cannot manufacture an outage. Rate-limiting is handled separately by the LLM
   rate limiter.
@@ -278,16 +278,16 @@ the app, scheduler and canary-worker via Redis (`cache.app`).
   intel (TTP/IOC) capture.
 - **Effect on callers when open** (same as the provider being down): TTP/IOC
   extraction catches the error and yields nothing (no observations persisted);
-  reply generation lets it propagate — **no email is sent** (the honeypot stays
+  reply generation lets it propagate -- **no email is sent** (the honeypot stays
   silent for that turn), it does *not* emit a canned reply. Nothing scammer-
   influenced is ever sent on this path.
-- **Observe it:** logs on the `llm` channel — `circuit opened`, `failing fast`,
+- **Observe it:** logs on the `llm` channel -- `circuit opened`, `failing fast`,
   `probe succeeded, circuit closed` (each carries the per-purpose `key`).
 - **Tune / disable:** `LLM_CIRCUIT_BREAKER_THRESHOLD`, `LLM_CIRCUIT_BREAKER_COOLDOWN`
   (keep `LLM_CIRCUIT_BREAKER_TTL` ≥ cooldown; it is clamped up to the cooldown
-  anyway). `LLM_CIRCUIT_BREAKER_ENABLED=0` disables it — these are read at
+  anyway). `LLM_CIRCUIT_BREAKER_ENABLED=0` disables it -- these are read at
   container-build time, so changing any of them is a **restart/redeploy**, not a
-  runtime toggle. Redis being unavailable never blocks LLM calls — the breaker
+  runtime toggle. Redis being unavailable never blocks LLM calls -- the breaker
   fails open.
 - **Force-recover now:** to clear a stuck-open breaker without waiting out the
   cooldown, delete its Redis key:

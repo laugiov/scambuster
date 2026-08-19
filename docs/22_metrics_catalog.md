@@ -262,7 +262,7 @@ truth: `ImpactHandler` (tiles + charts), `ScammerEngagementCalculator`
 
 ### 5.1 Scam Type Code
 - **Displayed in**: Conversation list / scam type badge
-- **Formula**: LLM classifies conversation messages into one of 14 predefined scam types (PHISHING, PHISH_CREDENTIALS, PHISH_MALWARE, INVOICE_FRAUD, CEO_FRAUD, ROMANCE, LOTTERY, CHARITY, ADVANCE_FEE_419, INVESTMENT, TECH_SUPPORT, JOB_OFFER, COLD_SERVICE_SPAM, UNKNOWN). The set is closed — the classifier never invents a code; anything unmatched falls to UNKNOWN.
+- **Formula**: LLM classifies conversation messages into one of 14 predefined scam types (PHISHING, PHISH_CREDENTIALS, PHISH_MALWARE, INVOICE_FRAUD, CEO_FRAUD, ROMANCE, LOTTERY, CHARITY, ADVANCE_FEE_419, INVESTMENT, TECH_SUPPORT, JOB_OFFER, COLD_SERVICE_SPAM, UNKNOWN). The set is closed -- the classifier never invents a code; anything unmatched falls to UNKNOWN.
 - **Data source**: `conversation.scam_type_id` FK -> `lkp_scam_type.code` (PostgreSQL), populated by `ScamClassificationHandler` via `ScamClassifier` LLM call
 - **Provenance**: :yellow_circle: LLM-Derived
 - **LLM details**:

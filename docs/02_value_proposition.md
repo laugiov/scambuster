@@ -97,7 +97,7 @@ wallets, phones, Telegram usernames, file hashes…) enriched with **semantic co
 | **Urgency scoring** | How much pressure the surrounding message carries |
 | **Context excerpt** | A short, **PII-free** quote showing how the IOC was used |
 
-The enrichment prompt itself is operator-configurable (`contextual_enrichment`) — see
+The enrichment prompt itself is operator-configurable (`contextual_enrichment`) -- see
 [Prompt Customization](25_prompt_customization.md). The stimulus attribution is what the
 stimulus → TTP → IOC crossing is built from ([TTP Intelligence](27_ttp_intelligence.md)),
 and an analyst verdict can override the confidence attached to any of these IOCs

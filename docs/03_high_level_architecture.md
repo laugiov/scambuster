@@ -85,7 +85,7 @@ Workflow engine coordinates all processing steps:
 
 ### 3. LLM Pipeline
 
-**Eight agents** form the core pipeline (the Injection Detector is forensic — it observes prompt-injection attempts but never blocks; the Conversation Director steers the Generator each turn; the TTP Extractor is an inbound-only CTI tagger, feature-flagged and added after the white-paper window):
+**Eight agents** form the core pipeline (the Injection Detector is forensic -- it observes prompt-injection attempts but never blocks; the Conversation Director steers the Generator each turn; the TTP Extractor is an inbound-only CTI tagger, feature-flagged and added after the white-paper window):
 
 ```
                     ┌─────────────────┐
@@ -140,13 +140,13 @@ Director is an LLM reasoning step (a single judgement pass, reused across the
 turn) that gives the Generator a strategic brief instead of relying on brittle
 string matching:
 
-- **Anti-repetition** — it lists, semantically and in any language, the
+- **Anti-repetition** -- it lists, semantically and in any language, the
   information the correspondent has already revealed, so the persona never asks
   for the same thing twice (a common tell that a reply is automated).
-- **Objective** — it infers the goal for the current turn from the scam's own
+- **Objective** -- it infers the goal for the current turn from the scam's own
   mechanics (for example, steering a fake-services pitch toward a price, an
   invoice, and a payment method), rather than a fixed per-scam-type script.
-- **Correspondent state & stop signal** — it reads whether the correspondent is
+- **Correspondent state & stop signal** -- it reads whether the correspondent is
   cooperative, stalling, suspicious, or disengaged, and can signal that the
   exchange is no longer productive. When it does, the pipeline closes the
   conversation instead of sending another reply (see *Conversation Lifecycle
@@ -272,7 +272,7 @@ Standard formats for integration:
 
 The value fed back to the bandit at conversation end is a **hybrid reward**. A
 purely mechanical score (engagement duration, IOC counts, completion) is easy to
-inflate — a long, repetitive exchange that yields nothing of value can still look
+inflate -- a long, repetitive exchange that yields nothing of value can still look
 "successful". To avoid that, an LLM judges the *actual outcome* of the finished
 conversation (did it surface high-value operational intelligence such as
 payment/cash-out details, was engagement genuine, or was the persona exposed and
@@ -300,7 +300,7 @@ Each scam type has a dedicated lifecycle policy controlling timeouts, turn limit
 1. **Inactivity timeout**: No messages for N hours (per scam type)
 2. **Max turns**: Conversation exchange limit reached
 3. **Max duration**: Calendar time limit exceeded
-4. **Strategic stop**: The Conversation Director judged the exchange no longer productive (correspondent disengaged or challenging the persona's authenticity with no path to further intelligence) — the conversation is closed instead of continuing
+4. **Strategic stop**: The Conversation Director judged the exchange no longer productive (correspondent disengaged or challenging the persona's authenticity with no path to further intelligence) -- the conversation is closed instead of continuing
 
 **Reopen window**: Long-engagement scam types allow reopening within 48-72h if the scammer returns.
 
@@ -385,13 +385,13 @@ Configuration: `SIEM_PROVIDER` env var. See [SIEM Integration Guide](15_siem_int
 | **Database** | PostgreSQL 15 | JSON support, reliability, access control |
 | **Cache & Locks** | Redis 7 | Rate limiting, distributed locks |
 | **Frontend** | React 19, TypeScript, TailwindCSS, i18n (EN/FR) | Operations dashboard and analyst screens |
-| **LLM** | Multi-provider — OpenAI, Anthropic, Ollama (full local), Mock (dev). OpenAI API by default (GPT-4o-mini generation, configurable; GPT-4o-mini validation) | Cost-effective default, upgradable to larger models for generation; provider switched with one env var |
+| **LLM** | Multi-provider -- OpenAI, Anthropic, Ollama (full local), Mock (dev). OpenAI API by default (GPT-4o-mini generation, configurable; GPT-4o-mini validation) | Cost-effective default, upgradable to larger models for generation; provider switched with one env var |
 | **Embeddings** | OpenAI text-embedding-3-small | Semantic similarity for campaign clustering ($0.02/1M tokens) |
 | **Orchestration** | n8n (self-hosted) | Visual debugging, 400+ integrations |
 | **Secrets** | Environment variables / Docker secrets | IMAP credentials, API keys |
 | **Monitoring** | Prometheus metrics, LLM cost tracking, pipeline tracing | Operational visibility per reply and per call |
 | **Infrastructure** | Docker Compose, GitHub Actions CI | Single-host deployment, automated checks |
-| **SIEM** | CEF, ECS, JSON — pluggable connector | See [SIEM Export](#siem-export) above |
+| **SIEM** | CEF, ECS, JSON -- pluggable connector | See [SIEM Export](#siem-export) above |
 | **CI/CD** | GitHub Actions | PHPStan, PHP-CS-Fixer, PHPUnit |
 
 > **Data sovereignty**: Deploy with `LLM_PROVIDER=ollama` for 100% on-premise processing.

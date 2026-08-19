@@ -1,8 +1,8 @@
-# Gate report — `<G1 | G2 | SEC-G1 | SEC-G2>`
+# Gate report -- `<G1 | G2 | SEC-G1 | SEC-G2>`
 
 <!--
-One report per gate. The maintainer reads gate reports and deltas — not full
-artifacts — except at G1 (they read the spec) and G2 (they read the PR).
+One report per gate. The maintainer reads gate reports and deltas -- not full
+artifacts -- except at G1 (they read the spec) and G2 (they read the PR).
 
 So: this document must be readable on its own. "See the spec" is not a summary.
 Keep it under a page. Delete the guidance comments; keep the headings.
@@ -16,7 +16,7 @@ For the bug pipeline, which has no specs/ directory: factory/gate-reports/<branc
 | **Pipeline** | `feature` \| `bug` \| `security` |
 | **Gate** | G1 / G2 / SEC-G1 / SEC-G2 |
 | **Branch** | |
-| **Spec** | `specs/<branch>/spec.md`, or "none — the failing test is the spec" |
+| **Spec** | `specs/<branch>/spec.md`, or "none -- the failing test is the spec" |
 | **Date** | |
 | **Decision requested** | One sentence: what exactly you are asking the maintainer to approve. |
 
@@ -24,7 +24,7 @@ For the bug pipeline, which has no specs/ directory: factory/gate-reports/<branc
 
 <!--
 For the first gate of a run, this is what the run produced so far. For a later
-gate, this is the delta only — the maintainer already read the earlier report,
+gate, this is the delta only -- the maintainer already read the earlier report,
 and repeating it hides the new part.
 -->
 
@@ -39,7 +39,7 @@ Standard format, one per line:
 BLOCKING requires a requirement ID that exists in the spec, or a failing
 executable test. Everything else is ADVISORY and cannot block the stage.
 
-Include objections that were raised and then withdrawn — a reviewer changing
+Include objections that were raised and then withdrawn -- a reviewer changing
 their mind is information, and deleting the line hides it.
 -->
 
@@ -95,14 +95,14 @@ checking, not an empty table.
 | frontend gates | pass / fail / n/a | only if `frontend-react/` was touched |
 | coverage vs base | | |
 | patch coverage | | % of changed lines covered |
-| mutation score (Infection) | | MSI on changed files — reported, not blocking |
+| mutation score (Infection) | | MSI on changed files -- reported, not blocking |
 | TDD order | pass / fail / n/a | feature pipeline only; list any `TDD-exempt` claims |
 | documentation impact | | docs updated, or the `Docs-impact: none` reason |
 | `/speckit-analyze` | | |
 | tasks cite requirement IDs | | |
 
 <!--
-"Not run" is an allowed and sometimes necessary answer — for example in an
+"Not run" is an allowed and sometimes necessary answer -- for example in an
 environment with no Docker daemon, where none of these can execute. It is never
 acceptable to write "pass" for something that was not run.
 -->

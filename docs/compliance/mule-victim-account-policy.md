@@ -10,7 +10,7 @@ used in fraud are **money-mule accounts**, and mule-account holders are
 frequently **scam victims themselves** (romance-scam "money transfer agents",
 job-scam "payment processors"). Treating every elicited IBAN as "threat-actor
 infrastructure" and sharing it in CTI feeds can therefore put an innocent
-person's bank account on consumer blocklists — a concrete, hard-to-reverse harm
+person's bank account on consumer blocklists -- a concrete, hard-to-reverse harm
 to a data subject who is a victim, not a perpetrator.
 
 This is the platform's most significant residual privacy risk, and it is *not*
@@ -30,7 +30,7 @@ adversary's own messages.
    surface** (TAXII feed, STIX bundle exports, MISP export, flat IOC feed,
    cluster STIX export) until a human analyst records a `confirmed` verdict via
    the analyst-feedback loop (docs/24_analyst_feedback.md). Internal UI views
-   are intentionally NOT filtered — the analyst must see held IOCs to review
+   are intentionally NOT filtered -- the analyst must see held IOCs to review
    them.
 
 3. **False positives never ship.** An IOC with an analyst `false_positive`
@@ -52,11 +52,11 @@ adversary's own messages.
    the hosting provider / financial institution of record) is intentionally
    NOT gated by this policy: reporting a suspect account *to its own bank* is
    the correct, harm-reducing channel for a suspected mule account, and is a
-   directed communication — not feed-wide broadcast.
+   directed communication -- not feed-wide broadcast.
 
 ## Enforcement (code)
 
-- `App\Domain\Communication\Policy\IocExportPolicy` — single source of truth
+- `App\Domain\Communication\Policy\IocExportPolicy` -- single source of truth
   (PHP predicate + SQL condition).
 - Wired into: `TaxiiService` (IOC collection), `IocStixExportHandler`,
   `ConversationStixExportHandler`, `IocFeedExporter` (CSV/NDJSON),
@@ -71,7 +71,7 @@ adversary's own messages.
 The DPIA (docs/09_dpia_template.md) no longer claims "no processing of data
 from innocent third parties". The accurate claim is: the system never
 *contacts* third parties (inbound-only, code-enforced), and data that may
-belong to third parties — above all financial identifiers — is **quarantined
+belong to third parties -- above all financial identifiers -- is **quarantined
 from dissemination** until human review. This hold is a safeguard in the
 Art. 6(1)(f) balancing test for the data-subject category "possible mule/victim
 account holder".

@@ -1,4 +1,4 @@
-# ScamBuster — Quickstart Guide
+# ScamBuster -- Quickstart Guide
 
 Get ScamBuster running in under 5 minutes.
 
@@ -15,7 +15,7 @@ Get ScamBuster running in under 5 minutes.
 2. Enable **2-Step Verification** if not already done
 3. Go to https://myaccount.google.com/apppasswords
 4. Create an App Password named "ScamBuster"
-5. Copy the 16-character code (e.g., `abcd efgh ijkl mnop` — remove spaces)
+5. Copy the 16-character code (e.g., `abcd efgh ijkl mnop` -- remove spaces)
 
 ## Installation
 
@@ -32,7 +32,7 @@ cd scambuster
 cp .env.dist .env
 ```
 
-Open `.env` in your editor and fill in these **4 values now — before you run
+Open `.env` in your editor and fill in these **4 values now -- before you run
 `make quickstart`**. The install registers your honeypot mailbox and the n8n IMAP
 credential *from `.env` during setup*, so filling them in afterwards means live email
 capture won't work until you re-run. (If you leave the placeholders, `make quickstart`
@@ -86,7 +86,7 @@ Everything else works out of the box with sensible defaults.
 
 ### 3. Launch ScamBuster
 
-**Two ways to deploy** — do it **by hand** with this guide, or hand it to an **AI agent**
+**Two ways to deploy** -- do it **by hand** with this guide, or hand it to an **AI agent**
 (Claude Code, Cursor, Copilot, …) with [AI_DEPLOYMENT.md](AI_DEPLOYMENT.md), a
 tool-agnostic runbook with the secret-handling and guardrails an agent needs.
 
@@ -111,7 +111,7 @@ This single command:
 
 > **It deletes existing data.** Step 1 is `docker compose down -v`, which drops the
 > project's volumes. If ScamBuster volumes already exist, the preflight lists them and
-> asks you to type `yes`. Non-interactive runs abort instead — pass `FORCE=1 make
+> asks you to type `yes`. Non-interactive runs abort instead -- pass `FORCE=1 make
 > quickstart` to accept the loss, after backing up if needed:
 > `docker compose exec -T postgres pg_dump -U postgres -d scambuster > backup.sql`
 
@@ -157,11 +157,11 @@ Send a test email to your honeypot address to start!
 make doctor
 ```
 
-All required checks should show ✅. Warnings (⚠️) on `N8N_ENCRYPTION_KEY` and `INGEST_LOGIN` are expected in dev — change them for production.
+All required checks should show ✅. Warnings (⚠️) on `N8N_ENCRYPTION_KEY` and `INGEST_LOGIN` are expected in dev -- change them for production.
 
 The **CREDENTIALS (live)** section is the one that matters for real use: it logs into
 your mailbox over IMAP, authenticates against your SMTP relay, and calls your LLM
-provider. The other checks only prove a value is *present* in `.env` — an expired API
+provider. The other checks only prove a value is *present* in `.env` -- an expired API
 key or a revoked app password looks perfectly valid to them, installs without a
 warning, and only shows up later as mail that is captured but never classified or
 answered. Add `DOCTOR_SKIP_LIVE=1` to skip these when running offline.
@@ -176,8 +176,8 @@ Send an email to your honeypot address from any other email account. Within 1-2 
 4. The reply is sent via SMTP with proper email threading
 
 Check the results:
-- **Dashboard**: http://localhost:3002 — see conversations, IOCs, analytics
-- **n8n**: http://localhost:5678 — see workflow executions
+- **Dashboard**: http://localhost:3002 -- see conversations, IOCs, analytics
+- **n8n**: http://localhost:5678 -- see workflow executions
 
 ## Interfaces
 
@@ -243,7 +243,7 @@ chmod -R 777 backend-symfony/vendor backend-symfony/var
 Two different causes, and they need different fixes.
 
 **Application source** is bind-mounted (`./backend-symfony:/app`), so edits under
-`src/` are live — no rebuild, at most a container restart.
+`src/` are live -- no rebuild, at most a container restart.
 
 **Anything baked into the image** is not: `composer.lock`, the Dockerfile, PHP
 extensions. The backend services share one image tag, `scambuster-backend:ci`,
@@ -256,7 +256,7 @@ docker compose up -d --build backend-dev
 
 The tag is shared by `backend-dev`, `backend-test`, `backend-e2e`,
 `backend-preprod`, `scheduler` and `canary-worker`, so a stale image affects all
-six at once — including the containers your tests run in.
+six at once -- including the containers your tests run in.
 
 ### n8n shows "Workflow does not exist" error
 
@@ -288,9 +288,9 @@ docker compose up -d --force-recreate backend-dev
 ## Production deployment
 
 `make quickstart` is the local/developer path (dev server, demo data). For a real
-deployment use the self-contained production image and compose file —
+deployment use the self-contained production image and compose file --
 **[Production deployment runbook](runbooks/production-deployment.md)**
-(`docker compose -f docker-compose.prod.yml up -d --build` — nginx + php-fpm, no demo
+(`docker compose -f docker-compose.prod.yml up -d --build`: nginx + php-fpm, no demo
 data, migrations auto-run). An agent can follow the Production section of
 [AI_DEPLOYMENT.md](AI_DEPLOYMENT.md).
 
