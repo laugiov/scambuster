@@ -25,6 +25,8 @@ All commands use the project's **Makefile** to abstract Docker and Symfony inter
 ```bash
 # Clone the repository
 git clone https://github.com/laugiov/scambuster.git
+# Note: if cloning on Windows, you may want to use:
+git clone  -c core.autocrlf=false https://github.com/laugiov/scambuster.git
 cd scambuster
 
 # Create your local environment file
