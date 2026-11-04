@@ -61,7 +61,7 @@ and why `architecture-reviewer` reads every change that crosses a layer.
 
 ### II. Language and framework standards
 
-- PHP **8.3** is the runtime (all three images pin `php:8.3.27`). `composer.json`
+- PHP **8.3** is the runtime (all three images pin `php:8.3.36`). `composer.json`
   declares a `>=8.2` floor; do not rely on 8.3-only syntax without raising the
   floor first, and raising it is its own change with its own spec.
 - `declare(strict_types=1)` in every PHP file. Enforced by PHP-CS-Fixer.

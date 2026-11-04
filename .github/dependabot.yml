@@ -31,3 +31,19 @@ updates:
     labels:
       - "dependencies"
       - "ci"
+
+  # Base image updates (PHP, Node, nginx, ...). Without this, the pinned
+  # `FROM php:8.3.x` in the Dockerfiles below never gets bumped and the
+  # runtime silently falls behind its security patches.
+  - package-ecosystem: "docker"
+    directories:
+      - "/infra/docker/backend"
+      - "/infra/docker/demo"
+      - "/infra/docker/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
