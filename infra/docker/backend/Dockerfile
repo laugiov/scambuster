@@ -1,5 +1,5 @@
 # --- Build stage: install PHP dependencies and copy source code ---
-FROM php:8.3.36-cli AS build
+FROM php:8.5.12-cli AS build
 
 WORKDIR /app
 
@@ -89,7 +89,7 @@ RUN set -eu; \
 COPY backend-symfony/ ./
 
 # --- Runtime stage: minimal image for running the app ---
-FROM php:8.3.36-cli
+FROM php:8.5.12-cli
 
 WORKDIR /app
 
