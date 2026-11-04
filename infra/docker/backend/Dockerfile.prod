@@ -18,7 +18,7 @@ COPY frontend-react/ ./
 RUN npm run build          # → /fe/dist
 
 # ── Stage 2: PHP app + composer ──────────────────────────────────────────────
-FROM php:8.3.36-cli AS build
+FROM php:8.5.12-cli AS build
 WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
@@ -59,7 +59,7 @@ RUN set -eu; \
 COPY backend-symfony/ ./
 
 # ── Stage 3: production runtime (php-fpm + nginx + supervisord) ──────────────
-FROM php:8.3.36-fpm
+FROM php:8.5.12-fpm
 
 # OCI labels for provenance and compliance
 LABEL org.opencontainers.image.source="https://github.com/laugiov/scambuster" \
