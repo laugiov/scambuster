@@ -8,7 +8,7 @@
 #   docker compose -f docker-compose.prod.yml up -d --build
 
 # ── Stage 1: build the React frontend ────────────────────────────────────────
-FROM node:20-alpine AS frontend
+FROM node:26-alpine AS frontend
 WORKDIR /fe
 COPY frontend-react/package*.json ./
 RUN npm ci --no-audit --no-fund
