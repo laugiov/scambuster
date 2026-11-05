@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-05
+
+### Security
+
+- **The PHP base images were nine patch releases behind and are now current.** All three
+  backend images (dev, prod, demo) ran `php:8.3.27`. The 8.3 patch releases since then fixed
+  critical remote code execution issues in the interpreter itself, so every image shipped a
+  vulnerable runtime regardless of application code. The images now build on `php:8.3.36`,
+  the latest 8.3 patch, and the Trivy image scan reports a clean OS layer.
+- **Dependabot now tracks the Docker base images.** It watched Composer, npm and GitHub
+  Actions but not the Dockerfiles, so the pinned PHP version never updated on its own and
+  drifted behind its security patches. A `docker` ecosystem entry now proposes base image
+  updates weekly.
+- **Vulnerable Symfony and zbateson dependencies were patched.** The locked versions carried
+  newly published advisories -- access-control bypasses in `symfony/http-foundation`,
+  `symfony/routing` and `symfony/security-http`; an arbitrary file read through
+  `symfony/serializer`; an SSRF filter bypass in the `Ip` validator; and denial-of-service
+  issues in the YAML and MIME parsers. Dependencies are updated within the existing `^7.4`
+  and `^3.0` lines (Symfony to the `7.4.2x` line, `zbateson/mail-mime-parser` to `3.0.9`);
+  `composer audit` is clean.
+- **An audit for the "php2shell" class found no vulnerable path in application code.** Command
+  execution, dynamic file inclusion, deserialization and file-upload-to-shell were all
+  reviewed; the risk was in the runtime and dependency versions, now addressed, not in the
+  code.
+
 ### Safety & observability fixes
 
 - **A taxonomy test only passed on a database that had not run the F3 backfill.**
@@ -513,4 +538,6 @@ at first release rather than the internal development history.
 - Docker Compose for local install and production deployment.
 - Full documentation set, quickstart, and demo mode (no API key required).
 
+[Unreleased]: https://github.com/laugiov/scambuster/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/laugiov/scambuster/releases/tag/v1.1.0
 [1.0.0]: https://github.com/laugiov/scambuster/releases/tag/v1.0.0
